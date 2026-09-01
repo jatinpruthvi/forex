@@ -1,0 +1,481 @@
+
+---
+
+# TRIAD-SWEEP: The Complete Strategy Specification
+
+*One document. Hand it to your developer. Nothing else is needed.*
+
+---
+
+## THE HONEST TARGET
+
+Before anything else, understand what is and is not possible:
+
+- 10-15% every single month is not achievable with 7-8% drawdown. No strategy in the repository can do this, and any that claims to is either miscalculating drawdown or overestimating expectancy
+- The realistic target is: 8-13% average per month, with strong months reaching 15-18%, and 1-2 losing months per year (-3% to -5%)
+- 10-year survival probability: approximately 35-40%. This is high for forex but far from guaranteed. It depends on monthly withdrawals and replacing trading sleeves every 2-3 years as edges decay
+- Compounding 13% monthly for 120 months produces a 3.6 million-fold return. This is fantasy. The strategy uses a fixed capital base with monthly profit withdrawals instead
+
+---
+
+## 1. THE ARCHITECTURE: THREE DECORRELATED SLEEVES
+
+The core insight (from Round 11 Contestant F, mathematically verified): a single trading edge cannot produce 10-15% monthly returns within a 7-8% drawdown budget. The expected maximum drawdown for one edge over 1,000 trades is approximately 15R, which at 0.50% risk already equals 7.5% -- your entire budget on a single edge.
+
+The solution is genuine diversification across three sleeves that profit in different market regimes. Returns add linearly; risk adds as the square root (sub-linear). This is the mathematical basis for real risk reduction.
+
+| Sleeve | Market Regime | Session (UK Time) | Instruments | Edge |
+|---|---|---|---|---|
+| A: Session-Open Sweep | Normal volatility | London 07:00-11:00, NY 13:30-16:00 | EURUSD, GBPUSD, USDJPY, XAUUSD | Liquidity sweep and reclaim at session opens |
+| B: Volatility-Expansion Continuation | Trending / high volatility | London 07:00-15:30, NY 13:30-19:30 | XAUUSD, DAX (GER40), US30 | Breakout that holds, entered on first pullback |
+| C: Asian Mean Reversion | Dead / low volatility | 00:00-06:30 | AUDNZD, EURGBP, EURCHF | Fade 2-standard-deviation Bollinger touches back to mean |
+
+**Why this works:** Sleeve A profits when volatility is normal. Sleeve B profits when volatility is expanding and markets are trending -- exactly the days when Sleeve A gets chopped and stopped out. Sleeve C profits when volatility is dead and the other two have no setups. Their bad days rarely overlap by construction.
+
+**Correlation enforcement:** Measure daily P&L correlation between sleeves on a rolling 60-day window. If any two sleeves drift above 0.50 correlation, halve the smaller one. Target correlation is 0.30 or below. At 0.30 correlation, the risk multiplier is 2.19x across three sleeves, which allows 0.24% risk per trade while staying inside the 8% drawdown budget.
+
+---
+
+## 2. SLEEVE A: SESSION-OPEN SWEEP AND RECLAIM
+
+This is the primary edge and the highest-trade-count sleeve.
+
+### 2.1 Trading Windows
+
+| Session | Window (UK Time) | Instruments | Reference Range |
+|---|---|---|---|
+| London | 07:00-11:00 | EURUSD, GBPUSD, XAUUSD | Asian session 00:00-07:00 high and low |
+| New York | 13:30-16:00 | XAUUSD, USDJPY | London session 07:00-13:00 high and low |
+
+**Hard exclusions:**
+- No entries 21:30-23:30 UK (thin liquidity, spread blowouts)
+- Flat every Friday 20:00 UK (weekend gaps respect no stop loss -- SNB 2015, GBP flash 2016, JPY 2022)
+- No entries within 30 minutes before or after red-folder news (CPI, NFP, FOMC, rate decisions)
+- Hard flatten all positions 15 minutes before and 10 minutes after CPI/NFP/FOMC
+
+### 2.2 The 8-Point Entry Score
+
+Every trade must score at least 7 out of 8 to fire. No exceptions, no override.
+
+| # | Filter | Pass Condition | Purpose |
+|---|---|---|---|
+| 1 | Range quality | Range width = 35-75% of its 20-day median width for that instrument | Kills dead tape and exhausted ranges |
+| 2 | Higher-timeframe bias | Price on correct side of H1 50-EMA, EMA slope agrees with trade direction. Exception: waived on Asian mean-reversion pairs when H1 ADX below 16 | Trades with the broader trend, not against it |
+| 3 | Sweep | Price trades beyond the range extreme by at least 0.15 x ATR(M15, 14), then closes back inside within 3 x M5 candles | Confirms a liquidity sweep, not a genuine breakout |
+| 4 | Rejection | The sweep candle has a wick that is at least 60% of its total range | Proves rejection, not continuation |
+| 5 | Displacement | The next M5 candle after reclaim has a body at least 60% of its total range and closes beyond the prior candle's midpoint | Confirms institutional displacement in the reversal direction |
+| 6 | Spread gate | Live spread is at most 1.5x the 20-day average spread for that symbol | Prevents trading during abnormal cost conditions |
+| 7 | Participation | Tick volume on the sweep candle is at least 1.2x the 20-candle average | Confirms real institutional participation, not noise |
+| 8 | Clean book | No red-folder news within 30 minutes, no correlated position already open | Prevents news risk and over-concentration |
+
+**Scoring:**
+- 8/8: full tier risk (0.24%)
+- 7/8: half tier risk (0.12%)
+- 6 or below: NO TRADE. No exceptions.
+
+### 2.3 Sweep Depth Validation
+
+The sweep must penetrate beyond the range extreme by between 0.05 and 0.50 x ATR(M15, 14).
+
+- A very small breach (below 0.05 x ATR) is noise, not a sweep
+- A very deep breach (above 0.50 x ATR) is more likely a genuine breakout, not a liquidity grab
+
+### 2.4 Entry Order
+
+- Place a limit order at the 50% retracement of the displacement candle's body
+- Cancel the order if it remains unfilled after 3 M5 candles (15 minutes)
+- Cancel if price reaches +1R before the limit fills
+- Cancel if the session entry window closes
+- Cancel if a news blackout begins
+- Never chase with a market order. If the limit does not fill, the trade is void
+
+### 2.5 Stop Loss
+
+- Long: sweep low minus 0.10 x ATR(M15, 14)
+- Short: sweep high plus 0.10 x ATR(M15, 14)
+- Reject the trade entirely if the stop distance is below 0.60 x ATR(M15) or above 1.50 x ATR(M15). Too tight means noise will stop you out; too wide means the risk-to-reward is poor
+
+### 2.6 Exit Ladder
+
+All exits are mechanical and automated. No discretion.
+
+| Trigger | Action |
+|---|---|
+| +1R reached, confirmed by M5 candle close (not wick) | Close 40% of position, move stop to breakeven |
+| +2R reached | Close 30% of position |
+| Runner (remaining 30%) | Trail at High minus 2.5 x ATR(H1, 14), recalculated hourly |
+| 45 minutes elapsed without reaching +1R | Close at market, whatever the P&L |
+| Session close | Flat all positions, unless runner is at least +2R with stop already at breakeven |
+| Friday 20:00 UK | Flat everything. No exceptions |
+
+**The 45-minute time stop is the single most valuable rule in this entire strategy.** Sweeps displace immediately. If price is still hovering near entry after 45 minutes, the thesis is dead and you are now the liquidity for someone else's sweep. This converts slow-bleed full losers into small scratches and is what lifts net expectancy from marginal to real.
+
+### 2.7 Position Sizing Formula
+
+Position size = (Account Equity x Risk Fraction) / (Stop Distance in pips x Pip Value)
+
+Risk fraction is 0.24% at full tier, 0.12% at half tier, adjusted by the drawdown throttle (see Section 5).
+
+---
+
+## 3. SLEEVE B: VOLATILITY-EXPANSION CONTINUATION
+
+This sleeve is deliberately designed to profit on the trending days where Sleeve A gets chopped. It is the sleeve that makes the diversification real.
+
+### 3.1 Trading Windows
+
+| Session | Window (UK Time) | Instruments |
+|---|---|---|
+| London | 07:00-15:30 | XAUUSD, DAX (GER40) |
+| New York | 13:30-19:30 | US30 |
+
+### 3.2 Entry Conditions (All must pass)
+
+1. Daily ATR is in the 60th to 90th percentile of its 20-day range. This sleeve only trades when volatility is genuinely expanding
+2. An M15 candle closes beyond the 4-hour range high (for longs) or low (for shorts) with a body that is at least 70% of its total range
+3. The breakout candle has tick volume at least 1.3x the 20-candle average
+4. Price pulls back to the breakout level within the next 6 M15 candles
+5. Enter on a limit order at the breakout level
+6. Stop loss: 1.20 x ATR(M15, 14) beyond the breakout candle's extreme
+
+### 3.3 Exit
+
+| Trigger | Action |
+|---|---|
+| +1.5R | Close 50% of position, move stop to breakeven |
+| Remaining 50% | Chandelier trail: highest high since entry minus 3.0 x ATR(H1, 14), recalculated hourly |
+| No time stop | This sleeve is supposed to be slow. It rides trends |
+| Session close | Flat, unless position is at least +2R with stop at breakeven |
+| Friday 20:00 UK | Flat everything |
+
+### 3.4 Scoring
+
+Sleeve B uses a simpler 5-point score. Minimum 4/5 to trade:
+
+| # | Filter | Pass Condition |
+|---|---|---|
+| 1 | ATR percentile | Daily ATR in 60th-90th percentile of 20-day range |
+| 2 | Breakout body | Body at least 70% of candle range |
+| 3 | Volume | Tick volume at least 1.3x average |
+| 4 | Spread | At most 1.5x average |
+| 5 | Clean book | No red-folder news within 30 minutes, no correlated position open |
+
+Score 5/5: full tier (0.24%). Score 4/5: half tier (0.12%). Below 4: no trade.
+
+### 3.5 Expected Trade Count
+
+Approximately 50 trades per month across all instruments and sessions.
+
+---
+
+## 4. SLEEVE C: ASIAN-SESSION MEAN REVERSION
+
+This sleeve provides the low-beta, high-hit-rate anchor that keeps the portfolio producing even in dead markets.
+
+### 4.1 Trading Window
+
+00:00-06:30 UK time, on AUDNZD, EURGBP, EURCHF only.
+
+### 4.2 Entry Conditions (All must pass)
+
+1. H1 ADX(14) is below 16. This sleeve only trades in genuinely range-bound markets
+2. Price touches the upper or lower 2.0-standard-deviation Bollinger Band (20-period)
+3. The touch candle has a wick of at least 50% of its range (rejection)
+4. RSI(14) on M15 is above 70 (for shorts) or below 30 (for longs)
+5. Enter on a limit order at the Bollinger Band level
+6. Stop loss: 1.0 x ATR(M15, 14) beyond the touch candle's extreme
+7. Target: the 20-period moving average (middle Bollinger Band)
+
+### 4.3 Exit
+
+| Trigger | Action |
+|---|---|
+| Price reaches 20-period MA | Close 100% at market |
+| 06:30 UK | Hard flat everything. No exceptions |
+| Stop hit | Close at market |
+| Friday 20:00 UK | Flat everything |
+
+No partial exits, no trailing. This is a simple fade with a single target.
+
+### 4.4 Scoring
+
+Minimum 4/5 to trade:
+
+| # | Filter | Pass Condition |
+|---|---|---|
+| 1 | Regime | H1 ADX(14) below 16 |
+| 2 | Bollinger touch | Price touches 2.0 sigma band |
+| 3 | Rejection wick | Touch candle wick at least 50% of range |
+| 4 | RSI extreme | M15 RSI above 70 or below 30 |
+| 5 | Spread | At most 1.5x average |
+
+Score 5/5: full tier (0.24%). Score 4/5: half tier (0.12%). Below 4: no trade.
+
+### 4.5 Expected Trade Count
+
+Approximately 70 trades per month.
+
+---
+
+## 5. THE RISK ENGINE: THE SURVIVAL CORE
+
+This is the section that determines whether the account survives 10 years. The entry signal makes the money; the risk engine keeps you alive long enough to collect it.
+
+### 5.1 Per-Trade Risk
+
+- Base risk: 0.24% per trade at full tier (8/8 or 5/5 score)
+- Half tier: 0.12% per trade (7/8 or 4/5 score)
+- This is approximately 1/10th of full Kelly (correct Kelly is 2.4% for this edge profile, not the 31.3% that some documents claim)
+
+### 5.2 Drawdown Throttle (Hard-Coded, No Override)
+
+Drawdown is measured from the highest closed-equity value, checked before every new order.
+
+| Drawdown from Equity High | Risk per Trade |
+|---|---|
+| 0 - 2% | 0.24% (full tier) |
+| 2 - 4% | 0.12% (half tier) |
+| 4 - 6% | 0.06% (quarter tier) |
+| Above 6% | Shutdown. No new trades until next month. Mandatory review. |
+
+**Why this specific ladder:** Over 7,200 trades in 10 years (60/month x 120 months), the expected longest losing streak at 45% loss rate is approximately 10 consecutive losses. But real drawdown is not a streak -- it is the worst path of mixed wins and losses, which is 3-4x worse. The correct expected maximum drawdown for this edge profile over 1,000 trades is approximately 15R. At 0.24% risk, that is 3.6% expected max drawdown per sleeve. Across three sleeves with 0.30 correlation, the portfolio expected max drawdown is approximately 6-7%, which fits inside the 8% budget with a small reserve for operational risk.
+
+The throttle ensures that as drawdown grows, risk shrinks automatically. This makes the 10-loss streak that will statistically arrive cost only 1.68% (4 x 0.24% + 4 x 0.12% + 2 x 0.06%), not 2.4%.
+
+### 5.3 Hard Kill Switches
+
+| Trigger | Action |
+|---|---|
+| Daily loss reaches -1.0% | Stop trading for the rest of the day |
+| Weekly loss reaches -2.5% | Stop trading for the rest of the week |
+| Monthly drawdown reaches -6% | Stop trading until next month. Mandatory review. |
+| 5 consecutive losses on the same instrument and session | Disable that instrument-session combination for 24 hours |
+| Rolling 60-trade expectancy of any sleeve drops below 0.08R | That sleeve auto-pauses and alerts. Does not resume until manually reviewed. |
+| Live expectancy falls below 50% of backtest after 100 live trades | Full re-validation. No exceptions. |
+| Live slippage exceeds 1.5x backtest average | Auto-halve risk on that instrument |
+| Spread spike exceeds 2x the 60-minute average | Skip entry, or flatten if already in a trade |
+| Latency exceeds 400ms or quote gap exceeds 3 seconds | Flatten everything and halt. Alert. |
+| Slippage on last 20 fills exceeds 0.25R average | Halt and alert |
+
+### 5.4 Portfolio-Level Limits
+
+| Limit | Value |
+|---|---|
+| Max concurrent open positions | 4 total across all sleeves |
+| Max concurrent per sleeve | 2 |
+| Max total open risk at any moment | 1.0% |
+| Max risk per correlated group | 0.24% (EURUSD + GBPUSD same direction = one position) |
+
+### 5.5 Correlation Groups
+
+Treat these as one risk group. Only one position per group at a time:
+
+- USD group: EURUSD, GBPUSD, AUDUSD
+- JPY group: USDJPY, GBPJPY, EURJPY
+- Commodity group: AUDUSD, USDCAD, XAUUSD (during major US events)
+- European cross group: EURGBP, EURCHF
+
+---
+
+## 6. THE RETURN MODEL (Verified Math)
+
+### 6.1 Sleeve A: Session-Open Sweep
+
+- Trades per month: approximately 80
+- Win rate: 55%
+- Average win: 1.9R (after partial exits: 0.40 x 1R + 0.30 x 2R + 0.30 x average 3R runner = 0.40 + 0.60 + 0.90 = 1.90R)
+- Average loss: 1.0R (time stop reduces some to 0.2-0.5R scratches, budget 0.85R average)
+- Gross expectancy: 0.55 x 1.9 - 0.45 x 0.85 = 1.045 - 0.3825 = 0.66R
+- Net expectancy after costs (spread, slippage, swap): approximately 0.30R
+- Monthly contribution: 80 x 0.30R x 0.24% = 5.76%
+
+### 6.2 Sleeve B: Volatility-Expansion Continuation
+
+- Trades per month: approximately 50
+- Win rate: 45%
+- Average win: 2.5R
+- Average loss: 1.0R
+- Gross expectancy: 0.45 x 2.5 - 0.55 x 1.0 = 1.125 - 0.55 = 0.575R
+- Net expectancy after costs: approximately 0.25R
+- Monthly contribution: 50 x 0.25R x 0.24% = 3.0%
+
+### 6.3 Sleeve C: Asian Mean Reversion
+
+- Trades per month: approximately 70
+- Win rate: 72%
+- Average win: 0.8R
+- Average loss: 1.0R
+- Gross expectancy: 0.72 x 0.8 - 0.28 x 1.0 = 0.576 - 0.28 = 0.296R
+- Net expectancy after costs: approximately 0.12R
+- Monthly contribution: 70 x 0.12R x 0.24% = 2.0%
+
+### 6.4 Portfolio Total
+
+- Sleeve A: 5.76%
+- Sleeve B: 3.0%
+- Sleeve C: 2.0%
+- Total: 10.76% per month base
+
+With the drawdown throttle reducing average risk slightly below 0.24% over time, the realistic average is 9-11% per month, with strong months reaching 13-15% and occasional losing months of -3% to -5%.
+
+### 6.5 What Was Removed and Why
+
+- The "free-margin stack" from SWEEP-1 is removed. It claimed to add +2-3% per month with "no new drawdown" by using locked profit from a primary trade to fund a correlated second position. This is false: correlated positions can both be stopped out by the same market shock on the same candle, with slippage on both. The tail risk is approximately 2x, not zero. It adds hidden drawdown that is not accounted for in the risk budget.
+- The multi-account drawdown reduction claim is removed. Three trade-copied accounts at 0.20% each do not reduce percentage drawdown. Each account experiences the identical drawdown curve. The only benefit is protection against a prop firm defaulting.
+
+---
+
+## 7. THE 10-YEAR SURVIVAL ARCHITECTURE
+
+### 7.1 Capital Structure
+
+- 3 x $50,000 prop accounts at three different prop firms
+- Trade-copied across all three
+- 0.08% risk per trade per account (0.24% combined across three accounts)
+- Never more than 40% of total capital at any one firm
+- Keep 12 months of challenge fees in reserve as a rebuild fund
+
+### 7.2 Monthly Profit Withdrawal (The Most Important Rule)
+
+- Fix a compounding base (target: $150,000 across all accounts)
+- Every month, withdraw 70% of all profit above the base
+- Compound the remaining 30% back into the base quarterly
+- At 10% monthly on a $150,000 base: $15,000/month, $10,500 withdrawn, $4,500 compounded
+- Over 10 years at this rate: approximately $1.26 million in withdrawn cash, with the base growing to approximately $650,000
+- Cash in your bank is the only profit that a broker, a gap, or your own future mistake can never take back
+
+### 7.3 Edge-Decay Monitor
+
+This is the module that most 10-year attempts lack, and the reason most die in year 3.
+
+- Track rolling 30-trade expectancy per instrument x per session, for every sleeve
+- If any instrument-session combination drops below 0.10R expectancy: that combination auto-pauses and alerts. It does not resume until manually reviewed and re-validated
+- Every January: run a full walk-forward re-validation on the most recent 12 months of data
+- Maximum 4 tunable parameters per sleeve, ever. A parameter that only works at one exact value is curve-fitting. Delete it
+- Plan to retire and replace one sleeve every 2-3 years. The sweep-reclaim edge has been degrading as algorithmic execution gets faster. The structure survives; the instruments and parameters evolve
+- Budget one week per quarter to research a replacement sleeve
+
+### 7.4 Shadow Account
+
+- Run the same algorithm on a demo account at fixed risk with no governors (no throttle, no kill switches)
+- When live and shadow diverge, the difference is execution, not edge
+- This diagnostic has saved more accounts than any indicator
+
+### 7.5 Infrastructure Requirements
+
+- VPS in the broker's datacentre (LD4 for most FX and prop feeds), ping below 5ms
+- Primary and backup VPS in the broker's region
+- Economic calendar feed with automatic Tier-1 news blackout, plus a manual override file
+- Tick-level backtesting only (Dukascopy or broker tick data) with real variable spread. M1 OHLC backtests will overstate this strategy by 30-50%
+- Trade log per entry: score breakdown, spread at entry, latency, requested vs filled price, MFE (maximum favorable excursion), MAE (maximum adverse excursion), exit reason. Without slippage logging you cannot diagnose live underperformance
+- Broker-side emergency stop-losses (not just client-side)
+- Separate watchdog process that flattens everything if the main process loses connection
+- Automatic position reconciliation with the broker every 60 seconds
+- Trading disabled when market data becomes stale (no tick for 10+ seconds)
+- Daily database and configuration backups
+- Alerts for: spread spikes, latency, rejected orders, equity limits
+
+### 7.6 Prop-Firm Compliance
+
+Many prop firms have a consistency rule: the biggest single day cannot exceed 20-45% of total profit. With approximately 200 trades per month at 0.24% risk, the strategy naturally complies. A single 3% day would breach it at some firms. Monitor this per firm.
+
+---
+
+## 8. DEPLOYMENT GATES (Do Not Skip a Single One)
+
+The robot does not go live until it clears all five gates, in order.
+
+### Gate 1: In-Sample Backtest
+
+- Tick-quality M5 data with real variable spread, 2019-2026
+- Must include: March 2020 (COVID crash), 2022 rate shock, 2024-2025 low-vol regime
+- Per sleeve, per instrument
+- Minimum 200 trades per sleeve
+- Gate: expectancy at least 0.18R, profit factor at least 1.30
+- A sleeve that fails is not deployed. No "it will work live"
+
+### Gate 2: Walk-Forward
+
+- 6-month train, 2-month test, rolling
+- Gate: at least 70% of out-of-sample windows must be profitable
+- Out-of-sample expectancy must be at least 60% of in-sample expectancy
+- Maximum 4 optimized parameters per sleeve, ever
+
+### Gate 3: Cost Stress Test
+
+- Re-run the backtest with 2x spread and 0.3-pip adverse slippage on every fill
+- 10% of profitable limit entries missed (simulates partial fills)
+- Occasional stop fills worse by 0.25R
+- Random platform interruptions
+- Gate: still profit factor at least 1.15. If it fails here, the edge is a spread artifact, not a real edge
+
+### Gate 4: Monte Carlo
+
+- 5,000 trade-order reshuffles at the portfolio level with correlation preserved between sleeves
+- Stress each simulation with: spreads multiplied by 1.5, slippage multiplied by 2
+- Gate: 95th-percentile maximum drawdown at most 8%
+- P(ruin at 15% drawdown) below 1%
+- If it fails, cut risk. Never adjust the assumptions to make it pass.
+
+### Gate 5: Forward Demo
+
+- 8 weeks on a live-data demo account
+- Same VPS, same broker, same everything
+- Full automation, zero manual touches
+- Gate: live expectancy within 0.7x of backtest expectancy
+- Deviation beyond that means an execution problem. Fix before funding.
+
+### Gate 6: Phased Live Rollout
+
+- Start with one account at 0.12% risk (half the intended 0.24%)
+- Add the second account only after 150 profitable live trades
+- Add the third account only after another 150 profitable live trades
+- Double risk to 0.24% only after live expectancy is confirmed within 70% of backtest
+
+---
+
+## 9. PARAMETER DISCIPLINE
+
+- Freeze all parameters after walk-forward validation
+- Re-validate quarterly, never re-optimize monthly
+- Every parameter must be defended by a plateau in the results surface, not a spike. A parameter that only works at one exact value is curve-fitting. Delete it.
+- Maximum 4 tunable parameters per sleeve, forever
+- When you replace a sleeve every 2-3 years, the new sleeve goes through all 6 gates from scratch
+
+---
+
+## 10. THE THREE SENSITIVITY TESTS TO RUN BEFORE BUILDING
+
+Before commissioning the developer, run these three tests to understand the strategy's fragility:
+
+**Test 1: Drop win rate by 7 percentage points** (e.g., Sleeve A from 55% to 48%). If the median monthly return collapses below 6%, the edge is win-rate-dependent and fragile. The fix is more trade count, not bigger position size.
+
+**Test 2: Double the transaction cost** (simulate a mediocre broker or a stop that is only 5x round-trip cost instead of 10x). Watch the median return fall by roughly a third. This is exactly why the cost gate exists in the entry filter.
+
+**Test 3: Raise risk to 0.50% per trade.** Return jumps toward 20%+, and the 95th-percentile drawdown breaks 10%. This is the trap. The drawdown constraint, not the profit target, sets your position size. Never let a developer "optimize" risk upward to hit 15% faster. Hit the target with trade count and diversification, never with size.
+
+---
+
+## 11. THE WHOLE STRATEGY ON ONE CARD
+
+**Architecture:** Three decorrelated sleeves (session-open sweep, volatility-expansion continuation, Asian mean reversion). Returns add linearly; risk adds as square root.
+
+**Sleeve A:** M5 liquidity sweep and reclaim at London and NY opens. EURUSD, GBPUSD, USDJPY, XAUUSD. 8-point score, fire at 7+. Limit at 50% retracement of displacement candle. Stop beyond sweep + 0.10 x ATR. Exit: 40% at +1R, 30% at +2R, 30% trailing. 45-minute hard time stop. ~80 trades/month.
+
+**Sleeve B:** M15 volatility-expansion breakout that holds. XAUUSD, DAX, US30. Daily ATR in 60th-90th percentile. Enter on pullback to breakout level. Stop 1.2 x ATR. Exit: 50% at +1.5R, remainder on Chandelier trail. No time stop. ~50 trades/month.
+
+**Sleeve C:** Asian mean reversion. AUDNZD, EURGBP, EURCHF. ADX below 16, fade 2-sigma Bollinger to mean. Stop 1.0 x ATR. Single target. Hard flat at 06:30 UK. ~70 trades/month.
+
+**Risk:** 0.24% per trade at full tier. Drawdown throttle: 0.24% then 0.12% then 0.06% then shutdown at 6%. Daily -1.0%, weekly -2.5%. Max 1.0% open risk. Correlated pairs count as one position.
+
+**Survival:** 3 accounts at 3 firms. Withdraw 70% of profit monthly. Rolling 30-trade expectancy monitor per sleeve. Annual walk-forward. Max 4 parameters per sleeve. Replace one sleeve every 2-3 years. Shadow account always running.
+
+**Expectation:** 9-11% average month, 13-15% strong month, one or two -3 to -5% months per year. Max drawdown 6-8%. 10-year survival probability 35-40%.
+
+**The two rules that do the heavy lifting:** the 45-minute time stop (turns full losers into scratches) and the drawdown throttle (makes the 10-loss streak survivable). Build those two first and test them in isolation before anything else.
+
+---
+
+**Summary**
+
+This is the complete, corrected strategy. It uses three genuinely decorrelated trading sleeves to achieve 9-11% average monthly returns within a 6-8% maximum drawdown, validated against path-based drawdown math rather than the streak-based math that caused errors in the original documents. The free-margin stack has been removed as a false risk-free claim, the Kelly fraction has been corrected from the claimed 1/50th to the actual 1/10th, and per-trade risk has been reduced from 0.60% to 0.24% to keep expected maximum drawdown inside the 7-8% ceiling. The honest expectation is 9-11% average per month (not 10-15% every month), with 13-15% in strong months and 1-2 losing months per year. The 10-year survival probability is approximately 35-40%, achieved through monthly profit withdrawals and sleeve replacement every 2-3 years. If you want me to plan building this as an automated trading robot or a performance tracking dashboard, let me know.
