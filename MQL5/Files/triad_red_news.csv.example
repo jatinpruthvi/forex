@@ -1,0 +1,6 @@
+utc_time,currency,impact,title
+2026.09.07 06:00,EUR,RED,Example euro-area high-impact release
+2026.09.07 08:30,GBP,RED,Example United Kingdom high-impact release
+2026.09.07 12:30,USD,RED,Example United States high-impact release
+2026.09.08 03:30,JPY,RED,Example Japan high-impact release
+2026.09.09 23:59,ALL,COVERAGE,Operator-verified example coverage ends here
