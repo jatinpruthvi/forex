@@ -1,0 +1,11 @@
+# MT5 runtime inputs and outputs (examples remain tracked)
+MQL5/Files/triad_red_news.csv
+MQL5/Files/TRIAD_R_HS_*.csv
+
+# MetaEditor build output
+*.ex5
+*.ex4
+
+# Python local artifacts
+__pycache__/
+*.py[cod]
