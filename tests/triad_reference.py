@@ -33,6 +33,31 @@ class DayState(Enum):
     LOCKED = "DAY_LOCKED"
 
 
+def hash_text(value: str, seed: int = 216_613_626) -> int:
+    """Mirror the EA's 31-bit FNV-style terminal-state checksum for ASCII data."""
+    value_hash = seed & 0xFFFFFFFF
+    for character in value:
+        value_hash ^= ord(character)
+        value_hash = (value_hash * 16_777_619) & 0xFFFFFFFF
+    return value_hash & 0x7FFFFFFF
+
+
+def halt_latch_signature(config_hash: int, identity_hash: int, halt_value: int,
+                         halt_reason_hash: int) -> int:
+    """Reference signature for the dedicated persisted emergency-halt journal."""
+    if halt_value not in (0, 1):
+        raise ValueError("halt value must be binary")
+    if not 0 <= halt_reason_hash <= 0x7FFFFFFF:
+        raise ValueError("halt reason hash is outside the persisted range")
+    if halt_value == 0 and halt_reason_hash != 0:
+        raise ValueError("an unlocked halt journal cannot retain a reason")
+    payload = (
+        f"HALT_LATCH_V1|{config_hash}|{identity_hash}|"
+        f"{halt_value}|{halt_reason_hash}"
+    )
+    return hash_text(payload)
+
+
 def profile_cash(initial_balance: Decimal, profile_name: str) -> tuple[Decimal, Decimal]:
     profile = PROFILES[profile_name]
     risk = initial_balance * profile.risk_fraction
