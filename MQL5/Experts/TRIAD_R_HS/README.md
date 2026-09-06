@@ -1,6 +1,6 @@
 # TRIAD-R High Stakes EA (revision 2.1)
 
-This directory contains the **research implementation** of the canonical strategy in [`THE5ERS-CHALLENGE-STRATEGY-V2.md`](../../../THE5ERS-CHALLENGE-STRATEGY-V2.md). The reviewed source identifies itself as build `TRIAD_R_HS_2.1.4_20260903`.
+This directory contains the **research implementation** of the canonical strategy in [`THE5ERS-CHALLENGE-STRATEGY-V2.md`](../../../THE5ERS-CHALLENGE-STRATEGY-V2.md). The current source identifies itself as build `TRIAD_R_HS_2.1.5_20260904`. Build 2.1.5 is newer than the historical 2.1.4 static review and therefore requires a fresh review and compile/runtime validation.
 
 > **Status: not compile-verified, not backtested, and not approved for challenge or funded trading.**
 >
@@ -132,17 +132,46 @@ To obtain simulated trades in MT5 Strategy Tester, use a USD $2,500 initial depo
 
 Entry geometry, 60-session lookbacks, spread/cost gates, the one-second maximum synchronous order-request latency, news/rollover buffers, drawdown tiers, and internal risk limits are revision 2.1 contract controls. Initialization rejects values outside the supported contract or values that weaken a safety default. Time-based entry/cleanup checks apply a fixed ten-second early safety lead so timer cadence and an accepted request within the one-second ceiling do not intentionally cross an exact cutoff. The final latency threshold must also be inside the empirically tested execution envelope; the runtime check does not replace forward execution validation.
 
-Build 2.1.4 retains the prior canonical `iATR(M15,14)`, first-event reconstruction, DST-overlap exclusion, visible-exit, bounded-breakeven, and same-tick request protections. This pass also fails initialization after any initial session-state halt; acquires and verifies the live lease before state reconciliation; fences stale instances from requests and journal writes; detects runtime journal changes; reconstructs pending/position exposure across an offline rollover; and makes cashflow, unauthorized-history, or rollover-exposure incidents non-resettable without a separately reviewed migration. News coverage now requires an explicit operator-verified `ALL,COVERAGE` declaration instead of inferring completeness from a far-future event. Collision ranking uses frozen per-combination priorities and freshly revalidated quote costs. Volume rounding uses the symbol minimum-anchored step grid and directional volume limit. A ten-second early control lead and five-second server-offset tolerance protect exact cutoffs, while emergency delete/close failures and incomplete outcomes latch for review. Accepted submissions are reconciled immediately rather than waiting one timer interval.
+Build 2.1.5 retains the prior canonical `iATR(M15,14)`, first-event reconstruction, DST-overlap exclusion, visible-exit, bounded-breakeven, and same-tick request protections. It also retains the 2.1.4 initialization, lease-fencing, offline-rollover reconstruction, migration-latch, explicit news-coverage, collision-ranking, volume-grid, early-cutoff, and immediate-reconciliation controls. Build 2.1.5 adds a dedicated commit signature over the emergency-halt value and reason hash, bound to the frozen configuration and account identity. Missing, partial, or changed halt-latch fields now fail state loading and runtime journal validation; the formal one-time reset writes a new unlocked signature.
 
 Symbol names may be changed for broker suffixes (for example, `EURUSD.a`), but the EA validates each symbol's actual base and profit currencies.
 
 ## Persistence and logs
 
-Live and dry modes use separate terminal-global prefixes and separate CSV logs. Persisted state includes configuration/build hash, the initialization-time account identity hash, phase initial balance, rollover state, daily floor, weekly reference, high-water balance, estimated qualifying days, request count, external-cashflow history baseline, state creation time, halt/migration latches, and the active order/position plan. The frozen identity prevents an MT5 account switch during deinitialization from rewriting the prior account's journal. A last-written state signature rejects partial or internally mixed terminal-global updates after interruption. Missing, invalid, inconsistent, or unwritable safety state fails closed. Detected deposits, withdrawals, unauthorized trading, and related account operations are not allowed to migrate into daily, weekly, or high-water baselines; they require the separately approved rebaseline process.
+Live and dry modes use separate terminal-global prefixes and separate CSV logs. Persisted state includes configuration/build hash, the initialization-time account identity hash, phase initial balance, rollover state, daily floor, weekly reference, high-water balance, estimated qualifying days, request count, external-cashflow history baseline, state creation time, halt/migration latches, and the active order/position plan. The frozen identity prevents an MT5 account switch during deinitialization from rewriting the prior account's journal. A last-written accounting-state signature rejects partial or internally mixed terminal-global updates after interruption. The emergency halt value and reason have their own last-written signature bound to the same configuration and identity, so changing either field without its matching commit marker fails closed. Missing, invalid, inconsistent, or unwritable safety state fails closed. Detected deposits, withdrawals, unauthorized trading, and related account operations are not allowed to migrate into daily, weekly, or high-water baselines; they require the separately approved rebaseline process.
 
 The dashboard remains authoritative for profitable days. Set `InpDashboardConfirmedDays` from a verified dashboard only; never use that input to manufacture a trade. Phase target arrival with fewer than three confirmed days enters a flat, latched `TARGET_PENDING_DAYS` state.
 
 Execution logs include each completed M5 no-event decision, valid/rejected candidates, planned cash risk, predicted net target, order retcodes, entry slippage observations, exit-deal and reconstructed position-net cash values, rollover estimates, calendar status, direction-concentration review alerts, and inactivity alerts. Preserve logs with tester and forward evidence. Tick-derived MFE/MAE remains a tester/post-processing requirement; the one-second multi-symbol timer is not represented as tick-exact excursion data.
+
+## Offline champion-selection tooling
+
+`tools/triad_validation.py` is a standard-library-only research runner. It is separate from the EA, cannot submit orders, and never changes runtime parameters. The committed registry at `validation/triad_v2_1_registry.json` freezes all 160 declared V2.1 combinations:
+
+- 2 range percentile bands;
+- 2 ATR percentile bands;
+- 5 time-stop choices;
+- 4 paired risk/target profiles;
+- 2 confirmed-1R breakeven policies.
+
+The registry includes a SHA-256 commit over the complete matrix, conservative fill policy, point gates, selection order, simulation settings, and expected CSV schema. Any mutation makes the validator reject it. Inspect the replay-export contract with:
+
+```bash
+python3 tools/triad_validation.py schema
+```
+
+A replay export must include every calendar day for every declared configuration and instrument/session combination, including explicit no-candidate rows, plus actual full-/half-tier cash outcomes after volume rounding. A baseline limit fill requires the pending request to have been active and executable price to trade at least one tick through the limit; a touch alone and a partial fill do not count. The stressed replay additionally removes a deterministic 10% of profitable limit fills, uses 1.5× spread, and uses 2× slippage.
+
+Run selection only after independently producing the complete replay export:
+
+```bash
+python3 tools/triad_validation.py validate \
+  --registry validation/triad_v2_1_registry.json \
+  --input /path/to/triad_replay_rows.csv \
+  --output /path/to/triad_validation_report.json
+```
+
+The selector accepts only `WALK_FORWARD` rows. It independently gates each instrument/session, freezes the surviving combination set, enforces the aggregate and declared phase-probability/drawdown gates, and then ranks survivors by joint two-phase pass probability, drawdown, and duration. A moving-calendar-day block-bootstrap interval with a Bonferroni familywise adjustment protects the declared search. `HOLDOUT` rows are rejected by the selector and evaluated only after a champion is frozen. Reports include aggregate and per-combination expectancy/profit factor, fill-uncertainty counts, normal/stressed phase simulations, qualifying-day outcomes, shutdowns, and inactivity. The tool verifies selection mechanics; it cannot establish that source data, fill reconstruction, or broker assumptions are valid.
 
 ## Required validation sequence
 

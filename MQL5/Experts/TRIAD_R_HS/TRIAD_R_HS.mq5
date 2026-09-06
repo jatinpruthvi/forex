@@ -1,5 +1,5 @@
 #property strict
-#property version   "2.14"
+#property version   "2.15"
 #property description "TRIAD-R High Stakes: one-position M5 sweep/reclaim research EA"
 #property description "Order submission is disabled by default. Validate before challenge use."
 #property tester_file "triad_red_news.csv"
@@ -196,7 +196,7 @@ struct SignalCandidate
    string            rejection;
   };
 
-const string   EA_BUILD_ID = "TRIAD_R_HS_2.1.4_20260903";
+const string   EA_BUILD_ID = "TRIAD_R_HS_2.1.5_20260904";
 const int      SAFETY_TIME_LEAD_SECONDS = 10;
 const int      SERVER_OFFSET_TOLERANCE_SECONDS = 5;
 
@@ -316,8 +316,10 @@ void Halt(const string reason)
    g_halt_reason=reason;
    if(g_prefix!="" && GlobalVariableCheck(GVName("Cfg")))
      {
-      bool halt_saved=GVWrite("Halt",1.0);
-      if(!GVWrite("HaltReason",HashText(reason))) halt_saved=false;
+      // Halt is a separate fail-closed journal. Its signature binds both the
+      // latch and reason to this exact configuration/account identity, so a
+      // changed terminal global cannot silently bypass the reset handshake.
+      bool halt_saved=WriteHaltLatch(1.0,(double)HashText(reason));
       if(!halt_saved)
         {
          // Removing the configuration sentinel makes the next live start fail
@@ -425,6 +427,51 @@ bool GVWrite(const string suffix,const double value)
    return GlobalVariableSet(GVName(suffix),value)!=0;
   }
 
+int HaltLatchSignature(const double halt_value,const double halt_reason_hash)
+  {
+   // Use a domain tag so this checksum cannot be confused with the broader
+   // accounting-state signature even if all numeric components happen to tie.
+   string text="HALT_LATCH_V1|"+IntegerToString(g_config_hash)+"|"+
+      IntegerToString(g_runtime_identity_hash)+"|"+
+      IntegerToString(halt_value>0.5 ? 1 : 0)+"|"+
+      IntegerToString((int)halt_reason_hash);
+   return HashText(text);
+  }
+
+bool HaltLatchValuesValid(const double halt_value,const double halt_reason_hash)
+  {
+   if(halt_value!=0.0 && halt_value!=1.0)
+      return false;
+   if(halt_reason_hash<0.0 || halt_reason_hash>2147483647.0 ||
+      halt_reason_hash!=(double)(int)halt_reason_hash)
+      return false;
+   // An unlocked journal must not retain an unexplained stale reason. A halted
+   // journal may carry zero only in the vanishingly rare case that its 31-bit
+   // reason hash itself is zero; the signed latch still remains unambiguous.
+   return halt_value>0.5 || halt_reason_hash==0.0;
+  }
+
+bool WriteHaltLatch(const double halt_value,const double halt_reason_hash)
+  {
+   bool ok=HaltLatchValuesValid(halt_value,halt_reason_hash);
+   if(!GVWrite("Halt",halt_value)) ok=false;
+   if(!GVWrite("HaltReason",halt_reason_hash)) ok=false;
+   // Commit marker is written after both protected values. A partial update
+   // leaves an old/missing signature and therefore fails closed when read.
+   if(!GVWrite("HaltSig",HaltLatchSignature(halt_value,halt_reason_hash))) ok=false;
+   return ok;
+  }
+
+bool ReadHaltLatch(double &halt_value,double &halt_reason_hash)
+  {
+   double stored_signature=0.0;
+   if(!GVRead("Halt",halt_value) || !GVRead("HaltReason",halt_reason_hash) ||
+      !GVRead("HaltSig",stored_signature) ||
+      !HaltLatchValuesValid(halt_value,halt_reason_hash))
+      return false;
+   return stored_signature==(double)HaltLatchSignature(halt_value,halt_reason_hash);
+  }
+
 bool AcquireLiveInstanceLock()
   {
    if(!InpEnableOrderSubmission || IsTesterMode())
@@ -504,8 +551,9 @@ bool PersistAccountState()
    bool ok=true;
    if(!GVWrite("Cfg",g_config_hash)) ok=false;
    if(!GVWrite("Identity",g_runtime_identity_hash)) ok=false;
-   if(!GVWrite("Halt",g_halted ? 1.0 : 0.0)) ok=false;
-   if(!GVWrite("HaltReason",g_halted ? HashText(g_halt_reason) : 0.0)) ok=false;
+   double halt_value=(g_halted ? 1.0 : 0.0);
+   double halt_reason_hash=(g_halted ? (double)HashText(g_halt_reason) : 0.0);
+   if(!WriteHaltLatch(halt_value,halt_reason_hash)) ok=false;
    if(!GVWrite("Initial",InpPhaseInitialBalance)) ok=false;
    if(!GVWrite("DayKey",g_server_day_key)) ok=false;
    if(!GVWrite("DayStartT",(double)g_day_start_time)) ok=false;
@@ -1668,11 +1716,11 @@ bool RuntimeJournalValid(string &reason)
   {
    if(!InpEnableOrderSubmission || IsTesterMode())
       return true;
-   double persisted_halt=0.0,persisted_rebase=0.0,persisted_signature=0.0;
-   if(!GVRead("Halt",persisted_halt) || !GVRead("Rebase",persisted_rebase) ||
-      !GVRead("StateSig",persisted_signature) ||
+   double persisted_halt=0.0,persisted_halt_reason=0.0;
+   double persisted_rebase=0.0,persisted_signature=0.0;
+   if(!ReadHaltLatch(persisted_halt,persisted_halt_reason) ||
+      !GVRead("Rebase",persisted_rebase) || !GVRead("StateSig",persisted_signature) ||
       (int)persisted_signature!=AccountStateSignature() ||
-      (!NearlyEqual(persisted_halt,0.0) && !NearlyEqual(persisted_halt,1.0)) ||
       (!NearlyEqual(persisted_rebase,0.0) && !NearlyEqual(persisted_rebase,1.0)))
      {
       reason="runtime_persisted_state_mismatch";
@@ -3709,10 +3757,16 @@ bool LoadOrCreateAccountState()
       LogEvent("ERROR","PERSISTED_INITIAL_MISMATCH",DoubleToString(stored_initial,2));
       return false;
      }
-   double halt_value=0.0,rebaseline_required=0.0;
-   if(!GVRead("Halt",halt_value) || !GVRead("Rebase",rebaseline_required))
+   double halt_value=0.0,halt_reason_hash=0.0,rebaseline_required=0.0;
+   if(!ReadHaltLatch(halt_value,halt_reason_hash))
      {
-      LogEvent("ERROR","PERSISTED_STATE_INCOMPLETE","missing halt or migration latch");
+      LogEvent("ERROR","PERSISTED_HALT_SIGNATURE_MISMATCH",
+               "halt latch is missing, invalid, partially written, or changed");
+      return false;
+     }
+   if(!GVRead("Rebase",rebaseline_required))
+     {
+      LogEvent("ERROR","PERSISTED_STATE_INCOMPLETE","missing migration latch");
       return false;
      }
    if(rebaseline_required>0.5)
@@ -3734,8 +3788,7 @@ bool LoadOrCreateAccountState()
          LogEvent("ERROR","PERSISTED_HALT_LOCK","formal revalidation and one-time halt-reset authorization required");
          return false;
         }
-      bool reset_saved=GVWrite("Halt",0.0);
-      if(!GVWrite("HaltReason",0.0)) reset_saved=false;
+      bool reset_saved=WriteHaltLatch(0.0,0.0);
       GlobalVariablesFlush();
       if(!reset_saved)
         {

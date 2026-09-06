@@ -7,6 +7,8 @@
 - **Reviewed source SHA-256:** `367c38a18eac487255192f9713825fffd944778a058784a9ec937f76374f1f60`
 - **Review type:** fifth static/logic pass; no MetaEditor or MT5 runtime was available
 
+> **Historical review notice:** this document covers build 2.1.4 and the SHA-256 shown above. The repository now contains build `TRIAD_R_HS_2.1.5_20260904`, which adds a signed emergency-halt latch. The new build is not covered by the 2.1.4 review and remains subject to fresh static review, MetaEditor compilation, and MT5 runtime validation.
+
 ## Verdict
 
 The fifth pass found and corrected additional initialization, lease-fencing, persistence, offline-rollover, calendar-coverage, collision-ranking, volume-grid, timing, cleanup-lifecycle, and governor-state defects. The implementation is materially safer and more faithful to revision 2.1 than build 2.1.3.

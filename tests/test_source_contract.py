@@ -22,7 +22,7 @@ class SourceContractTests(unittest.TestCase):
         self.assertTrue(README_PATH.is_file())
         self.assertTrue(NEWS_EXAMPLE_PATH.is_file())
         self.assertIn("THE5ERS-CHALLENGE-STRATEGY-V2.md", self.source)
-        self.assertIn('EA_BUILD_ID = "TRIAD_R_HS_2.1.4_20260903"', self.source)
+        self.assertIn('EA_BUILD_ID = "TRIAD_R_HS_2.1.5_20260904"', self.source)
 
     def test_news_example_has_the_declared_utc_schema(self) -> None:
         rows = NEWS_EXAMPLE_PATH.read_text(encoding="utf-8").splitlines()
@@ -170,7 +170,7 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn("multiple_or_overlapping_exposure", self.source)
         self.assertIn("DUPLICATE_LIVE_INSTANCE", self.source)
         self.assertIn("runtime_account_identity_mismatch", self.source)
-        self.assertIn('GVWrite("Halt",1.0)', self.source)
+        self.assertIn("WriteHaltLatch(1.0,(double)HashText(reason))", self.source)
         self.assertIn("PERSISTED_HALT_LOCK", self.source)
 
     def test_instance_lock_publishes_heartbeat_before_owner_claim(self) -> None:
@@ -240,11 +240,76 @@ class SourceContractTests(unittest.TestCase):
             self.assertIn(token, self.source)
         self.assertIn("g_sessions[session_index].entry_start>g_sessions[session_index].range_end", self.source)
 
+    def test_range_and_candle_sequence_semantics_are_locked(self) -> None:
+        read_range = self.source.split("bool ReadRange", 1)[1].split(
+            "bool ComputeAtrBefore", 1
+        )[0]
+        compact_range = re.sub(r"\s+", "", read_range)
+        # Reference ranges are half-open: [start_time, end_time).  The entry
+        # boundary bar must not leak into the range it is attempting to sweep.
+        self.assertIn(
+            "CopyRates(symbol,PERIOD_M5,start_time,end_time-1,rates)",
+            compact_range,
+        )
+        self.assertIn("expected=(int)((end_time-start_time)/period)", compact_range)
+
+        pattern = self.source.split("bool DetectPattern", 1)[1].split(
+            "bool BrokerDistancesValid", 1
+        )[0]
+        compact_pattern = re.sub(r"\s+", "", pattern)
+        # The sweep candle is eligible to reclaim, and displacement is exactly
+        # the immediately following completed M5 candle.
+        self.assertIn("for(inti=sweep_index;i<=last_reclaim_bar;i++)", compact_pattern)
+        self.assertIn("MqlRatesdisplacement=bars[reclaim_index+1]", compact_pattern)
+        # A long displacement must be bullish and a short displacement bearish;
+        # crossing the reclaim midpoint alone is insufficient.
+        self.assertIn("displacement.close>displacement.open", compact_pattern)
+        self.assertIn("displacement.close<displacement.open", compact_pattern)
+
     def test_state_commit_signature_detects_partial_global_updates(self) -> None:
         self.assertIn("AccountStateSignature", self.source)
         self.assertIn('GVWrite("StateSig",AccountStateSignature())', self.source)
         self.assertIn('GVRead("StateSig",state_signature)', self.source)
         self.assertIn("PERSISTED_STATE_SIGNATURE_MISMATCH", self.source)
+
+    def test_halt_latch_and_reason_have_a_dedicated_commit_signature(self) -> None:
+        signature = self.source.split("int HaltLatchSignature", 1)[1].split(
+            "bool HaltLatchValuesValid", 1
+        )[0]
+        for token in (
+            '"HALT_LATCH_V1|"',
+            "g_config_hash",
+            "g_runtime_identity_hash",
+            "halt_value>0.5 ? 1 : 0",
+            "(int)halt_reason_hash",
+        ):
+            self.assertIn(token, signature)
+
+        writer = self.source.split("bool WriteHaltLatch", 1)[1].split(
+            "bool ReadHaltLatch", 1
+        )[0]
+        halt_at = writer.index('GVWrite("Halt",halt_value)')
+        reason_at = writer.index('GVWrite("HaltReason",halt_reason_hash)')
+        signature_at = writer.index('GVWrite("HaltSig",HaltLatchSignature')
+        self.assertLess(halt_at, reason_at)
+        self.assertLess(reason_at, signature_at)
+
+        reader = self.source.split("bool ReadHaltLatch", 1)[1].split(
+            "bool AcquireLiveInstanceLock", 1
+        )[0]
+        self.assertIn('GVRead("HaltSig",stored_signature)', reader)
+        self.assertIn(
+            "stored_signature==(double)HaltLatchSignature(halt_value,halt_reason_hash)",
+            reader,
+        )
+
+        halt = self.source.split("void Halt(const string reason)", 1)[1].split(
+            "int HashText", 1
+        )[0]
+        self.assertIn("WriteHaltLatch(1.0,(double)HashText(reason))", halt)
+        self.assertGreaterEqual(self.source.count("ReadHaltLatch("), 3)
+        self.assertIn("WriteHaltLatch(0.0,0.0)", self.source)
+        self.assertIn("PERSISTED_HALT_SIGNATURE_MISMATCH", self.source)
 
     def test_persisted_identity_is_frozen_across_account_context_changes(self) -> None:
         self.assertIn("g_runtime_identity_hash=RuntimeIdentityHash()", self.source)
@@ -410,8 +475,10 @@ class SourceContractTests(unittest.TestCase):
         account_lock = f"TRL.{login}.{config_hash}.Owner"
         for name in (
             live_prefix + "PredictedNetTarget",
+            live_prefix + "HaltSig",
             live_prefix + "XB." + ticket,
             tester_prefix + "PredictedNetTarget",
+            tester_prefix + "HaltSig",
             tester_prefix + "XB." + ticket,
             account_lock,
         ):

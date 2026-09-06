@@ -10,6 +10,7 @@ from triad_reference import (
     active_risk_fraction,
     firm_floors,
     firm_reserve,
+    halt_latch_signature,
     next_day_state,
     phase_locked,
     profitable_day_result,
@@ -50,6 +51,35 @@ class ProfileMathTests(unittest.TestCase):
         for name in PROFILES:
             _, nominal = profile_cash(D("2500"), name)
             self.assertGreater(nominal, D("12.50"))
+
+
+class PersistenceIntegrityTests(unittest.TestCase):
+    def test_halt_or_reason_mutation_invalidates_the_commit_signature(self) -> None:
+        config_hash = 123456
+        identity_hash = 654321
+        reason_hash = 987654
+        committed = halt_latch_signature(config_hash, identity_hash, 1, reason_hash)
+
+        self.assertNotEqual(
+            committed,
+            halt_latch_signature(config_hash, identity_hash, 0, 0),
+        )
+        self.assertNotEqual(
+            committed,
+            halt_latch_signature(config_hash, identity_hash, 1, reason_hash + 1),
+        )
+        self.assertNotEqual(
+            committed,
+            halt_latch_signature(config_hash + 1, identity_hash, 1, reason_hash),
+        )
+        self.assertNotEqual(
+            committed,
+            halt_latch_signature(config_hash, identity_hash + 1, 1, reason_hash),
+        )
+
+    def test_unlocked_halt_latch_cannot_keep_a_stale_reason(self) -> None:
+        with self.assertRaises(ValueError):
+            halt_latch_signature(123456, 654321, 0, 987654)
 
 
 class DailyStateTests(unittest.TestCase):

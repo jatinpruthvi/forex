@@ -9,3 +9,7 @@ MQL5/Files/TRIAD_R_HS_*.csv
 # Python local artifacts
 __pycache__/
 *.py[cod]
+
+# Offline validation data/reports (the frozen registry remains tracked)
+validation/*.csv
+validation/*_report.json
