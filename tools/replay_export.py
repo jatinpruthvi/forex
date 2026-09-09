@@ -336,6 +336,7 @@ def load_observed_events(path: Path) -> list[ObservedEvent]:
                 event_id = raw["event_id"].strip()
                 combination = raw["combination"].strip().upper()
                 direction = raw["direction"].strip().lower()
+                trade_through_ticks = int(raw["trade_through_ticks"])
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValidationError(f"line {line_number}: invalid identifier/date/integer field") from exc
             if combination not in ALLOWED_COMBINATIONS:
@@ -389,7 +390,7 @@ def load_observed_events(path: Path) -> list[ObservedEvent]:
                 commission_per_lot_round_trip=nonnegative("commission_per_lot_round_trip"),
                 limit_active=_parse_bool(raw["limit_active"], f"line {line_number} limit_active"),
                 limit_touched=_parse_bool(raw["limit_touched"], f"line {line_number} limit_touched"),
-                trade_through_ticks=int(raw["trade_through_ticks"]),
+                trade_through_ticks=trade_through_ticks,
                 fill_fraction=nonnegative("fill_fraction"),
                 exit_reason=raw["exit_reason"].strip().lower(),
                 target_hit_minutes=optional("target_hit_minutes"),
@@ -484,12 +485,14 @@ def _max_inclusive_multiple(lattice_min: float, step: float, limit: float) -> fl
 
     Matches the EA volume grid: the grid is *not* assumed anchored at zero.
     If ``limit`` falls below the first lattice point, the caller skips.
+    The count is clamped at zero so a sub-minimum budget can never produce a
+    lattice value below ``lattice_min``.
     """
-    if limit < lattice_min - EPS:
+    if limit < lattice_min:
         return 0.0
     if step <= 0.0:
         return lattice_min
-    count = math.floor((limit - lattice_min) / step + EPS)
+    count = max(0, math.floor((limit - lattice_min) / step + EPS))
     return lattice_min + count * step
 
 
@@ -557,6 +560,13 @@ def resolve_entry(event: ObservedEvent, spec: EntrySpec) -> tuple[float | None, 
         if is_long
         else event.sweep_high + STOP_BUFFER_ATR * event.atr_m15
     )
+    # The stop must sit on the protective side of the entry (below for a long,
+    # above for a short).  An upstream replay that produced an inverted
+    # entry/stop pair is broken; fail closed instead of pricing it.
+    if is_long and not entry > stop:
+        return (None, None, "stop_on_wrong_side")
+    if not is_long and not entry < stop:
+        return (None, None, "stop_on_wrong_side")
     stop_distance = abs(entry - stop)
     if stop_distance <= 0.0:
         return (None, None, "zero_stop_distance")
@@ -601,10 +611,15 @@ def resolve_prices(event: ObservedEvent, entry: float, stop: float) -> dict[str,
 
 def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: float,
                  prices: Mapping[str, float]) -> tuple[float, float, str]:
-    """Time-stop/breakeven exit selection; returns (exit_price, net_r, reason).
+    """Time-stop/breakeven exit selection; returns (effective_exit_price, net_r, reason).
 
     Uses the observed path (target/stop precedence from the upstream
     ``exit_reason``), then the configured time stop or session end.
+    ``effective_exit_price`` is the price the broker would actually have
+    filled at: the observed path price normally, or ``entry`` when the
+    confirmed-1R breakeven cap applies (the stop was moved to entry, so the
+    exit executes at entry net of costs).  Rows must derive their net cash
+    from this price so net_r and net_cash tell the same story.
     """
     is_long = event.direction == "long"
     cash_per_unit = float(prices["cash_per_unit"])
@@ -646,7 +661,25 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
         effective_reason = "session_end"
     exit_r = outcome_net_r(exit_price)
 
-    if config.move_stop_to_entry_after_confirmed_1r and event.breakeven_hit_minutes is not None:
+    breakeven_cap_applies = (
+        config.move_stop_to_entry_after_confirmed_1r
+        and event.breakeven_hit_minutes is not None
+    )
+    if breakeven_cap_applies and effective_reason == "stop" and event.stop_hit_minutes is not None:
+        # The +1R confirmation must predate the stop touch; if the stop was hit
+        # first, the broker stop had never moved to entry, so the raw stop
+        # outcome stands.
+        breakeven_cap_applies = event.breakeven_hit_minutes < event.stop_hit_minutes
+    if breakeven_cap_applies and effective_reason == "time":
+        # Same ordering rule against the selected time-stop horizon.
+        breakeven_cap_applies = event.breakeven_hit_minutes < float(config.time_stop_minutes)
+
+    if breakeven_cap_applies:
+        # Confirmed +1R close before the exit: the broker stop moved to entry.
+        # Any fill worse than the +1R level is therefore capped at breakeven
+        # (still net of commission and slippage).  The effective fill price is
+        # entry, so net cash must be priced there too -- otherwise net_r and
+        # net_cash disagree on the trade's sign.
         one_r_price = entry + (entry - stop) if is_long else entry - (entry - stop)
         was_beyond = (
             (exit_price - one_r_price) > 0.0 if is_long
@@ -655,6 +688,7 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
         if not was_beyond:
             exit_r = outcome_net_r(entry)
             effective_reason = "breakeven"
+            exit_price = entry
     return (exit_price, float(exit_r), effective_reason)
 
 

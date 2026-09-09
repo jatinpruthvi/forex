@@ -380,7 +380,8 @@ def _weekdays(range_start, range_end, count):
 
 
 class AblationEvaluateEndToEndTests(unittest.TestCase):
-    def _scenario(self, tmpdir: Path, weak_days_selection: int, weak_days_holdout: int):
+    def _scenario(self, tmpdir: Path, weak_days_selection: int, weak_days_holdout: int,
+                  holdout_base_days: int = 100):
         registry = abl.load_registry(REGISTRY_PATH)
         selection_start, selection_end, holdout_start, holdout_end = abl.declared_splits(registry)
         # Base days span two calendar years so the year-robustness gate can
@@ -391,7 +392,9 @@ class AblationEvaluateEndToEndTests(unittest.TestCase):
             + _weekdays(date(2021, 1, 1), selection_end, 60)
         )
         weak_selection_days = _weekdays(date(2022, 1, 1), selection_end, weak_days_selection)
-        holdout_days = _weekdays(holdout_start, holdout_end, 20)
+        # R3 requires >= 300 holdout fills on each side: 100 base days *
+        # 3 combinations = 300 baseline fills; weak days add variant-only fills.
+        holdout_days = _weekdays(holdout_start, holdout_end, holdout_base_days)
         weak_holdout_days = _weekdays(date(2025, 3, 1), holdout_end, weak_days_holdout)
         events = []
         for index, day in enumerate(selection_days + holdout_days):

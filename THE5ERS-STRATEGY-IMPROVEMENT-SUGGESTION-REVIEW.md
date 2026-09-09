@@ -209,9 +209,9 @@ The ablation round from plan item 7 is now **preregistered and mechanically wire
 | Piece | Where | Notes |
 |---|---|---|
 | Shared entry/exit/sizing core | `tools/replay_export.py` — `EntrySpec`, `resolve_entry()`, `resolve_prices()`, `resolve_exit()`, `resolve_lots()`, `_row_from_resolved()` | The frozen V2.1 derive path now calls the same core with `BASELINE_ENTRY_SPEC`. Contract test proves the default variant produces **byte-equivalent rows** to the previous implementation (minus the variant config ID). |
-| Preregistered ablation registry | `validation/triad_v2_2_ablation_registry.json` — SHA-256 `72c5ae24acdde5e31ea647f742605b687e67bf4bca4fc49e2897b18f570479a7` | 6 runs, declared splits 2019-01-01→2024-12-31 (WALK_FORWARD) and 2025-01-01→2026-08-31 (HOLDOUT), fixed controls (Profile A, 0.40% risk, +1.5R, 45-min time stop, no breakeven move, 30–80/20–80 bands, $2,500 account), fill policy, thresholds, and decision rules R1–R5. Any edit to the payload breaks the hash and is rejected. |
+| Preregistered ablation registry | `validation/triad_v2_2_ablation_registry.json` — SHA-256 `1fc30a72692e486fb1e55199aa84286ee5964bec428589bd689f4f7ce73ace2c` (revised during the bug review while still data-gated) | 6 runs, declared splits 2019-01-01→2024-12-31 (WALK_FORWARD) and 2025-01-01→2026-08-31 (HOLDOUT), fixed controls (Profile A, 0.40% risk, +1.5R, 45-min time stop, no breakeven move, 30–80/20–80 bands, $2,500 account), fill policy, thresholds, and decision rules R1–R5. Any edit to the payload breaks the hash and is rejected. |
 | Ablation rows | Can be built from the same observed-event CSV contract as P0 (`tools/triad_ablation.py build`) | Same CSV schema, same fill policy, same "one signal per session" rule; each row is labelled with its variant ID. The build command **rejects any split that differs from the preregistered declaration**. |
-| Paired evaluator | `tools/triad_ablation.py validate` | R1 per-variant gates (fills, per-combination expectancy, profit factor ≥ 1.15, calendar-year robustness, 1.5× spread / 2× slippage stress), then R2 superiority (familywise-adjusted block-bootstrap lower bound > +0.05R), R5 simpler-tie (simpler variants only: ≥ 1.2× opportunity, no significant harm), R3 holdout confirmation, R4 conflict rule. Emits a full JSON audit report. |
+| Paired evaluator | `tools/triad_ablation.py validate` | R1 per-variant gates (fills, per-combination expectancy, profit factor ≥ 1.15, calendar-year robustness, 1.5× spread / 2× slippage stress), then R2 superiority (familywise-adjusted block-bootstrap lower bound > +0.05R), R5 simpler-tie (simpler variants only: ≥ 1.2× opportunity, adjusted lower bound > −0.05R, mean ≥ −0.05R), R3 holdout confirmation (≥ 300 fills on each side, variant expectancy ≥ 0 and ≥ baseline − 0.05R), R4 conflict rule. Emits a full JSON audit report. |
 
 ### The registered variants
 
@@ -228,7 +228,7 @@ One change per variant; no stacking (R4); no live/EA parameter change may result
 
 ### Verification status
 
-- Full suite: **115 tests, all passing** (88 from P0 + 27 new in `tests/test_ablation_scaffold.py`).
+- Full suite at time of writing: **129 tests, all passing** (88 from P0 + 27 ablation scaffold + 14 bug-review regressions; see Appendix E for the review details and the small registry revision they caused).
 - New tests cover registry hash/tamper rejection, split re-registration enforcement, byte-equivalence of the baseline spec, each variant's entry behavior (including the acceptance cases the frozen rules reject and vice versa), builder coverage/round trip, the R1/R2/R5 decision logic, paired day-level differencing and bootstrap determinism, and two end-to-end CLI scenarios: a flat synthetic market that correctly returns **NO_CHANGE_SUPPORTED**, and a synthetic market where only the simpler-reclaim variant can act, which correctly returns **VARIANT_SUPPORTED** with holdout confirmation.
 - No test asserts any performance claim about any variant; the end-to-end cases above are mechanics-only wiring proofs on synthetic fixtures.
 
@@ -239,3 +239,23 @@ One change per variant; no stacking (R4); no live/EA parameter change may result
 3. Only then can the predeclared R1–R5 rules produce a decision; **no strategy, registry, or EA change may be derived from the two synthetic end-to-end runs.**
 
 Repository files changed by this scaffold: `tools/replay_export.py` (refactored to the shared event core — default-variant output unchanged), `tools/triad_ablation.py` (new), `validation/triad_v2_2_ablation_registry.json` (new, preregistered), `tests/test_ablation_scaffold.py` (new), this review (Appendices B/D).
+
+## Appendix E — Code bug review (performed on fbab6eb, fixed and re-committed)
+
+The P0/P2 tooling was re-reviewed line-by-line plus with targeted adversarial tests. **Confirmed and fixed:**
+
+1. **Breakeven cash mismatch (real economics bug).** For the confirmed-1R breakeven policy, the exporter priced `net_r` at the entry (capped, net of costs — e.g. `−0.074R`) but priced `net_cash_full` from the raw path exit price (e.g. `+$2.30`). The EA actually moves the stop to entry, so the effective fill is entry. Fixed in `resolve_exit` (it now returns the *effective* fill price, entry on a breakeven cap) and `_row_from_resolved` prices cash from it; regression test proves `net_cash_full / risk_cash_full ≈ net_r` and `net_cash_full < 0`. The default (no-breakeven) path and the ablation round (fixed controls, no breakeven move) are byte-identical to before; only breakeven-fixed configurations changed, and they changed to match the EA model.
+   - **Ordering flaw in the same code path.** The cap also ignored *when* the +1R confirmation happened: a stop touched at minute 10 was capped by a "confirmation" at minute 15. `resolve_exit` now applies the cap only when the confirmation strictly precedes the exit (stop-touch minute or time-stop horizon); raw stop outcomes stand otherwise — regression-tested both directions. `session_end` has no explicit event time and keeps the documented cap-if-confirmed behavior.
+2. **`decide()` crashed on empty paired data** (`float(None)`); now returns `not_adopted` with an explicit reason — regression-tested.
+3. **R3 confirmation had no minimum evidence floor**, so a variant could be "confirmed" on a handful of fresh-window fills. Preregistered `minimum_holdout_fills = 300` per side (mirrors the frozen Section-13 aggregate floor), enforced in `evaluate()` and recorded in the report — re-registered while still data-gated (new hash `1fc30a72…`).
+4. **Observed-event loader raised a raw `ValueError`** (traceback instead of fail-closed `ValidationError`) for a non-integer `trade_through_ticks`; now caught — regression-tested.
+5. **Stop-on-wrong-side not explicitly rejected.** Geometrically unreachable after the sweep/band gates in practice, but the exporter now fails closed on an inverted entry/stop pair (`stop_on_wrong_side`) — regression-tested.
+6. **Volume lattice could return a value below `SYMBOL_VOLUME_MIN`** in a sub-EPS boundary case (it was always rejected downstream, but the arithmetic was wrong); count is now clamped at zero.
+7. **Stale/misleading preregistration text**: module docstring R5/R3 no longer matched the implemented rules; a dead `opportunity_floor_fraction` setting was frozen into the registry without being used. Docstring corrected and the dead field removed from the registry (re-hashed).
+8. `schema` output had a stray quote artifact; cleaned.
+
+**Checked and found sound (no change):** registry hash mutability protection; split-guard build/validate; row-day guard; coverage validation; router ranking/demotion; paired differencing; block-bootstrap mechanics and Bonferroni tails; phase simulator day-lock/weekly-stop/inactivity logic; firm-floor path; Wilson intervals; loader dedupe/positive-value checks; CLI error paths.
+
+**Known limitations (documented, not fixed):** the replay-row dedupe key does not include `combination` (event IDs must be unique per config/split/day across combinations — the exporter's own IDs are); V2's "first executable quote" is modeled as the displacement close (documented confound in the registry); the frozen net-cash conventions are only guaranteed consistent for non-breakeven configs after fix 1; no real data has been touched, so none of this is edge evidence.
+
+Test suite: **129/129 passing** (115 before this review + 14 new regression tests in `tests/test_bugfix_regressions.py`).

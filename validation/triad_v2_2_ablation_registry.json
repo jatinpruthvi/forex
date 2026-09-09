@@ -33,7 +33,7 @@
     "minimum_aggregate_fills": 300,
     "minimum_combination_fills": 100,
     "minimum_combination_profit_factor": 1.15,
-    "opportunity_floor_fraction": 0.8,
+    "minimum_holdout_fills": 300,
     "simpler_opportunity_premium": 1.2,
     "simpler_tie_delta_r": 0.05
   },
@@ -86,7 +86,7 @@
     "Q2": "Does the 50% retracement limit help?",
     "Q3": "Are geometry filters useful?"
   },
-  "registry_sha256": "72c5ae24acdde5e31ea647f742605b687e67bf4bca4fc49e2897b18f570479a7",
+  "registry_sha256": "1fc30a72692e486fb1e55199aa84286ee5964bec428589bd689f4f7ce73ace2c",
   "registry_version": "TRIAD_R_V2_2_ABLATION_6",
   "runs": [
     {

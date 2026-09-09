@@ -220,6 +220,8 @@ python3 tools/triad_ablation.py validate \
   --output /path/to/ablation_report.json
 ```
 
+R3 confirmation is evidence-gated: the fresh window must supply at least 300 fills on both the variant and the baseline side (mirroring the frozen Section-13 aggregate floor) before an expectancy comparison is accepted. `python3 tools/triad_ablation.py schema` prints the row contract; the registry SHA-256 covers every threshold, split, fill-policy value, variant, and decision rule.
+
 No ablation outcome authorizes a change to the EA, the frozen V2.1 registry, or any live parameter; even a confirmed variant must pass a fresh P0/P1 pipeline on fresh windows before adoption.
 
 ## Required validation sequence

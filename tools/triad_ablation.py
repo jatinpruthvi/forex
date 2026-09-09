@@ -38,14 +38,14 @@ R2  Superiority: R1 plus the familywise-adjusted lower bound of the paired
     Bonferroni over the 5 competing variants, 95%) must exceed +0.05R.
 
 R5  Simplicity tie (only for variants declared simpler than baseline): R1 plus
-    variant fills >= 1.2 x baseline fills, mean paired difference >= -0.05R,
-    and the adjusted interval covering zero (no significant harm).  If a
-    simpler rule performs within -0.05R with reliably more opportunity, it
-    replaces the complex rule.
+    variant fills >= 1.2 x baseline fills, the familywise-adjusted paired
+    lower bound > -0.05R (no significant harm), and the mean paired
+    difference >= -0.05R.  A simpler rule that gives reliably more
+    opportunity without significant harm replaces the complex rule.
 
 R3  Holdout confirmation (fresh window, evaluated only after R2/R5 decisions):
-    variant holdout expectancy >= 0, >= baseline - 0.05R, and a positive
-    ordinary bootstrap lower bound.
+    at least ``minimum_holdout_fills`` (300) fills on EACH side, variant
+    holdout expectancy >= 0, and >= baseline - 0.05R.
 
 R4  Conflict rule: if more than one variant is confirmed, nothing is adopted
     this round; a follow-up round must re-register with the best variant as
@@ -146,12 +146,12 @@ HOLDOUT_END = "2026-08-31"
 
 # Predeclared decision thresholds (registry payload covers these).
 ACCEPT_DELTA_R = 0.05
-OPPORTUNITY_FLOOR_FRACTION = 0.80
 SIMPLER_TIE_DELTA_R = 0.05
 SIMPLER_OPPORTUNITY_PREMIUM = 1.20
 MINIMUM_COMBINATION_FILLS = 100
 MINIMUM_AGGREGATE_FILLS = 300
 MINIMUM_COMBINATION_PROFIT_FACTOR = 1.15
+MINIMUM_HOLDOUT_FILLS = 300
 BOOTSTRAP_SAMPLES = 2000
 BLOCK_DAYS = 5
 FAMILYWISE_ALPHA = 0.05
@@ -174,12 +174,12 @@ class AblationRun:
 @dataclass(frozen=True)
 class AblationSettings:
     accept_delta_r: float = ACCEPT_DELTA_R
-    opportunity_floor_fraction: float = OPPORTUNITY_FLOOR_FRACTION
     simpler_tie_delta_r: float = SIMPLER_TIE_DELTA_R
     simpler_opportunity_premium: float = SIMPLER_OPPORTUNITY_PREMIUM
     minimum_combination_fills: int = MINIMUM_COMBINATION_FILLS
     minimum_aggregate_fills: int = MINIMUM_AGGREGATE_FILLS
     minimum_combination_profit_factor: float = MINIMUM_COMBINATION_PROFIT_FACTOR
+    minimum_holdout_fills: int = MINIMUM_HOLDOUT_FILLS
     bootstrap_samples: int = BOOTSTRAP_SAMPLES
     block_days: int = BLOCK_DAYS
     familywise_alpha: float = FAMILYWISE_ALPHA
@@ -637,7 +637,12 @@ def decide(run: AblationRun, r1_failures: list[str], stress_failures: list[str],
     if r1_failures or stress_failures:
         return "not_eligible", [*r1_failures, *stress_failures]
     adjusted = paired["familywise_adjusted_interval"]
-    mean = float(paired["observed_mean_difference_r"])
+    raw_mean = paired["observed_mean_difference_r"]
+    if raw_mean is None:
+        # No paired day exists on either side; R1 should never let this happen,
+        # but never crash on it either.
+        return "not_adopted", ["no paired day observations to compare"]
+    mean = float(raw_mean)
     lower = adjusted[0]
     variant_fills = float(paired["variant_fills"])
     if lower is not None and float(lower) > settings.accept_delta_r:
@@ -780,15 +785,30 @@ def evaluate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
         baseline_expectancy = (
             None if baseline_holdout["expectancy_r"] is None else float(baseline_holdout["expectancy_r"])
         )
-        confirmed = (
+        # R3: a fresh-window confirmation needs a minimum amount of evidence on
+        # BOTH sides -- mirroring the frozen Section-13 aggregate fill floor --
+        # otherwise one lucky fill could confirm a variant.
+        confirmation_failures: list[str] = []
+        if int(variant_holdout["fills"]) < settings.minimum_holdout_fills:
+            confirmation_failures.append(f"variant_holdout_fills:{int(variant_holdout['fills'])}")
+        if int(baseline_holdout["fills"]) < settings.minimum_holdout_fills:
+            confirmation_failures.append(f"baseline_holdout_fills:{int(baseline_holdout['fills'])}")
+        performance_ok = (
             variant_expectancy is not None
             and variant_expectancy >= 0.0
             and baseline_expectancy is not None
             and variant_expectancy >= baseline_expectancy - settings.accept_delta_r
         )
+        if not performance_ok:
+            confirmation_failures.append("holdout_expectancy_vs_baseline")
+        confirmed = not confirmation_failures
         holdout_confirmations[block["variant_id"]] = {
             "variant_holdout_expectancy_r": variant_expectancy,
             "baseline_holdout_expectancy_r": baseline_expectancy,
+            "variant_holdout_fills": int(variant_holdout["fills"]),
+            "baseline_holdout_fills": int(baseline_holdout["fills"]),
+            "minimum_holdout_fills": settings.minimum_holdout_fills,
+            "confirmation_failures": confirmation_failures,
             "confirmed": confirmed,
         }
 
@@ -940,7 +960,7 @@ def schema_text() -> str:
         "",
         "Variant IDs: " + ", ".join(run.variant_id for run in build_runs()),
         "",
-        "build: python3 tools/triad_ablation.py build --event-file ... --registry ... \"\n"
+        "build: python3 tools/triad_ablation.py build --event-file ... --registry ... \\",
         "  --selection-split START END --holdout-split START END --output ...",
     ]
     return "\n".join(lines) + "\n"
