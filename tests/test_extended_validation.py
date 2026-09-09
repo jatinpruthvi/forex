@@ -249,7 +249,11 @@ class MetricExtensionTests(unittest.TestCase):
         self.assertEqual(report["small_positive_wins_full"], 1)
         self.assertEqual(report["qualifying_wins_full"], 1)
         self.assertAlmostEqual(report["net_cash_total_full"], 20.0)
-        self.assertAlmostEqual(report["executed_risk_fraction_mean"], 1.0)
+        self.assertAlmostEqual(
+            report["executed_risk_fraction_mean"],
+            1.0 * (1.0 + 0.01 + 0.02 / 2.0),
+            msg="utilization measured against the all-in loss, not pure stop risk",
+        )
 
     def test_min_lot_budget_underuse_is_measured(self) -> None:
         rows = [

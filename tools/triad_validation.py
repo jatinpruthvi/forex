@@ -578,11 +578,17 @@ def _augment_metric_report(entry: dict[str, object], rows: Sequence[ReplayRow],
     entry["trade_through_rate"] = (through / activated) if activated else None
 
     if fills:
-        entry["net_cash_total_full"] = float(sum(trade.row.net_cash_full for trade in trades))
-        entry["net_cash_total_half"] = float(sum(trade.row.net_cash_half for trade in trades))
-        entry["net_cash_mean_full"] = statistics.fmean(trade.row.net_cash_full for trade in trades)
-        entry["net_cash_mean_half"] = statistics.fmean(trade.row.net_cash_half for trade in trades)
-        entry["all_in_cost_r_mean"] = statistics.fmean(_all_in_cost_r(trade.row) for trade in trades)
+        # ``trade.cash_result`` embeds the fill-policy stress cost, so cash
+        # totals agree with the stressed ``net_r`` used for expectancy; in the
+        # normal scenario ``extra_cost_r`` is zero and these equal the row
+        # cash columns exactly.
+        entry["net_cash_total_full"] = float(sum(trade.cash_result(False) for trade in trades))
+        entry["net_cash_total_half"] = float(sum(trade.cash_result(True) for trade in trades))
+        entry["net_cash_mean_full"] = statistics.fmean(trade.cash_result(False) for trade in trades)
+        entry["net_cash_mean_half"] = statistics.fmean(trade.cash_result(True) for trade in trades)
+        entry["all_in_cost_r_mean"] = statistics.fmean(
+            _all_in_cost_r(trade.row) + trade.extra_cost_r for trade in trades
+        )
     else:
         entry["net_cash_total_full"] = 0.0
         entry["net_cash_total_half"] = 0.0
@@ -591,8 +597,9 @@ def _augment_metric_report(entry: dict[str, object], rows: Sequence[ReplayRow],
         entry["all_in_cost_r_mean"] = None
 
     if qualifying_cash is not None and fills:
-        small = sum(0.0 < trade.row.net_cash_full < qualifying_cash for trade in trades)
-        qualifying = sum(trade.row.net_cash_full >= qualifying_cash for trade in trades)
+        full_results = [trade.cash_result(False) for trade in trades]
+        small = sum(0.0 < value < qualifying_cash for value in full_results)
+        qualifying = sum(value >= qualifying_cash for value in full_results)
         entry["small_positive_wins_full"] = small
         entry["qualifying_wins_full"] = qualifying
         entry["sub_qualifying_share_full"] = small / fills
@@ -602,12 +609,20 @@ def _augment_metric_report(entry: dict[str, object], rows: Sequence[ReplayRow],
         entry["sub_qualifying_share_full"] = None
 
     if config_risk_fractions and initial_balance and fills:
-        utilizations = [
-            trade.row.risk_cash_full
-            / (initial_balance * float(config_risk_fractions[trade.row.config_id]))
-            for trade in trades
-            if float(config_risk_fractions[trade.row.config_id]) > 0.0
-        ]
+        # Utilization is measured against the V2 section 6 all-in ceiling:
+        # per lot, the all-in loss = pure stop risk * (1 + commission_r +
+        # stop-side slippage_r/2).  The rows report the broker-visible stop
+        # risk only, so the fee share is reconstructed from the R components.
+        utilizations = []
+        for trade in trades:
+            fraction = float(config_risk_fractions[trade.row.config_id])
+            if fraction > 0.0:
+                row = trade.row
+                all_in_factor = 1.0 + row.commission_r + row.slippage_r / 2.0
+                utilizations.append(
+                    row.risk_cash_full * all_in_factor
+                    / (initial_balance * fraction)
+                )
         if utilizations:
             ordered = sorted(utilizations)
             entry["executed_risk_fraction_mean"] = statistics.fmean(ordered)
@@ -1166,6 +1181,11 @@ def phase_simulation_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, st
     phase2_passes = sum(item.passed for item in phase2_outcomes)
     return {
         "paths": paths,
+        "phase_target_definition": (
+            "phase targets are fractions of the $2,500 phase initial balance "
+            "(V2 objectives: +10% Phase 1, +5% Phase 2; the external rule set "
+            "ambiguity about the Phase-2 base remains a written-support item)"
+        ),
         "phase1_pass_probability": phase1_passes / paths,
         "phase2_pass_probability": phase2_passes / paths,
         "joint_pass_probability": joint_passes / paths,

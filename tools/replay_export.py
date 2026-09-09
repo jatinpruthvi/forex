@@ -20,8 +20,10 @@ What this exporter does
      the minimum volume exceeds the risk budget;
    - cash risk and net cash from the symbol's tick size / tick value, with the
      commission and slippage reserve applied;
-   - target solved so the estimated *net* target result equals the profile's
-     target R after costs;
+   - target solved so the modeled net target result equals the profile's
+     target R after commission and the slippage reserve (spread is charged in
+     the net and reported separately, so the target exit shows
+     ``target_r - spread_r`` under the frozen R convention);
    - time-stop outcome selected from the observed exit path per configuration
      (30/45/60/90 minutes or session-only);
    - confirmed-1R breakeven policy applied when the observed path reached +1R.
@@ -421,6 +423,10 @@ def load_observed_events(path: Path) -> list[ObservedEvent]:
                 raise ValidationError(f"line {line_number}: target exit requires target_hit_minutes")
             if event.exit_reason == "stop" and event.stop_hit_minutes is None:
                 raise ValidationError(f"line {line_number}: stop exit requires stop_hit_minutes")
+            if event.exit_reason == "breakeven" and event.breakeven_hit_minutes is None:
+                raise ValidationError(
+                    f"line {line_number}: breakeven exit requires breakeven_hit_minutes"
+                )
             events.append(event)
     keys = [(event.server_day, event.sequence, event.event_id, event.combination) for event in events]
     if len(keys) != len(set(keys)):
@@ -576,11 +582,22 @@ def resolve_entry(event: ObservedEvent, spec: EntrySpec) -> tuple[float | None, 
 
 
 def resolve_prices(event: ObservedEvent, entry: float, stop: float) -> dict[str, float]:
-    """Cost components and target solved so net target R equals the profile.
+    """Cost components and the R-denominated breakdown for a position plan.
 
-    Returns ``cash_per_unit``, ``per_lot_risk``, ``round_cost_cash``,
-    ``cost_r``, ``spread_r``, ``slippage_r``, ``commission_r``, and
-    ``gross_target_distance``.  The caller supplies the configured target R.
+    Returns ``cash_per_unit``, ``per_lot_risk`` (broker-visible stop distance
+    in cash, the exporter's R denominator), ``round_cost_cash`` (realized
+    round-trip spread + both-side slippage + commission),
+    ``cost_r``, ``spread_r``, ``slippage_r``, ``commission_r``, and the raw
+    ``stop_distance`` used to solve the target offset.  The caller supplies the
+    configured target R.
+
+    Convention note (frozen export contract, do not silently change): net R is
+    measured against the broker-visible stop risk only, and the realized
+    round-trip spread is charged inside ``per_lot_net``.  Consequently a target
+    exit reports ``target_r - spread_r`` in R units.  The live EA solves its
+    take-profit against the *all-in* cash risk (stop loss + stop slippage +
+    commission), a different definition; the exporter's convention is
+    self-consistent with the CSV schema and is documented there.
     """
     is_long = event.direction == "long"
     cash_per_unit = _cash_per_price_unit(event)
@@ -602,10 +619,7 @@ def resolve_prices(event: ObservedEvent, entry: float, stop: float) -> dict[str,
         "spread_r": spread_r,
         "slippage_r": slippage_r,
         "commission_r": commission_r,
-        # Target offset solved so the modeled net result equals target R after
-        # commission and the slippage reserve (V2 section 7); spread is already
-        # realized in the entry fill and is not re-added.
-        "gross_target_distance": stop_distance,
+        "stop_distance": stop_distance,
     }
 
 
@@ -613,6 +627,10 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
                  prices: Mapping[str, float]) -> tuple[float, float, str]:
     """Time-stop/breakeven exit selection; returns (effective_exit_price, net_r, reason).
 
+    A cancelled order never reaches this function from the exporter (the
+    ``cancel`` short-circuit in ``_row_from_resolved`` zeroes the row first),
+    but the direct API is guarded too: pricing a cancelled order as a
+    time-stop or session-end fill would fabricate exposure.
     Uses the observed path (target/stop precedence from the upstream
     ``exit_reason``), then the configured time stop or session end.
     ``effective_exit_price`` is the price the broker would actually have
@@ -621,6 +639,11 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
     exit executes at entry net of costs).  Rows must derive their net cash
     from this price so net_r and net_cash tell the same story.
     """
+    if event.exit_reason == "cancel":
+        raise ValidationError(
+            "cannot price an exit for a cancelled pending order; "
+            "cancel rows must be zeroed before exit resolution"
+        )
     is_long = event.direction == "long"
     cash_per_unit = float(prices["cash_per_unit"])
     per_lot_risk = float(prices["per_lot_risk"])
@@ -635,10 +658,11 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
 
     commission_r = float(prices["commission_r"])
     slippage_r = float(prices["slippage_r"])
+    stop_distance = float(prices["stop_distance"])
     target = (
-        entry + float(prices["gross_target_distance"]) * (config.target_r + commission_r + slippage_r)
+        entry + stop_distance * (config.target_r + commission_r + slippage_r)
         if is_long
-        else entry - float(prices["gross_target_distance"]) * (config.target_r + commission_r + slippage_r)
+        else entry - stop_distance * (config.target_r + commission_r + slippage_r)
     )
 
     if event.exit_reason == "target" and event.target_hit_minutes is not None:
@@ -647,14 +671,23 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
     elif event.exit_reason == "stop" and event.stop_hit_minutes is not None:
         exit_price = stop
         effective_reason = "stop"
+    elif event.exit_reason == "breakeven" and event.breakeven_hit_minutes is not None:
+        # The upstream replay observed the position closed at the moved stop
+        # (entry), not at the time horizon or session end.  The loader requires
+        # the confirmation timestamp, so this branch is never ambiguous.
+        exit_price = entry
+        effective_reason = "breakeven"
     elif config.time_stop_minutes > 0:
         horizon = config.time_stop_minutes
-        exit_price = {
+        stop_prices = {
             30: event.price_at_30,
             45: event.price_at_45,
             60: event.price_at_60,
             90: event.price_at_90,
-        }[horizon]
+        }
+        if horizon not in stop_prices:
+            raise ValidationError(f"unsupported time-stop horizon {horizon} minutes")
+        exit_price = stop_prices[horizon]
         effective_reason = "time"
     else:
         exit_price = event.price_at_session_end
@@ -664,6 +697,7 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
     breakeven_cap_applies = (
         config.move_stop_to_entry_after_confirmed_1r
         and event.breakeven_hit_minutes is not None
+        and effective_reason != "breakeven"
     )
     if breakeven_cap_applies and effective_reason == "stop" and event.stop_hit_minutes is not None:
         # The +1R confirmation must predate the stop touch; if the stop was hit
@@ -694,11 +728,37 @@ def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: f
 
 def resolve_lots(event: ObservedEvent, config: ConfigSpec, per_lot_risk: float,
                  initial_balance: float) -> tuple[float, float]:
-    """(lots, risk_cash_full) with volume rounding anchored at the lattice min."""
+    """(lots, broker-visible stop cash risk) with volume rounding at the lattice min.
+
+    V2 section 6 sizes volume so the *all-in* loss fits the risk budget::
+
+        all_in_loss(lots) = abs(OrderCalcProfit(entry, stop, lots))
+                            + commission + slippage_reserve
+
+    The EA mirrors this in ``CashLossForVolume``/``CalculateVolume`` (one-side
+    stop slippage reserve plus commission).  Sizing on the broker-visible stop
+    distance alone can put the all-in loss above the declared risk ceiling, so
+    the lattice is floored against the all-in per-lot loss and then verified.
+    The returned cash risk stays the broker-visible stop risk (CSV schema), the
+    R denominator used throughout the validator.
+    """
     risk_budget = initial_balance * config.risk_fraction
-    lots = _max_inclusive_multiple(
-        event.volume_min, event.volume_step, risk_budget / per_lot_risk
+    per_lot_all_in = (
+        per_lot_risk
+        + event.commission_per_lot_round_trip
+        + _cash_per_price_unit(event) * event.slippage_price
     )
+    lots = _max_inclusive_multiple(
+        event.volume_min, event.volume_step, risk_budget / per_lot_all_in
+    )
+    # Fail closed on the ceiling: the lattice floor with EPS can land one step
+    # above the exact all-in budget; step down until compliant (the compliant
+    # value is always one lattice step away at most), then reject if the
+    # minimum volume itself still exceeds the budget.
+    while lots + EPS >= event.volume_min and lots * per_lot_all_in > risk_budget + 1e-6:
+        lots = round(lots - event.volume_step, 12)
+    if lots + EPS < event.volume_min or lots * per_lot_all_in > risk_budget + 1e-6:
+        return (0.0, 0.0)
     return (lots, lots * per_lot_risk)
 
 
@@ -714,6 +774,12 @@ def _row_from_resolved(event: ObservedEvent, config: ConfigSpec, spec: EntrySpec
     lots, risk_cash_full = resolve_lots(event, config, float(prices["per_lot_risk"]), initial_balance)
     if lots + EPS < event.volume_min:
         return _rejected(event, config, "minimum_volume_exceeds_risk_budget")
+    if event.exit_reason == "cancel":
+        # The pending order was cancelled before any executable fill: the
+        # exposure never existed.  Emit an honest no-fill observation whose
+        # plan fields are zeroed so a contradictory "filled then cancelled"
+        # upstream row can never become a counted trade.
+        return _cancelled(event, config)
     exit_price, exit_r, _ = resolve_exit(event, config, entry, stop, prices)
     cash_per_unit = float(prices["cash_per_unit"])
     per_lot_net = cash_per_unit * abs(exit_price - entry) - float(prices["round_cost_cash"])
@@ -795,6 +861,41 @@ def _rejected(event: ObservedEvent, config: ConfigSpec, rejection: str) -> Repla
         combination=event.combination,
         candidate=True,
         activation_ok=False,
+        limit_touched=False,
+        trade_through_ticks=0,
+        fill_fraction=0.0,
+        net_r=0.0,
+        risk_cash_full=0.0,
+        risk_cash_half=0.0,
+        net_cash_full=0.0,
+        net_cash_half=0.0,
+        mae_cash_full=0.0,
+        mae_cash_half=0.0,
+        spread_r=0.0,
+        slippage_r=0.0,
+        commission_r=0.0,
+        rule_violation=event.rule_violation,
+        operational_error=event.operational_error,
+    )
+
+
+def _cancelled(event: ObservedEvent, config: ConfigSpec) -> ReplayRow:
+    """Row for a candidate whose pending order was cancelled before filling.
+
+    The candidate existed, the order may or may not have been active, but no
+    executable fill was observed: fill fields, outcome, risk, and cost columns
+    are zeroed (no exposure), and the row keeps the audit flags from the
+    upstream replay.
+    """
+    return ReplayRow(
+        config_id=config.config_id,
+        split="WALK_FORWARD",  # replaced by the expansion step.
+        server_day=event.server_day,
+        sequence=event.sequence,
+        event_id=event.event_id,
+        combination=event.combination,
+        candidate=True,
+        activation_ok=event.limit_active,
         limit_touched=False,
         trade_through_ticks=0,
         fill_fraction=0.0,

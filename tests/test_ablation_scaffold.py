@@ -191,8 +191,11 @@ class AblationEntryBehaviorTests(unittest.TestCase):
             event, _config(), abl.ABL_RUNS[5].entry_spec, variant_id="ABL-V5-NO-MIDPOINT"
         )[0]
         self.assertTrue(variant.activation_ok)
-        # entry 1.08030, stop 1.07947 -> 0.00083 risk distance, 0.12 lots.
-        self.assertAlmostEqual(variant.risk_cash_full, 9.96, places=4)
+        # entry 1.08030, stop 1.07947 -> 0.00083 risk distance ($83/lot) and
+        # $3/lot all-in cost -> $86/lot; 0.11 lots is the largest grid value
+        # whose ALL-IN loss ($9.46) stays inside the $10 (0.40%) risk budget.
+        # The old 0.12-lot value breached the V2 section 6 ceiling ($10.32).
+        self.assertAlmostEqual(variant.risk_cash_full, 9.13, places=4)
 
     def test_rejections_are_audited_as_candidates(self):
         event = _event(
