@@ -88,6 +88,7 @@ input string               InpSymbol                     = "EURUSD";
 input ENUM_TSC_WINDOW      InpWindow                     = TSC_WINDOW_LONDON;
 input string               InpComboLabel                 = "";      // auto if empty
 input bool                 InpEnableOrderSubmission      = false;   // DEMO ONLY
+input bool                 InpSkipFreshMidSessionStart   = true;     // canonical default
 input long                 InpMagic                      = 26090399;
 input string               InpExpectedAccountCurrency    = "USD";
 input int                  InpExpectedServerUtcOffsetHours = 3;
@@ -253,7 +254,6 @@ datetime          g_last_trade_time = 0;
 int               g_stored_phase  = 0;
 double            g_firm_daily_floor = 0.0;
 int               g_request_count = 0;
-bool              g_dashboard_ready = false;
 
 // Today's counters (reset at rollover).
 int               g_today_signals = 0;
@@ -268,6 +268,22 @@ double            g_net_cash_total = 0.0;
 datetime          g_last_request_time = 0;
 double            g_last_trade_risk_cash = 0.0;
 ulong             g_last_seen_position_ticket = 0;
+
+// Emergency-safety per-ticket throttle (0=order delete, 1=position close,
+// 2=repair/breakeven modify). Emergency cleanup must never be gated by the
+// non-emergency request cap.
+datetime          g_emergency_last_time[3];
+ulong             g_emergency_last_ticket[3];
+
+// Closed-trade ledger id set: loaded from T.csv so a crash between the append
+// and plan removal can never double-account a position.
+long              g_ledger_position_ids[];
+
+// Inactivity: hourly recompute of the last account BUY/SELL deal time.
+datetime          g_last_activity_check = 0;
+
+// Foreign-exposure log throttle.
+datetime          g_last_foreign_exposure_log = 0;
 
 // ============================================================================
 // Small helpers
@@ -369,10 +385,10 @@ uint FnvStep(uint seed,const string text)
 
 int ConfigHash()
   {
-   uint seed=216613626;
+   uint seed=2166136261;
    int n=0;
    string parts[];
-   ArrayResize(parts,48);
+   ArrayResize(parts,64);
    parts[n++]=TscFileName("");
    parts[n++]=InpSymbol;
    parts[n++]=IntegerToString((int)InpWindow);
@@ -417,6 +433,18 @@ int ConfigHash()
    parts[n++]=IntegerToString(InpNewsFlatMinutes);
    parts[n++]=IntegerToString(InpRolloverFlatMinutes);
    parts[n++]=IntegerToString(InpRequiredNewsCoverageHours);
+   parts[n++]=BoolText(InpEnableOrderSubmission);
+   parts[n++]=BoolText(InpSkipFreshMidSessionStart);
+   parts[n++]=IntegerToString((long)InpMagic);
+   parts[n++]=InpExpectedAccountCurrency;
+   parts[n++]=IntegerToString(InpExpectedServerUtcOffsetHours);
+   parts[n++]=IntegerToString(InpMaxQuoteAgeSeconds);
+   parts[n++]=IntegerToString(InpMaxDeviationPoints);
+   parts[n++]=IntegerToString(InpMaxNonEmergencyRequestsDay);
+   parts[n++]=IntegerToString(InpMaxTradeRequestLatencyMs);
+   parts[n++]=InpNewsCsvFile;
+   parts[n++]=BoolText(InpAllowPhaseReset);
+   parts[n++]=IntegerToString(InpDashboardConfirmedDays);
    for(int i=0;i<n;i++)
       seed=FnvStep(seed,parts[i]);
    return (int)(seed&0x7FFFFFFF);
@@ -552,39 +580,42 @@ void AppendDailySummary(const string status)
 // ============================================================================
 // Civil-time / DST helpers (ported verbatim from the canonical EA)
 // ============================================================================
-int LastSundayUtc(const int year,const int month,const int day)
+datetime LastSundayUtc(const int year,const int month,const int hour)
   {
-   datetime start=StringToTime(StringFormat("%04d.%02d.%02d 00:00",year,month,day));
-   MqlDateTime p;
-   TimeToStruct(start,p);
-   int days=(p.day_of_week==0 ? 7 : p.day_of_week);
-   return (int)(start-(days-1)*86400);
+   int next_year=year;
+   int next_month=month+1;
+   if(next_month==13)
+     {
+      next_month=1;
+      next_year++;
+     }
+   datetime last_day=MakeDateTime(next_year,next_month,1,0,0)-86400;
+   MqlDateTime parts;
+   TimeToStruct(last_day,parts);
+   int day=parts.day-parts.day_of_week;
+   return MakeDateTime(year,month,day,hour,0);
   }
 
-int NthSundayUtc(const int year,const int month,const int nth,const int hour_utc)
+datetime NthSundayUtc(const int year,const int month,const int occurrence,const int hour)
   {
-   datetime cursor=StringToTime(StringFormat("%04d.%02d.01 00:00",year,month));
-   int sundays=0;
-   for(int d=0;d<31;d++)
-     {
-      datetime day=cursor+d*86400;
-      MqlDateTime p;
-      TimeToStruct(day,p);
-      if(p.mon!=month)
-         break;
-      if(p.day_of_week==0)
-        {
-         sundays++;
-         if(sundays==nth)
-            return (int)(day+hour_utc*3600);
-        }
-     }
-   return 0;
+   datetime first=MakeDateTime(year,month,1,0,0);
+   MqlDateTime parts;
+   TimeToStruct(first,parts);
+   int first_sunday=1+((7-parts.day_of_week)%7);
+   int day=first_sunday+7*(occurrence-1);
+   return MakeDateTime(year,month,day,hour,0);
   }
 
 datetime MakeDateTime(const int year,const int mon,const int day,const int hour,const int minute)
   {
-   return StringToTime(StringFormat("%04d.%02d.%02d %02d:%02d",year,mon,day,hour,minute));
+   MqlDateTime value;
+   value.year=year;
+   value.mon=mon;
+   value.day=day;
+   value.hour=hour;
+   value.min=minute;
+   value.sec=0;
+   return StructToTime(value);
   }
 
 int LondonUtcOffsetSeconds(const datetime utc_time)
@@ -737,12 +768,25 @@ bool RefreshSession(const datetime now)
       g_last_closed_bar=0;
       g_range_high=0.0;
       g_range_low=0.0;
+      // Canonical fresh-session rule: an attach that lands inside the entry
+      // window (after its first bar) must not reconstruct and trade a stale
+      // event for the remainder of the session.
+      if(InpEnableOrderSubmission && !IsTesterMode() && InpSkipFreshMidSessionStart &&
+         now>es+300 && now<ee)
+        {
+         g_consumed=true;
+         LogEvent("WARN","MID_SESSION_START_SKIPPED",g_combo);
+        }
      }
 
-   if(!g_range_ready && now>=rs && now<re)
+   // The completed range is authoritative. Read it only once every request
+   // bar exists (now>=range_end). Reading while inside [range_start,range_end)
+   // can never satisfy ReadRange and, worse, stops being attempted at the
+   // boundary (the New York range closes 30 minutes BEFORE its entry window).
+   if(!g_range_ready && now>=g_range_end)
      {
       double high,low;
-      if(ReadRange(g_symbol,rs,re,high,low))
+      if(ReadRange(g_symbol,g_range_start,g_range_end,high,low))
         {
          g_range_high=high;
          g_range_low=low;
@@ -753,8 +797,8 @@ bool RefreshSession(const datetime now)
          g_range_warn_logged=true;
          LogEvent("WARN","RANGE_UNAVAILABLE",StringFormat("window=%s time=%s..%s",
                   (g_window==TSC_WINDOW_LONDON ? "LONDON":"NEW_YORK"),
-                  TimeToString(rs,TIME_DATE|TIME_MINUTES),
-                  TimeToString(re,TIME_DATE|TIME_MINUTES)));
+                  TimeToString(g_range_start,TIME_DATE|TIME_MINUTES),
+                  TimeToString(g_range_end,TIME_DATE|TIME_MINUTES)));
         }
      }
    return true;
@@ -1386,21 +1430,26 @@ bool DetectPattern(TSC_Candidate &candidate)
 // ============================================================================
 double NormalizePriceToTick(const string symbol,const double price)
   {
-   return NormalizeDouble(price,(int)SymbolInfoInteger(symbol,SYMBOL_DIGITS));
+   double tick_size=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE);
+   int digits=(int)SymbolInfoInteger(symbol,SYMBOL_DIGITS);
+   if(tick_size<=0.0) tick_size=SymbolInfoDouble(symbol,SYMBOL_POINT);
+   return NormalizeDouble(MathRound(price/tick_size)*tick_size,digits);
   }
 
 double NormalizePriceDown(const string symbol,const double price)
   {
-   double point=SymbolInfoDouble(symbol,SYMBOL_POINT);
-   if(point<=0.0) return NormalizePriceToTick(symbol,price);
-   return NormalizePriceToTick(symbol,MathFloor(price/point+1e-9)*point);
+   double tick_size=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE);
+   int digits=(int)SymbolInfoInteger(symbol,SYMBOL_DIGITS);
+   if(tick_size<=0.0) tick_size=SymbolInfoDouble(symbol,SYMBOL_POINT);
+   return NormalizeDouble(MathFloor((price+1e-12)/tick_size)*tick_size,digits);
   }
 
 double NormalizePriceUp(const string symbol,const double price)
   {
-   double point=SymbolInfoDouble(symbol,SYMBOL_POINT);
-   if(point<=0.0) return NormalizePriceToTick(symbol,price);
-   return NormalizePriceToTick(symbol,MathCeil(price/point-1e-9)*point);
+   double tick_size=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE);
+   int digits=(int)SymbolInfoInteger(symbol,SYMBOL_DIGITS);
+   if(tick_size<=0.0) tick_size=SymbolInfoDouble(symbol,SYMBOL_POINT);
+   return NormalizeDouble(MathCeil((price-1e-12)/tick_size)*tick_size,digits);
   }
 
 bool BrokerDistancesValid(const TSC_Candidate &candidate,const MqlTick &tick)
@@ -1847,6 +1896,8 @@ bool RebuildDailyClosedTrades(int &trade_count,double &first_trade_net,double &d
       if(entry!=DEAL_ENTRY_OUT && entry!=DEAL_ENTRY_OUT_BY)
          continue;
       long position_id=HistoryDealGetInteger(deal,DEAL_POSITION_ID);
+      if(position_id>0 && PositionSelectByTicket((ulong)position_id))
+         continue; // partial close: position still open, not a completed trade
       datetime deal_time=(datetime)HistoryDealGetInteger(deal,DEAL_TIME);
       int found=-1;
       for(int j=0;j<ArraySize(ids);j++)
@@ -2116,13 +2167,19 @@ bool SubmitCandidate(const TSC_Candidate &candidate)
    bool submitted=false;
    double volume=candidate.volume;
    datetime expiration=(datetime)(candidate.expiry_time);
+   ulong request_started=GetTickCount64();
    if(candidate.side==TSC_PATTERN_LONG)
       submitted=g_trade.BuyLimit(volume,candidate.entry,g_symbol,candidate.stop,candidate.target,
                                  ORDER_TIME_SPECIFIED,expiration,comment);
    else
       submitted=g_trade.SellLimit(volume,candidate.entry,g_symbol,candidate.stop,candidate.target,
                                   ORDER_TIME_SPECIFIED,expiration,comment);
-   if(!submitted || !TradeRetcodeAccepted(false))
+   ulong request_latency=GetTickCount64()-request_started;
+   LogEvent("INFO","ORDER_REQUEST_LATENCY",StringFormat("milliseconds=%I64u",request_latency));
+   if(request_latency>(ulong)InpMaxTradeRequestLatencyMs)
+      LogEvent("ERROR","ORDER_REQUEST_LATENCY_BREACH",
+               StringFormat("milliseconds=%I64u limit=%d",request_latency,InpMaxTradeRequestLatencyMs));
+   if(!submitted || !TradeRetcodeAccepted(true,false))
      {
       LogEvent("ERROR","ORDER_SUBMIT_FAILED",
                StringFormat("ret=%u %s",g_trade.ResultRetcode(),g_trade.ResultRetcodeDescription()));
@@ -2153,12 +2210,30 @@ bool DeleteOrder(const ulong ticket,const string reason,const bool emergency=tru
    if(!InpEnableOrderSubmission)
       return false;
    if(!OrderSelect(ticket)) return true;
-   if(emergency && !CanSendNonEmergencyRequest()) return false;
+   // Emergency cleanup is never gated by the non-emergency request cap. It is
+   // only per-ticket throttled so a retry storm cannot issue back-to-back
+   // delete requests for the same order.
+   if(emergency && !SafetyRequestDue(ticket,0,10)) return false;
+   if(!emergency && !CanSendNonEmergencyRequest()) return false;
    CountTradeRequest(StringFormat("delete_order %I64u %s",ticket,reason),emergency);
    bool ok=g_trade.OrderDelete(ticket);
-   ok=ok && TradeRetcodeAccepted(false);
-   LogEvent("INFO","ORDER_DELETED",StringFormat("ticket=%I64u reason=%s ok=%s",
-            ticket,reason,(ok?"true":"false")));
+   ok=ok && TradeRetcodeAccepted(false,true);
+   if(!ok && !OrderSelect(ticket))
+     {
+      ok=true;
+      LogEvent("INFO","ORDER_ALREADY_ABSENT_AFTER_DELETE",StringFormat("ticket=%I64u",ticket));
+     }
+   else if(ok && OrderSelect(ticket))
+     {
+      ok=false;
+      LogEvent("ERROR","ORDER_DELETE_INCOMPLETE",StringFormat("ticket=%I64u remains active",ticket));
+     }
+   if(!ok)
+      LogEvent("ERROR","ORDER_DELETE_FAILED",
+               StringFormat("ticket=%I64u ret=%u %s",ticket,g_trade.ResultRetcode(),
+                            g_trade.ResultRetcodeDescription()));
+   else
+      LogEvent("INFO","ORDER_DELETED",StringFormat("ticket=%I64u reason=%s",ticket,reason));
    return ok;
   }
 
@@ -2167,7 +2242,8 @@ bool ClosePosition(const ulong ticket,const string reason,const bool emergency=t
    if(!InpEnableOrderSubmission)
       return false;
    if(!PositionSelectByTicket(ticket)) return true;
-   if(emergency && !CanSendNonEmergencyRequest()) return false;
+   if(emergency && !SafetyRequestDue(ticket,1,10)) return false;
+   if(!emergency && !CanSendNonEmergencyRequest()) return false;
    CountTradeRequest(StringFormat("close_position %I64u %s",ticket,reason),emergency);
    if(!g_trade.SetTypeFillingBySymbol(PositionGetString(POSITION_SYMBOL)))
      {
@@ -2175,10 +2251,94 @@ bool ClosePosition(const ulong ticket,const string reason,const bool emergency=t
       return false;
      }
    bool ok=g_trade.PositionClose(ticket,InpMaxDeviationPoints);
-   ok=ok && TradeRetcodeAccepted(false);
-   LogEvent("INFO","POSITION_CLOSED",StringFormat("ticket=%I64u reason=%s ok=%s",
-            ticket,reason,(ok?"true":"false")));
+   ok=ok && TradeRetcodeAccepted(false,true);
+   if(!ok && !PositionSelectByTicket(ticket))
+     {
+      ok=true;
+      LogEvent("INFO","POSITION_ALREADY_ABSENT_AFTER_CLOSE",StringFormat("ticket=%I64u",ticket));
+     }
+   else if(ok && PositionSelectByTicket(ticket))
+     {
+      ok=false;
+      LogEvent("ERROR","POSITION_CLOSE_INCOMPLETE",StringFormat("ticket=%I64u remains open",ticket));
+     }
+   if(!ok)
+      LogEvent("ERROR","POSITION_CLOSE_FAILED",
+               StringFormat("ticket=%I64u ret=%u %s",ticket,g_trade.ResultRetcode(),
+                            g_trade.ResultRetcodeDescription()));
+   else
+      LogEvent("INFO","POSITION_CLOSED",StringFormat("ticket=%I64u reason=%s",ticket,reason));
    return ok;
+  }
+
+// ============================================================================
+// Safety request helpers (canonical parity; simplified to in-memory state)
+// ============================================================================
+bool SafetyRequestDue(const ulong ticket,const int slot,const int minimum_seconds=10)
+  {
+   datetime now=TimeTradeServer();
+   if(g_emergency_last_ticket[slot]==ticket && now-g_emergency_last_time[slot]<minimum_seconds)
+      return false;
+   g_emergency_last_ticket[slot]=ticket;
+   g_emergency_last_time[slot]=now;
+   return true;
+  }
+
+void CancelAllPending(const string reason,const bool emergency=true)
+  {
+   for(int i=OrdersTotal()-1;i>=0;i--)
+     {
+      ulong ticket=OrderGetTicket(i);
+      if(ticket==0 || (long)OrderGetInteger(ORDER_MAGIC)!=InpMagic) continue;
+      DeleteOrder(ticket,reason,emergency);
+     }
+  }
+
+void CloseAllPositions(const string reason,const bool emergency=true)
+  {
+   for(int i=PositionsTotal()-1;i>=0;i--)
+     {
+      ulong ticket=PositionGetTicket(i);
+      if(ticket==0 || (long)PositionGetInteger(POSITION_MAGIC)!=InpMagic) continue;
+      ClosePosition(ticket,reason,emergency);
+     }
+  }
+
+bool HasForeignExposure()
+  {
+   for(int i=0;i<PositionsTotal();i++)
+     {
+      ulong ticket=PositionGetTicket(i);
+      if(ticket==0) continue;
+      if((long)PositionGetInteger(POSITION_MAGIC)!=InpMagic)
+         return true;
+     }
+   for(int i=0;i<OrdersTotal();i++)
+     {
+      ulong ticket=OrderGetTicket(i);
+      if(ticket==0) continue;
+      if((long)OrderGetInteger(ORDER_MAGIC)!=InpMagic)
+         return true;
+     }
+   return false;
+  }
+
+datetime LastTradingActivityTime()
+  {
+   datetime from=(g_state_created>0 ? g_state_created : TimeTradeServer()-365*86400);
+   if(!HistorySelect(from,TimeTradeServer()))
+      return from;
+   datetime latest=from;
+   for(int i=0;i<HistoryDealsTotal();i++)
+     {
+      ulong deal=HistoryDealGetTicket(i);
+      if(deal==0) continue;
+      ENUM_DEAL_TYPE type=(ENUM_DEAL_TYPE)HistoryDealGetInteger(deal,DEAL_TYPE);
+      if(type!=DEAL_TYPE_BUY && type!=DEAL_TYPE_SELL) continue;
+      datetime when=(datetime)HistoryDealGetInteger(deal,DEAL_TIME);
+      if(when>latest) latest=when;
+     }
+   return latest;
   }
 
 // ============================================================================
@@ -2191,6 +2351,57 @@ void ManageExposure()
    datetime now=TimeTradeServer();
    string ccy1,ccy2;
    SymbolCurrencies(g_symbol,ccy1,ccy2);
+
+   // Foreign exposure: never trade around manual/foreign objects. Own-magic
+   // exposure is cleaned; foreign objects are left alone but logged.
+   if(HasForeignExposure())
+     {
+      if(now-g_last_foreign_exposure_log>=60)
+        {
+         g_last_foreign_exposure_log=now;
+         LogEvent("ERROR","FOREIGN_EXPOSURE",
+                  "manual or foreign orders/positions detected; own-magic exposure cleaned");
+        }
+      CancelAllPending("foreign_exposure_cleanup",true);
+      CloseAllPositions("foreign_exposure_cleanup",true);
+      return;
+     }
+
+   // Exposure invariant: at most one own pending entry or one own position.
+   int own_pending=0;
+   for(int i=0;i<OrdersTotal();i++)
+     {
+      ulong ticket=OrderGetTicket(i);
+      if(ticket==0 || (long)OrderGetInteger(ORDER_MAGIC)!=InpMagic) continue;
+      ENUM_ORDER_TYPE otype=(ENUM_ORDER_TYPE)OrderGetInteger(ORDER_TYPE);
+      if(IsPendingEntryType(otype))
+         own_pending++;
+     }
+   int own_positions=0;
+   for(int i=0;i<PositionsTotal();i++)
+     {
+      ulong ticket=PositionGetTicket(i);
+      if(ticket==0 || (long)PositionGetInteger(POSITION_MAGIC)!=InpMagic) continue;
+      own_positions++;
+     }
+   if(own_pending>1 || own_positions>1 || (own_pending>0 && own_positions>0))
+     {
+      LogEvent("ERROR","EXPOSURE_INVARIANT_VIOLATED",
+               StringFormat("pending=%d positions=%d",own_pending,own_positions));
+      CancelAllPending("exposure_invariant",true);
+      CloseAllPositions("exposure_invariant",true);
+      return;
+     }
+
+   // The same rules that block new entries must also flatten exposure when
+   // violated (floor breach, phase complete, drawdown shutdown, ...).
+   string guard_reason;
+   if(!GlobalRiskGuards(guard_reason))
+     {
+      CancelAllPending(guard_reason,true);
+      CloseAllPositions(guard_reason,true);
+      return;
+     }
 
    // Pending order controls (one allowed; managed by plan fields).
    for(int i=OrdersTotal()-1;i>=0;i--)
@@ -2212,18 +2423,21 @@ void ManageExposure()
       bool expected_long=(g_open.stop<g_open.open_price);
       bool type_ok=((expected_long && type==ORDER_TYPE_BUY_LIMIT) ||
                     (!expected_long && type==ORDER_TYPE_SELL_LIMIT));
-      if(g_open.ticket==ticket && g_open.open_price>0.0 &&
-         type_ok && PriceMatches(symbol,entry,g_open.open_price) &&
-         PriceMatches(symbol,sl,g_open.stop) && PriceMatches(symbol,tp,g_open.target) &&
-         VolumeMatches(symbol,OrderGetDouble(ORDER_VOLUME_CURRENT),g_open.volume) &&
-         StringFind(OrderGetString(ORDER_COMMENT),"TSC|")==0)
+      bool plan_ok=(g_open.ticket==ticket && g_open.open_price>0.0 &&
+                    (ENUM_ORDER_TYPE_TIME)OrderGetInteger(ORDER_TYPE_TIME)==ORDER_TIME_SPECIFIED &&
+                    type_ok && PriceMatches(symbol,entry,g_open.open_price) &&
+                    PriceMatches(symbol,sl,g_open.stop) && PriceMatches(symbol,tp,g_open.target) &&
+                    VolumeMatches(symbol,OrderGetDouble(ORDER_VOLUME_CURRENT),g_open.volume) &&
+                    StringFind(OrderGetString(ORDER_COMMENT),"TSC|")==0);
+      if(!plan_ok)
         {
-         // expected plan: proceed
+         LogEvent("WARN",
+                  (g_open.ticket==ticket ? "PENDING_PLAN_MISMATCH" : "PENDING_NOT_OWNED"),
+                  StringFormat("ticket=%I64u",ticket));
+         DeleteOrder(ticket,
+                     (g_open.ticket==ticket ? "pending_plan_mismatch" : "pending_not_owned"),true);
+         continue;
         }
-      else if(g_open.ticket!=ticket)
-        { DeleteOrder(ticket,"pending_not_owned",true); continue; }
-      else
-        { DeleteOrder(ticket,"pending_plan_mismatch",true); continue; }
 
       if(expiration>0 && now>=expiration)
         { DeleteOrder(ticket,"expired",true); continue; }
@@ -2254,8 +2468,6 @@ void ManageExposure()
       return;
      }
    string symbol=PositionGetString(POSITION_SYMBOL);
-   if((long)PositionGetInteger(POSITION_MAGIC)!=InpMagic)
-      return; // foreign position: dashboard reports; screen tool does not touch it
    ENUM_POSITION_TYPE type=(ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
    datetime opened=(datetime)PositionGetInteger(POSITION_TIME);
    double open_price=PositionGetDouble(POSITION_PRICE_OPEN);
@@ -2263,13 +2475,39 @@ void ManageExposure()
    double tp=PositionGetDouble(POSITION_TP);
    double position_volume=PositionGetDouble(POSITION_VOLUME);
 
-   if(g_open.ticket!=pos_ticket)
+   // Adoption: a pending order that fills keeps the same ticket, so the fill
+   // must also be adopted when the plan is still marked "pending" (opened==0).
+   bool same_plan=(g_open.ticket==pos_ticket && g_open.opened==0 && g_open.open_price>0.0);
+   bool adopt=(g_open.ticket!=pos_ticket) || same_plan;
+   if(adopt)
      {
-      // New fill (or restart recovery): adopt the position as the open plan.
-      // If this is a same-day fill of a plan we just submitted, the planned
-      // cash risk is still held in g_last_trade_risk_cash and is recorded in
-      // the ledger so the closed-trade R accounting can attribute it.
-      double planned_risk=(g_last_trade_risk_cash>0.0 ? g_last_trade_risk_cash : 0.0);
+      if(same_plan)
+        {
+         // Validate the fill against the submitted plan before adopting.
+         double tick_size=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE);
+         if(tick_size<=0.0) tick_size=SymbolInfoDouble(symbol,SYMBOL_POINT);
+         bool expected_long=(g_open.stop<g_open.open_price);
+         bool side_ok=((expected_long && type==POSITION_TYPE_BUY) ||
+                       (!expected_long && type==POSITION_TYPE_SELL));
+         bool fill_not_worse=(type==POSITION_TYPE_BUY ?
+                              open_price<=g_open.open_price+tick_size*0.10 :
+                              open_price>=g_open.open_price-tick_size*0.10);
+         if(!side_ok || !fill_not_worse ||
+            !VolumeMatches(symbol,position_volume,g_open.volume))
+           {
+            LogEvent("ERROR","FILL_PLAN_MISMATCH",
+                     StringFormat("ticket=%I64u entry=%s planned=%s vol=%s planned_vol=%s",
+                                  pos_ticket,
+                                  DoubleToString(open_price,5),
+                                  DoubleToString(g_open.open_price,5),
+                                  DoubleToString(position_volume,2),
+                                  DoubleToString(g_open.volume,2)));
+            ClosePosition(pos_ticket,"fill_plan_mismatch",true);
+            return;
+           }
+        }
+      double planned_risk=(same_plan ? g_open.risk_cash :
+                           (g_last_trade_risk_cash>0.0 ? g_last_trade_risk_cash : 0.0));
       g_open.ticket=pos_ticket;
       g_open.symbol=symbol;
       g_open.opened=opened;
@@ -2302,29 +2540,47 @@ void ManageExposure()
 
    if(sl<=0.0 || tp<=0.0)
      {
-      ClosePosition(pos_ticket,"missing_visible_stop_or_target",true);
-      return;
+      // Try to repair a broker-dropped stop from the known plan first.
+      bool repaired=false;
+      if(g_open.stop>0.0 && tp>0.0 && PriceMatches(symbol,tp,g_open.target))
+        {
+         if(SafetyRequestDue(pos_ticket,2,10) && CanSendNonEmergencyRequest())
+           {
+            CountTradeRequest("repair_missing_stop",true);
+            bool repair_request=g_trade.PositionModify(pos_ticket,g_open.stop,tp) &&
+                                TradeRetcodeAccepted(false,true);
+            repaired=repair_request && PositionSelectByTicket(pos_ticket) &&
+                     PriceMatches(symbol,PositionGetDouble(POSITION_SL),g_open.stop) &&
+                     PriceMatches(symbol,PositionGetDouble(POSITION_TP),tp);
+            if(repaired)
+              {
+               sl=PositionGetDouble(POSITION_SL);
+               LogEvent("INFO","STOP_REPAIRED",StringFormat("ticket=%I64u",pos_ticket));
+              }
+           }
+        }
+      if(!repaired)
+        { ClosePosition(pos_ticket,"missing_visible_stop_or_target",true); return; }
      }
+
+   // One-R confirmation is re-derived from closed M5 bars after the actual
+   // fill (reconstructs a confirmation missed during a disconnect).
    bool one_r_confirmed=false;
    double confirmed_price=g_open.one_r_price;
    if(confirmed_price>0.0 &&
       HasConfirmedOneRClose(symbol,opened,type,confirmed_price))
       one_r_confirmed=true;
 
-   if(InpMoveStopToEntryAfter1R && one_r_confirmed)
+   // Visible exit plan: target must match the plan and the stop must be the
+   // original plan stop or a confirmed breakeven move.
+   bool original_stop=(g_open.stop>0.0 && PriceMatches(symbol,sl,g_open.stop));
+   bool confirmed_breakeven=(InpMoveStopToEntryAfter1R && one_r_confirmed &&
+                             PriceMatches(symbol,sl,NormalizePriceToTick(symbol,open_price)));
+   if(!(g_open.target>0.0 && PriceMatches(symbol,tp,g_open.target)) ||
+      (!original_stop && !confirmed_breakeven))
      {
-      bool needs_move=(type==POSITION_TYPE_BUY ? sl<open_price : sl>open_price);
-      if(needs_move && CanSendNonEmergencyRequest())
-        {
-         CountTradeRequest("move_stop_to_entry",false);
-         double breakeven_stop=NormalizePriceToTick(symbol,open_price);
-         bool modified=g_trade.PositionModify(pos_ticket,breakeven_stop,tp) &&
-                       TradeRetcodeAccepted(false);
-         if(!modified)
-            LogEvent("ERROR","BREAKEVEN_MODIFY_FAILED",
-                     StringFormat("ret=%u %s",g_trade.ResultRetcode(),
-                                  g_trade.ResultRetcodeDescription()));
-        }
+      ClosePosition(pos_ticket,"visible_exit_plan_mismatch",true);
+      return;
      }
 
    datetime news_time;
@@ -2345,11 +2601,46 @@ void ManageExposure()
       ClosePosition(pos_ticket,"pre_rollover_flat",true);
       return;
      }
+
+   // Friday flat (canonical parity): no exposure across the weekend.
+   datetime utc_now=ServerToUtc(now);
+   int ly,lm,ld,lkey;
+   GetLocalDate(utc_now,TSC_WINDOW_LONDON,ly,lm,ld,lkey);
+   MqlDateTime lp;
+   TimeToStruct(utc_now+LondonUtcOffsetSeconds(utc_now),lp);
+   datetime friday_flat_utc=LocalWallToUtc(ly,lm,ld,20,0,TSC_WINDOW_LONDON);
+   if(lp.day_of_week==5 &&
+      utc_now+TSC_SAFETY_LEAD_SEC>=friday_flat_utc)
+     {
+      ClosePosition(pos_ticket,"friday_flat",true);
+      return;
+     }
+
    if(now+TSC_SAFETY_LEAD_SEC>=g_entry_end)
      {
       ClosePosition(pos_ticket,"session_flat",true);
       return;
      }
+
+   if(InpMoveStopToEntryAfter1R && one_r_confirmed)
+     {
+      bool needs_move=(type==POSITION_TYPE_BUY ? sl<open_price : sl>open_price);
+      if(needs_move && SafetyRequestDue(pos_ticket,2,60) && CanSendNonEmergencyRequest())
+        {
+         CountTradeRequest("move_stop_to_entry",false);
+         double breakeven_stop=NormalizePriceToTick(symbol,open_price);
+         bool modified=g_trade.PositionModify(pos_ticket,breakeven_stop,tp) &&
+                       TradeRetcodeAccepted(false,true);
+         modified=modified && PositionSelectByTicket(pos_ticket) &&
+                  PriceMatches(symbol,PositionGetDouble(POSITION_SL),breakeven_stop) &&
+                  PriceMatches(symbol,PositionGetDouble(POSITION_TP),tp);
+         if(!modified)
+            LogEvent("ERROR","BREAKEVEN_MODIFY_FAILED",
+                     StringFormat("ret=%u %s",g_trade.ResultRetcode(),
+                                  g_trade.ResultRetcodeDescription()));
+        }
+     }
+
    if(InpTimeStopMinutes>0 && now-opened>=InpTimeStopMinutes*60 && !one_r_confirmed)
      {
       ClosePosition(pos_ticket,"time_stop_no_confirmed_1R",true);
@@ -2359,31 +2650,23 @@ void ManageExposure()
 
 bool PriceMatches(const string symbol,const double left,const double right)
   {
-   if(left<=0.0 || right<=0.0) return false;
    double tick_size=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE);
    if(tick_size<=0.0) tick_size=SymbolInfoDouble(symbol,SYMBOL_POINT);
-   return MathAbs(left-right)<=tick_size*0.6;
+   return tick_size>0.0 && MathAbs(left-right)<=tick_size*0.51;
   }
 
 bool VolumeMatches(const string symbol,const double left,const double right)
   {
-   if(left<=0.0 || right<=0.0) return false;
    double step=SymbolInfoDouble(symbol,SYMBOL_VOLUME_STEP);
-   if(step<=0.0) return MathAbs(left-right)<1e-9;
-   return MathAbs(left-right)<step*0.5;
+   return step>0.0 && MathAbs(left-right)<=step*0.1;
   }
 
-bool TradeRetcodeAccepted(const bool allow_retry)
+bool TradeRetcodeAccepted(const bool allow_placed=false,const bool allow_no_changes=true)
   {
    uint code=g_trade.ResultRetcode();
-   if(code==TRADE_RETCODE_DONE || code==TRADE_RETCODE_DONE_PARTIAL ||
-      code==TRADE_RETCODE_PLACED || code==TRADE_RETCODE_NO_CHANGES ||
-      code==TRADE_RETCODE_REQUOTE)
-      return true;
-   if(allow_retry && (code==TRADE_RETCODE_TIMEOUT || code==TRADE_RETCODE_PRICE_OFF ||
-                      code==TRADE_RETCODE_PRICE_CHANGED || code==TRADE_RETCODE_CONNECTION))
-      return true;
-   return false;
+   return code==TRADE_RETCODE_DONE || code==TRADE_RETCODE_DONE_PARTIAL ||
+          (allow_no_changes && code==TRADE_RETCODE_NO_CHANGES) ||
+          (allow_placed && code==TRADE_RETCODE_PLACED);
   }
 
 // ============================================================================
@@ -2404,6 +2687,7 @@ bool LoadTradeLedger()
   {
    g_net_r_total=0.0;
    g_net_cash_total=0.0;
+   ArrayResize(g_ledger_position_ids,0);
    int handle=FileOpen(TradeFilePath(),FILE_READ|FILE_CSV|FILE_ANSI|FILE_SHARE_READ,';');
    if(handle==INVALID_HANDLE)
       return true;
@@ -2419,6 +2703,13 @@ bool LoadTradeLedger()
          continue;
       g_net_cash_total+=StringToDouble(net_cash_s);
       g_net_r_total+=StringToDouble(net_r_s);
+      long id=(long)StringToInteger(pos_s);
+      if(id>0)
+        {
+         int n=ArraySize(g_ledger_position_ids);
+         ArrayResize(g_ledger_position_ids,n+1);
+         g_ledger_position_ids[n]=id;
+        }
      }
    FileClose(handle);
    return true;
@@ -2568,9 +2859,19 @@ void ReconcileClosedTrades()
       for(int j=0;j<ArraySize(seen);j++)
          if(seen[j]==position_id) { already=true; break; }
       if(already) continue;
+      // Never account a position that is already in the closed-trade ledger
+      // (crash between append and plan removal would otherwise double count).
+      for(int j=0;j<ArraySize(g_ledger_position_ids);j++)
+         if(g_ledger_position_ids[j]==position_id) { already=true; break; }
+      if(already) continue;
       int n=ArraySize(seen);
       ArrayResize(seen,n+1);
       seen[n]=position_id;
+
+      // A partial close (DEAL_ENTRY_OUT on a still-open position) is not a
+      // completed trade; wait for the position to leave the trade pool.
+      if(PositionSelectByTicket((ulong)position_id))
+         continue;
 
       double risk;
       if(!ReadPlanRisk((ulong)position_id,risk))
@@ -2580,9 +2881,13 @@ void ReconcileClosedTrades()
       if(!PositionNetFromHistory(position_id,net,closed_time))
          continue;
       double net_r=(risk>0.0 ? net/risk : 0.0);
-      AppendClosedTrade((ulong)position_id,net,net_r);
-      // Remove the plan entry so it cannot double count.
+      // Remove the plan row first: if interrupted, the trade is skipped on
+      // restart rather than double-accounted (the ledger id set is the guard).
       WritePlanEntry((ulong)position_id,0.0);
+      AppendClosedTrade((ulong)position_id,net,net_r);
+      int m=ArraySize(g_ledger_position_ids);
+      ArrayResize(g_ledger_position_ids,m+1);
+      g_ledger_position_ids[m]=position_id;
       if(closed_time>g_last_trade_time)
          g_last_trade_time=closed_time;
       LogEvent("INFO","TRADE_CLOSED_ACCOUNTED",
@@ -2604,17 +2909,83 @@ bool MissedRolloverExposure(bool &history_ok)
    if(!HistorySelect(from,now))
       return false;
    history_ok=true;
+
+   // A pending entry created on one server day and completed on a later day
+   // was necessarily working across at least one rollover.
    for(int i=0;i<HistoryOrdersTotal();i++)
      {
       ulong order=HistoryOrderGetTicket(i);
-      if(order==0) continue;
-      if(HistoryOrderGetInteger(order,ORDER_MAGIC)!=InpMagic)
+      if(order==0 || HistoryOrderGetInteger(order,ORDER_MAGIC)!=InpMagic)
          continue;
-      datetime opened=(datetime)HistoryOrderGetInteger(order,ORDER_TIME_SETUP);
-      datetime day_start=ServerMidnight(opened);
-      if(opened<day_start)
+      ENUM_ORDER_TYPE order_type=(ENUM_ORDER_TYPE)HistoryOrderGetInteger(order,ORDER_TYPE);
+      if(!IsPendingEntryType(order_type))
+         continue;
+      datetime setup=(datetime)HistoryOrderGetInteger(order,ORDER_TIME_SETUP);
+      datetime done=(datetime)HistoryOrderGetInteger(order,ORDER_TIME_DONE);
+      if(setup>0 && done>g_day_start_time &&
+         ServerDayKey(setup)!=ServerDayKey(done))
          return true;
      }
+
+   // Reconstruct strategy position lifetimes: an entry opened before a
+   // server midnight and exited after it crossed the rollover snapshot.
+   long position_ids[];
+   datetime entry_times[];
+   datetime exit_times[];
+   ArrayResize(position_ids,0);
+   ArrayResize(entry_times,0);
+   ArrayResize(exit_times,0);
+   int total=HistoryDealsTotal();
+   for(int i=0;i<total;i++)
+     {
+      ulong deal=HistoryDealGetTicket(i);
+      if(deal==0 || HistoryDealGetInteger(deal,DEAL_MAGIC)!=InpMagic)
+         continue;
+      ENUM_DEAL_TYPE deal_type=(ENUM_DEAL_TYPE)HistoryDealGetInteger(deal,DEAL_TYPE);
+      ENUM_DEAL_ENTRY entry=(ENUM_DEAL_ENTRY)HistoryDealGetInteger(deal,DEAL_ENTRY);
+      if((deal_type!=DEAL_TYPE_BUY && deal_type!=DEAL_TYPE_SELL) || entry!=DEAL_ENTRY_IN ||
+         StringFind(HistoryDealGetString(deal,DEAL_COMMENT),"TSC|")!=0)
+         continue;
+      long position_id=HistoryDealGetInteger(deal,DEAL_POSITION_ID);
+      datetime deal_time=(datetime)HistoryDealGetInteger(deal,DEAL_TIME);
+      int found=-1;
+      for(int j=0;j<ArraySize(position_ids);j++)
+         if(position_ids[j]==position_id) { found=j; break; }
+      if(found<0)
+        {
+         int n=ArraySize(position_ids);
+         ArrayResize(position_ids,n+1);
+         ArrayResize(entry_times,n+1);
+         ArrayResize(exit_times,n+1);
+         position_ids[n]=position_id;
+         entry_times[n]=deal_time;
+         exit_times[n]=0;
+        }
+      else if(deal_time<entry_times[found])
+         entry_times[found]=deal_time;
+     }
+   for(int i=0;i<total;i++)
+     {
+      ulong deal=HistoryDealGetTicket(i);
+      if(deal==0) continue;
+      ENUM_DEAL_TYPE deal_type=(ENUM_DEAL_TYPE)HistoryDealGetInteger(deal,DEAL_TYPE);
+      ENUM_DEAL_ENTRY entry=(ENUM_DEAL_ENTRY)HistoryDealGetInteger(deal,DEAL_ENTRY);
+      if((deal_type!=DEAL_TYPE_BUY && deal_type!=DEAL_TYPE_SELL) ||
+         (entry!=DEAL_ENTRY_OUT && entry!=DEAL_ENTRY_OUT_BY))
+         continue;
+      long position_id=HistoryDealGetInteger(deal,DEAL_POSITION_ID);
+      for(int j=0;j<ArraySize(position_ids);j++)
+         if(position_ids[j]==position_id)
+           {
+            datetime deal_time=(datetime)HistoryDealGetInteger(deal,DEAL_TIME);
+            if(deal_time>exit_times[j]) exit_times[j]=deal_time;
+            break;
+           }
+     }
+   for(int i=0;i<ArraySize(position_ids);i++)
+      if(exit_times[i]>g_day_start_time &&
+         ServerDayKey(entry_times[i])!=ServerDayKey(exit_times[i]))
+         return true;
    return false;
   }
 
@@ -2627,6 +2998,12 @@ void HandleRollover()
    int new_week=ServerWeekKey(now);
    if(key==g_day_key && new_week==g_week_key)
       return;
+   if(key<g_day_key)
+     {
+      LogEvent("ERROR","SERVER_DAY_REGRESSION",
+               StringFormat("stored=%d current=%d",g_day_key,key));
+      return;
+     }
 
    bool rollover_history_ok=false;
    bool missed=MissedRolloverExposure(rollover_history_ok);
@@ -2727,11 +3104,24 @@ string ChallengeStatus()
       return "FAILED_OVERALL_FLOOR";
    if(equity<=g_firm_daily_floor)
       return "FAILED_DAILY_FLOOR";
-   if(g_last_trade_time>1 && InpInactivityDays>0)
+   if(InpInactivityDays>0)
      {
-      int idle_days=(int)((TimeTradeServer()-g_last_trade_time)/86400);
-      if(idle_days>=InpInactivityDays)
-         return "FAILED_INACTIVITY";
+      // Account-level activity: any executed buy/sell deal counts toward the
+      // inactivity rule, not only fills recorded by this EA run (canonical).
+      if(g_last_activity_check==0 ||
+         TimeTradeServer()-g_last_activity_check>=3600)
+        {
+         datetime from_history=LastTradingActivityTime();
+         if(from_history>g_last_trade_time)
+            g_last_trade_time=from_history;
+         g_last_activity_check=TimeTradeServer();
+        }
+      if(g_last_trade_time>1)
+        {
+         int idle_days=(int)((TimeTradeServer()-g_last_trade_time)/86400);
+         if(idle_days>=InpInactivityDays)
+            return "FAILED_INACTIVITY";
+        }
      }
    return "ACTIVE";
   }
@@ -2766,7 +3156,7 @@ void ScanForSignals()
    if(!NewsCalendarCurrent())
       return;
    datetime now=TimeTradeServer();
-   if(now<g_entry_start || now>=g_entry_end)
+   if(now<g_entry_start || now+TSC_SAFETY_LEAD_SEC>=g_entry_end)
       return;
 
    if(!DetectPattern(g_candidate))
@@ -2974,6 +3364,12 @@ int OnInit()
      LogEvent("WARN","BALANCE_MISMATCH",
               StringFormat("configured initial=%.2f account=%.2f",
                            InpPhaseInitialBalance,AccountInfoDouble(ACCOUNT_BALANCE)));
+   if(InpExpectedAccountCurrency!="" && !IsTesterMode() &&
+      AccountInfoString(ACCOUNT_CURRENCY)!=InpExpectedAccountCurrency)
+     LogEvent("WARN","ACCOUNT_CURRENCY_MISMATCH",
+              StringFormat("configured=%s account=%s",
+                           InpExpectedAccountCurrency,
+                           AccountInfoString(ACCOUNT_CURRENCY)));
 
    g_atr_handle=iATR(g_symbol,PERIOD_M15,14);
    if(g_atr_handle==INVALID_HANDLE)
@@ -3041,7 +3437,7 @@ int OnInit()
    RefreshSession(TimeTradeServer());
 
    if(InpDashboardShow)
-     EventSetTimer(InpDashboardRefreshSeconds);
+     EventSetTimer(MathMax(1,InpDashboardRefreshSeconds));
    LogEvent("INFO","EA_INIT_OK",
             StringFormat("combo=%s build=%s hash=%08X",g_combo,TSC_BUILD_ID,ConfigHash()));
    return INIT_SUCCEEDED;
@@ -3052,6 +3448,21 @@ void OnDeinit(const int reason)
    EventKillTimer();
    if(InpDashboardShow)
       RemoveDashboard();
+   // Canonical parity: an intentional detach must not strand managed exposure.
+   // A terminal shutdown (REASON_CLOSE) or init failure keeps visible broker
+   // exits and the restart plan.
+   if(InpEnableOrderSubmission && g_day_key!=0 &&
+      reason!=REASON_CLOSE && reason!=REASON_INITFAILED && HasAnyExposure())
+     {
+      LogEvent("WARN","DEINIT_EXPOSURE_CLEANUP",IntegerToString(reason));
+      CancelAllPending("deinitialization_with_exposure",true);
+      CloseAllPositions("deinitialization_with_exposure",true);
+     }
+   if(g_atr_handle!=INVALID_HANDLE)
+     {
+      IndicatorRelease(g_atr_handle);
+      g_atr_handle=INVALID_HANDLE;
+     }
    SaveState();
    LogEvent("INFO","EA_DEINIT",IntegerToString(reason));
   }
@@ -3064,12 +3475,17 @@ void OnTick()
 
    HandleRollover();
 
-   // Keep high water current outside the rollover path.
-   double balance=AccountInfoDouble(ACCOUNT_BALANCE);
-   if(balance>g_high_water)
+   // Keep high water current outside the rollover path. The canonical EA only
+   // refreshes the high-water reference while flat so a loading/position phase
+   // cannot distort the strategy drawdown basis.
+   if(!HasAnyExposure())
      {
-      g_high_water=balance;
-      SaveState();
+      double balance=AccountInfoDouble(ACCOUNT_BALANCE);
+      if(balance>g_high_water)
+        {
+         g_high_water=balance;
+         SaveState();
+        }
      }
 
    RefreshSession(now);

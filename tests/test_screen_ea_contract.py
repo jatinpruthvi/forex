@@ -174,6 +174,134 @@ class ScreenEaContractTests(unittest.TestCase):
             self.assertNotIn(bad, code, bad)
         self.assertNotIn("fabs(", code, "use MathAbs in MQL5")
 
+    def test_range_loads_after_range_end_not_inside(self) -> None:
+        # Canonical: the completed range is read once every bar exists
+        # (now>=range_end). Reading only inside [rs,re) starves the New York
+        # window, whose London reference range closes before its entry window.
+        code = self._code_lines()
+        self.assertIn("if(!g_range_ready && now>=g_range_end)", code)
+        self.assertNotIn("!g_range_ready && now>=rs && now<re", code)
+        self.assertIn("InpSkipFreshMidSessionStart", code)
+
+    def test_emergency_cleanup_bypasses_request_cap(self) -> None:
+        # Canonical: protective closes/deletes are never gated by the
+        # non-emergency request cap, only per-ticket throttled.
+        code = self._code_lines()
+        self.assertIn("if(emergency && !SafetyRequestDue(ticket,0,10))", code)
+        self.assertIn("if(emergency && !SafetyRequestDue(ticket,1,10))", code)
+        self.assertIn("if(!emergency && !CanSendNonEmergencyRequest())", code)
+
+    def test_manage_exposure_applies_risk_guards(self) -> None:
+        # Floor breach / phase complete must flatten exposure, not just block
+        # new entries (canonical parity).
+        code = self._code_lines()
+        idx = code.find("void ManageExposure()")
+        segment = code[idx:code.find("bool PriceMatches(")]
+        self.assertIn("if(!GlobalRiskGuards(guard_reason))", segment)
+        self.assertIn("CancelAllPending(guard_reason,true);", segment)
+        self.assertIn("CloseAllPositions(guard_reason,true);", segment)
+
+    def test_fill_adoption_covers_same_ticket_fill(self) -> None:
+        # A filled pending order keeps its ticket; the fill must still be
+        # adopted when the plan is marked pending (opened==0).
+        code = self._code_lines()
+        self.assertIn("bool same_plan=(g_open.ticket==pos_ticket && g_open.opened==0", code)
+        self.assertIn("bool adopt=(g_open.ticket!=pos_ticket) || same_plan;", code)
+        self.assertIn("WritePlanEntry(pos_ticket,planned_risk);", code)
+
+    def test_retcode_acceptance_is_strict(self) -> None:
+        code = self._code_lines()
+        self.assertIn("const bool allow_placed=false,const bool allow_no_changes=true", code)
+        # REQUOTE/TIMEOUT must never be treated as success.
+        idx = code.find("bool TradeRetcodeAccepted")
+        seg = code[idx:idx+500]
+        self.assertNotIn("REQUOTE", seg)
+        self.assertNotIn("TIMEOUT", seg)
+        self.assertIn("(allow_placed && code==TRADE_RETCODE_PLACED)", seg)
+
+    def test_last_sunday_utc_matches_canonical_signature(self) -> None:
+        code = self._code_lines()
+        self.assertIn("datetime LastSundayUtc(const int year,const int month,const int hour)", code)
+        # Canonical call sites: (year, 3, 1) / (year, 10, 1) are (month, hour).
+        self.assertIn("LastSundayUtc(p.year,3,1)", code)
+        self.assertIn("LastSundayUtc(p.year,10,1)", code)
+        self.assertNotIn("LastSundayUtc(const int year,const int month,const int day)", code)
+
+    def test_price_normalizers_are_tick_size_anchored(self) -> None:
+        code = self._code_lines()
+        idx = code.find("double NormalizePriceToTick")
+        seg = code[idx:idx+900]
+        self.assertIn("SYMBOL_TRADE_TICK_SIZE", seg)
+        self.assertIn("MathRound(price/tick_size)", seg)
+
+    def test_config_hash_covers_behavior_inputs(self) -> None:
+        code = self._code_lines()
+        idx = code.find("int ConfigHash()")
+        seg = code[idx:idx+3200]
+        for marker in ("BoolText(InpEnableOrderSubmission)",
+                       "BoolText(InpSkipFreshMidSessionStart)",
+                       "InpExpectedServerUtcOffsetHours",
+                       "InpMaxQuoteAgeSeconds",
+                       "InpMaxDeviationPoints",
+                       "InpMaxNonEmergencyRequestsDay",
+                       "InpMaxTradeRequestLatencyMs",
+                       "InpNewsCsvFile",
+                       "BoolText(InpAllowPhaseReset)",
+                       "InpDashboardConfirmedDays"):
+            self.assertIn(marker, seg, marker)
+        self.assertIn("ArrayResize(parts,64)", seg)
+
+    def test_missed_rollover_uses_cross_day_check(self) -> None:
+        code = self._code_lines()
+        idx = code.find("bool MissedRolloverExposure")
+        seg = code[idx:idx+3200]
+        self.assertIn("ServerDayKey(setup)!=ServerDayKey(done)", seg)
+        self.assertIn("ServerDayKey(entry_times[i])!=ServerDayKey(exit_times[i])", seg)
+        self.assertNotIn("ServerDayKey(opened)", seg)
+
+    def test_high_water_updates_only_while_flat(self) -> None:
+        code = self._code_lines()
+        self.assertIn("if(!HasAnyExposure())", code)
+        idx = code.find("if(!HasAnyExposure())")
+        seg = code[idx:idx+260]
+        self.assertIn("balance>g_high_water", seg)
+
+    def test_ledger_double_count_and_partial_close_guards(self) -> None:
+        code = self._code_lines()
+        self.assertIn("ArrayResize(g_ledger_position_ids,0)", code)
+        self.assertIn("g_ledger_position_ids[j]==position_id", code)
+        # partial-close guards in both ledger paths
+        self.assertEqual(code.count("PositionSelectByTicket((ulong)position_id)"), 2)
+
+    def test_inactivity_uses_deal_history(self) -> None:
+        code = self._code_lines()
+        self.assertIn("datetime LastTradingActivityTime()", code)
+        idx = code.find("string ChallengeStatus()")
+        seg = code[idx:idx+1400]
+        self.assertIn("LastTradingActivityTime()", seg)
+
+    def test_deinit_releases_handle_and_flattens_exposure(self) -> None:
+        code = self._code_lines()
+        self.assertIn("IndicatorRelease(g_atr_handle)", code)
+        self.assertIn("DEINIT_EXPOSURE_CLEANUP", code)
+        self.assertIn("CancelAllPending(\"deinitialization_with_exposure\",true)", code)
+
+    def test_friday_flat_and_latency_measured(self) -> None:
+        code = self._code_lines()
+        self.assertIn("friday_flat_utc", code)
+        self.assertIn("ORDER_REQUEST_LATENCY", code)
+        self.assertIn("InpMaxTradeRequestLatencyMs", code)
+
+    def test_expected_account_currency_is_checked(self) -> None:
+        code = self._code_lines()
+        self.assertIn("ACCOUNT_CURRENCY_MISMATCH", code)
+
+    def _code_lines(self) -> str:
+        lines = []
+        for line in self.src.splitlines():
+            lines.append(line.split("//", 1)[0])
+        return "\n".join(lines)
+
     def test_system_cli_surface_is_separate(self) -> None:
         # No changes to existing tooling in this feature.
         for f in (

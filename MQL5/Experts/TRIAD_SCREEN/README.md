@@ -103,11 +103,39 @@ Session windows are ported verbatim from the canonical EA:
 - The **non-emergency request cap** (`InpMaxNonEmergencyRequestsDay`) never halts
   the screen EA: reaching it only blocks further non-emergency requests for the
   day (logged `REQUEST_CAP_REACHED`) so the dashboard keeps running.
+  **Emergency cleanup is never gated by that cap** — protective deletes/closes
+  (missing SL/TP, news, rollover, floor breach, phase completion) are only
+  per-ticket throttled (10 s), exactly like the canonical EA.
 - `InpAllowPhaseReset = true` only takes effect when the existing state file does
   **not** match the combo/`InpChallengePhase` (e.g. after re-pointing an account
   to a different combo or phase): it deletes that combo's state CSV and starts a
   fresh day/challenge ledger. It cannot be used to retroactively pass — the
   challenge status machine still derives everything from account equity.
+
+## Safety semantics (canonical parity)
+
+- **Same rules gate both entries and exposure.** If a risk guard fails (daily/
+  overall floor, internal stops, strategy drawdown shutdown, phase complete)
+  `ManageExposure` cancels own pending orders **and closes own positions** —
+  exactly like the canonical EA. A floor breach never lets an open position ride.
+- **Foreign/manual exposure** is detected; own-magic exposure is cleaned and the
+  event is logged (`FOREIGN_EXPOSURE`). Foreign objects are left untouched but
+  block new entries for the day (`manual_or_foreign_deal_detected`).
+- **One exposure invariant**: at most one own pending order *or* one own
+  position; a violation is repaired by cancel/close (`EXPOSURE_INVARIANT_VIOLATED`).
+- **Mid-session attach** (`InpSkipFreshMidSessionStart = true`, canonical default)
+  consumes the session instead of reconstructing a stale event, and the range is
+  only trusted once it is fully closed (`now >= range_end` — the canonical rule;
+  this is what makes the New York window work, since its London reference range
+  closes before its entry window opens).
+- **High water is updated only while flat** (canonical `UpdateHighWater` gate), so
+  an open position cannot distort the drawdown basis.
+- **Detach cleanup**: on an intentional detach with order submission enabled and
+  exposure present, pending orders are cancelled and positions closed
+  (`DEINIT_EXPOSURE_CLEANUP`); terminal shutdown keeps visible broker exits.
+- **Closed-trade ledger is crash-safe**: a processed-position id set (loaded from
+  `T.csv`) plus plan-row-first removal make double accounting impossible, and
+  partial closes on still-open positions are not counted as completed trades.
 
 ## Important caveats (read before drawing conclusions)
 
@@ -120,6 +148,10 @@ Session windows are ported verbatim from the canonical EA:
 - **Rule numbers are your responsibility.** The presets mirror the plan document
   in this repo, but the live agreement governs; verify every number (base for
   Phase 2, payout/scale locks, inactivity) against the account.
+- **Broker specifics matter.** Prices are normalized to `SYMBOL_TRADE_TICK_SIZE`
+  (not `SYMBOL_POINT`), and session bounds are derived from UK/US DST rules
+  against `InpExpectedServerUtcOffsetHours` — set that offset to the broker's
+  actual server offset; the EA warns on account-currency/balance mismatch at init.
 - **Phase 2 base** is the same $2,500 phase-initial input here; if your actual
   Phase-2 account base differs, set `InpPhaseInitialBalance` for that account.
 - **News CSV** must be operator-verified; a stale calendar blocks entries
