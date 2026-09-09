@@ -140,7 +140,7 @@ Net effect: the plan must include a **validator completion workstream** (report-
 6. Produce the replay export, run `tools/triad_validation.py validate`, and record the full champion-or-rejection result. No combination is enabled and no profile is chosen until this report exists and the per-combination gates pass.
 
 **P2 — ablation round (only after P1):**
-7. Preregister a new matrix (registry v2.2-style research addendum) with the exact ablation variants (simpler reclaim; first-executable-quote-with-costs; single wick/body restriction removed per variant), new splits, and the fixed-difference controls. If a variant wins, re-run the whole P1 pipeline on fresh windows before anything is adopted.
+7. Preregister a new matrix (registry v2.2-style research addendum) with the exact ablation variants (simpler reclaim; first-executable-quote-with-costs; single wick/body restriction removed per variant), new splits, and the fixed-difference controls. If a variant wins, re-run the whole P1 pipeline on fresh windows before anything is adopted. **Status: the preregistration scaffold is implemented now (Appendix D); the round itself remains data-gated and cannot run until P1's evidence pipeline produces a real observed-event export.**
 
 **P3 — challenge-rules and execution evidence:**
 8. Written support clarifications (one-position interpretation, 50% drawdown tier, exact rollover), purchased-agreement verification, 30–50 forward-demo fills on the exact broker/server, and reconciliation vs. the model (fills, commissions, swaps, stops, request counts, dashboard days).
@@ -170,10 +170,14 @@ Net effect: the plan must include a **validator completion workstream** (report-
 ```bash
 git status                                   # clean, branch arena/01a08488-forex
 find . -type f (csv/log/report enumeration)  # no replay/report artifacts
-python3 -m unittest discover -s tests -v     # 88/88 pass after P0 implementation
+python3 -m unittest discover -s tests -v     # 88/88 pass after P0 implementation; 115/115 after P2 scaffold
 grep -n config_id|limit_touched|... mq5     # replay schema absent from EA source
 python3 tools/replay_export.py selftest      # synthetic round trip OK
 python3 tools/triad_validation.py validate   # end-to-end smoke OK (NO_CHAMPION on synthetic data, as expected)
+python3 tools/triad_ablation.py schema       # ablation row contract = v2.1 CSV schema + variant IDs
+python3 tools/triad_ablation.py preregister --output validation/triad_v2_2_ablation_registry.json
+python3 tools/triad_ablation.py build ...    # synthetic CLI smoke (50,400 rows) -> OK
+python3 tools/triad_ablation.py validate ... # synthetic CLI smoke -> NO_CHANGE_SUPPORTED / VARIANT_SUPPORTED (synthetic only)
 ```
 
 ## Appendix C — P0 implementation status (added after the review was accepted)
@@ -195,3 +199,43 @@ End-to-end smoke (synthetic, 451,680 rows; mechanics only, no edge evidence): `r
 **Important honest caveat:** the exporter's `selftest` and the new tests use synthetic fixtures. No real tick data, historical news calendar, or broker symbol economics are in the workspace, so **no trading-performance evidence has been produced** — the evidence gap identified by the review remains exactly where it was. The pipeline that will fill it now exists and is contract-tested.
 
 Repository files changed by the implementation (not by the review itself): `tools/replay_export.py` (new), `tools/triad_validation.py` (extended), `tests/test_extended_validation.py` (new), `MQL5/Experts/TRIAD_R_HS/README.md` (tooling documentation).
+
+## Appendix D — P2 ablation scaffold status (added after P0, still data-gated)
+
+The ablation round from plan item 7 is now **preregistered and mechanically wired**, but it is **not evidence**. Everything below is contract and mechanics: the variants, splits, fill policy, thresholds, and decision rules were frozen in `validation/triad_v2_2_ablation_registry.json` **before any real data was generated**, and every acceptance rule is machine-enforced by `tools/triad_ablation.py`. The frozen V2.1 registry, the EA source, and the strategy rules are unchanged (V2.1 registry hash still `d802c2a5…`).
+
+### What was built
+
+| Piece | Where | Notes |
+|---|---|---|
+| Shared entry/exit/sizing core | `tools/replay_export.py` — `EntrySpec`, `resolve_entry()`, `resolve_prices()`, `resolve_exit()`, `resolve_lots()`, `_row_from_resolved()` | The frozen V2.1 derive path now calls the same core with `BASELINE_ENTRY_SPEC`. Contract test proves the default variant produces **byte-equivalent rows** to the previous implementation (minus the variant config ID). |
+| Preregistered ablation registry | `validation/triad_v2_2_ablation_registry.json` — SHA-256 `72c5ae24acdde5e31ea647f742605b687e67bf4bca4fc49e2897b18f570479a7` | 6 runs, declared splits 2019-01-01→2024-12-31 (WALK_FORWARD) and 2025-01-01→2026-08-31 (HOLDOUT), fixed controls (Profile A, 0.40% risk, +1.5R, 45-min time stop, no breakeven move, 30–80/20–80 bands, $2,500 account), fill policy, thresholds, and decision rules R1–R5. Any edit to the payload breaks the hash and is rejected. |
+| Ablation rows | Can be built from the same observed-event CSV contract as P0 (`tools/triad_ablation.py build`) | Same CSV schema, same fill policy, same "one signal per session" rule; each row is labelled with its variant ID. The build command **rejects any split that differs from the preregistered declaration**. |
+| Paired evaluator | `tools/triad_ablation.py validate` | R1 per-variant gates (fills, per-combination expectancy, profit factor ≥ 1.15, calendar-year robustness, 1.5× spread / 2× slippage stress), then R2 superiority (familywise-adjusted block-bootstrap lower bound > +0.05R), R5 simpler-tie (simpler variants only: ≥ 1.2× opportunity, no significant harm), R3 holdout confirmation, R4 conflict rule. Emits a full JSON audit report. |
+
+### The registered variants
+
+| Variant | Question | Change vs. baseline | Simpler? |
+|---|---|---|---|
+| ABL-V0-BASELINE | — | none (frozen V2.1 entry: sweep → reclaim 60% wick → displacement 60% body + midpoint → limit at 50% of displacement body) | — |
+| ABL-V1-SIMPLER-RECLAIM | Q1 does displacement confirmation help? | displacement module removed; entry at 50% of the reclaim body | yes |
+| ABL-V2-QUOTE-ENTRY | Q2 does the 50% retracement limit help? | entry at the first executable quote after displacement close (cost and stop band evaluated after that quote; documented confound) | no |
+| ABL-V3-NO-RECLAIM-WICK | Q3 are geometry filters useful? | reclaim-bar 60% wick filter removed | yes |
+| ABL-V4-BODY-40 | Q3 are geometry filters useful? | displacement body threshold 0.60 → 0.40 | no |
+| ABL-V5-NO-MIDPOINT | Q3 are geometry filters useful? | reclaim-midpoint direction filter removed | no |
+
+One change per variant; no stacking (R4); no live/EA parameter change may result from this round (a follow-up round must re-register with the best variant as the new baseline and test combinations, on fresh evidence).
+
+### Verification status
+
+- Full suite: **115 tests, all passing** (88 from P0 + 27 new in `tests/test_ablation_scaffold.py`).
+- New tests cover registry hash/tamper rejection, split re-registration enforcement, byte-equivalence of the baseline spec, each variant's entry behavior (including the acceptance cases the frozen rules reject and vice versa), builder coverage/round trip, the R1/R2/R5 decision logic, paired day-level differencing and bootstrap determinism, and two end-to-end CLI scenarios: a flat synthetic market that correctly returns **NO_CHANGE_SUPPORTED**, and a synthetic market where only the simpler-reclaim variant can act, which correctly returns **VARIANT_SUPPORTED** with holdout confirmation.
+- No test asserts any performance claim about any variant; the end-to-end cases above are mechanics-only wiring proofs on synthetic fixtures.
+
+### What remains before the round can run
+
+1. P1 evidence: fresh static review + MetaEditor compile of build 2.1.5, deterministic MT5 harnesses, fault-injection drills, and the real observed-event export (broker tick data 2019→latest per §13).
+2. Real-data execution of `triad_ablation.py build` (same event CSV as P0) and `triad_ablation.py validate`.
+3. Only then can the predeclared R1–R5 rules produce a decision; **no strategy, registry, or EA change may be derived from the two synthetic end-to-end runs.**
+
+Repository files changed by this scaffold: `tools/replay_export.py` (refactored to the shared event core — default-variant output unchanged), `tools/triad_ablation.py` (new), `validation/triad_v2_2_ablation_registry.json` (new, preregistered), `tests/test_ablation_scaffold.py` (new), this review (Appendices B/D).

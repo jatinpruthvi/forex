@@ -125,10 +125,10 @@ import csv
 import json
 import math
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Iterator, Mapping, Sequence
 
 # Allow running as ``python3 tools/replay_export.py ...`` from the repository
 # root (as documented and as the README tooling section invokes it).
@@ -453,6 +453,32 @@ def load_config_specs(registry: Mapping[str, object]) -> list[ConfigSpec]:
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class EntrySpec:
+    """One parameterization of the entry sequence.
+
+    ``None`` means the corresponding filter is removed (ablation variant).
+    ``entry_mode`` selects where the limit is placed, or the immediate-entry
+    alternative.  The V2.1 baseline is ``BASELINE_ENTRY_SPEC``.
+    """
+
+    sweep_atr_min: float = SWEEP_ATR_MIN
+    sweep_atr_max: float = SWEEP_ATR_MAX
+    reclaim_wick_min: float | None = RECLAIM_WICK_MIN
+    displacement_body_min: float | None = DISPLACEMENT_BODY_MIN
+    require_midpoint: bool = True
+    entry_mode: str = "limit_displacement_body_0.5"
+
+
+BASELINE_ENTRY_SPEC = EntrySpec()
+
+ENTRY_MODES = (
+    "limit_displacement_body_0.5",
+    "limit_reclaim_body_0.5",
+    "first_executable_quote_after_displacement",
+)
+
+
 def _max_inclusive_multiple(lattice_min: float, step: float, limit: float) -> float:
     """Largest volume-lattice value <= limit, anchored at lattice_min.
 
@@ -472,47 +498,60 @@ def _cash_per_price_unit(event: ObservedEvent) -> float:
     return (event.tick_value / event.tick_size) * event.contract_size
 
 
-def derive_event_rows(event: ObservedEvent, config: ConfigSpec,
-                      initial_balance: float = DEFAULT_INITIAL_BALANCE) -> list[ReplayRow]:
-    """One ReplayRow per configuration for a single observed event.
+def resolve_entry(event: ObservedEvent, spec: EntrySpec) -> tuple[float | None, float | None, str | None]:
+    """Return (entry, stop, rejection) for an observed event under *spec*.
 
-    Rejects with ``candidate=true / activation_ok=false`` when a frozen
-    geometry/cost/stop/sizing condition fails.  The day-expansion step adds
-    explicit no-candidate rows for the other configurations/combinations.
+    Entry-sequence contract (sweep band, reclaim window, wick geometry,
+    displacement confirmation and direction) is re-checked from the frozen
+    constants so a broken upstream signal can never silently become a trade.
+    A ``None`` entry with a non-None rejection means the frozen condition
+    failed; caller emits an ``activation_ok=false`` row.
     """
     is_long = event.direction == "long"
-    # Entry-sequence contract: sweep depth and reclaim/geometry are upstream
-    # observations, but the exporter re-checks the frozen constants so a
-    # broken upstream signal can never silently become a trade.
     sweep_depth = (
         (event.reference_low - event.sweep_low) if is_long
         else (event.sweep_high - event.reference_high)
     )
-    if not (SWEEP_ATR_MIN * event.atr_m15 <= sweep_depth + EPS <= SWEEP_ATR_MAX * event.atr_m15):
-        return [_rejected(event, config, "sweep_depth_atr_band")]
+    if not (spec.sweep_atr_min * event.atr_m15 <= sweep_depth + EPS <= spec.sweep_atr_max * event.atr_m15):
+        return (None, None, "sweep_depth_atr_band")
 
     reclaim_range = event.reclaim_high - event.reclaim_low
     if reclaim_range <= 0.0:
-        return [_rejected(event, config, "invalid_reclaim_bar")]
-    reclaim_wick = (
-        min(event.reclaim_open, event.reclaim_close) - event.reclaim_low
-        if is_long
-        else event.reclaim_high - max(event.reclaim_open, event.reclaim_close)
-    )
-    if reclaim_wick + EPS < RECLAIM_WICK_MIN * reclaim_range:
-        return [_rejected(event, config, "reclaim_wick")]
+        return (None, None, "invalid_reclaim_bar")
+    if spec.reclaim_wick_min is not None:
+        reclaim_wick = (
+            min(event.reclaim_open, event.reclaim_close) - event.reclaim_low
+            if is_long
+            else event.reclaim_high - max(event.reclaim_open, event.reclaim_close)
+        )
+        if reclaim_wick + EPS < spec.reclaim_wick_min * reclaim_range:
+            return (None, None, "reclaim_wick")
 
-    displacement_range = event.displacement_high - event.displacement_low
-    displacement_body = abs(event.displacement_close - event.displacement_open)
-    if displacement_range <= 0.0 or displacement_body + EPS < DISPLACEMENT_BODY_MIN * displacement_range:
-        return [_rejected(event, config, "weak_displacement")]
-    reclaim_midpoint = (event.reclaim_high + event.reclaim_low) / 2.0
-    if is_long and not event.displacement_close > reclaim_midpoint:
-        return [_rejected(event, config, "displacement_direction")]
-    if not is_long and not event.displacement_close < reclaim_midpoint:
-        return [_rejected(event, config, "displacement_direction")]
+    if spec.displacement_body_min is not None:
+        displacement_range = event.displacement_high - event.displacement_low
+        displacement_body = abs(event.displacement_close - event.displacement_open)
+        if displacement_range <= 0.0 or displacement_body + EPS < spec.displacement_body_min * displacement_range:
+            return (None, None, "weak_displacement")
+        if spec.require_midpoint:
+            reclaim_midpoint = (event.reclaim_high + event.reclaim_low) / 2.0
+            if is_long and not event.displacement_close > reclaim_midpoint:
+                return (None, None, "displacement_direction")
+            if not is_long and not event.displacement_close < reclaim_midpoint:
+                return (None, None, "displacement_direction")
 
-    entry = (event.displacement_open + event.displacement_close) / 2.0
+    if spec.entry_mode == "limit_displacement_body_0.5":
+        entry = (event.displacement_open + event.displacement_close) / 2.0
+    elif spec.entry_mode == "limit_reclaim_body_0.5":
+        entry = (event.reclaim_open + event.reclaim_close) / 2.0
+    elif spec.entry_mode == "first_executable_quote_after_displacement":
+        # Proxy for the first executable quote after the displacement bar
+        # closes: the displacement close itself.  The upstream replay must fill
+        # this at the bid/ask with the modeled spread+slippage; the cost fields
+        # are the observable audit trail and the 0.10R gate still applies.
+        entry = event.displacement_close
+    else:
+        raise ValidationError(f"unknown entry_mode {spec.entry_mode}")
+
     stop = (
         event.sweep_low - STOP_BUFFER_ATR * event.atr_m15
         if is_long
@@ -520,35 +559,57 @@ def derive_event_rows(event: ObservedEvent, config: ConfigSpec,
     )
     stop_distance = abs(entry - stop)
     if stop_distance <= 0.0:
-        return [_rejected(event, config, "zero_stop_distance")]
+        return (None, None, "zero_stop_distance")
     if not (STOP_ATR_MIN * event.atr_m15 <= stop_distance + EPS <= STOP_ATR_MAX * event.atr_m15):
-        return [_rejected(event, config, "stop_distance_atr_band")]
+        return (None, None, "stop_distance_atr_band")
+    return (entry, stop, None)
 
+
+def resolve_prices(event: ObservedEvent, entry: float, stop: float) -> dict[str, float]:
+    """Cost components and target solved so net target R equals the profile.
+
+    Returns ``cash_per_unit``, ``per_lot_risk``, ``round_cost_cash``,
+    ``cost_r``, ``spread_r``, ``slippage_r``, ``commission_r``, and
+    ``gross_target_distance``.  The caller supplies the configured target R.
+    """
+    is_long = event.direction == "long"
     cash_per_unit = _cash_per_price_unit(event)
+    stop_distance = abs(entry - stop)
     per_lot_risk = cash_per_unit * stop_distance
     if per_lot_risk <= 0.0:
-        return [_rejected(event, config, "zero_per_lot_risk")]
+        raise ValidationError("cannot price an entry with zero per-lot risk")
     spread_cash = cash_per_unit * event.spread_price
     slippage_cash = cash_per_unit * 2.0 * event.slippage_price
     round_cost_cash = spread_cash + slippage_cash + event.commission_per_lot_round_trip
-    cost_r = round_cost_cash / per_lot_risk
-    if cost_r + EPS > MAX_COST_TO_R:
-        return [_rejected(event, config, "cost_gate")]
-
-    # Volume rounding anchored at SYMBOL_VOLUME_MIN (never round up).
-    risk_budget = initial_balance * config.risk_fraction
-    lots = _max_inclusive_multiple(
-        event.volume_min, event.volume_step, risk_budget / per_lot_risk
-    )
-    if lots + EPS < event.volume_min:
-        return [_rejected(event, config, "minimum_volume_exceeds_risk_budget")]
-
-    # Target solved so the estimated *net* target result equals the profile's
-    # target R after commission and the slippage reserve (V2 section 7).
-    commission_r = event.commission_per_lot_round_trip / per_lot_risk
+    spread_r = spread_cash / per_lot_risk
     slippage_r = slippage_cash / per_lot_risk
-    gross_target_distance = stop_distance * (config.target_r + commission_r + slippage_r)
-    target = entry + gross_target_distance if is_long else entry - gross_target_distance
+    commission_r = event.commission_per_lot_round_trip / per_lot_risk
+    return {
+        "cash_per_unit": cash_per_unit,
+        "per_lot_risk": per_lot_risk,
+        "round_cost_cash": round_cost_cash,
+        "cost_r": round_cost_cash / per_lot_risk,
+        "spread_r": spread_r,
+        "slippage_r": slippage_r,
+        "commission_r": commission_r,
+        # Target offset solved so the modeled net result equals target R after
+        # commission and the slippage reserve (V2 section 7); spread is already
+        # realized in the entry fill and is not re-added.
+        "gross_target_distance": stop_distance,
+    }
+
+
+def resolve_exit(event: ObservedEvent, config: ConfigSpec, entry: float, stop: float,
+                 prices: Mapping[str, float]) -> tuple[float, float, str]:
+    """Time-stop/breakeven exit selection; returns (exit_price, net_r, reason).
+
+    Uses the observed path (target/stop precedence from the upstream
+    ``exit_reason``), then the configured time stop or session end.
+    """
+    is_long = event.direction == "long"
+    cash_per_unit = float(prices["cash_per_unit"])
+    per_lot_risk = float(prices["per_lot_risk"])
+    round_cost_cash = float(prices["round_cost_cash"])
 
     def per_lot_net(exit_price: float) -> float:
         distance = abs(exit_price - entry)
@@ -557,8 +618,14 @@ def derive_event_rows(event: ObservedEvent, config: ConfigSpec,
     def outcome_net_r(exit_price: float) -> float:
         return per_lot_net(exit_price) / per_lot_risk
 
-    # Exit selection per configuration (time-stop and breakeven) using the
-    # observed path; the upstream exit_reason supplies target/stop precedence.
+    commission_r = float(prices["commission_r"])
+    slippage_r = float(prices["slippage_r"])
+    target = (
+        entry + float(prices["gross_target_distance"]) * (config.target_r + commission_r + slippage_r)
+        if is_long
+        else entry - float(prices["gross_target_distance"]) * (config.target_r + commission_r + slippage_r)
+    )
+
     if event.exit_reason == "target" and event.target_hit_minutes is not None:
         exit_price = target
         effective_reason = "target"
@@ -580,9 +647,6 @@ def derive_event_rows(event: ObservedEvent, config: ConfigSpec,
     exit_r = outcome_net_r(exit_price)
 
     if config.move_stop_to_entry_after_confirmed_1r and event.breakeven_hit_minutes is not None:
-        # Confirmed +1R close before the exit: the broker stop moved to entry.
-        # Any fill worse than the +1R level is therefore capped at breakeven
-        # (still net of commission and slippage).
         one_r_price = entry + (entry - stop) if is_long else entry - (entry - stop)
         was_beyond = (
             (exit_price - one_r_price) > 0.0 if is_long
@@ -591,42 +655,92 @@ def derive_event_rows(event: ObservedEvent, config: ConfigSpec,
         if not was_beyond:
             exit_r = outcome_net_r(entry)
             effective_reason = "breakeven"
+    return (exit_price, float(exit_r), effective_reason)
 
-    risk_cash_full = lots * per_lot_risk
+
+def resolve_lots(event: ObservedEvent, config: ConfigSpec, per_lot_risk: float,
+                 initial_balance: float) -> tuple[float, float]:
+    """(lots, risk_cash_full) with volume rounding anchored at the lattice min."""
+    risk_budget = initial_balance * config.risk_fraction
+    lots = _max_inclusive_multiple(
+        event.volume_min, event.volume_step, risk_budget / per_lot_risk
+    )
+    return (lots, lots * per_lot_risk)
+
+
+def _row_from_resolved(event: ObservedEvent, config: ConfigSpec, spec: EntrySpec,
+                       initial_balance: float) -> ReplayRow:
+    is_long = event.direction == "long"
+    entry, stop, rejection = resolve_entry(event, spec)
+    if rejection is not None:
+        return _rejected(event, config, rejection)
+    prices = resolve_prices(event, entry, stop)
+    if float(prices["cost_r"]) + EPS > MAX_COST_TO_R:
+        return _rejected(event, config, "cost_gate")
+    lots, risk_cash_full = resolve_lots(event, config, float(prices["per_lot_risk"]), initial_balance)
+    if lots + EPS < event.volume_min:
+        return _rejected(event, config, "minimum_volume_exceeds_risk_budget")
+    exit_price, exit_r, _ = resolve_exit(event, config, entry, stop, prices)
+    cash_per_unit = float(prices["cash_per_unit"])
+    per_lot_net = cash_per_unit * abs(exit_price - entry) - float(prices["round_cost_cash"])
     mae_distance = max(
         0.0,
         (entry - event.worst_adverse_price) if is_long
         else (event.worst_adverse_price - entry),
     )
     mae_cash = cash_per_unit * mae_distance * lots
-    net_cash_full = lots * per_lot_net(exit_price)
-    return [
-        ReplayRow(
-            config_id=config.config_id,
-            split="WALK_FORWARD",  # replaced by the expansion step.
-            server_day=event.server_day,
-            sequence=event.sequence,
-            event_id=event.event_id,
-            combination=event.combination,
-            candidate=True,
-            activation_ok=event.limit_active,
-            limit_touched=event.limit_active and event.limit_touched,
-            trade_through_ticks=event.trade_through_ticks,
-            fill_fraction=event.fill_fraction,
-            net_r=round(float(exit_r), 6),
-            risk_cash_full=round(risk_cash_full, 4),
-            risk_cash_half=round(risk_cash_full / 2.0, 4),
-            net_cash_full=round(net_cash_full, 4),
-            net_cash_half=round(net_cash_full / 2.0, 4),
-            mae_cash_full=round(mae_cash, 4),
-            mae_cash_half=round(mae_cash / 2.0, 4),
-            spread_r=round(spread_cash / per_lot_risk, 6),
-            slippage_r=round(slippage_r, 6),
-            commission_r=round(commission_r, 6),
-            rule_violation=event.rule_violation,
-            operational_error=event.operational_error,
-        )
-    ]
+    return ReplayRow(
+        config_id=config.config_id,
+        split="WALK_FORWARD",  # replaced by the expansion step.
+        server_day=event.server_day,
+        sequence=event.sequence,
+        event_id=event.event_id,
+        combination=event.combination,
+        candidate=True,
+        activation_ok=event.limit_active,
+        limit_touched=event.limit_active and event.limit_touched,
+        trade_through_ticks=event.trade_through_ticks,
+        fill_fraction=event.fill_fraction,
+        net_r=round(float(exit_r), 6),
+        risk_cash_full=round(risk_cash_full, 4),
+        risk_cash_half=round(risk_cash_full / 2.0, 4),
+        net_cash_full=round(per_lot_net * lots, 4),
+        net_cash_half=round(per_lot_net * lots / 2.0, 4),
+        mae_cash_full=round(mae_cash, 4),
+        mae_cash_half=round(mae_cash / 2.0, 4),
+        spread_r=round(float(prices["spread_r"]), 6),
+        slippage_r=round(float(prices["slippage_r"]), 6),
+        commission_r=round(float(prices["commission_r"]), 6),
+        rule_violation=event.rule_violation,
+        operational_error=event.operational_error,
+    )
+
+
+def derive_event_rows(event: ObservedEvent, config: ConfigSpec,
+                      initial_balance: float = DEFAULT_INITIAL_BALANCE) -> list[ReplayRow]:
+    """One ReplayRow for the frozen V2.1 baseline entry spec.
+
+    The day-expansion step adds explicit no-candidate rows for the other
+    configurations/combinations.  ``spec`` is fixed to the canonical baseline;
+    ablation variants use :func:`derive_ablation_event_rows`.
+    """
+    return [_row_from_resolved(event, config, BASELINE_ENTRY_SPEC, initial_balance)]
+
+
+def derive_ablation_event_rows(event: ObservedEvent, config: ConfigSpec, spec: EntrySpec,
+                               *,
+                               variant_id: str,
+                               initial_balance: float = DEFAULT_INITIAL_BALANCE) -> list[ReplayRow]:
+    """One ReplayRow for an ablation *spec* (non-canonical entry rules).
+
+    Everything except the entry module is identical to
+    :func:`derive_event_rows`: stop, cost gate, lot rounding, target-solving,
+    time stop, breakeven policy, fill fields.  The row ``config_id`` is the
+    declared variant ID, so the ablation evaluator can distinguish runs while
+    reusing the exact same CSV schema and fill policy.
+    """
+    row = _row_from_resolved(event, config, spec, initial_balance)
+    return [replace(row, config_id=variant_id)]
 
 
 def _rejected(event: ObservedEvent, config: ConfigSpec, rejection: str) -> ReplayRow:

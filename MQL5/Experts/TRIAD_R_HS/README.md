@@ -196,6 +196,32 @@ The selector accepts only `WALK_FORWARD` rows. It independently gates each instr
 
 Reports include aggregate and per-combination expectancy/profit factor, fill-uncertainty counts, execution/cash metrics (candidate/activated counts, fill rate, small-positive vs qualifying ($12.50) wins, rounded-lot budget underuse), calendar-year robustness (no single year responsible for the whole profit), normal/stressed phase simulations with Wilson-score joint-probability confidence bounds and draw-outcome categories, median and p50/p95/p99 maximum drawdown, time-in-drawdown, qualifying-day outcomes, shutdowns, and inactivity. A separate block-bootstrap firm-floor check reports whether any path touches the 10% overall floor and the p99 overshoot beyond the internal 5% shutdown; the combined result is exposed as `holdout.sec13` / top-level `sec13`. The tool verifies selection mechanics and declares the Section-13 checklist; it cannot establish that source data, fill reconstruction, or broker assumptions are valid.
 
+### Preregistered ablation research round (P2)
+
+`tools/triad_ablation.py` runs the separate, preregistered research round that tests whether the V2.1 entry complexity earns itself. It is **not** part of the frozen 160-config selection, and it changes no EA rule. The declaration is frozen in `validation/triad_v2_2_ablation_registry.json` (SHA-256 covered) **before** any data is generated: 6 runs (frozen V2.1 entry as baseline; simpler reclaim; first-executable-quote entry; no reclaim-wick filter; 0.40 displacement body; no midpoint confirmation), fixed controls (Profile A, 0.40% risk, +1.5R, 45-minute time stop, no breakeven move, range 30–80 / ATR 20–80, $2,500 account), fresh splits (2019-01-01→2024-12-31 walk-forward, 2025-01-01→2026-08-31 holdout), the same fill policy, and preregistered decision rules R1–R5. Any payload edit breaks the hash and is rejected; the build command refuses a split that differs from the declaration.
+
+```bash
+# Declaration / contract
+python3 tools/triad_ablation.py schema
+python3 tools/triad_ablation.py preregister --output validation/triad_v2_2_ablation_registry.json
+
+# Build every variant's rows from the same observed-event CSV as the P0 export
+python3 tools/triad_ablation.py build \
+  --event-file /path/to/observed_events.csv \
+  --registry validation/triad_v2_2_ablation_registry.json \
+  --selection-split 2019.01.01 2024.12.31 \
+  --holdout-split 2025.01.01 2026.08.31 \
+  --output /path/to/ablation_rows.csv
+
+# Evaluate: R1 per-variant gates, R2 superiority, R5 simpler-tie, R3 holdout confirmation
+python3 tools/triad_ablation.py validate \
+  --registry validation/triad_v2_2_ablation_registry.json \
+  --input /path/to/ablation_rows.csv \
+  --output /path/to/ablation_report.json
+```
+
+No ablation outcome authorizes a change to the EA, the frozen V2.1 registry, or any live parameter; even a confirmed variant must pass a fresh P0/P1 pipeline on fresh windows before adoption.
+
 ## Required validation sequence
 
 A local Python pass is only the first check:

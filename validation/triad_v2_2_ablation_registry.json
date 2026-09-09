@@ -1,0 +1,195 @@
+{
+  "canonical_strategy": "THE5ERS-CHALLENGE-STRATEGY-V2.md revision 2.1 (ablations only; no rule changed)",
+  "csv_fields": [
+    "config_id",
+    "split",
+    "server_day",
+    "sequence",
+    "event_id",
+    "combination",
+    "candidate",
+    "activation_ok",
+    "limit_touched",
+    "trade_through_ticks",
+    "fill_fraction",
+    "net_r",
+    "risk_cash_full",
+    "risk_cash_half",
+    "net_cash_full",
+    "net_cash_half",
+    "mae_cash_full",
+    "mae_cash_half",
+    "spread_r",
+    "slippage_r",
+    "commission_r",
+    "rule_violation",
+    "operational_error"
+  ],
+  "decision": {
+    "accept_delta_r": 0.05,
+    "block_days": 5,
+    "bootstrap_samples": 2000,
+    "familywise_alpha": 0.05,
+    "minimum_aggregate_fills": 300,
+    "minimum_combination_fills": 100,
+    "minimum_combination_profit_factor": 1.15,
+    "opportunity_floor_fraction": 0.8,
+    "simpler_opportunity_premium": 1.2,
+    "simpler_tie_delta_r": 0.05
+  },
+  "evaluation": {
+    "bootstrap": {
+      "familywise_adjustment": "Bonferroni over the competing variants",
+      "method": "5-calendar-day moving block bootstrap of the paired day mean"
+    },
+    "decision_rules": [
+      "R1 per-variant selection gates (fills, expectancy, profit factor, year robustness, stress)",
+      "R2 superiority: familywise-adjusted paired-difference lower bound > +0.05R",
+      "R5 simplicity tie: for variants declared simpler than baseline, >= 1.2x opportunity AND adjusted lower bound > -0.05R (no significant harm)",
+      "R3 holdout confirmation after R2/R5 decisions",
+      "R4 conflict: multiple confirmed variants require a fresh combined round"
+    ],
+    "holdout_split": "HOLDOUT",
+    "paired_comparison": "per calendar day and combination: sum(net R of variant fills) minus sum(net R of baseline fills); days with no fill on either side contribute zero, so opportunity differences are visible.",
+    "selection_split": "WALK_FORWARD"
+  },
+  "fill_policy": {
+    "minimum_fill_fraction": 1.0,
+    "minimum_trade_through_ticks": 1,
+    "stressed_profitable_limit_miss_fraction": 0.1,
+    "stressed_slippage_multiplier": 2.0,
+    "stressed_spread_multiplier": 1.5
+  },
+  "fixed_controls": {
+    "atr_band_percentile": [
+      20,
+      80
+    ],
+    "initial_balance": 2500.0,
+    "move_stop_to_entry_after_confirmed_1r": false,
+    "no_live_parameter_change": true,
+    "no_stacking_this_round": true,
+    "one_change_per_variant": true,
+    "profile": "A",
+    "range_band_percentile": [
+      30,
+      80
+    ],
+    "risk_fraction": 0.004,
+    "stops_exits_sizing_locked": true,
+    "target_r": 1.5,
+    "time_stop_minutes": 45
+  },
+  "purpose": "Preregistered P2 research round: does the V2.1 entry complexity earn itself? Separate from the frozen 160-config selection; its evidence never reuses the v2.1 holdout.",
+  "questions": {
+    "Q1": "Does displacement confirmation help?",
+    "Q2": "Does the 50% retracement limit help?",
+    "Q3": "Are geometry filters useful?"
+  },
+  "registry_sha256": "72c5ae24acdde5e31ea647f742605b687e67bf4bca4fc49e2897b18f570479a7",
+  "registry_version": "TRIAD_R_V2_2_ABLATION_6",
+  "runs": [
+    {
+      "changed_element": "none (baseline)",
+      "description": "Frozen V2.1 entry: sweep, 3-bar reclaim (60% wick), displacement (60% body, midpoint), limit at 50% displacement body.",
+      "entry_spec": {
+        "displacement_body_min": 0.6,
+        "entry_mode": "limit_displacement_body_0.5",
+        "reclaim_wick_min": 0.6,
+        "require_midpoint": true,
+        "sweep_atr_max": 0.5,
+        "sweep_atr_min": 0.05
+      },
+      "question": "Q0",
+      "simplicity_bonus": false,
+      "variant_id": "ABL-V0-BASELINE"
+    },
+    {
+      "changed_element": "displacement module removed; entry moved to reclaim-body retracement",
+      "description": "Displacement confirmation removed; limit at 50% of the reclaim body. Tests whether displacement adds selection value or removes opportunities.",
+      "entry_spec": {
+        "displacement_body_min": null,
+        "entry_mode": "limit_reclaim_body_0.5",
+        "reclaim_wick_min": 0.6,
+        "require_midpoint": true,
+        "sweep_atr_max": 0.5,
+        "sweep_atr_min": 0.05
+      },
+      "question": "Q1",
+      "simplicity_bonus": true,
+      "variant_id": "ABL-V1-SIMPLER-RECLAIM"
+    },
+    {
+      "changed_element": "entry mode changed from limit-retracement to immediate quote",
+      "description": "First executable quote after confirmation instead of the 50% retracement limit. Cost and stop band are evaluated after the actual quote entry (documented confound).",
+      "entry_spec": {
+        "displacement_body_min": 0.6,
+        "entry_mode": "first_executable_quote_after_displacement",
+        "reclaim_wick_min": 0.6,
+        "require_midpoint": true,
+        "sweep_atr_max": 0.5,
+        "sweep_atr_min": 0.05
+      },
+      "question": "Q2",
+      "simplicity_bonus": false,
+      "variant_id": "ABL-V2-QUOTE-ENTRY"
+    },
+    {
+      "changed_element": "reclaim wick minimum removed",
+      "description": "Reclaim-bar 60% wick filter removed; all other entry conditions unchanged.",
+      "entry_spec": {
+        "displacement_body_min": 0.6,
+        "entry_mode": "limit_displacement_body_0.5",
+        "reclaim_wick_min": null,
+        "require_midpoint": true,
+        "sweep_atr_max": 0.5,
+        "sweep_atr_min": 0.05
+      },
+      "question": "Q3",
+      "simplicity_bonus": true,
+      "variant_id": "ABL-V3-NO-RECLAIM-WICK"
+    },
+    {
+      "changed_element": "displacement body minimum 0.60 -> 0.40",
+      "description": "Displacement body threshold lowered from 60% to 40% of bar range.",
+      "entry_spec": {
+        "displacement_body_min": 0.4,
+        "entry_mode": "limit_displacement_body_0.5",
+        "reclaim_wick_min": 0.6,
+        "require_midpoint": true,
+        "sweep_atr_max": 0.5,
+        "sweep_atr_min": 0.05
+      },
+      "question": "Q3",
+      "simplicity_bonus": false,
+      "variant_id": "ABL-V4-BODY-40"
+    },
+    {
+      "changed_element": "midpoint confirmation removed",
+      "description": "Reclaim-midpoint direction filter removed; displacement direction derives from the body.",
+      "entry_spec": {
+        "displacement_body_min": 0.6,
+        "entry_mode": "limit_displacement_body_0.5",
+        "reclaim_wick_min": 0.6,
+        "require_midpoint": false,
+        "sweep_atr_max": 0.5,
+        "sweep_atr_min": 0.05
+      },
+      "question": "Q3",
+      "simplicity_bonus": false,
+      "variant_id": "ABL-V5-NO-MIDPOINT"
+    }
+  ],
+  "schema_version": "TRIAD_ABLATION_V1",
+  "splits": {
+    "HOLDOUT": [
+      "2025-01-01",
+      "2026-08-31"
+    ],
+    "WALK_FORWARD": [
+      "2019-01-01",
+      "2024-12-31"
+    ],
+    "note": "Frozen at registration before any data was generated; if the acquired data cannot cover these ranges, re-register with the new dates before seeing any outcome."
+  }
+}
