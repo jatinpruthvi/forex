@@ -40,7 +40,7 @@ import random
 import statistics
 import sys
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence
@@ -143,6 +143,20 @@ class ValidationThresholds:
     minimum_qualifying_days_by_target_probability: float = 0.99
     maximum_p99_drawdown_fraction: float = 0.06
     require_selection_adjusted_lower_bound_positive: bool = True
+
+
+# Release gates declared by THE5ERS-CHALLENGE-STRATEGY-V2.md section 13 that
+# are NOT part of the frozen registry payload (the registry commits its own
+# thresholds, fill policy, and selection rule).  These constants implement the
+# canonical Section 13 checklist so that a passing report covers the declared
+# "no single year/regime", "firm-floor", "stressed overshoot", and
+# "confidence bounds" requirements as well as the frozen point-estimate gates.
+# They intentionally do not appear in build_registry().
+SPEC_SEC13_MAX_SHUTDOWN_OVERSHOOT_P99 = 0.01
+SPEC_SEC13_FIRM_OVERALL_FLOOR_FRACTION = 0.90
+SPEC_SEC13_CONFIDENCE_LEVEL = 0.95
+SPEC_SEC13_FLOOR_CHECK_PATHS = 1000
+
 
 
 @dataclass(frozen=True)
@@ -407,8 +421,16 @@ def load_replay_rows(path: Path, registry: Mapping[str, object]) -> list[ReplayR
             )
             if row.fill_fraction > 1.0 + 1e-9:
                 raise ValidationError(f"line {line_number}: fill_fraction cannot exceed 1")
-            if row.candidate and (row.risk_cash_full <= 0 or row.risk_cash_half <= 0):
-                raise ValidationError(f"line {line_number}: candidates require positive cash-risk values")
+            if row.candidate and row.activation_ok and (
+                row.risk_cash_full <= 0 or row.risk_cash_half <= 0
+            ):
+                # A candidate that never activated (gate rejection, sizing
+                # skip, router demotion) is a legitimate observation with zero
+                # risk and zero cash; only an activated candidate must carry a
+                # positive rounded-volume stop risk.
+                raise ValidationError(
+                    f"line {line_number}: activated candidates require positive cash-risk values"
+                )
             rows.append(row)
     if not rows:
         raise ValidationError("replay CSV is empty")
@@ -491,26 +513,153 @@ def _json_number(value: float | None) -> float | str | None:
     return value
 
 
+def _all_in_cost_r(row: ReplayRow) -> float:
+    """All-in modeled round-trip cost in R (spread + slippage + commission)."""
+    return row.spread_r + row.slippage_r + row.commission_r
+
+
+def _year_net_report(trades: Sequence[AppliedTrade]) -> dict[str, object]:
+    """Calendar-year concentration of net R.
+
+    Section 13 requires that no single year/regime is responsible for the
+    entire profit.  The operational check: with two or more years carrying
+    fills, removing the best calendar year must leave a strictly positive net
+    R remainder (which also implies at least two net-positive years).
+    """
+    by_year: dict[int, float] = defaultdict(float)
+    for trade in trades:
+        by_year[trade.row.server_day.year] += trade.net_r
+    total = float(sum(by_year.values()))
+    best_year = max(by_year, key=by_year.get) if by_year else None
+    best = float(by_year[best_year]) if best_year is not None else 0.0
+    remaining = total - best
+    robust = bool(by_year) and len(by_year) >= 2 and total > 0.0 and remaining > 0.0
+    return {
+        "calendar_years_with_fills": sorted(by_year),
+        "positive_net_r_years": sorted(year for year, value in by_year.items() if value > 0),
+        "best_year_net_r": best,
+        "remaining_net_r_without_best_year": remaining,
+        "best_year_net_r_share": (best / total) if total > 0.0 else None,
+        "year_robustness_ok": robust,
+    }
+
+
+def _augment_metric_report(entry: dict[str, object], rows: Sequence[ReplayRow],
+                           trades: Sequence[AppliedTrade], policy: FillPolicy, *,
+                           config_risk_fractions: Mapping[str, float] | None,
+                           initial_balance: float | None,
+                           qualifying_cash: float | None) -> None:
+    """Add §13-motivated execution, cash, and calendar-year metrics.
+
+    Fill-rate denominators: ``candidate_signals`` counts rows where the frozen
+    strategy produced an entry candidate; ``activated_orders`` counts only
+    candidates whose order became active.  A row that is a candidate but never
+    activated encodes a modeled activation refusal (gate, sizing skip, state
+    lock), so the two rates have different meanings.
+    """
+    candidate_signals = sum(1 for row in rows if row.candidate)
+    activated = sum(1 for row in rows if row.candidate and row.activation_ok)
+    fills = len(trades)
+    touched = sum(1 for row in rows if row.candidate and row.activation_ok and row.limit_touched)
+    through = sum(
+        1
+        for row in rows
+        if row.candidate
+        and row.activation_ok
+        and row.limit_touched
+        and row.trade_through_ticks >= policy.minimum_trade_through_ticks
+    )
+    entry["candidate_signals"] = candidate_signals
+    entry["activated_orders"] = activated
+    entry["activation_refusals"] = candidate_signals - activated
+    entry["fill_rate"] = (fills / activated) if activated else None
+    entry["signal_fill_rate"] = (fills / candidate_signals) if candidate_signals else None
+    entry["limit_touch_rate"] = (touched / activated) if activated else None
+    entry["trade_through_rate"] = (through / activated) if activated else None
+
+    if fills:
+        entry["net_cash_total_full"] = float(sum(trade.row.net_cash_full for trade in trades))
+        entry["net_cash_total_half"] = float(sum(trade.row.net_cash_half for trade in trades))
+        entry["net_cash_mean_full"] = statistics.fmean(trade.row.net_cash_full for trade in trades)
+        entry["net_cash_mean_half"] = statistics.fmean(trade.row.net_cash_half for trade in trades)
+        entry["all_in_cost_r_mean"] = statistics.fmean(_all_in_cost_r(trade.row) for trade in trades)
+    else:
+        entry["net_cash_total_full"] = 0.0
+        entry["net_cash_total_half"] = 0.0
+        entry["net_cash_mean_full"] = None
+        entry["net_cash_mean_half"] = None
+        entry["all_in_cost_r_mean"] = None
+
+    if qualifying_cash is not None and fills:
+        small = sum(0.0 < trade.row.net_cash_full < qualifying_cash for trade in trades)
+        qualifying = sum(trade.row.net_cash_full >= qualifying_cash for trade in trades)
+        entry["small_positive_wins_full"] = small
+        entry["qualifying_wins_full"] = qualifying
+        entry["sub_qualifying_share_full"] = small / fills
+    else:
+        entry["small_positive_wins_full"] = None
+        entry["qualifying_wins_full"] = None
+        entry["sub_qualifying_share_full"] = None
+
+    if config_risk_fractions and initial_balance and fills:
+        utilizations = [
+            trade.row.risk_cash_full
+            / (initial_balance * float(config_risk_fractions[trade.row.config_id]))
+            for trade in trades
+            if float(config_risk_fractions[trade.row.config_id]) > 0.0
+        ]
+        if utilizations:
+            ordered = sorted(utilizations)
+            entry["executed_risk_fraction_mean"] = statistics.fmean(ordered)
+            entry["executed_risk_fraction_p10"] = _percentile(ordered, 0.10)
+            entry["budget_underuse_fills"] = sum(value < 0.90 for value in ordered)
+            entry["budget_underuse_share"] = sum(value < 0.90 for value in ordered) / len(ordered)
+        else:
+            entry["executed_risk_fraction_mean"] = None
+            entry["executed_risk_fraction_p10"] = None
+            entry["budget_underuse_fills"] = None
+            entry["budget_underuse_share"] = None
+    else:
+        entry["executed_risk_fraction_mean"] = None
+        entry["executed_risk_fraction_p10"] = None
+        entry["budget_underuse_fills"] = None
+        entry["budget_underuse_share"] = None
+
+    entry.update(_year_net_report(trades))
+
+
 def metric_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, stressed: bool,
-                  seed: int) -> dict[str, object]:
+                  seed: int,
+                  config_risk_fractions: Mapping[str, float] | None = None,
+                  initial_balance: float | None = None,
+                  qualifying_cash: float | None = None) -> dict[str, object]:
     trades = [
         trade
         for row in rows
         if (trade := apply_fill_policy(row, policy, stressed=stressed, seed=seed)) is not None
     ]
     values = [trade.net_r for trade in trades]
-    by_combination: dict[str, list[float]] = defaultdict(list)
-    for trade in trades:
-        by_combination[trade.row.combination].append(trade.net_r)
     per_combination: dict[str, object] = {}
     for combination in sorted(ALLOWED_COMBINATIONS):
-        combination_values = by_combination[combination]
-        per_combination[combination] = {
+        combination_rows = [row for row in rows if row.combination == combination]
+        combination_trades = [trade for trade in trades if trade.row.combination == combination]
+        combination_values = [trade.net_r for trade in combination_trades]
+        combination_report: dict[str, object] = {
             "fills": len(combination_values),
             "expectancy_r": statistics.fmean(combination_values) if combination_values else None,
             "profit_factor": _json_number(_profit_factor(combination_values)),
         }
-    return {
+        _augment_metric_report(
+            combination_report,
+            combination_rows,
+            combination_trades,
+            policy,
+            config_risk_fractions=config_risk_fractions,
+            initial_balance=initial_balance,
+            qualifying_cash=qualifying_cash,
+        )
+        per_combination[combination] = combination_report
+    report: dict[str, object] = {
         "fills": len(values),
         "expectancy_r": statistics.fmean(values) if values else None,
         "profit_factor": _json_number(_profit_factor(values)),
@@ -532,6 +681,16 @@ def metric_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, stressed: bo
             for row in rows
         ),
     }
+    _augment_metric_report(
+        report,
+        rows,
+        trades,
+        policy,
+        config_risk_fractions=config_risk_fractions,
+        initial_balance=initial_balance,
+        qualifying_cash=qualifying_cash,
+    )
+    return report
 
 
 def _numeric_profit_factor(report: Mapping[str, object]) -> float:
@@ -572,6 +731,154 @@ def independently_eligible_combinations(
         else:
             eligible.append(combination)
     return tuple(eligible), rejected
+
+
+# Stable session index used as the final router tie-break (V2 section 12:
+# "stable session index").  Priorities default to 1 for every combination,
+# matching the EA inputs (InpEURUSDLondonPriority=1, InpGBPUSDLondonPriority=1,
+# InpUSDJPYNewYorkPriority=1): ties are allowed and resolve by lower all-in
+# cost/R, earlier completed signal (sequence), then stable session index.
+COMBINATION_ORDER = (
+    "EURUSD_LONDON",
+    "GBPUSD_LONDON",
+    "USDJPY_NEW_YORK",
+)
+DEFAULT_COMBINATION_PRIORITIES: dict[str, int] = {
+    name: 1 for name in COMBINATION_ORDER
+}
+
+
+def parse_combination_priorities(text: str) -> dict[str, int]:
+    """Parse ``EURUSD_LONDON:1,GBPUSD_LONDON:2,USDJPY_NEW_YORK:3``.
+
+    Values must cover at most the three declared combinations, each exactly
+    once, with integer priorities in 1..3.  Omitted combinations default to 1
+    (the EA default), which the caller records in the report as evidence of
+    the predeclared routing rule actually used.
+    """
+    parsed = dict(DEFAULT_COMBINATION_PRIORITIES)
+    if not text.strip():
+        return parsed
+    for token in text.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if ":" not in token:
+            raise ValidationError(f"invalid priority token: {token}")
+        name, raw_value = token.split(":", 1)
+        name = name.strip().upper()
+        if name not in COMBINATION_ORDER:
+            raise ValidationError(f"unknown combination in priorities: {name}")
+        try:
+            value = int(raw_value.strip())
+        except ValueError as exc:
+            raise ValidationError(f"invalid priority value for {name}") from exc
+        if not 1 <= value <= 3:
+            raise ValidationError(f"priority for {name} must be in 1..3")
+        parsed[name] = value
+    return parsed
+
+
+def _router_key(row: ReplayRow, priorities: Mapping[str, int]) -> tuple[int, float, int, str]:
+    cost = _all_in_cost_r(row)
+    session_index = COMBINATION_ORDER.index(row.combination)
+    return (int(priorities.get(row.combination, 1)), cost, row.sequence, session_index)
+
+
+def route_daily_rows(rows: Sequence[ReplayRow],
+                     priorities: Mapping[str, int] | None = None) -> tuple[list[ReplayRow], dict[str, object]]:
+    """Apply the V2 section-12 account-wide candidate router.
+
+    Per frozen configuration and server day, every candidate that passed the
+    mandatory gates (``candidate`` and ``activation_ok``) is ranked by the
+    frozen combination priority, then lower all-in cost/R, then earlier
+    completed signal, then stable session index.  Exactly one candidate wins
+    each day.  All other candidate rows are *demoted* (activation_ok=false and
+    fill fields zeroed) rather than deleted, so the export keeps the coverage
+    the validator requires — one row per configuration/combination/day — while
+    the audit trail still shows which signals one-position routing discarded.
+
+    Days with no candidate (or no activated candidate) are returned unchanged:
+    their explicit no-candidate rows remain for coverage checks.
+    """
+    effective = dict(DEFAULT_COMBINATION_PRIORITIES)
+    if priorities:
+        effective.update(priorities)
+    grouped: dict[tuple[str, str, date], list[ReplayRow]] = defaultdict(list)
+    for row in rows:
+        grouped[(row.config_id, row.split, row.server_day)].append(row)
+    routed: list[ReplayRow] = []
+    rejected: dict[str, int] = defaultdict(int)
+    gate_failed: int = 0
+    ties: dict[str, int] = defaultdict(int)
+    winner_count = 0
+    for key in sorted(grouped):
+        day_rows = grouped[key]
+        activated_candidates = [
+            row for row in day_rows if row.candidate and row.activation_ok
+        ]
+        if not activated_candidates:
+            routed.extend(day_rows)
+            continue
+        ranked = sorted(activated_candidates, key=lambda row: _router_key(row, effective))
+        winner = ranked[0]
+        winners = [
+            row
+            for row in activated_candidates
+            if _router_key(row, effective)[:2] == _router_key(winner, effective)[:2]
+        ]
+        ties_without_winner = len(winners) - 1
+        if ties_without_winner > 0:
+            ties[key[0]] += ties_without_winner
+        for row in day_rows:
+            if row is winner:
+                winner_count += 1
+                routed.append(row)
+            elif row.candidate and row.activation_ok:
+                rejected[f"{row.combination}->{winner.combination}"] += 1
+                routed.append(_demoted(row))
+            elif row.candidate:
+                # Failed-gate candidates were dropped before ranking
+                # (section 12 step 1); they are audited, not routed.
+                gate_failed += 1
+                routed.append(row)
+            else:
+                routed.append(row)
+    diagnostics: dict[str, object] = {
+        "priorities_used": dict(effective),
+        "combined_priority_tie_break_rule": (
+            "priority, lower all-in cost/R, earlier sequence, stable session index"
+        ),
+        "rejected_candidate_counts": dict(sorted(rejected.items())),
+        "gate_failed_candidates_excluded_from_ranking": gate_failed,
+        "priority_tie_event_counts": dict(sorted(ties.items())),
+        "routed_rows": len(routed),
+        "input_rows": len(rows),
+        "winner_rows": winner_count,
+        "routed_from_input_rows": len(rows) - winner_count,
+    }
+    return routed, diagnostics
+
+
+def _demoted(row: ReplayRow) -> ReplayRow:
+    """Copy a candidate row with order/risk fields zeroed (router rejection)."""
+    return replace(
+        row,
+        activation_ok=False,
+        limit_touched=False,
+        trade_through_ticks=0,
+        fill_fraction=0.0,
+        net_r=0.0,
+        risk_cash_full=0.0,
+        risk_cash_half=0.0,
+        net_cash_full=0.0,
+        net_cash_half=0.0,
+        mae_cash_full=0.0,
+        mae_cash_half=0.0,
+        spread_r=0.0,
+        slippage_r=0.0,
+        commission_r=0.0,
+    )
 
 
 def gates_pass(normal: Mapping[str, object], stressed: Mapping[str, object],
@@ -652,6 +959,7 @@ class PhaseOutcome:
     calendar_days: int
     maximum_drawdown_fraction: float
     qualifying_days: int
+    days_in_drawdown: int = 0
 
 
 def simulate_phase(days: Sequence[tuple[date, list[AppliedTrade]]], *, phase_target_fraction: float,
@@ -662,10 +970,26 @@ def simulate_phase(days: Sequence[tuple[date, list[AppliedTrade]]], *, phase_tar
     max_drawdown = 0.0
     qualifying_days = 0
     inactive_days = 0
+    days_in_drawdown = 0
     weekly_start = initial
     sampled = _moving_block_days(days, rng, settings.block_days)
     target = initial * (1.0 + phase_target_fraction)
     qualifying_cash = initial * settings.qualifying_day_fraction
+
+    def outcome(passed: bool, reason: str, day_number: int,
+                drawdown: float) -> PhaseOutcome:
+        # The terminating day counts as a drawdown day when the account was
+        # below its high-water mark at termination, including the interim
+        # adverse-excursion check inside the trade loop.
+        counted = days_in_drawdown + (1 if drawdown > 1e-12 else 0)
+        return PhaseOutcome(
+            passed,
+            reason,
+            day_number,
+            max_drawdown,
+            qualifying_days,
+            counted,
+        )
 
     for day_number in range(1, settings.max_phase_calendar_days + 1):
         if (day_number - 1) % 7 == 0:
@@ -682,14 +1006,14 @@ def simulate_phase(days: Sequence[tuple[date, list[AppliedTrade]]], *, phase_tar
                 break
             drawdown = max(0.0, (high_water - balance) / high_water)
             if drawdown >= settings.drawdown_shutdown_fraction:
-                return PhaseOutcome(False, "strategy_drawdown_shutdown", day_number, max_drawdown, qualifying_days)
+                return outcome(False, "strategy_drawdown_shutdown", day_number, drawdown)
             half_risk = drawdown >= settings.drawdown_reduce_fraction
             adverse = trade.adverse_cash(half_risk)
             interim_equity = balance - adverse
             interim_drawdown = max(0.0, (high_water - interim_equity) / high_water)
             max_drawdown = max(max_drawdown, interim_drawdown)
             if interim_drawdown >= settings.drawdown_shutdown_fraction:
-                return PhaseOutcome(False, "strategy_drawdown_shutdown", day_number, max_drawdown, qualifying_days)
+                return outcome(False, "strategy_drawdown_shutdown", day_number, interim_drawdown)
 
             result = trade.cash_result(half_risk)
             balance += result
@@ -709,19 +1033,28 @@ def simulate_phase(days: Sequence[tuple[date, list[AppliedTrade]]], *, phase_tar
 
         inactive_days = 0 if filled_today else inactive_days + 1
         if inactive_days >= settings.inactivity_days:
-            return PhaseOutcome(False, "inactivity", day_number, max_drawdown, qualifying_days)
+            return outcome(False, "inactivity", day_number, max(0.0, (high_water - balance) / high_water))
         if day_net >= qualifying_cash:
             qualifying_days += 1
+        drawdown = max(0.0, (high_water - balance) / high_water)
+        max_drawdown = max(max_drawdown, drawdown)
         if target_reached:
             passed = qualifying_days >= settings.required_qualifying_days
             reason = "passed" if passed else "target_pending_days"
-            return PhaseOutcome(passed, reason, day_number, max_drawdown, qualifying_days)
-        drawdown = max(0.0, (high_water - balance) / high_water)
-        max_drawdown = max(max_drawdown, drawdown)
+            return outcome(passed, reason, day_number, drawdown)
         if drawdown >= settings.drawdown_shutdown_fraction:
-            return PhaseOutcome(False, "strategy_drawdown_shutdown", day_number, max_drawdown, qualifying_days)
+            return outcome(False, "strategy_drawdown_shutdown", day_number, drawdown)
+        if drawdown > 1e-12:
+            days_in_drawdown += 1
 
-    return PhaseOutcome(False, "maximum_duration", settings.max_phase_calendar_days, max_drawdown, qualifying_days)
+    return PhaseOutcome(
+        False,
+        "maximum_duration",
+        settings.max_phase_calendar_days,
+        max_drawdown,
+        qualifying_days,
+        days_in_drawdown,
+    )
 
 
 def _percentile(values: Sequence[float], probability: float) -> float | None:
@@ -738,6 +1071,39 @@ def _percentile(values: Sequence[float], probability: float) -> float | None:
     return ordered[low] * (1.0 - fraction) + ordered[high] * fraction
 
 
+def _binom_wilson_sided(p: float, n: int, z: float) -> tuple[float, float]:
+    """Wilson score interval; returns the two-sided [lower, upper] bounds.
+
+    Section 13 requires the joint two-phase pass probability to be "reported
+    with confidence bounds".  For n <= 0 the interval is reported as
+    [None, None] rather than inventing a value.
+    """
+    if n <= 0:
+        return (float("nan"), float("nan"))
+    centre = p + z * z / (2.0 * n)
+    radius = z * math.sqrt(p * (1.0 - p) / n + z * z / (4.0 * n * n))
+    scale = 1.0 / (1.0 + z * z / n)
+    return (max(0.0, scale * (centre - radius)), min(1.0, scale * (centre + radius)))
+
+
+def _binomial_wilson_interval(successes: int, trials: int,
+                              confidence_level: float) -> dict[str, object]:
+    proba = successes / trials if trials > 0 else 0.0
+    if not 0.0 < confidence_level < 1.0:
+        raise ValidationError("confidence level must lie strictly between 0 and 1")
+    z = statistics.NormalDist().inv_cdf(1.0 - (1.0 - confidence_level) / 2.0)
+    lower, upper = _binom_wilson_sided(proba, trials, z)
+    finite = math.isfinite(lower) and math.isfinite(upper)
+    return {
+        "method": "Wilson score interval (normal approximation, no continuity correction)",
+        "confidence_level": confidence_level,
+        "successes": successes,
+        "trials": trials,
+        "lower": lower if finite else None,
+        "upper": upper if finite else None,
+    }
+
+
 def phase_simulation_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, stressed: bool,
                             paths: int, settings: SimulationSettings, seed: int) -> dict[str, object]:
     if paths <= 0:
@@ -746,8 +1112,11 @@ def phase_simulation_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, st
     rng = random.Random(seed)
     phase1_outcomes: list[PhaseOutcome] = []
     phase2_outcomes: list[PhaseOutcome] = []
-    joint_days: list[float] = []
     joint_passes = 0
+    joint_draws: dict[str, int] = defaultdict(int)
+    joint_days_passed: list[float] = []
+    joint_days_all: list[float] = []
+    time_in_drawdown_values: list[float] = []
     reasons1: dict[str, int] = defaultdict(int)
     reasons2: dict[str, int] = defaultdict(int)
     for _ in range(paths):
@@ -767,13 +1136,26 @@ def phase_simulation_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, st
         phase2_outcomes.append(phase2)
         reasons1[phase1.reason] += 1
         reasons2[phase2.reason] += 1
+        total_days = float(phase1.calendar_days + phase2.calendar_days)
+        joint_days_all.append(total_days)
         if phase1.passed and phase2.passed:
             joint_passes += 1
-            joint_days.append(float(phase1.calendar_days + phase2.calendar_days))
+            joint_days_passed.append(total_days)
+            joint_draws["joint_pass"] += 1
+        elif phase1.passed:
+            joint_draws["phase2_failure"] += 1
+        elif phase2.passed:
+            joint_draws["phase1_failure"] += 1
+        else:
+            joint_draws["both_failure"] += 1
+        time_in_drawdown_values.append(
+            float(phase1.days_in_drawdown + phase2.days_in_drawdown)
+        )
     drawdowns = [
         max(phase1.maximum_drawdown_fraction, phase2.maximum_drawdown_fraction)
         for phase1, phase2 in zip(phase1_outcomes, phase2_outcomes)
     ]
+    joint_confidence = _binomial_wilson_interval(joint_passes, paths, SPEC_SEC13_CONFIDENCE_LEVEL)
     phase1_target_arrivals = sum(
         item.reason in {"passed", "target_pending_days"} for item in phase1_outcomes
     )
@@ -787,6 +1169,8 @@ def phase_simulation_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, st
         "phase1_pass_probability": phase1_passes / paths,
         "phase2_pass_probability": phase2_passes / paths,
         "joint_pass_probability": joint_passes / paths,
+        "joint_confidence": joint_confidence,
+        "joint_draws": dict(sorted(joint_draws.items())),
         "phase1_target_arrival_probability": phase1_target_arrivals / paths,
         "phase2_target_arrival_probability": phase2_target_arrivals / paths,
         "phase1_qualifying_days_by_target_probability": (
@@ -797,7 +1181,14 @@ def phase_simulation_report(rows: Sequence[ReplayRow], policy: FillPolicy, *, st
         ),
         "maximum_drawdown_p95_fraction": _percentile(drawdowns, 0.95),
         "maximum_drawdown_p99_fraction": _percentile(drawdowns, 0.99),
-        "median_joint_completion_calendar_days": statistics.median(joint_days) if joint_days else None,
+        "maximum_drawdown_p50_fraction": _percentile(drawdowns, 0.50),
+        "median_joint_completion_calendar_days": (
+            statistics.median(joint_days_passed) if joint_days_passed else None
+        ),
+        "median_joint_calendar_days_all_paths": statistics.median(joint_days_all),
+        "median_time_in_drawdown_days": (
+            statistics.median(time_in_drawdown_values) if time_in_drawdown_values else None
+        ),
         "phase1_outcomes": dict(sorted(reasons1.items())),
         "phase2_outcomes": dict(sorted(reasons2.items())),
     }
@@ -836,6 +1227,217 @@ def phase_gates_pass(
     if drawdown is None or float(drawdown) > thresholds.maximum_p99_drawdown_fraction:
         failures.append("maximum_drawdown_p99_fraction")
     return not failures, failures
+
+
+def sec13_phase_checks(report: Mapping[str, object],
+                       settings: SimulationSettings) -> dict[str, object]:
+    """Section-13 report-level checks that the frozen phase gates do not cover.
+
+    ``settings`` is currently accepted for forward compatibility (floor/overshoot
+    checks use the same simulation shape); the returned dict contains the items
+    that belong on a phase-simulation report: confidence bounds, median
+    drawdown, and time in drawdown.
+    """
+    joint_confidence = report["joint_confidence"]
+    assert isinstance(joint_confidence, dict)
+    lower = joint_confidence["lower"]
+    confidence_lower_positive = lower is not None and float(lower) > 0.0
+    return {
+        "method": joint_confidence.get("method", "Wilson score interval"),
+        "confidence_level": joint_confidence.get("confidence_level", SPEC_SEC13_CONFIDENCE_LEVEL),
+        "joint_confidence_lower_positive_95": confidence_lower_positive,
+        "joint_confidence_lower": lower,
+        "joint_confidence_upper": joint_confidence["upper"],
+        "maximum_drawdown_p50_fraction": report.get("maximum_drawdown_p50_fraction"),
+        "median_time_in_drawdown_days": report.get("median_time_in_drawdown_days"),
+        "progress_days_used": settings.max_phase_calendar_days > 0,
+    }
+
+
+def _simulate_floor_path(days: Sequence[tuple[date, list[AppliedTrade]]], *,
+                         settings: SimulationSettings, rng: random.Random) -> tuple[bool, float]:
+    """One block-bootstrap account path for the Section-13 floor checks.
+
+    Tracks, per path:
+
+    - whether the deterministic worst-case equity ever falls below the firm
+      10% overall floor (``phase_initial_balance * 0.90``);
+    - the deepest excursion *beyond* the internal 5% shutdown boundary
+      (measured from the strategy high-water mark, as in the phase simulator),
+      as a fraction of the phase initial balance.
+
+    The path consumes trades under the same day-lock/two-trade rules as
+    :func:`simulate_phase`; the difference is that it does not stop at the 5%
+    boundary, because the boundary itself is what Section 13 asks us to
+    quantify (overshoot) and the firm floor is what it asks us to test.
+    """
+    initial = settings.initial_balance
+    overall_floor = initial * SPEC_SEC13_FIRM_OVERALL_FLOOR_FRACTION
+    target = initial * (1.0 + settings.phase1_target_fraction)
+    balance = initial
+    high_water = initial
+    floor_breached = False
+    max_overshoot = 0.0
+    sampled = _moving_block_days(days, rng, settings.block_days)
+    for day_number in range(1, settings.max_phase_calendar_days + 1):
+        if (day_number - 1) % 7 == 0:
+            weekly_start = balance
+        day_start = balance
+        day_net = 0.0
+        completed = 0
+        daily_lock = False
+        weekly_locked = balance <= weekly_start - initial * settings.weekly_stop_fraction
+
+        def shutdown_level() -> float:
+            return high_water - initial * settings.drawdown_shutdown_fraction
+
+        def observe(equity: float) -> None:
+            nonlocal floor_breached, max_overshoot
+            floor_breached = floor_breached or equity < overall_floor
+            max_overshoot = max(max_overshoot, max(0.0, (shutdown_level() - equity) / initial))
+
+        for trade in next(sampled):
+            if weekly_locked or completed >= 2 or (completed == 1 and day_net > 0) or daily_lock:
+                break
+            drawdown = max(0.0, (high_water - balance) / high_water)
+            half_risk = drawdown >= settings.drawdown_reduce_fraction
+            adverse = trade.adverse_cash(half_risk)
+            observe(balance - adverse)
+            result = trade.cash_result(half_risk)
+            balance += result
+            day_net += result
+            completed += 1
+            high_water = max(high_water, balance)
+            observe(balance)
+            if balance >= target:
+                daily_lock = True
+                break
+            if balance <= day_start - initial * settings.daily_stop_fraction:
+                break
+            if balance <= weekly_start - initial * settings.weekly_stop_fraction:
+                weekly_locked = True
+                break
+    return floor_breached, max_overshoot
+
+
+def firm_floor_check(rows: Sequence[ReplayRow], policy: FillPolicy, *,
+                     stressed: bool, seed: int,
+                     settings: SimulationSettings) -> dict[str, object]:
+    """Block-bootstrap Section-13 account-floor and overshoot check.
+
+    ``paths`` comes from the module-level Section-13 constant so that the
+    frozen registry payload (and its mutation-protecting hash) is not changed
+    by this report-only extension.  The deterministic seed is derived from the
+    caller's seed plus a fixed offset.
+    """
+    days = _trades_by_day(rows, policy, stressed=stressed, seed=seed)
+    if not days:
+        return {
+            "paths": 0,
+            "firm_overall_floor_breached": False,
+            "maximum_overshoot_beyond_shutdown_p99_fraction": 0.0,
+        }
+    rng = random.Random(seed ^ 0xF10F10F1)
+    breaches = 0
+    overshoots: list[float] = []
+    for _ in range(SPEC_SEC13_FLOOR_CHECK_PATHS):
+        breached, overshoot = _simulate_floor_path(days, settings=settings, rng=rng)
+        breaches += 1 if breached else 0
+        overshoots.append(overshoot)
+    return {
+        "paths": SPEC_SEC13_FLOOR_CHECK_PATHS,
+        "firm_overall_floor_breach_paths": breaches,
+        "firm_overall_floor_breach_rate": breaches / SPEC_SEC13_FLOOR_CHECK_PATHS,
+        "firm_overall_floor_breached": breaches > 0,
+        "maximum_overshoot_beyond_shutdown_p99_fraction": _percentile(overshoots, 0.99),
+        "maximum_overshoot_beyond_shutdown_ok_p99": (
+            float(_percentile(overshoots, 0.99) or 0.0)
+            <= SPEC_SEC13_MAX_SHUTDOWN_OVERSHOOT_P99
+        ),
+    }
+
+
+def sec13_verdict(normal: Mapping[str, object], stressed: Mapping[str, object],
+                  normal_phase: Mapping[str, object], stressed_phase: Mapping[str, object],
+                  normal_floor: Mapping[str, object], stressed_floor: Mapping[str, object],
+                  thresholds: ValidationThresholds) -> dict[str, object]:
+    """Combine frozen-point gates with the Section-13 checklist into a verdict.
+
+    This is the report consumers should read first.  It never changes the
+    frozen gates themselves; it makes the release gates deployable-truthful by
+    surfacing the requirements the registry does not encode (confidence
+    bounds, year robustness, firm floor, stress overshoot).  ``sec13_phase_checks``
+    covers the report-level items; this function owns the combined verdict.
+    """
+    normal_checks = sec13_phase_checks(normal_phase, SimulationSettings())
+    checks = (
+        ("rule_violations", int(normal["rule_violations"]) == 0),
+        ("operational_errors", int(normal["operational_errors"]) == 0),
+        ("aggregate_fill_count", int(normal["fills"]) >= thresholds.minimum_aggregate_fills),
+        (
+            "aggregate_expectancy",
+            normal["expectancy_r"] is not None
+            and float(normal["expectancy_r"]) >= thresholds.minimum_aggregate_expectancy_r,
+        ),
+        (
+            "aggregate_profit_factor",
+            float(_numeric_profit_factor(normal)) >= thresholds.minimum_aggregate_profit_factor,
+        ),
+        (
+            "stressed_expectancy",
+            stressed["expectancy_r"] is not None
+            and float(stressed["expectancy_r"]) >= thresholds.minimum_stressed_expectancy_r,
+        ),
+        ("year_robustness", bool(normal.get("year_robustness_ok", False))),
+        (
+            "firm_overall_floor",
+            not bool(normal_floor.get("firm_overall_floor_breached", False)),
+        ),
+        (
+            "joint_confidence_95_lower_positive",
+            bool(normal_checks["joint_confidence_lower_positive_95"]),
+        ),
+        (
+            "phase1_pass_probability",
+            float(normal_phase["phase1_pass_probability"]) >= thresholds.minimum_phase1_pass_probability,
+        ),
+        (
+            "phase2_pass_probability",
+            float(normal_phase["phase2_pass_probability"]) >= thresholds.minimum_phase2_pass_probability,
+        ),
+        (
+            "joint_pass_probability",
+            float(normal_phase["joint_pass_probability"]) >= thresholds.minimum_joint_pass_probability,
+        ),
+        (
+            "maximum_p99_drawdown",
+            normal_phase["maximum_drawdown_p99_fraction"] is not None
+            and float(normal_phase["maximum_drawdown_p99_fraction"])
+            <= thresholds.maximum_p99_drawdown_fraction,
+        ),
+        (
+            "stress_phase1_pass_probability",
+            float(stressed_phase["phase1_pass_probability"]) >= thresholds.minimum_phase1_pass_probability,
+        ),
+        (
+            "stress_phase2_pass_probability",
+            float(stressed_phase["phase2_pass_probability"]) >= thresholds.minimum_phase2_pass_probability,
+        ),
+        (
+            "stress_joint_pass_probability",
+            float(stressed_phase["joint_pass_probability"]) >= thresholds.minimum_joint_pass_probability,
+        ),
+        (
+            "stress_overshoot_p99",
+            bool(stressed_floor.get("maximum_overshoot_beyond_shutdown_ok_p99", False)),
+        ),
+    )
+    failures = [name for name, passed in checks if not passed]
+    return {
+        "all_sec13_checks_pass": not failures,
+        "failed_checks": failures,
+        "checked_checks": [name for name, _ in checks],
+    }
 
 
 def _daily_r_values(rows: Sequence[ReplayRow], policy: FillPolicy, *, stressed: bool,
@@ -906,7 +1508,9 @@ def _config_rows(rows: Sequence[ReplayRow], config_id: str, split: str) -> list[
 
 def select_champion(selection_rows: Sequence[ReplayRow], configs: Sequence[CandidateConfig],
                     policy: FillPolicy, thresholds: ValidationThresholds,
-                    settings: SimulationSettings) -> tuple[CandidateConfig | None, dict[str, object]]:
+                    settings: SimulationSettings,
+                    combination_priorities: Mapping[str, int] | None = None,
+                    ) -> tuple[CandidateConfig | None, dict[str, object]]:
     if any(row.split == HOLDOUT_SPLIT for row in selection_rows):
         raise ValidationError("holdout rows were supplied to champion selection")
     ranked: list[tuple[tuple[float, float, float, str], CandidateConfig, dict[str, object]]] = []
@@ -933,11 +1537,14 @@ def select_champion(selection_rows: Sequence[ReplayRow], configs: Sequence[Candi
         portfolio_rows = [
             row for row in rows if row.combination in enabled_combinations
         ]
+        routed_rows, router_diagnostics = route_daily_rows(
+            portfolio_rows, combination_priorities
+        )
         normal = metric_report(
-            portfolio_rows, policy, stressed=False, seed=settings.random_seed
+            routed_rows, policy, stressed=False, seed=settings.random_seed
         )
         stressed = metric_report(
-            portfolio_rows, policy, stressed=True, seed=settings.random_seed
+            routed_rows, policy, stressed=True, seed=settings.random_seed
         )
         passed, failures = gates_pass(
             normal, stressed, thresholds, enabled_combinations
@@ -946,7 +1553,7 @@ def select_champion(selection_rows: Sequence[ReplayRow], configs: Sequence[Candi
             rejected[config.config_id] = failures
             continue
         phase = phase_simulation_report(
-            portfolio_rows,
+            routed_rows,
             policy,
             stressed=False,
             paths=settings.selection_paths,
@@ -976,6 +1583,9 @@ def select_champion(selection_rows: Sequence[ReplayRow], configs: Sequence[Candi
                     "enabled_combinations": list(enabled_combinations),
                     "combination_rejections": combination_rejections,
                     "all_combination_diagnostics": all_combination_diagnostics,
+                    "router": router_diagnostics,
+                    "portfolio_rows_after_enablement": len(portfolio_rows),
+                    "portfolio_rows_after_routing": len(routed_rows),
                     "normal": normal,
                     "stressed": stressed,
                     "phase": phase,
@@ -1008,12 +1618,15 @@ def select_champion(selection_rows: Sequence[ReplayRow], configs: Sequence[Candi
     _, provisional, evaluation = ranked[0]
     seed = config_seed_base ^ int(hashlib.sha256(provisional.config_id.encode()).hexdigest()[:8], 16)
     enabled_combinations = tuple(evaluation["enabled_combinations"])
-    provisional_rows = [
-        row
-        for row in selection_rows
-        if row.config_id == provisional.config_id
-        and row.combination in enabled_combinations
-    ]
+    provisional_rows, _ = route_daily_rows(
+        [
+            row
+            for row in selection_rows
+            if row.config_id == provisional.config_id
+            and row.combination in enabled_combinations
+        ],
+        combination_priorities,
+    )
     confidence = bootstrap_expectancy_interval(
         provisional_rows,
         policy,
@@ -1040,12 +1653,21 @@ def select_champion(selection_rows: Sequence[ReplayRow], configs: Sequence[Candi
     return provisional, summary
 
 
-def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[str, object]:
+def validate(registry_path: Path, input_path: Path, output_path: Path,
+             combination_priorities: Mapping[str, int] | None = None) -> dict[str, object]:
     registry = load_registry(registry_path)
     configs = [CandidateConfig(**item) for item in registry["configurations"]]  # type: ignore[index]
     policy = FillPolicy(**registry["fill_policy"])  # type: ignore[arg-type,index]
     thresholds = ValidationThresholds(**registry["thresholds"])  # type: ignore[arg-type,index]
     settings = SimulationSettings(**registry["simulation"])  # type: ignore[arg-type,index]
+    priorities = dict(DEFAULT_COMBINATION_PRIORITIES)
+    if combination_priorities:
+        priorities.update(combination_priorities)
+    config_risk_fractions = {
+        config.config_id: config.risk_fraction for config in configs
+    }
+    initial_balance = settings.initial_balance
+    qualifying_cash = initial_balance * settings.qualifying_day_fraction
     rows = load_replay_rows(input_path, registry)
     validate_replay_coverage(rows, configs)
 
@@ -1053,12 +1675,18 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
     # digest, or outcome is passed into select_champion().
     selection_rows = [row for row in rows if row.split == SELECTION_SPLIT]
     champion, selection_report = select_champion(
-        selection_rows, configs, policy, thresholds, settings
+        selection_rows,
+        configs,
+        policy,
+        thresholds,
+        settings,
+        combination_priorities=priorities,
     )
     report: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "registry_sha256": registry["registry_sha256"],
         "input_sha256": hashlib.sha256(input_path.read_bytes()).hexdigest(),
+        "combination_priorities_used": dict(priorities),
         "selection": selection_report,
         "holdout_evaluated_after_selection": champion is not None,
         "warnings": [
@@ -1068,6 +1696,7 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
     }
     if champion is None:
         report["holdout"] = None
+        report["sec13"] = None
     else:
         # This is the first point at which holdout outcomes are evaluated.
         all_holdout_rows = _config_rows(rows, champion.config_id, HOLDOUT_SPLIT)
@@ -1075,14 +1704,37 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
         holdout_rows = [
             row for row in all_holdout_rows if row.combination in enabled_combinations
         ]
+        routed_rows, router_diagnostics = route_daily_rows(holdout_rows, priorities)
         seed = settings.random_seed ^ int(
             hashlib.sha256(champion.config_id.encode()).hexdigest()[:8], 16
         ) ^ 0x5A5A5A5A
         holdout_combination_diagnostics = metric_report(
-            all_holdout_rows, policy, stressed=False, seed=settings.random_seed
+            all_holdout_rows,
+            policy,
+            stressed=False,
+            seed=settings.random_seed,
+            config_risk_fractions=config_risk_fractions,
+            initial_balance=initial_balance,
+            qualifying_cash=qualifying_cash,
         )
-        normal = metric_report(holdout_rows, policy, stressed=False, seed=settings.random_seed)
-        stressed = metric_report(holdout_rows, policy, stressed=True, seed=settings.random_seed)
+        normal = metric_report(
+            routed_rows,
+            policy,
+            stressed=False,
+            seed=settings.random_seed,
+            config_risk_fractions=config_risk_fractions,
+            initial_balance=initial_balance,
+            qualifying_cash=qualifying_cash,
+        )
+        stressed = metric_report(
+            routed_rows,
+            policy,
+            stressed=True,
+            seed=settings.random_seed,
+            config_risk_fractions=config_risk_fractions,
+            initial_balance=initial_balance,
+            qualifying_cash=qualifying_cash,
+        )
         passed, failures = gates_pass(
             normal, stressed, thresholds, enabled_combinations
         )
@@ -1093,7 +1745,7 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
             passed = False
             failures = [*failures, "rule_or_operational_error"]
         confidence = bootstrap_expectancy_interval(
-            holdout_rows,
+            routed_rows,
             policy,
             stressed=False,
             samples=settings.bootstrap_samples,
@@ -1105,7 +1757,7 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
         holdout_lower = confidence["ordinary_interval"][0]  # type: ignore[index]
         confidence_passed = holdout_lower is not None and float(holdout_lower) > 0.0
         phase_normal = phase_simulation_report(
-            holdout_rows,
+            routed_rows,
             policy,
             stressed=False,
             paths=settings.holdout_paths,
@@ -1113,7 +1765,7 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
             seed=seed,
         )
         phase_stressed = phase_simulation_report(
-            holdout_rows,
+            routed_rows,
             policy,
             stressed=True,
             paths=settings.holdout_paths,
@@ -1121,10 +1773,34 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
             seed=seed ^ 0x3C3C3C3C,
         )
         phase_passed, phase_failures = phase_gates_pass(phase_normal, thresholds)
+        floor_normal = firm_floor_check(
+            routed_rows,
+            policy,
+            stressed=False,
+            seed=seed,
+            settings=settings,
+        )
+        floor_stressed = firm_floor_check(
+            routed_rows,
+            policy,
+            stressed=True,
+            seed=seed ^ 0x3C3C3C3C,
+            settings=settings,
+        )
+        sec13 = sec13_verdict(
+            normal,
+            stressed,
+            phase_normal,
+            phase_stressed,
+            floor_normal,
+            floor_stressed,
+            thresholds,
+        )
         report["holdout"] = {
             "champion": asdict(champion),
             "enabled_combinations_frozen_before_holdout": list(enabled_combinations),
-            "all_combination_diagnostics": holdout_combination_diagnostics,
+            "router": router_diagnostics,
+            "unrouted_enabled_combination_diagnostics": holdout_combination_diagnostics,
             "normal": normal,
             "stressed": stressed,
             "point_gates_pass": passed,
@@ -1135,8 +1811,15 @@ def validate(registry_path: Path, input_path: Path, output_path: Path) -> dict[s
             "phase_simulation_stressed": phase_stressed,
             "phase_gates_pass": phase_passed,
             "phase_gate_failures": phase_failures,
-            "all_holdout_gates_pass": passed and confidence_passed and phase_passed,
+            "firm_floor_normal": floor_normal,
+            "firm_floor_stressed": floor_stressed,
+            "sec13": sec13,
+            "all_holdout_gates_pass": (
+                passed and confidence_passed and phase_passed
+                and bool(sec13["all_sec13_checks_pass"])
+            ),
         }
+        report["sec13"] = report["holdout"]["sec13"]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report
@@ -1184,6 +1867,15 @@ def _parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--registry", type=Path, required=True)
     validate_parser.add_argument("--input", type=Path, required=True)
     validate_parser.add_argument("--output", type=Path, required=True)
+    validate_parser.add_argument(
+        "--combination-priorities",
+        default="",
+        help=(
+            "frozen section-12 router priorities as "
+            "EURUSD_LONDON:1,GBPUSD_LONDON:2,USDJPY_NEW_YORK:3; omitted values "
+            "default to 1 (the EA default, ties allowed)"
+        ),
+    )
     return parser
 
 
@@ -1199,7 +1891,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "schema":
             print(schema_text(), end="")
         elif args.command == "validate":
-            report = validate(args.registry, args.input, args.output)
+            priorities = parse_combination_priorities(args.combination_priorities)
+            report = validate(
+                args.registry, args.input, args.output, combination_priorities=priorities
+            )
             selection = report["selection"]
             assert isinstance(selection, dict)
             print(

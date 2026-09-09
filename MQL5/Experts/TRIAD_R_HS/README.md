@@ -146,6 +146,24 @@ Execution logs include each completed M5 no-event decision, valid/rejected candi
 
 ## Offline champion-selection tooling
 
+`tools/replay_export.py` is the producer: it validates an *observed-event* CSV (signal geometry plus fill/exit observations from an upstream tick/bar replay), applies the frozen per-config entry/stop/cost/lot/target/time-stop/breakeven arithmetic, and expands the result into the exact validator schema with explicit no-candidate rows for every configuration/combination/server day. It refuses to infer the WALK_FORWARD/HOLDOUT cut from data — both ranges are required arguments. It does **not** read raw ticks or reconstruct fills itself; those remain the responsibility of the upstream MT5 real-tick replay job.
+
+```bash
+# Observe-event contract
+python3 tools/replay_export.py schema
+
+# Synthetic round trip through loader, coverage, and metrics (no edge evidence)
+python3 tools/replay_export.py selftest --tmpdir /tmp/replay_selftest
+
+# Build a registry-conformant replay export (predeclare the split cut first)
+python3 tools/replay_export.py build \
+  --event-file /path/to/observed_events.csv \
+  --configs validation/triad_v2_1_registry.json \
+  --selection-split 2019.01.01 2024.12.31 \
+  --holdout-split 2025.01.01 2026.08.31 \
+  --output /path/to/triad_replay_rows.csv
+```
+
 `tools/triad_validation.py` is a standard-library-only research runner. It is separate from the EA, cannot submit orders, and never changes runtime parameters. The committed registry at `validation/triad_v2_1_registry.json` freezes all 160 declared V2.1 combinations:
 
 - 2 range percentile bands;
@@ -168,10 +186,15 @@ Run selection only after independently producing the complete replay export:
 python3 tools/triad_validation.py validate \
   --registry validation/triad_v2_1_registry.json \
   --input /path/to/triad_replay_rows.csv \
-  --output /path/to/triad_validation_report.json
+  --output /path/to/triad_validation_report.json \
+  --combination-priorities "EURUSD_LONDON:1,GBPUSD_LONDON:2,USDJPY_NEW_YORK:3"
 ```
 
-The selector accepts only `WALK_FORWARD` rows. It independently gates each instrument/session, freezes the surviving combination set, enforces the aggregate and declared phase-probability/drawdown gates, and then ranks survivors by joint two-phase pass probability, drawdown, and duration. A moving-calendar-day block-bootstrap interval with a Bonferroni familywise adjustment protects the declared search. `HOLDOUT` rows are rejected by the selector and evaluated only after a champion is frozen. Reports include aggregate and per-combination expectancy/profit factor, fill-uncertainty counts, normal/stressed phase simulations, qualifying-day outcomes, shutdowns, and inactivity. The tool verifies selection mechanics; it cannot establish that source data, fill reconstruction, or broker assumptions are valid.
+The `--combination-priorities` argument applies the section-12 account-wide router to aggregate gates and phase simulation (the report records the exact values used; omitted combinations default to 1, the EA default, with ties resolved by lower all-in cost/R, earlier sequence, then stable session index). Routed-away candidate rows are demoted rather than deleted so day coverage stays provable.
+
+The selector accepts only `WALK_FORWARD` rows. It independently gates each instrument/session, freezes the surviving combination set, enforces the aggregate and declared phase-probability/drawdown gates, applies the section-12 router, and then ranks survivors by joint two-phase pass probability, drawdown, and duration. A moving-calendar-day block-bootstrap interval with a Bonferroni familywise adjustment protects the declared search. `HOLDOUT` rows are rejected by the selector and evaluated only after a champion is frozen.
+
+Reports include aggregate and per-combination expectancy/profit factor, fill-uncertainty counts, execution/cash metrics (candidate/activated counts, fill rate, small-positive vs qualifying ($12.50) wins, rounded-lot budget underuse), calendar-year robustness (no single year responsible for the whole profit), normal/stressed phase simulations with Wilson-score joint-probability confidence bounds and draw-outcome categories, median and p50/p95/p99 maximum drawdown, time-in-drawdown, qualifying-day outcomes, shutdowns, and inactivity. A separate block-bootstrap firm-floor check reports whether any path touches the 10% overall floor and the p99 overshoot beyond the internal 5% shutdown; the combined result is exposed as `holdout.sec13` / top-level `sec13`. The tool verifies selection mechanics and declares the Section-13 checklist; it cannot establish that source data, fill reconstruction, or broker assumptions are valid.
 
 ## Required validation sequence
 
