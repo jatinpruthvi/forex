@@ -372,13 +372,14 @@ The EA source at `MQL5/Experts/TRIAD_R_HS/TRIAD_R_HS.mq5` (build 2.1.6) has NOT 
 
 | # | Task | Status | Blocker |
 |---|---|---|---|
-| 1 | Commit EA changes to git | ⬜ PENDING | None — just run `git add && git commit` |
-| 2 | Compile EA in MetaEditor | ⬜ PENDING | None |
-| 3 | Obtain more EURUSD tick data (ideally 2019–present) | ⬜ PENDING | User must supply the file |
-| 4 | Re-run full validation pipeline with more data | ⬜ PENDING | Depends on #3 |
-| 5 | Champion selection report passes all gates | ⬜ PENDING | Depends on #4 |
-| 6 | Forward-demo period (1–2 weeks on demo account) | ⬜ PENDING | Depends on #2 and #5 |
-| 7 | Set `InpEURUSDLondonGatePassed = true` and start challenge | ⬜ PENDING | Depends on all above |
+| 1 | Commit EA changes to git | ✅ DONE | commit `cfb7f45` |
+| 2 | All 171 tests pass (tzdata already installed) | ✅ DONE | 171 passed, 0 failed |
+| 3 | Compile EA in MetaEditor | ⬜ PENDING | Needs user to run MetaEditor |
+| 4 | Obtain more EURUSD tick data (ideally 2019–present) | ⬜ PENDING | User must supply the file |
+| 5 | Re-run full validation pipeline with more data | ⬜ PENDING | Depends on #4 |
+| 6 | Champion selection report passes all gates | ⬜ PENDING | Depends on #5 |
+| 7 | Forward-demo period (1–2 weeks on demo account) | ⬜ PENDING | Depends on #3 and #6 |
+| 8 | Set `InpEURUSDLondonGatePassed = true` and start challenge | ⬜ PENDING | Depends on all above |
 
 ---
 
@@ -499,4 +500,4 @@ Python version: 3.13 (tested and passing)
 
 ---
 
-*Last updated: end of session 2. All three EA improvements are complete, all tests understood, validation pipeline runs end-to-end, data volume blocker identified and documented.*
+*Last updated: end of session 3. EA changes committed (cfb7f45). All 171 tests pass (0 failures). Immediate blockers remaining: (1) MetaEditor compilation — user must run MetaEditor; (2) More EURUSD tick data — user must supply 2019-present tick CSV in Eightcap format.*
