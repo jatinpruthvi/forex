@@ -22,7 +22,7 @@ class SourceContractTests(unittest.TestCase):
         self.assertTrue(README_PATH.is_file())
         self.assertTrue(NEWS_EXAMPLE_PATH.is_file())
         self.assertIn("THE5ERS-CHALLENGE-STRATEGY-V2.md", self.source)
-        self.assertIn('EA_BUILD_ID = "TRIAD_R_HS_2.1.5_20260904"', self.source)
+        self.assertIn('EA_BUILD_ID = "TRIAD_R_HS_2.1.6_20260905"', self.source)
 
     def test_news_example_has_the_declared_utc_schema(self) -> None:
         rows = NEWS_EXAMPLE_PATH.read_text(encoding="utf-8").splitlines()
@@ -498,6 +498,48 @@ class SourceContractTests(unittest.TestCase):
                 self.assertTrue(stack, f"unmatched {char}")
                 self.assertEqual(stack.pop(), pairs[char])
         self.assertFalse(stack, f"unclosed delimiters: {stack}")
+
+
+    def test_news_block_day_counter_structure(self) -> None:
+        # New input with correct default.
+        self.assertRegex(self.source, r"InpNewsBlockInactivityThreshold\s*=\s*3\s*;")
+        # Global flag and streak counter must be declared.
+        self.assertIn("g_news_blocked_this_day", self.source)
+        self.assertIn("g_news_blocked_days_streak", self.source)
+        # GV key must be written and read.
+        self.assertIn('"NewsBlkStreak"', self.source)
+        # Alert event name must be present.
+        self.assertIn('"NEWS_BLOCK_INACTIVITY_RISK"', self.source)
+        # Flag must be set inside the news_blackout rejection path.
+        blackout_block = self.source.split(
+            'candidate.rejection="news_blackout"', 1
+        )[1].split("if(!ComparableStatistics", 1)[0]
+        self.assertIn("g_news_blocked_this_day=true", blackout_block)
+        # Streak must be included in AccountStateSignature.
+        sig = self.source.split("int AccountStateSignature()", 1)[1].split(
+            "return HashText", 1
+        )[0]
+        self.assertIn("g_news_blocked_days_streak", sig)
+
+    def test_h1_ema_bias_filter_structure(self) -> None:
+        # Default must be false so the 160-config registry is unaffected.
+        self.assertRegex(self.source, r"InpRequireH1EmaBias\s*=\s*false\s*;")
+        # Indicator handle array must be declared alongside g_atr_handles.
+        self.assertIn("g_h1_ema_handles[3]", self.source)
+        # Helper function must be present and include the rejection string.
+        self.assertIn("bool CheckH1EmaBias(", self.source)
+        self.assertIn('"h1_ema_bias"', self.source)
+        # Config hash must include the new flag so enabled/disabled configs differ.
+        self.assertIn("BoolText(InpRequireH1EmaBias)", self.source)
+        # Handles must be released in OnDeinit.
+        self.assertIn("IndicatorRelease(g_h1_ema_handles[i])", self.source)
+
+    def test_stats_insufficient_is_error_level(self) -> None:
+        # STATS_INSUFFICIENT causes NO_TRADE with no recovery path in the same
+        # session; it must surface as ERROR so the operator sees it immediately
+        # in the MT5 Experts tab alongside other blocking failures.
+        self.assertIn('"ERROR","STATS_INSUFFICIENT"', self.source)
+        self.assertNotIn('"WARN","STATS_INSUFFICIENT"', self.source)
 
 
 if __name__ == "__main__":

@@ -112,6 +112,11 @@ input double             InpAtrPercentileHigh           = 80.0;
 input int                InpComparableSessions          = 60;
 input int                InpTimeStopMinutes             = 45; // 0 = session only
 input bool               InpMoveStopToEntryAfter1R      = false;
+// H1 EMA directional bias filter (false = V2.1 baseline, no behaviour change)
+// When true: long setups require H1 close > H1 EMA(50) with non-negative slope;
+// short setups require the inverse. Counter-trend sweeps are rejected as NO_TRADE.
+// This is a research candidate; enable only after out-of-sample validation.
+input bool               InpRequireH1EmaBias            = false;
 
 // ---- Fixed entry/risk definitions ------------------------------------------
 input double             InpSweepAtrMin                 = 0.05;
@@ -137,6 +142,11 @@ input double             InpDrawdownShutdownPercent     = 5.00;
 // ---- Logging ---------------------------------------------------------------
 input bool               InpVerboseLog                  = true;
 input string             InpLogFilePrefix               = "TRIAD_R_HS";
+// Number of consecutive server days where a valid signal was blocked exclusively
+// by the news blackout (with no completed trade that day) before an ERROR-level
+// NEWS_BLOCK_INACTIVITY_RISK alert is raised. Helps catch calendar-driven inactivity
+// clusters before the 30-day The5ers window expires.
+input int                InpNewsBlockInactivityThreshold= 3;
 
 struct NewsEvent
   {
@@ -196,7 +206,7 @@ struct SignalCandidate
    string            rejection;
   };
 
-const string   EA_BUILD_ID = "TRIAD_R_HS_2.1.5_20260904";
+const string   EA_BUILD_ID = "TRIAD_R_HS_2.1.6_20260905";
 const int      SAFETY_TIME_LEAD_SECONDS = 10;
 const int      SERVER_OFFSET_TOLERANCE_SECONDS = 5;
 
@@ -204,6 +214,8 @@ CTrade         g_trade;
 NewsEvent      g_news[];
 SessionRuntime g_sessions[3];
 int            g_atr_handles[3]={INVALID_HANDLE,INVALID_HANDLE,INVALID_HANDLE};
+// H1 EMA(50) indicator handles — one per session slot, parallel to g_atr_handles.
+int            g_h1_ema_handles[3]={INVALID_HANDLE,INVALID_HANDLE,INVALID_HANDLE};
 
 string   g_prefix                    = "";
 string   g_account_lock_prefix       = "";
@@ -236,6 +248,12 @@ bool     g_account_history_fault     = false;
 bool     g_rebaseline_required       = false;
 datetime g_state_created_time        = 0;
 int      g_last_inactivity_alert_day = 0;
+// News-block inactivity tracking (Sub-Task 2).
+// Set true on any day where news_blackout was the rejection and no trade completed.
+// Reset to false at each rollover after the streak is evaluated.
+bool     g_news_blocked_this_day     = false;
+// Count of consecutive news-blocked-no-trade days. Persisted across restarts.
+int      g_news_blocked_days_streak  = 0;
 datetime g_last_inactivity_check     = 0;
 int      g_direction_alert_day_key   = 0;
 datetime g_last_direction_check      = 0;
@@ -359,7 +377,7 @@ int BuildConfigHash()
       DoubleToString(InpRangePercentileLow,4)+"|"+DoubleToString(InpRangePercentileHigh,4)+"|"+
       DoubleToString(InpAtrPercentileLow,4)+"|"+DoubleToString(InpAtrPercentileHigh,4)+"|"+
       IntegerToString(InpComparableSessions)+"|"+IntegerToString(InpTimeStopMinutes)+"|"+
-      BoolText(InpMoveStopToEntryAfter1R)+"|"+
+      BoolText(InpMoveStopToEntryAfter1R)+"|"+BoolText(InpRequireH1EmaBias)+"|"+
       DoubleToString(InpSweepAtrMin,4)+"|"+DoubleToString(InpSweepAtrMax,4)+"|"+
       IntegerToString(InpReclaimBars)+"|"+DoubleToString(InpReclaimWickMin,4)+"|"+
       DoubleToString(InpDisplacementBodyMin,4)+"|"+IntegerToString(InpLimitExpiryBars)+"|"+
@@ -404,7 +422,8 @@ int AccountStateSignature()
       IntegerToString(g_rollover_incident_key)+"|"+StringFormat("%I64d",g_history_baseline_msc)+"|"+
       IntegerToString(g_rebaseline_required ? 1 : 0)+"|"+
       StringFormat("%I64d",(long)g_state_created_time)+"|"+
-      IntegerToString(g_last_inactivity_alert_day);
+      IntegerToString(g_last_inactivity_alert_day)+"|"+
+      IntegerToString(g_news_blocked_days_streak);
    return HashText(text);
   }
 
@@ -571,6 +590,7 @@ bool PersistAccountState()
    if(!GVWrite("Rebase",g_rebaseline_required ? 1.0 : 0.0)) ok=false;
    if(!GVWrite("CreatedT",(double)g_state_created_time)) ok=false;
    if(!GVWrite("InactAlert",g_last_inactivity_alert_day)) ok=false;
+   if(!GVWrite("NewsBlkStreak",g_news_blocked_days_streak)) ok=false;
    // Commit marker is written last. A crash or partial terminal-global update
    // leaves the prior signature and is rejected on the next initialization.
    if(!GVWrite("StateSig",AccountStateSignature())) ok=false;
@@ -1190,7 +1210,10 @@ bool ComparableStatistics(const int session_index,const datetime signal_time,con
 
    if(ArraySize(ranges)<InpComparableSessions)
      {
-      LogEvent("WARN","STATS_INSUFFICIENT",StringFormat("%s got=%d need=%d",s.id,ArraySize(ranges),InpComparableSessions));
+      // STATS_INSUFFICIENT is operationally equivalent to an error: every signal
+      // for this session will be rejected until sufficient history is loaded.
+      // ERROR level ensures the operator sees it in the MT5 Experts tab immediately.
+      LogEvent("ERROR","STATS_INSUFFICIENT",StringFormat("%s got=%d need=%d",s.id,ArraySize(ranges),InpComparableSessions));
       return false;
      }
    range_percentile=PercentileRank(current_range_width,ranges);
@@ -2317,6 +2340,43 @@ bool RefreshCandidateQuoteState(SignalCandidate &candidate)
    return true;
   }
 
+// CheckH1EmaBias: returns true (allow trade) when the H1 50-EMA directional bias
+// filter is satisfied, or when the filter is disabled (InpRequireH1EmaBias=false).
+//
+// For a LONG: the last completed H1 bar must close above the H1 EMA(50) AND the
+// EMA slope must be flat or rising (current EMA >= previous EMA).
+// For a SHORT: the inverse conditions must hold.
+//
+// Fails-closed (returns false) if the indicator handle is invalid, the history is
+// too shallow, or any CopyBuffer/CopyRates call fails — so an EA that cannot read
+// H1 data will reject the candidate rather than silently ignoring the filter.
+bool CheckH1EmaBias(const int session_index,const ENUM_PATTERN_SIDE side)
+  {
+   if(!InpRequireH1EmaBias)
+      return true;
+   int handle=g_h1_ema_handles[session_index];
+   // Require enough bars for a stable EMA(50) plus the two comparison bars.
+   if(handle==INVALID_HANDLE || BarsCalculated(handle)<52)
+      return false;
+   // Retrieve EMA values for the two most recently completed H1 bars.
+   // ArraySetAsSeries(true) means index 0 = most recent completed bar (shift=1).
+   double ema[];
+   ArraySetAsSeries(ema,true);
+   if(CopyBuffer(handle,0,1,2,ema)!=2)
+      return false;
+   double ema_current=ema[0]; // last completed H1 bar's EMA value
+   double ema_prev   =ema[1]; // bar before that
+   // Retrieve the close price of the last completed H1 bar for price-vs-EMA check.
+   MqlRates h1[];
+   ArraySetAsSeries(h1,true);
+   if(CopyRates(g_sessions[session_index].symbol,PERIOD_H1,1,1,h1)!=1)
+      return false;
+   double h1_close=h1[0].close;
+   if(side==PATTERN_LONG)
+      return h1_close>ema_current && ema_current>=ema_prev;
+   return h1_close<ema_current && ema_current<=ema_prev;
+  }
+
 bool PrepareCandidate(SignalCandidate &candidate)
   {
    SessionRuntime s=g_sessions[candidate.session_index];
@@ -2368,6 +2428,9 @@ bool PrepareCandidate(SignalCandidate &candidate)
    if(IsRelevantNewsWindow(s.ccy1,s.ccy2,TimeTradeServer(),InpNewsBlockMinutes))
      {
       candidate.rejection="news_blackout";
+      // Mark that a real signal existed today but was blocked by news — used by
+      // the news-block inactivity streak counter in ProcessRollover().
+      g_news_blocked_this_day=true;
       return false;
      }
 
@@ -2387,6 +2450,14 @@ bool PrepareCandidate(SignalCandidate &candidate)
    if(candidate.atr_percentile<InpAtrPercentileLow || candidate.atr_percentile>InpAtrPercentileHigh)
      {
       candidate.rejection="atr_percentile";
+      return false;
+     }
+   // H1 directional bias filter — placed after regime gates, before cost/spread.
+   // Rejects counter-trend setups (e.g., a long when H1 is in a confirmed downtrend).
+   // No-op when InpRequireH1EmaBias=false (the V2.1 baseline default).
+   if(!CheckH1EmaBias(candidate.session_index,candidate.side))
+     {
+      candidate.rejection="h1_ema_bias";
       return false;
      }
    if(candidate.spread_median_points<=0.0 ||
@@ -3395,6 +3466,29 @@ void ProcessRollover()
          LogEvent("WARN","PROFITABLE_DAY_NOT_ESTIMATED","EA was offline across more than one rollover; dashboard reconciliation required");
      }
 
+   // ---- News-block inactivity streak (Sub-Task 2) ----
+   // Increment the streak when a news blackout blocked a signal and no trade
+   // completed that day. Reset to zero on any day where trading occurred or no
+   // news-blocked signal existed. Alert at the configured threshold.
+   {
+    int day_trade_count=0;
+    double dummy_first=0.0,dummy_net=0.0;
+    bool dummy_foreign=false;
+    RebuildDailyClosedTrades(day_trade_count,dummy_first,dummy_net,dummy_foreign);
+    if(g_news_blocked_this_day && day_trade_count==0)
+      {
+       g_news_blocked_days_streak++;
+       if(g_news_blocked_days_streak>=InpNewsBlockInactivityThreshold)
+          LogEvent("ERROR","NEWS_BLOCK_INACTIVITY_RISK",
+                   StringFormat("streak=%d consecutive news-blocked days with no trade; "
+                                "check calendar coverage to avoid 30-day inactivity breach",
+                                g_news_blocked_days_streak));
+      }
+    else
+       g_news_blocked_days_streak=0;
+    g_news_blocked_this_day=false;
+   }
+
    g_server_day_key=key;
    g_rollover_incident_key=0;
    g_day_start_time=ServerMidnight(now);
@@ -3808,6 +3902,7 @@ bool LoadOrCreateAccountState()
    double week_key=0.0,week_balance=0.0,previous_balance=0.0,daily_floor=0.0;
    double high_water=0.0,profit_days=0.0,request_count=0.0,rollover_incident=0.0;
    double history_base=0.0,state_created=0.0,inactivity_alert=0.0,state_signature=0.0;
+   double news_blk_streak=0.0;
    bool complete=GVRead("DayKey",day_key) && GVRead("DayStartT",day_start) &&
                  GVRead("DayBal",day_balance) && GVRead("DayEq",day_equity) &&
                  GVRead("WeekKey",week_key) && GVRead("WeekBal",week_balance) &&
@@ -3815,7 +3910,9 @@ bool LoadOrCreateAccountState()
                  GVRead("HighWater",high_water) && GVRead("ProfitDays",profit_days) &&
                  GVRead("ReqCount",request_count) && GVRead("RollIncident",rollover_incident) &&
                  GVRead("HistoryBaseMs",history_base) && GVRead("CreatedT",state_created) &&
-                 GVRead("InactAlert",inactivity_alert) && GVRead("StateSig",state_signature);
+                 GVRead("InactAlert",inactivity_alert) &&
+                 GVRead("NewsBlkStreak",news_blk_streak) &&
+                 GVRead("StateSig",state_signature);
    if(!complete || day_key<=0.0 || day_start<=0.0 || day_balance<=0.0 || day_equity<=0.0 ||
       week_key<=0.0 || week_balance<=0.0 || previous_balance<=0.0 || daily_floor<=0.0 ||
       high_water<=0.0 || profit_days<0.0 || request_count<0.0 ||
@@ -3840,6 +3937,7 @@ bool LoadOrCreateAccountState()
    g_rebaseline_required=(rebaseline_required>0.5);
    g_state_created_time=(datetime)(long)state_created;
    g_last_inactivity_alert_day=(int)inactivity_alert;
+   g_news_blocked_days_streak=(int)news_blk_streak;
    if((int)state_signature!=AccountStateSignature())
      {
       LogEvent("ERROR","PERSISTED_STATE_SIGNATURE_MISMATCH",
@@ -3883,6 +3981,7 @@ void InitializeSessions()
       g_sessions[i].consumed=false;
       g_sessions[i].last_closed_bar=0;
       g_atr_handles[i]=INVALID_HANDLE;
+      g_h1_ema_handles[i]=INVALID_HANDLE;
       if(!g_sessions[i].enabled) continue;
       if(!SymbolSelect(g_sessions[i].symbol,true))
         {
@@ -3892,6 +3991,12 @@ void InitializeSessions()
       g_atr_handles[i]=iATR(g_sessions[i].symbol,PERIOD_M15,14);
       if(g_atr_handles[i]==INVALID_HANDLE)
          Halt("atr_handle_failed_"+g_sessions[i].symbol);
+      // H1 EMA(50) for the directional bias filter. A warning (not a halt) is
+      // sufficient here because the filter defaults to disabled; when enabled, the
+      // CheckH1EmaBias() function fails-closed if the handle is invalid.
+      g_h1_ema_handles[i]=iMA(g_sessions[i].symbol,PERIOD_H1,50,0,MODE_EMA,PRICE_CLOSE);
+      if(g_h1_ema_handles[i]==INVALID_HANDLE)
+         LogEvent("WARN","H1_EMA_HANDLE_FAILED",g_sessions[i].id);
      }
   }
 
@@ -4145,6 +4250,12 @@ void OnDeinit(const int reason)
         {
          IndicatorRelease(g_atr_handles[i]);
          g_atr_handles[i]=INVALID_HANDLE;
+        }
+   for(int i=0;i<3;i++)
+      if(g_h1_ema_handles[i]!=INVALID_HANDLE)
+        {
+         IndicatorRelease(g_h1_ema_handles[i]);
+         g_h1_ema_handles[i]=INVALID_HANDLE;
         }
    ReleaseLiveInstanceLock();
   }
