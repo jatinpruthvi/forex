@@ -566,4 +566,151 @@ Python version: 3.13 (tested and passing)
 
 ---
 
-*Last updated: end of session 4 (full audit). Three bugs found and fixed in `aggressive_optimizer.py`: (A) fake max-drawdown formula, (B) pip value 10× wrong for all FX pairs, (C) same symbol consuming both daily slots. Revalidated results: best config `orb_atr` T=3.0R RB=8bars ATR=0.25 passes Phase 1 in 15 trading days, max DD 0.4%, monthly P&L ~$332. All 11 M5 history files + `strategy_optimizer.py` committed. 171 tests pass. Immediate next step: MetaEditor compilation + 2-week MT5 demo forward test.*
+## 20. Session 5 — 4-Year Data Re-Test (2026-09-12)
+
+Re-ran the full backtest over the **complete 4-year M5 dataset** (11 pairs, `2022-09-11 → 2026-09-11`, ~288K bars/pair, **3,168,720 bars total**). `load_pair` automatically prefers the longer `*-m5-2022-09-11_2026-09-11.csv` files over the 2-year `*-fsb.csv` files.
+
+### Reproducibility result
+
+The regenerated `findings_aggressive_optimizer.md` was **byte-identical to the previously committed version** — the session-4 results were already produced on the 4-year data; only the header text was stale (hardcoded "Jan 2024 – Sep 2026, ~2.5 years, 200K bars/pair").
+
+**Fix:** `write_findings()` in `tools/aggressive_optimizer.py` now receives the actually-loaded data range and bar counts and writes them dynamically. Header now reads: `Data: 11 pairs M5 OHLCV, 2022-09-11 – 2026-09-11 (~4.0 years, ~288K bars/pair, 3,168,720 bars total)`.
+
+### Grid re-run (60 combos, 4-year data) — confirmed
+
+Top by (fastest Phase 1, then monthly P&L): `orb_atr` **T=3.0R RB=6 bars ATR=0.25** — Phase 1 in 8 trading days, $331.38/mo, PF 3.20, DD 0.5%.
+Best monthly P&L (leaderboard #5): `orb_atr` **T=3.0R RB=8 bars ATR=0.25** — $358.78/mo, highest AvgR (1.006).
+
+### Deep validation (`tools/_validate_4yr.py`) — champion `orb_atr` T=3.0R RB=8 ATR=0.25
+
+| Metric | Value |
+|---|---|
+| Signals | 1,812 (1,090W / 719L / 3T) |
+| Win rate | 60.2% |
+| Avg R / Profit factor | 1.006 / 3.55 |
+| Max drawdown | 0.38% |
+| Total P&L | $17,853.56 over 1,045 trading days |
+| Est. monthly P&L | $358.78 |
+| Final balance | $20,353.56 (from $2,500) |
+| Phase 1 | PASSED in 12 trading days |
+| Qualifying days | 602 |
+
+**Year-by-year (positive in every year):**
+| Year | Equity | P&L | Max intra-year DD |
+|---|---|---|---|
+| 2022 (Sep–Dec) | $2,500 → $4,210 | +$1,710 | 0.94% |
+| 2023 | $4,191 → $8,961 | +$4,771 | 0.91% |
+| 2024 | $8,961 → $13,960 | +$4,998 | 0.42% |
+| 2025 | $13,960 → $18,405 | +$4,445 | 0.39% |
+| 2026 (Jan–Sep) | $18,405 → $20,354 | +$1,949 | 0.38% |
+
+**Trade-economics sanity:** avg losing trade −$9.75 (≈ the $10 intended risk), avg winning trade +$22.78 (≈ 3R minus commission), avg time exit +$11.12. Lot sizing spot-checks correct for JPY pairs and XAUUSD.
+
+**Known concentration:** GBPJPY + EURJPY + XAUUSD produce ~96% of total P&L ($17,124 of $17,854). The six other pairs contribute <$1,100 combined over 4 years. Treat the edge as a 3-instrument strategy (GBPJPY, EURJPY, XAUUSD) with optional extras, not an 11-pair system.
+
+All 171 tests pass after the `write_findings` change.
+
+---
+
+## 21. Session 6 — Champion-Path Logic Audit + Live-Friction Analysis (2026-09-12)
+
+Line-by-line audit of the challenge-winning code path (`orb_atr` T=3.0R RB=8 ATR=0.25 in `tools/aggressive_optimizer.py`) plus a quantified live-friction study (`tools/audit_champion_live.py`, new tool).
+
+### Logic bugs found (champion path)
+1. **Same-bar target/stop ambiguity awarded to the WIN** (`simulate()` checks target before stop). 84/1812 trades (4.6%) ambiguous; pessimistic resolution = −15% P&L, PF 3.55 → 2.94.
+2. **Limit fills assumed without re-touch check.** 11.5% of signals never re-touch the orb level; those carry **26.7% of total P&L (364/369 winners)** — adverse selection. Market-chasing the close instead **destroys the strategy** (WR 60%→17.5%, negative). Edge = limit at the range boundary; live must accept missed runners.
+3. **One-position rule violated by backtest:** 249/1045 days book overlapping holds (The5ers allows one position account-wide).
+4. **Pip values frozen at 2024–26 mids:** 2022 risk oversized +17% (GBPJPY), +13% (EURJPY) — dollar-risk drift, R-stats unaffected.
+5. **No news blackout modeled** (compliance rule + spike slippage).
+6. Minor: M15-ATR grouping across session gaps; monthly normalization counts zero-trade days; day-end-only equity sampling.
+
+Verified correct: DST helpers, session windows, loader, ATR, orb geometry filters, lot math (avg loss −$9.75 ≈ $10 risk), fixed-base sizing, 2/day + 1/symbol caps, daily/total floors with safety buffer, qualifying-day + Phase-1 logic, session-end flat, deterministic ordering.
+
+### Live vs backtest (4-year data, champion RB=8)
+
+| Scenario | PF | Mth$ | Phase 1 |
+|---|---|---|---|
+| Backtest as coded | 3.55 | $359 | 12d |
+| Raw acct (55% spread + $7/lot) | 2.13 | $219 | 14d |
+| + ambiguity coin-flip | 1.76 | $165 | 17d |
+| **Honest live estimate (stacked + missed fills + overlap/news)** | **~1.6–2.0** | **~$135–180** | **~35–55 trading days** |
+| Pessimistic | 1.5 | ~$95–130 | ~2–3 months |
+
+Per-pair under raw-account friction: EURJPY $3.8K · GBPJPY $3.5K · XAUUSD $3.3K over 4y; **all other 8 pairs <$350 combined → trade the 3 core pairs only.**
+
+### Decisions
+- Fix `simulate()` (re-touch requirement + pessimistic ambiguity mode), per-day pip values, news blackout, one-position semantics (Section 4 of `findings_live_friction_audit.md`).
+- Demo gate: EURJPY+GBPJPY+XAUUSD, limit entries, raw spread; go-live needs demo ≥ ~$140/month run-rate.
+- The5ers has no time limit → even pessimistic estimate passes; risk is execution quality + news compliance, not edge sign.
+
+---
+
+## 22. Session 7 — Fill-Semantics Bugs FIXED in Code; Strategy De-Certified Pending Tick Data (2026-09-12)
+
+Follow-up to session 6: the four champion-path bugs were **fixed in `tools/aggressive_optimizer.py`** and everything re-run.
+
+### Fixes (all guarded by `legacy=True` reproducing old numbers to the cent)
+1. **Limit re-touch fills** (`require_touch=True` default): unfilled signals → no trade; exit scan starts at the fill bar.
+2. **Ambiguity knob** (`stop_first`): True=pessimistic / False=optimistic / None=deterministic 50/50 coin (new grid default).
+3. **One account-wide order/position slot**: chronological scheduling, cancel/replace, unfilled limit blocks its session slot.
+4. **Per-day pip values** (`day_pv`): JPY/USDCAD/USDCHF from own-day close (USDCAD old constant $9.80 was wrong, true $7.41@1.35); EURGBP via same-day GBPUSD.
+New tool version `tools/audit_champion_live.py` (rewritten on the fixed model) + 14 regression tests in `tests/test_optimizer_fill_logic.py` → **185/185 pass**.
+
+### Results after the fix (4-year data, zero backtest costs)
+- 11-pair old champion (T=3.0 RB=8): optimistic +$7.0K (PF 1.74) / **coin +$3.9K (PF 1.37, $78/mo)** / pessimistic **BUSTS the $2,250 floor**.
+- Grid re-ranked: new best = 3-core **T=2.5R RB=6**: optimistic +$11.0K (PF 2.66, $220/mo) / coin +$5.5K (PF 1.66, $112/mo) / pessimistic BUST. Under pessimistic bound **no grid combo survives**.
+- **13.5% of filled trades resolve on ambiguous bars** (fill bar spans stop and target) — expectancy is not identifiable from M5.
+
+### With realistic costs (raw account: 55% spread + $7/lot; stops are 2–4.5 pips → cost = 40–65% of the $10 risk unit)
+- Best survivor: 3-core T=2.5 RB=6 **optimistic bound**: +$5.2K (PF 1.57, $104/mo); +slippage still +$3.6K.
+- **Coin-flip mid bound + costs: BUSTS in every universe/config.** 11-pair + costs: breakeven at the optimistic bound.
+
+### Decision
+- **The config is NOT certifiable from M5 data and must not go live/demo on this evidence.** Next mandatory step: tick/1-minute validation of the fill/ambiguity windows (`tools/tick_signal_builder.py` exists; request Eightcap tick data 2019+).
+- If tick data confirms the optimistic path → 3-core only, raw account, T=2.5 RB=6, PF ~1.5.
+- Redesign lever if it confirms coin/pessimistic: wider stops (≥0.5–1.0×ATR), re-optimize on the fixed simulator only.
+---
+
+## 23. Session 8 — 2-Year Gate: "Is the edge the bug?" Answer: Mostly Yes (2026-09-12)
+
+Built `tools/optimizer_v2.py` (cost-aware: raw spread + $7/lot charged per trade inside the backtest; ambiguity-aware: coin-bound ranking + per-config ambiguity %; min-stop-pips filter; ATR-stop grid widened to 1.0×). Gate per user: validate on the 2-year FSB dataset first; only proceed to 4-year if promising.
+
+### Data accuracy
+2-year FSB files and 4-year files are **100% identical** on all overlapping 2024–26 bars (1,200 sampled, max diff 0.00000). Data inputs are clean.
+
+### 2-year gate results (costs ON, coin bound)
+- **60/72 combos negative; 59 halted at the $2,250 floor.**
+- Best: `T=2.0R RB=8 ATs=0.25 minStop=6` → **+$24/mo (PF 1.29), Phase 1 in 405 trading days**; zero-cost coin = $45/mo; pessimistic+costs busts.
+- **XAUUSD = 103% of champion P&L**; other 10 pairs net negative. Gold-only ≈ same result.
+- Wider stops cut ambiguity exactly as engineered (15% → 1–8%) **but kill the edge** (ATs≥0.75 → negative). The tight stop WAS the edge.
+
+### Verdict (per user gate): NOT PROMISING — 4-year run not warranted
+Answer to "what if the bug is our strategy": to first order it was — the old $220–360/mo was adverse-selection fills + optimistic intrabar resolution + zero costs. Honest mid bound: $24/mo, ~19 months to Phase 1, sign still hostage to 13–16% path-dependent trades.
+
+### Next steps (agreed priority)
+1. Tick/1-minute data validation (only way to certify tight-stop M5 strategies; `tick_signal_builder.py` ready — need Eightcap tick export from user).
+2. If tick confirms coin/pessimistic → pivot to TRIAD sweep/reclaim geometry (stops 0.6–1.5×ATR-M15 = 10–40 pips → cost share 2–5%, near-zero M5 ambiguity — structurally immune to this failure mode).
+3. XAUUSD is the only keeper from the ORB family.
+---
+
+## 24. Session 9 — TRIAD Sweep/Reclaim Honest Validation: The Survivor (2026-09-12)
+
+User directive: focus = win the challenge in minimum time. Built `tools/triad_honest.py`: canonical V2.1 sweep/reclaim geometry through the session-7/8 honesty layer (re-touch fills, opt/coin/pess bounds, raw costs in-trade, per-day pip values, one slot, governors). 2-year gate then 4-year confirm.
+
+### Structural finding
+TRIAD stops average 20-27 pips (0.6-1.5 ATR-M15 band) → **0.0% ambiguous trades: all three intrabar bounds identical to the cent** on both datasets. Cost share 5-8% of risk (vs 40-65% for ORB). The bug class that killed ORB cannot exist here.
+
+### Results (core3 = GBPJPY+EURJPY+XAUUSD, London-only, T=1.5R, tStop=90)
+- Canonical geometry: 2y 32 trades PF 2.58; 4y 46 trades PF 1.70 (+$309 @1%).
+- Relaxed geometry (sweep≥0.02, wick≥0.45, body≥0.50): 2y 53 trades PF 2.05 (+$916 @2%); **4y 94 trades PF 1.60, +$835 @1.5%, DD 7.8%, P1 723 trading days**; yearly: -24/-61/+255/+250/+415 (rising 2024-26); worst streak 5 trades.
+- Rejected: all-11 pairs (PF<1), NY window (few signals, dilutes), risk 2% on 4y (DD 9.7% = floor-adjacent).
+
+### Honest minimum-time answer
+~+0.5R/month → Phase 1 in ~2-2.5 years at max sane risk (1.5%). Frequency, not leverage, is the binding constraint. Any faster path needs more validated signal sources (tick-level validation of additional geometries/sessions/pairs), not more risk.
+
+### Standing recommendation
+TRIAD relaxed core3 config (documented in findings §7) is the only configuration that survives the full audit framework. The5ers has no time limit → it passes with patience. Next: tick-data validation to confirm fills, then (optionally) expand validated signal sources for frequency.
+
+---
+
+*Last updated: end of session 9 (TRIAD honest validation) (2-year gate) (fill-semantics fixes + de-certification pending tick data). Session 6 found the 4 bugs; session 7 fixed them, re-ran everything, and showed the honest expectancy band is [bust, +$104/mo after costs] with the mid bound negative. 185 tests pass. Next: tick/1-min data validation before any MetaEditor compile/demo step.*

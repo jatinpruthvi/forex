@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import csv
+import hashlib
 import math
 import statistics
 from collections import defaultdict
@@ -141,6 +142,8 @@ class Trade:
     lots:       float
     bar_date:   date
     strategy:   str
+    fill_ts:    Optional[datetime] = None   # when the limit actually filled
+    exit_ts:    Optional[datetime] = None   # when the position closed
 
 # ---------------------------------------------------------------------------
 # Loader
@@ -207,13 +210,29 @@ def preprocess(bars: list[Bar]) -> tuple[dict, dict]:
     return dict(by_date), atr_map
 
 # ---------------------------------------------------------------------------
+# Pip value: USD value of 1 pip per standard lot, computed from REAL rates.
+# USD-quote pairs (EURUSD etc.) and XAUUSD are exact constants.
+# USD-base pairs (JPY crosses, USDCAD, USDCHF): pv = (100000 * pip) / close.
+# EURGBP profits in GBP -> converted at the same-date GBPUSD close.
+# ---------------------------------------------------------------------------
+
+def pip_value(symbol: str, close: float, gbpusd_close: Optional[float] = None) -> float:
+    if symbol in ("EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "XAUUSD"):
+        return 10.0
+    if symbol == "EURGBP":
+        return 10.0 * gbpusd_close if gbpusd_close else SPECS["EURGBP"]["pv"]
+    # USD-base: quote ccy amount per pip per lot, converted back to USD
+    return (100000.0 * SPECS[symbol]["pip"]) / close
+
+
+# ---------------------------------------------------------------------------
 # Lot sizing — FIXED base to prevent compounding blow-up
 # ---------------------------------------------------------------------------
 
-def calc_lots(stop_dist: float, symbol: str) -> float:
+def calc_lots(stop_dist: float, symbol: str, pv: Optional[float] = None) -> float:
     spec = SPECS[symbol]
+    pv   = pv if pv is not None else spec["pv"]   # USD per pip per standard lot
     risk = ACCOUNT_BALANCE * RISK_FRACTION   # always $10
-    pv   = spec["pv"]                        # USD per pip per standard lot
     sp   = stop_dist / spec["pip"]           # stop distance in pips
     lpl  = sp * pv + COMMISSION_PER_LOT      # $ loss per lot at stop
     if lpl <= 0: return 0.0
@@ -223,7 +242,7 @@ def calc_lots(stop_dist: float, symbol: str) -> float:
 # Signal generators
 # ---------------------------------------------------------------------------
 
-def sig_orb_atr(entry_bars, atr, symbol, orb_bars, atr_stop, target_r, strat="orb_atr"):
+def sig_orb_atr(entry_bars, atr, symbol, orb_bars, atr_stop, target_r, strat="orb_atr", pv=None):
     if atr <= 0 or len(entry_bars) <= orb_bars: return None
     spec = SPECS[symbol]
     ob   = entry_bars[:orb_bars]
@@ -240,13 +259,13 @@ def sig_orb_atr(entry_bars, atr, symbol, orb_bars, atr_stop, target_r, strat="or
         stop_d = abs(entry - stop)
         if stop_d/spec["pip"] < 2 or stop_d/atr > 3.0: continue
         target = entry + stop_d*target_r if direction=="long" else entry - stop_d*target_r
-        lots   = calc_lots(stop_d, symbol)
+        lots   = calc_lots(stop_d, symbol, pv)
         if lots < VOLUME_MIN: continue
         return dict(direction=direction, entry=entry, stop=stop,
-                    target=target, lots=lots, bbar=bar, strategy=strat)
+                    target=target, lots=lots, bbar=bar, strategy=strat, pv=pv)
     return None
 
-def sig_orb_half(entry_bars, atr, symbol, orb_bars, target_r):
+def sig_orb_half(entry_bars, atr, symbol, orb_bars, target_r, pv=None):
     if atr <= 0 or len(entry_bars) <= orb_bars: return None
     spec = SPECS[symbol]
     ob   = entry_bars[:orb_bars]
@@ -263,13 +282,13 @@ def sig_orb_half(entry_bars, atr, symbol, orb_bars, target_r):
         stop_d = abs(entry - stop)
         if stop_d/spec["pip"] < 2: continue
         target = entry + stop_d*target_r if direction=="long" else entry - stop_d*target_r
-        lots   = calc_lots(stop_d, symbol)
+        lots   = calc_lots(stop_d, symbol, pv)
         if lots < VOLUME_MIN: continue
         return dict(direction=direction, entry=entry, stop=stop,
-                    target=target, lots=lots, bbar=bar, strategy="orb_half")
+                    target=target, lots=lots, bbar=bar, strategy="orb_half", pv=pv)
     return None
 
-def sig_vola(entry_bars, atr, symbol, target_r):
+def sig_vola(entry_bars, atr, symbol, target_r, pv=None):
     if atr <= 0 or len(entry_bars) < 6: return None
     spec = SPECS[symbol]
     for bar in entry_bars[3:]:
@@ -281,18 +300,36 @@ def sig_vola(entry_bars, atr, symbol, target_r):
         stop_d = abs(entry - stop)
         if stop_d/spec["pip"] < 2: continue
         target = entry + stop_d*target_r if direction=="long" else entry - stop_d*target_r
-        lots   = calc_lots(stop_d, symbol)
+        lots   = calc_lots(stop_d, symbol, pv)
         if lots < VOLUME_MIN: continue
         return dict(direction=direction, entry=entry, stop=stop,
-                    target=target, lots=lots, bbar=bar, strategy="vola")
+                    target=target, lots=lots, bbar=bar, strategy="vola", pv=pv)
     return None
 
 # ---------------------------------------------------------------------------
 # Trade simulator — bar-level exit scan
 # ---------------------------------------------------------------------------
 
-def simulate(sig: dict, future_bars: list[Bar], end_utc: datetime, symbol: str) -> Trade:
+def simulate(sig: dict, future_bars: list[Bar], end_utc: datetime, symbol: str,
+             *, require_touch: bool = True, stop_first: bool | None = False) -> Optional[Trade]:
+    """Bar-level exit scan with LIVE-CONSISTENT fill semantics.
+
+    require_touch=True (realistic): the orb-level limit order fills only if some
+    bar AFTER the signal bar re-touches the entry level. Signals that never
+    re-touch return None (no trade) — the old code silently booked these as
+    instant fills, capturing 26.7% of P&L from winners a live limit would miss.
+
+    stop_first=False (legacy): when one bar spans both target and stop, the
+    target is booked (optimistic). stop_first=True resolves the ambiguity to
+    the stop (pessimistic bound; true intrabar path is unknowable from M5).
+    stop_first=None resolves it with a deterministic 50/50 coin keyed on
+    (signal timestamp, symbol, direction) — reproducible mid bound.
+
+    The exit scan starts AT the fill bar: a touch bar can legitimately reach the
+    target without hitting the stop (low > stop), which is determinable.
+    """
     spec      = SPECS[symbol]
+    pv        = sig.get("pv") or spec["pv"]      # USD per pip per standard lot
     direction = sig["direction"]
     entry     = sig["entry"]
     stop      = sig["stop"]
@@ -301,18 +338,50 @@ def simulate(sig: dict, future_bars: list[Bar], end_utc: datetime, symbol: str) 
     bbar_end  = sig["bbar"].ts + timedelta(minutes=5)
     fwd       = [b for b in future_bars if bbar_end <= b.ts < end_utc]
 
-    exit_price, exit_reason = entry, "time"
-    for bar in fwd:
-        if direction == "long":
-            if bar.high >= target: exit_price = target; exit_reason = "target"; break
-            if bar.low  <= stop:   exit_price = stop;   exit_reason = "stop";   break
-        else:
-            if bar.low  <= target: exit_price = target; exit_reason = "target"; break
-            if bar.high >= stop:   exit_price = stop;   exit_reason = "stop";   break
-    else:
-        if fwd: exit_price = fwd[-1].close
+    # --- limit fill: first bar that re-touches the entry level -------------
+    fill_i = 0
+    if require_touch:
+        fill_i = None
+        for i, bar in enumerate(fwd):
+            if (direction == "long" and bar.low  <= entry) or \
+               (direction == "short" and bar.high >= entry):
+                fill_i = i
+                break
+        if fill_i is None:
+            return None                            # limit never filled -> no trade
+    fill_ts = fwd[fill_i].ts if fwd else bbar_end
 
-    pv      = spec["pv"]                     # USD per pip per standard lot
+    exit_price, exit_reason = entry, "time"
+    exit_ts   = fwd[-1].ts + timedelta(minutes=5) if fwd else bbar_end
+    for bar in fwd[fill_i:]:
+        if direction == "long":
+            hit_t = bar.high >= target
+            hit_s = bar.low  <= stop
+        else:
+            hit_t = bar.low  <= target
+            hit_s = bar.high >= stop
+        if hit_t and hit_s:                        # ambiguous bar
+            if stop_first is None:                 # reproducible 50/50 coin
+                key = f"{sig['bbar'].ts.isoformat()}|{symbol}|{direction}"
+                sf_eff = int(hashlib.md5(key.encode()).hexdigest(), 16) % 2 == 0
+            else:
+                sf_eff = stop_first
+            exit_price = stop if sf_eff else target
+            exit_reason = "stop" if sf_eff else "target"
+            exit_ts = bar.ts + timedelta(minutes=5)
+            break
+        if hit_t:
+            exit_price, exit_reason = target, "target"
+            exit_ts = bar.ts + timedelta(minutes=5)
+            break
+        if hit_s:
+            exit_price, exit_reason = stop, "stop"
+            exit_ts = bar.ts + timedelta(minutes=5)
+            break
+    else:
+        if fwd:
+            exit_price = fwd[-1].close
+
     stop_d  = abs(entry - stop)
     gpips   = ((exit_price-entry) if direction=="long" else (entry-exit_price)) / spec["pip"]
     gross   = gpips * pv * lots
@@ -321,11 +390,33 @@ def simulate(sig: dict, future_bars: list[Bar], end_utc: datetime, symbol: str) 
     pnl_r   = net / risk_c if risk_c > 0 else 0.0
 
     return Trade(
-        pair=symbol, direction=direction, entry=entry, stop=stop, target=target,
-        exit_price=exit_price, exit_reason=exit_reason,
+        pair=symbol, direction=direction, entry=entry, stop=stop,
+        target=target, exit_price=exit_price, exit_reason=exit_reason,
         pnl_cash=net, pnl_r=pnl_r, lots=lots,
         bar_date=to_london_date(sig["bbar"].ts), strategy=sig["strategy"],
+        fill_ts=fill_ts, exit_ts=exit_ts,
     )
+
+# ---------------------------------------------------------------------------
+# Day pip value from real rates (fixes frozen-2024-mids drift; USDCAD/USDCHF
+# constants were also wrong: USDCAD@1.35 true pv=$7.41, code assumed $9.80)
+# ---------------------------------------------------------------------------
+
+def day_pv(sym: str, d: date, cache: dict) -> float:
+    if sym in ("EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "XAUUSD"):
+        return 10.0
+    if sym == "EURGBP":
+        gb = cache.get("GBPUSD")
+        if gb and d in gb[0] and gb[0][d]:
+            return 10.0 * gb[0][d][-1].close       # GBP->USD at GBPUSD day close
+        return SPECS["EURGBP"]["pv"]
+    bars = cache[sym][0].get(d) or []
+    if bars:
+        try:
+            return (100000.0 * SPECS[sym]["pip"]) / bars[-1].close
+        except KeyError:
+            pass
+    return SPECS.get(sym, {"pv": 10.0})["pv"]
 
 # ---------------------------------------------------------------------------
 # One backtest run
@@ -338,6 +429,13 @@ def run_backtest(
     orb_bars: int,
     atr_stop: float,
     max_per_day: int = 2,
+    *,
+    legacy: bool        = False,  # True = pre-fix behaviour (reproducibility)
+    require_touch: bool = True,   # limit order must re-touch the level
+    stop_first: bool | None = None,  # ambiguity: None->50/50 coin (default,
+                                     # standard for unknowable intrabar path),
+                                     # True->stop (pessimistic stress bound),
+                                     # False->target (optimistic bound)
 ) -> dict:
 
     # Collect all weekday dates across all symbols
@@ -367,7 +465,8 @@ def run_backtest(
         traded       = 0
 
         # Build candidate signals from all sessions/pairs
-        candidates: list[tuple] = []   # (priority, sig, sym, by_date_sym, end_utc)
+        candidates: list[tuple] = []
+        #   (sig_ts, prio, sig, sym, day_bars, end_utc)
 
         # --- London session ---
         london_s = lw_utc(d, 7)
@@ -382,13 +481,15 @@ def run_backtest(
             entry_bars = [b for b in day_bars if london_s <= b.ts < london_e]
             if len(entry_bars) <= orb_bars + 1: continue
 
+            pv  = SPECS[sym]["pv"] if legacy else day_pv(sym, d, cache)
             if strategy == "orb_atr":
-                sig = sig_orb_atr(entry_bars, atr, sym, orb_bars, atr_stop, target_r)
+                sig = sig_orb_atr(entry_bars, atr, sym, orb_bars, atr_stop, target_r, pv=pv)
             elif strategy == "orb_half":
-                sig = sig_orb_half(entry_bars, atr, sym, orb_bars, target_r)
+                sig = sig_orb_half(entry_bars, atr, sym, orb_bars, target_r, pv=pv)
             else:
-                sig = sig_vola(entry_bars, atr, sym, target_r)
-            if sig: candidates.append((0, sig, sym, day_bars, london_e))
+                sig = sig_vola(entry_bars, atr, sym, target_r, pv=pv)
+            if sig: candidates.append((sig["bbar"].ts + timedelta(minutes=5), 0,
+                                       sig, sym, day_bars, london_e))
 
         # --- New York session ---
         ny_s = ny_utc(d, 8, 30)
@@ -403,24 +504,50 @@ def run_backtest(
             entry_bars = [b for b in day_bars if ny_s <= b.ts < ny_e]
             if len(entry_bars) <= orb_bars + 1: continue
 
+            pv  = SPECS[sym]["pv"] if legacy else day_pv(sym, d, cache)
             if strategy == "orb_atr":
-                sig = sig_orb_atr(entry_bars, atr, sym, orb_bars, atr_stop, target_r)
+                sig = sig_orb_atr(entry_bars, atr, sym, orb_bars, atr_stop, target_r, pv=pv)
             elif strategy == "orb_half":
-                sig = sig_orb_half(entry_bars, atr, sym, orb_bars, target_r)
+                sig = sig_orb_half(entry_bars, atr, sym, orb_bars, target_r, pv=pv)
             else:
-                sig = sig_vola(entry_bars, atr, sym, target_r)
-            if sig: candidates.append((1, sig, sym, day_bars, ny_e))
+                sig = sig_vola(entry_bars, atr, sym, target_r, pv=pv)
+            if sig: candidates.append((sig["bbar"].ts + timedelta(minutes=5), 1,
+                                       sig, sym, day_bars, ny_e))
 
-        # Sort: London first, then by symbol alphabetically for determinism
-        candidates.sort(key=lambda x: (x[0], x[2]))
+        # Sort: legacy = London first then symbol; compliant = chronological
+        # (first signal claims the single account-wide order/position slot)
+        if legacy:
+            candidates.sort(key=lambda x: (x[1], x[3]))
+        else:
+            candidates.sort(key=lambda x: (x[0], x[1], x[3]))
 
         traded_syms: set = set()
-        for prio, sig, sym, day_bars, end_utc in candidates:
+        slot_busy_until: Optional[datetime] = None   # one order OR position
+        for sig_ts, prio, sig, sym, day_bars, end_utc in candidates:
             if traded >= max_per_day or balance <= daily_floor or halted:
                 break
             if sym in traded_syms:   # max 1 trade per symbol per day
                 continue
-            t       = simulate(sig, day_bars, end_utc, sym)
+
+            if legacy:
+                # pre-fix behaviour: instant fill at the level, target-first
+                # ambiguity, overlapping positions allowed, constant pip value
+                t = simulate(sig, day_bars, end_utc, sym,
+                             require_touch=False, stop_first=False)
+                if t is None: continue
+            else:
+                # The5ers profile: one working entry order OR one open position.
+                # A new signal arriving while the slot is occupied is skipped.
+                if slot_busy_until is not None and sig_ts < slot_busy_until:
+                    continue
+                t = simulate(sig, day_bars, end_utc, sym,
+                             require_touch=require_touch, stop_first=stop_first)
+                if t is None:
+                    # limit rested unfilled to session end: the slot stays busy
+                    slot_busy_until = end_utc
+                    continue
+                slot_busy_until = max(slot_busy_until, t.exit_ts) if slot_busy_until else t.exit_ts
+
             balance += t.pnl_cash
             day_pnl += t.pnl_cash
             day_trades.append(t)
@@ -600,7 +727,7 @@ def print_deep_dive(r: dict) -> None:
 # Findings writer
 # ---------------------------------------------------------------------------
 
-def write_findings(results: list[dict], top: list[dict]) -> None:
+def write_findings(results: list[dict], top: list[dict], loaded: dict | None = None) -> None:
     best = top[0] if top else None
 
     # Strategy summary
@@ -672,10 +799,26 @@ With `${best['monthly_pnl']:.0f}` estimated monthly P&L and Profile A (0.40% ris
             wr = pp["w"]/pp["n"]*100 if pp["n"] > 0 else 0
             best_sec += f"| {sym} | {pp['n']} | {wr:.1f}% | ${pp['pnl']:.2f} |\n"
 
+    data_line = "**Data:** 11 pairs M5 OHLCV (no data loaded)"
+    if loaded:
+        n_bars = sum(n for n, _t0, _t1 in loaded.values())
+        d0 = min(t0 for _n, t0, _t1 in loaded.values())
+        d1 = max(t1 for _n, _t0, t1 in loaded.values())
+        years = (d1 - d0).days / 365.25
+        data_line = (f"**Data:** {len(loaded)} pairs M5 OHLCV, "
+                     f"{d0:%Y-%m-%d} – {d1:%Y-%m-%d} (~{years:.1f} years, "
+                     f"~{n_bars // len(loaded) // 1000}K bars/pair, {n_bars:,} bars total)")
+    mode_line = ("**Simulator (fixed 2026-09-12):** limit fills require a re-touch of the "
+                 "entry level; one account-wide order/position slot (chronological, "
+                 "cancel/replace); per-day pip values from real rates; ambiguous "
+                 "target/stop bars resolved by deterministic 50/50 coin — pass "
+                 "`stop_first=True/False` to `run_backtest` for the pessimistic/optimistic bounds.")
+
     md = f"""# Aggressive Multi-Pair Optimizer — Findings
 
 **Generated by:** `tools/aggressive_optimizer.py`
-**Data:** 11 pairs M5 OHLCV, Jan 2024 – Sep 2026 (~2.5 years, 200K bars/pair)
+{data_line}
+{mode_line}
 **Pairs:** EURUSD GBPUSD EURGBP GBPJPY EURJPY AUDUSD USDCHF NZDUSD USDJPY USDCAD XAUUSD
 **Challenge:** The5ers $2,500 New High Stakes — Phase 1 +10%, Phase 2 +5%
 
@@ -771,11 +914,13 @@ def main() -> None:
     print("\nLoading and preprocessing all pairs...")
 
     cache: dict = {}
+    loaded: dict = {}
     for sym in SPECS:
         bars = load_pair(sym)
         if bars:
             by_date, atr_map = preprocess(bars)
             cache[sym] = (by_date, atr_map)
+            loaded[sym] = (len(bars), bars[0].ts, bars[-1].ts)
             print(f"  {sym:<8} {len(bars):>7} bars  {len(by_date)} days")
         else:
             print(f"  {sym:<8} [no file]")
@@ -787,7 +932,7 @@ def main() -> None:
     top     = print_leaderboard(results)
     if top:
         print_deep_dive(top[0])
-    write_findings(results, top)
+    write_findings(results, top, loaded)
 
 
 if __name__ == "__main__":
