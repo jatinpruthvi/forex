@@ -612,4 +612,37 @@ All 171 tests pass after the `write_findings` change.
 
 ---
 
-*Last updated: end of session 5 (4-year re-test). Full 60-combo grid + deep validation re-run on the complete 2022-09-11 → 2026-09-11 dataset; results reproduce session 4 exactly. Champion confirmed: `orb_atr` T=3.0R RB=8 ATR=0.25 → Phase 1 in 12 trading days, max DD 0.38%, ~$359/mo. Fixed stale findings header to report real data range. 171 tests pass. Immediate next step: MetaEditor compilation + 2-week MT5 demo forward test.*
+## 21. Session 6 — Champion-Path Logic Audit + Live-Friction Analysis (2026-09-12)
+
+Line-by-line audit of the challenge-winning code path (`orb_atr` T=3.0R RB=8 ATR=0.25 in `tools/aggressive_optimizer.py`) plus a quantified live-friction study (`tools/audit_champion_live.py`, new tool).
+
+### Logic bugs found (champion path)
+1. **Same-bar target/stop ambiguity awarded to the WIN** (`simulate()` checks target before stop). 84/1812 trades (4.6%) ambiguous; pessimistic resolution = −15% P&L, PF 3.55 → 2.94.
+2. **Limit fills assumed without re-touch check.** 11.5% of signals never re-touch the orb level; those carry **26.7% of total P&L (364/369 winners)** — adverse selection. Market-chasing the close instead **destroys the strategy** (WR 60%→17.5%, negative). Edge = limit at the range boundary; live must accept missed runners.
+3. **One-position rule violated by backtest:** 249/1045 days book overlapping holds (The5ers allows one position account-wide).
+4. **Pip values frozen at 2024–26 mids:** 2022 risk oversized +17% (GBPJPY), +13% (EURJPY) — dollar-risk drift, R-stats unaffected.
+5. **No news blackout modeled** (compliance rule + spike slippage).
+6. Minor: M15-ATR grouping across session gaps; monthly normalization counts zero-trade days; day-end-only equity sampling.
+
+Verified correct: DST helpers, session windows, loader, ATR, orb geometry filters, lot math (avg loss −$9.75 ≈ $10 risk), fixed-base sizing, 2/day + 1/symbol caps, daily/total floors with safety buffer, qualifying-day + Phase-1 logic, session-end flat, deterministic ordering.
+
+### Live vs backtest (4-year data, champion RB=8)
+
+| Scenario | PF | Mth$ | Phase 1 |
+|---|---|---|---|
+| Backtest as coded | 3.55 | $359 | 12d |
+| Raw acct (55% spread + $7/lot) | 2.13 | $219 | 14d |
+| + ambiguity coin-flip | 1.76 | $165 | 17d |
+| **Honest live estimate (stacked + missed fills + overlap/news)** | **~1.6–2.0** | **~$135–180** | **~35–55 trading days** |
+| Pessimistic | 1.5 | ~$95–130 | ~2–3 months |
+
+Per-pair under raw-account friction: EURJPY $3.8K · GBPJPY $3.5K · XAUUSD $3.3K over 4y; **all other 8 pairs <$350 combined → trade the 3 core pairs only.**
+
+### Decisions
+- Fix `simulate()` (re-touch requirement + pessimistic ambiguity mode), per-day pip values, news blackout, one-position semantics (Section 4 of `findings_live_friction_audit.md`).
+- Demo gate: EURJPY+GBPJPY+XAUUSD, limit entries, raw spread; go-live needs demo ≥ ~$140/month run-rate.
+- The5ers has no time limit → even pessimistic estimate passes; risk is execution quality + news compliance, not edge sign.
+
+---
+
+*Last updated: end of session 6 (champion audit). Session 5 re-tested the full 60-combo grid on the complete 2022-09-11 → 2026-09-11 dataset (results reproduce session 4 exactly; champion `orb_atr` T=3.0R RB=8 ATR=0.25 → P1 in 12 trading days, max DD 0.38%, ~$359/mo backtest). Live-honest expectation after friction audit: ~$135–180/mo, PF ~1.6–2.0, P1 ~35–55 days on the 3 core pairs. 171 tests pass. Next: apply Section-4 fixes, then MetaEditor compile + 2-week MT5 demo forward test.*
