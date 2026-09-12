@@ -691,7 +691,26 @@ Answer to "what if the bug is our strategy": to first order it was — the old $
 1. Tick/1-minute data validation (only way to certify tight-stop M5 strategies; `tick_signal_builder.py` ready — need Eightcap tick export from user).
 2. If tick confirms coin/pessimistic → pivot to TRIAD sweep/reclaim geometry (stops 0.6–1.5×ATR-M15 = 10–40 pips → cost share 2–5%, near-zero M5 ambiguity — structurally immune to this failure mode).
 3. XAUUSD is the only keeper from the ORB family.
+---
+
+## 24. Session 9 — TRIAD Sweep/Reclaim Honest Validation: The Survivor (2026-09-12)
+
+User directive: focus = win the challenge in minimum time. Built `tools/triad_honest.py`: canonical V2.1 sweep/reclaim geometry through the session-7/8 honesty layer (re-touch fills, opt/coin/pess bounds, raw costs in-trade, per-day pip values, one slot, governors). 2-year gate then 4-year confirm.
+
+### Structural finding
+TRIAD stops average 20-27 pips (0.6-1.5 ATR-M15 band) → **0.0% ambiguous trades: all three intrabar bounds identical to the cent** on both datasets. Cost share 5-8% of risk (vs 40-65% for ORB). The bug class that killed ORB cannot exist here.
+
+### Results (core3 = GBPJPY+EURJPY+XAUUSD, London-only, T=1.5R, tStop=90)
+- Canonical geometry: 2y 32 trades PF 2.58; 4y 46 trades PF 1.70 (+$309 @1%).
+- Relaxed geometry (sweep≥0.02, wick≥0.45, body≥0.50): 2y 53 trades PF 2.05 (+$916 @2%); **4y 94 trades PF 1.60, +$835 @1.5%, DD 7.8%, P1 723 trading days**; yearly: -24/-61/+255/+250/+415 (rising 2024-26); worst streak 5 trades.
+- Rejected: all-11 pairs (PF<1), NY window (few signals, dilutes), risk 2% on 4y (DD 9.7% = floor-adjacent).
+
+### Honest minimum-time answer
+~+0.5R/month → Phase 1 in ~2-2.5 years at max sane risk (1.5%). Frequency, not leverage, is the binding constraint. Any faster path needs more validated signal sources (tick-level validation of additional geometries/sessions/pairs), not more risk.
+
+### Standing recommendation
+TRIAD relaxed core3 config (documented in findings §7) is the only configuration that survives the full audit framework. The5ers has no time limit → it passes with patience. Next: tick-data validation to confirm fills, then (optionally) expand validated signal sources for frequency.
 
 ---
 
-*Last updated: end of session 8 (2-year gate) (fill-semantics fixes + de-certification pending tick data). Session 6 found the 4 bugs; session 7 fixed them, re-ran everything, and showed the honest expectancy band is [bust, +$104/mo after costs] with the mid bound negative. 185 tests pass. Next: tick/1-min data validation before any MetaEditor compile/demo step.*
+*Last updated: end of session 9 (TRIAD honest validation) (2-year gate) (fill-semantics fixes + de-certification pending tick data). Session 6 found the 4 bugs; session 7 fixed them, re-ran everything, and showed the honest expectancy band is [bust, +$104/mo after costs] with the mid bound negative. 185 tests pass. Next: tick/1-min data validation before any MetaEditor compile/demo step.*

@@ -129,3 +129,53 @@ a robust edge.**
    immune to the failure mode found here.
 3. Gold-only (XAUUSD) is the only instrument worth keeping from this family if
    it is ever revisited.
+
+---
+
+## 7. ADDENDUM (session 9): TRIAD sweep/reclaim — the honest frontier
+
+**Tool:** `tools/triad_honest.py` — canonical V2.1 sweep/reclaim geometry
+(`tick_signal_builder.py` constants) run through the same honesty layer:
+re-touch limit fills, opt/coin/pess ambiguity bounds, raw-account costs inside
+every trade, per-day pip values, one account-wide slot, The5ers governors.
+
+### Why TRIAD is structurally different from ORB
+Stops = sweep extreme ± 0.10 ATR, constrained to 0.60–1.50×ATR-M15 → measured
+**avg 20–27 pips** (vs 2–4.5 for ORB). Results:
+- **0.0% ambiguous trades — optimistic / coin / pessimistic bounds are
+  IDENTICAL to the cent** on both datasets. The bug class that killed ORB
+  cannot exist here.
+- Cost share ≈ 5–8% of risk per trade (vs 40–65% for ORB).
+
+### Gate results
+| Config (core3 London-only, T=1.5R, tStop=90) | 2-year | 4-year |
+|---|---|---|
+| Canonical geometry, 0.4% risk | 32 tr, PF 2.58, +$141 | 46 tr, PF 1.70, +$309 |
+| Canonical, 2.0% risk | **P1 252d**, DD 6.3% | P1 562d, **DD 8.3–9.7%** |
+| Relaxed (sweep≥0.02, wick≥0.45, body≥0.50), 1.5% | 53 tr, PF 2.05, +$916 | **94 tr, PF 1.60, +$835, DD 7.8%, P1 723d** |
+| Relaxed, 2.0% risk | P1 255d, DD 5.3% | P1 562d, DD 9.7% ⚠️ |
+
+- All three pairs contribute positively (4y relaxed, 1.5%: XAUUSD +$441,
+  EURJPY +$260, GBPJPY +$135).
+- Yearly (relaxed, 4y): 2022 −$24 · 2023 −$61 · 2024 +$255 · 2025 +$250 ·
+  2026 +$415 — flat start, positive and rising 2024-26.
+- Worst losing streak 5 trades → −7.5% at 1.5% risk. **2.0% risk is the hard
+  ceiling** (streak ⇒ −10%, at the $2,250 floor).
+- NY-window extension adds few signals and dilutes quality (rejected).
+- More pairs dilute (all11 PF < 1) — core3 only.
+
+### The honest minimum-time conclusion
+AvgR +0.23 at ~2 trades/month = ~+0.5R/month. Phase 1 (+10%) therefore takes
+**~2 to 2.5 years** at the maximum sane risk (1.5%). The5ers has no time limit,
+so this passes — but "minimum time" is bounded by signal frequency, not by
+parameter tuning: risk ≥2% breaches the floor math, and every frequency lever
+tested (more pairs, NY window, wider geometry) either dilutes PF below the
+survival line or was already applied. Any faster path requires MORE VALIDATED
+SIGNAL SOURCES (tick-level validation of additional geometries/sessions), not
+more leverage on this one.
+
+**Recommended configuration (only one that survives the full audit framework):**
+TRIAD sweep/reclaim, GBPJPY+EURJPY+XAUUSD, London only, relaxed geometry
+(sweep ≥0.02 ATR, wick ≥0.45, body ≥0.50, stop band 0.6–1.5 ATR), T=1.5R,
+90-min time stop, 1.5% risk/trade, one position, session-end flat.
+Expect: ~2 trades/month, PF ~1.6–2.0, DD ≤8%, Phase 1 in ~2 years.
