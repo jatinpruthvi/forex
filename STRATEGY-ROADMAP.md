@@ -80,3 +80,22 @@ sweep/reclaim is the ONLY edge on this dataset that survives honest accounting.
 The 3-month Phase-1 goal is not achievable from this M5 data at floor-safe risk;
 the honest paths forward are tick-data validation and additional validated
 signal sources (findings_fast_track_lab.md §What-could-change-this-answer).*
+
+---
+
+## PERSONAL-ACCOUNT TRACK (added 2026-09-12, later same day)
+
+User reframed the goal: personal (non-challenge) account, max 10% DD, wants
+40–50%/yr; asked about scalping and other classes. Findings:
+`findings_swing_and_portfolio.md` (tool: `tools/swing_lab.py`).
+
+- **Scalping:** untestable on bid-only M5 data (needs ticks + live spreads);
+  cost math against it by construction. Deferred to tick-data phase.
+- **Swing/trend validated on GOLD only** (Donchian N=55 k=2.5, PF 3.76,
+  AvgR +0.89R, 19 trades, regime-dependent); FX trend-following dead (PF<1).
+- **Two-leg validated portfolio:** TRIAD core3 (1.5%) + Gold swing (3%) →
+  **~21%/yr expected at 10.3% maxDD** (2024–25 tail years +28/+51% are
+  gold-trend-inflated; plan on the CAGR).
+- **40–50%/yr at ≤10% DD: not reachable today.** Frontier is ~21% at 10% DD.
+  Reachable with ~2–3 more validated uncorrelated legs (tick data, indices,
+  more crosses) — returns scale ~N, DD scales ~√N. That is the roadmap.
