@@ -1,0 +1,165 @@
+# M1 validation report - generated 2026-09-12T14:32:18.688Z
+# Files: m1-data/<pair>-m1-2024-09-11_2026-09-11.csv
+
+## EURUSD
+bars: 744766 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:113455  2025:371804  2026:259507
+close range: 1.01796 .. 1.20754 | gaps: 1min=742548, 2-5min=2048, 6-15min=48, 16-60min=12, 1-3h=1, 3-24h=2, weekend~48h=100, >48h=6
+flat bars: 8170 (longest run 23) | parse errors: 0
+largest gaps: 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2941min (2025-10-31T20:59:00.000Z) | 2885min (2025-04-11T20:59:00.000Z) | 2885min (2025-05-02T20:59:00.000Z) | 2885min (2025-07-18T20:59:00.000Z) | 2885min (2025-11-21T21:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-06-05T08:28:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.14135 H 1.14139 L 1.14123 C 1.14131
+  EXACT     2025-03-27T03:11:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.07757 H 1.07759 L 1.07755 C 1.07759
+  EXACT     2026-07-20T01:08:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.14344 H 1.14344 L 1.14337 C 1.14343
+>1% 1-min moves (review, likely news): 1.1% @ 2025-02-02T22:00:00.000Z
+issues: NONE
+warnings: large 1-min move 1.1% at 2025-02-02T22:00:00.000Z
+verdict: PASS (with review notes)
+
+## USDJPY
+bars: 743258 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112277  2025:371458  2026:259523
+close range: 139.585 .. 163.976 | gaps: 1min=740997, 2-5min=2080, 6-15min=62, 16-60min=5, 1-3h=3, 3-24h=4, weekend~48h=100, >48h=6
+flat bars: 7568 (longest run 17) | parse errors: 0
+largest gaps: 2945min (2025-10-31T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2890min (2025-09-12T20:59:00.000Z) | 2887min (2024-09-27T20:59:00.000Z) | 2886min (2024-09-20T20:59:00.000Z) | 2885min (2024-11-29T21:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-06-06T19:19:00.000Z | max deviation 0 | ours O 144.786 H 144.802 L 144.784 C 144.787
+  EXACT     2024-12-06T11:54:00.000Z | max deviation 0 | ours O 150.497 H 150.498 L 150.491 C 150.494
+  EXACT     2026-09-07T09:49:00.000Z | max deviation 0 | ours O 154.425 H 154.445 L 154.412 C 154.445
+>1% 1-min moves (review, likely news): 1.4% @ 2025-10-05T21:00:00.000Z
+issues: NONE
+warnings: large 1-min move 1.4% at 2025-10-05T21:00:00.000Z
+verdict: PASS (with review notes)
+
+## GBPUSD
+bars: 743089 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112974  2025:370818  2026:259297
+close range: 1.21002 .. 1.38582 | gaps: 1min=740258, 2-5min=2651, 6-15min=55, 16-60min=9, 1-3h=7, 3-24h=2, weekend~48h=100, >48h=6
+flat bars: 7910 (longest run 17) | parse errors: 0
+largest gaps: 2942min (2025-10-31T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2887min (2025-12-19T21:59:00.000Z) | 2886min (2025-04-04T20:59:00.000Z) | 2886min (2025-07-18T20:59:00.000Z) | 2886min (2025-09-12T20:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2024-09-25T03:54:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.34186 H 1.34194 L 1.34183 C 1.34191
+  EXACT     2026-01-15T22:27:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.33796 H 1.33798 L 1.33742 C 1.33743
+  EXACT     2026-09-03T09:53:00.000Z | max deviation 0 | ours O 1.34948 H 1.34958 L 1.34945 C 1.34955
+issues: NONE
+warnings: none
+verdict: PASS
+
+## XAUUSD
+bars: 709556 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:108325  2025:353951  2026:247280
+close range: 2501.728 .. 5593.005 | gaps: 1min=708980, 2-5min=51, 6-15min=5, 16-60min=1, 1-3h=399, 3-24h=11, weekend~48h=6, >48h=102
+flat bars: 95 (longest run 3) | parse errors: 0
+largest gaps: 4382min (2025-04-17T20:58:00.000Z) | 4382min (2026-04-02T20:58:00.000Z) | 3301min (2025-12-05T15:59:00.000Z) | 3182min (2025-07-04T16:58:00.000Z) | 3182min (2026-06-19T16:58:00.000Z) | 3182min (2026-07-03T16:58:00.000Z) | 3077min (2024-11-29T19:43:00.000Z) | 3077min (2025-11-28T19:43:00.000Z) | 3001min (2024-11-01T20:59:00.000Z) | 3001min (2025-10-31T20:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-12-09T12:19:00.000Z | max deviation 0 | ours O 4200.405 H 4200.415 L 4198.575 C 4198.645
+  EXACT     2025-10-02T11:33:00.000Z | max deviation 4.547473508864641e-13 | ours O 3883.525 H 3883.805 L 3883.045 C 3883.735
+  EXACT     2026-02-24T00:45:00.000Z | max deviation 9.094947017729282e-13 | ours O 5229.525 H 5230.845 L 5228.465 C 5228.765
+>1% 1-min moves (review, likely news): 2.4% @ 2026-01-29T15:27:00.000Z | 1.8% @ 2025-04-22T22:00:00.000Z | 1.6% @ 2026-04-12T22:00:00.000Z | 1.6% @ 2026-09-04T12:30:00.000Z | 1.5% @ 2025-05-11T22:00:00.000Z
+issues: NONE
+warnings: large 1-min move 2.4% at 2026-01-29T15:27:00.000Z ; large 1-min move 1.8% at 2025-04-22T22:00:00.000Z ; large 1-min move 1.6% at 2026-04-12T22:00:00.000Z ; large 1-min move 1.6% at 2026-09-04T12:30:00.000Z ; large 1-min move 1.5% at 2025-05-11T22:00:00.000Z
+verdict: PASS (with review notes)
+
+## EURGBP
+bars: 742877 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:113083  2025:371003  2026:258791
+close range: 0.82231 .. 0.88648 | gaps: 1min=739968, 2-5min=2749, 6-15min=42, 16-60min=5, 1-3h=4, 3-24h=2, weekend~48h=99, >48h=7
+flat bars: 9887 (longest run 13) | parse errors: 0
+largest gaps: 3181min (2026-07-10T20:59:00.000Z) | 2945min (2024-11-01T20:59:00.000Z) | 2945min (2025-10-31T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2887min (2024-12-20T21:58:00.000Z) | 2887min (2025-07-18T20:59:00.000Z) | 2886min (2024-12-27T21:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2024-09-25T03:41:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.83415 H 0.83421 L 0.83415 C 0.83419
+  EXACT     2026-01-15T14:56:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.86751 H 0.86762 L 0.86748 C 0.86752
+  EXACT     2026-09-03T09:36:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.85989 H 0.85992 L 0.85988 C 0.85991
+issues: NONE
+warnings: none
+verdict: PASS
+
+## EURJPY
+bars: 743565 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112100  2025:371705  2026:259760
+close range: 154.839 .. 187.939 | gaps: 1min=742516, 2-5min=795, 6-15min=128, 16-60min=9, 1-3h=6, 3-24h=4, weekend~48h=98, >48h=8
+flat bars: 2769 (longest run 7) | parse errors: 0
+largest gaps: 3245min (2024-11-15T15:59:00.000Z) | 2945min (2025-10-31T20:59:00.000Z) | 2942min (2024-11-01T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2911min (2025-09-12T20:59:00.000Z) | 2896min (2024-09-27T20:59:00.000Z) | 2896min (2024-12-20T21:58:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2024-12-06T12:38:00.000Z | max deviation 0 | ours O 159.262 H 159.262 L 159.232 C 159.236
+  EXACT     2025-01-22T00:53:00.000Z | max deviation 0 | ours O 161.998 H 162.034 L 161.993 C 162.029
+  EXACT     2026-04-27T12:04:00.000Z | max deviation 0 | ours O 186.953 H 186.969 L 186.948 C 186.967
+>1% 1-min moves (review, likely news): 1.7% @ 2025-04-06T21:04:00.000Z | 1.4% @ 2025-02-02T22:04:00.000Z | 1.2% @ 2025-10-05T21:04:00.000Z
+issues: NONE
+warnings: large 1-min move 1.7% at 2025-04-06T21:04:00.000Z ; large 1-min move 1.4% at 2025-02-02T22:04:00.000Z ; large 1-min move 1.2% at 2025-10-05T21:04:00.000Z
+verdict: PASS (with review notes)
+
+## AUDUSD
+bars: 742362 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112185  2025:370933  2026:259244
+close range: 0.59217 .. 0.72769 | gaps: 1min=739405, 2-5min=2773, 6-15min=60, 16-60min=11, 1-3h=2, 3-24h=4, weekend~48h=100, >48h=6
+flat bars: 9478 (longest run 18) | parse errors: 0
+largest gaps: 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2941min (2025-10-31T20:59:00.000Z) | 2885min (2024-10-04T20:59:00.000Z) | 2885min (2024-11-08T21:59:00.000Z) | 2885min (2025-01-03T21:59:00.000Z) | 2885min (2025-02-21T21:59:00.000Z)
+spot checks vs official Dukascopy API:
+  WARN      2024-10-09T23:10:00.000Z | max deviation 0.000010000000000065512 | ours O 0.67148 H 0.67152 L 0.67148 C 0.67151
+  UNVERIFIED 2024-10-04T14:09:00.000Z (API unavailable for that bar)
+  EXACT     2026-06-22T19:42:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.69959 H 0.69961 L 0.69953 C 0.69955
+>1% 1-min moves (review, likely news): 1.1% @ 2026-03-01T22:00:00.000Z | 1.0% @ 2026-04-12T21:00:00.000Z
+issues: NONE
+warnings: spot check small deviation at 2024-10-09T23:10:00.000Z ; large 1-min move 1.1% at 2026-03-01T22:00:00.000Z ; large 1-min move 1.0% at 2026-04-12T21:00:00.000Z
+verdict: PASS (with review notes)
+
+## USDCAD
+bars: 743182 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112217  2025:371764  2026:259201
+close range: 1.34192 .. 1.47907 | gaps: 1min=740904, 2-5min=2115, 6-15min=43, 16-60min=6, 1-3h=3, 3-24h=4, weekend~48h=98, >48h=8
+flat bars: 7804 (longest run 52) | parse errors: 0
+largest gaps: 3243min (2024-11-08T15:59:00.000Z) | 2945min (2025-10-31T20:59:00.000Z) | 2942min (2024-11-15T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2886min (2025-04-18T20:58:00.000Z) | 2886min (2025-12-26T21:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-05-28T19:08:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.38294 H 1.38302 L 1.38288 C 1.383
+  EXACT     2025-04-24T04:17:00.000Z | max deviation 0 | ours O 1.38701 H 1.38707 L 1.38698 C 1.38707
+  EXACT     2026-06-23T11:35:00.000Z | max deviation 0 | ours O 1.4187 H 1.41877 L 1.41869 C 1.41869
+>1% 1-min moves (review, likely news): 1.4% @ 2025-02-02T22:00:00.000Z
+issues: NONE
+warnings: large 1-min move 1.4% at 2025-02-02T22:00:00.000Z
+verdict: PASS (with review notes)
+
+## NZDUSD
+bars: 742092 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112327  2025:370844  2026:258921
+close range: 0.54892 .. 0.63757 | gaps: 1min=739001, 2-5min=2906, 6-15min=50, 16-60min=19, 1-3h=6, 3-24h=3, weekend~48h=98, >48h=8
+flat bars: 8921 (longest run 12) | parse errors: 0
+largest gaps: 3241min (2024-11-08T15:59:00.000Z) | 3001min (2026-08-07T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2941min (2025-10-31T20:59:00.000Z) | 2886min (2025-04-18T20:58:00.000Z) | 2885min (2024-09-20T20:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-06-05T03:51:00.000Z | max deviation 0 | ours O 0.60341 H 0.60341 L 0.60304 C 0.60319
+  EXACT     2025-09-12T18:56:00.000Z | max deviation 0 | ours O 0.59601 H 0.59604 L 0.59601 C 0.59604
+  UNVERIFIED 2026-05-12T01:09:00.000Z (API unavailable for that bar)
+issues: NONE
+warnings: none
+verdict: PASS
+
+## USDCHF
+bars: 742428 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:112489  2025:370985  2026:258954
+close range: 0.76056 .. 0.91997 | gaps: 1min=739295, 2-5min=2948, 6-15min=54, 16-60min=15, 1-3h=6, 3-24h=3, weekend~48h=100, >48h=6
+flat bars: 11625 (longest run 15) | parse errors: 0
+largest gaps: 2945min (2025-10-31T20:59:00.000Z) | 2941min (2024-10-25T20:59:00.000Z) | 2941min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2896min (2026-05-01T20:59:00.000Z) | 2891min (2024-11-15T21:59:00.000Z) | 2889min (2026-04-03T20:58:00.000Z) | 2887min (2025-04-18T20:59:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-05-30T14:50:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.82362 H 0.82392 L 0.82315 C 0.82326
+  UNVERIFIED 2025-01-16T01:12:00.000Z (API unavailable for that bar)
+  EXACT     2026-08-17T23:05:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.81096 H 0.81096 L 0.81092 C 0.81092
+issues: NONE
+warnings: none
+verdict: PASS
+
+## GBPJPY
+bars: 743430 | coverage: 2024-09-11T00:00:00.000Z -> 2026-09-11T20:59:00.000Z
+per-year: 2024:113123  2025:370822  2026:259485
+close range: 183.783 .. 219.601 | gaps: 1min=742289, 2-5min=863, 6-15min=155, 16-60min=11, 1-3h=2, 3-24h=3, weekend~48h=96, >48h=10
+flat bars: 2497 (longest run 7) | parse errors: 0
+largest gaps: 3241min (2024-10-25T15:59:00.000Z) | 3061min (2025-02-21T21:59:00.000Z) | 2946min (2025-10-31T20:59:00.000Z) | 2945min (2024-11-01T20:59:00.000Z) | 2941min (2025-03-14T20:59:00.000Z) | 2941min (2025-03-21T20:59:00.000Z) | 2941min (2025-10-24T20:59:00.000Z) | 2914min (2024-09-27T20:59:00.000Z) | 2913min (2025-09-12T20:59:00.000Z) | 2908min (2025-07-04T20:57:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2025-06-02T20:50:00.000Z | max deviation 0 | ours O 193.273 H 193.284 L 193.268 C 193.276
+  EXACT     2025-02-10T15:04:00.000Z | max deviation 2.842170943040401e-14 | ours O 187.759 H 187.782 L 187.731 C 187.766
+  EXACT     2026-06-22T15:39:00.000Z | max deviation 0 | ours O 213.903 H 213.906 L 213.872 C 213.872
+>1% 1-min moves (review, likely news): 1.6% @ 2025-04-06T21:08:00.000Z | 1.1% @ 2025-09-21T21:13:00.000Z | 1.1% @ 2025-02-02T22:00:00.000Z | 1.0% @ 2025-10-05T21:04:00.000Z
+issues: NONE
+warnings: large 1-min move 1.6% at 2025-04-06T21:08:00.000Z ; large 1-min move 1.1% at 2025-09-21T21:13:00.000Z ; large 1-min move 1.1% at 2025-02-02T22:00:00.000Z ; large 1-min move 1.0% at 2025-10-05T21:04:00.000Z
+verdict: PASS (with review notes)
+
+# SUMMARY: files=11, fail=0, pass-with-notes=7
