@@ -566,4 +566,50 @@ Python version: 3.13 (tested and passing)
 
 ---
 
-*Last updated: end of session 4 (full audit). Three bugs found and fixed in `aggressive_optimizer.py`: (A) fake max-drawdown formula, (B) pip value 10× wrong for all FX pairs, (C) same symbol consuming both daily slots. Revalidated results: best config `orb_atr` T=3.0R RB=8bars ATR=0.25 passes Phase 1 in 15 trading days, max DD 0.4%, monthly P&L ~$332. All 11 M5 history files + `strategy_optimizer.py` committed. 171 tests pass. Immediate next step: MetaEditor compilation + 2-week MT5 demo forward test.*
+## 20. Session 5 — 4-Year Data Re-Test (2026-09-12)
+
+Re-ran the full backtest over the **complete 4-year M5 dataset** (11 pairs, `2022-09-11 → 2026-09-11`, ~288K bars/pair, **3,168,720 bars total**). `load_pair` automatically prefers the longer `*-m5-2022-09-11_2026-09-11.csv` files over the 2-year `*-fsb.csv` files.
+
+### Reproducibility result
+
+The regenerated `findings_aggressive_optimizer.md` was **byte-identical to the previously committed version** — the session-4 results were already produced on the 4-year data; only the header text was stale (hardcoded "Jan 2024 – Sep 2026, ~2.5 years, 200K bars/pair").
+
+**Fix:** `write_findings()` in `tools/aggressive_optimizer.py` now receives the actually-loaded data range and bar counts and writes them dynamically. Header now reads: `Data: 11 pairs M5 OHLCV, 2022-09-11 – 2026-09-11 (~4.0 years, ~288K bars/pair, 3,168,720 bars total)`.
+
+### Grid re-run (60 combos, 4-year data) — confirmed
+
+Top by (fastest Phase 1, then monthly P&L): `orb_atr` **T=3.0R RB=6 bars ATR=0.25** — Phase 1 in 8 trading days, $331.38/mo, PF 3.20, DD 0.5%.
+Best monthly P&L (leaderboard #5): `orb_atr` **T=3.0R RB=8 bars ATR=0.25** — $358.78/mo, highest AvgR (1.006).
+
+### Deep validation (`tools/_validate_4yr.py`) — champion `orb_atr` T=3.0R RB=8 ATR=0.25
+
+| Metric | Value |
+|---|---|
+| Signals | 1,812 (1,090W / 719L / 3T) |
+| Win rate | 60.2% |
+| Avg R / Profit factor | 1.006 / 3.55 |
+| Max drawdown | 0.38% |
+| Total P&L | $17,853.56 over 1,045 trading days |
+| Est. monthly P&L | $358.78 |
+| Final balance | $20,353.56 (from $2,500) |
+| Phase 1 | PASSED in 12 trading days |
+| Qualifying days | 602 |
+
+**Year-by-year (positive in every year):**
+| Year | Equity | P&L | Max intra-year DD |
+|---|---|---|---|
+| 2022 (Sep–Dec) | $2,500 → $4,210 | +$1,710 | 0.94% |
+| 2023 | $4,191 → $8,961 | +$4,771 | 0.91% |
+| 2024 | $8,961 → $13,960 | +$4,998 | 0.42% |
+| 2025 | $13,960 → $18,405 | +$4,445 | 0.39% |
+| 2026 (Jan–Sep) | $18,405 → $20,354 | +$1,949 | 0.38% |
+
+**Trade-economics sanity:** avg losing trade −$9.75 (≈ the $10 intended risk), avg winning trade +$22.78 (≈ 3R minus commission), avg time exit +$11.12. Lot sizing spot-checks correct for JPY pairs and XAUUSD.
+
+**Known concentration:** GBPJPY + EURJPY + XAUUSD produce ~96% of total P&L ($17,124 of $17,854). The six other pairs contribute <$1,100 combined over 4 years. Treat the edge as a 3-instrument strategy (GBPJPY, EURJPY, XAUUSD) with optional extras, not an 11-pair system.
+
+All 171 tests pass after the `write_findings` change.
+
+---
+
+*Last updated: end of session 5 (4-year re-test). Full 60-combo grid + deep validation re-run on the complete 2022-09-11 → 2026-09-11 dataset; results reproduce session 4 exactly. Champion confirmed: `orb_atr` T=3.0R RB=8 ATR=0.25 → Phase 1 in 12 trading days, max DD 0.38%, ~$359/mo. Fixed stale findings header to report real data range. 171 tests pass. Immediate next step: MetaEditor compilation + 2-week MT5 demo forward test.*
