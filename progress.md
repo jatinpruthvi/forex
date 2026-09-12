@@ -62,7 +62,8 @@ forex/
 │       └── triad_red_news.csv.example   ← News calendar template
 │
 ├── tools/
-│   ├── aggressive_optimizer.py          ← ACTIVE — multi-pair optimizer (11 pairs, 60 combos)
+│   ├── aggressive_optimizer.py          ← ACTIVE — multi-pair M5 optimizer (11 pairs, 60 combos, 3 bugs fixed)
+│   ├── strategy_optimizer.py            ← SUPERSEDED — older tick-based optimizer (requires tick CSVs, not present)
 │   ├── tick_signal_builder.py           ← Tick CSV → observed_events.csv
 │   ├── strategy_orb.py                  ← ORB backtest v1 (tick data, 3 pairs)
 │   ├── replay_export.py                 ← observed_events.csv → replay_rows.csv
@@ -411,13 +412,33 @@ The EA source at `MQL5/Experts/TRIAD_R_HS/TRIAD_R_HS.mq5` (build 2.1.6) has NOT 
 - Sweep/reclaim signal rate confirmed at ~3% — not a bug, by design.
 - Pipeline blocked: needs ≥300 fills, only has 6.
 
-### Session 4 (Multi-pair optimizer + bug fix) — CURRENT
-- **`aggressive_optimizer.py`** built: 11 pairs, M5 data, 60 parameter combos, 3 strategies.
-- **Bug diagnosed**: `max_dd_pct` formula was computing `(peak - start) / peak × 100` = fake "drawdown" equal to total return. The strategy never actually drew down; the formula just measured total profit backwards.
-- **Bug fixed**: replaced with sequential peak-to-trough scan over the equity curve.
-- **Clean results**: all 20 leaderboard combos pass Phase 1; best config hits Phase 1 in **10 trading days** with 0.3% real max drawdown.
-- All history data files committed to `validation/HistoryData/`.
-- `findings_aggressive_optimizer.md` updated with clean results.
+### Session 4 — Part 1 (Multi-pair optimizer + first bug fix)
+- **`aggressive_optimizer.py`** built: 11 pairs, M5 data, 60 combos, 3 strategies.
+- **Bug A fixed**: `max_dd_pct` computed `(peak−start)/peak × 100` = total return mislabelled as drawdown. Fixed with sequential peak-to-trough equity scan.
+- First clean run: leaderboard showed Phase 1 in 10 days, 0.3% DD. **BUT** pip-value bug and same-symbol bug not yet found at that point.
+- All 11 M5 history files committed to `validation/HistoryData/`.
+
+### Session 4 — Part 2 (Full code audit + 2 more bug fixes) — CURRENT
+
+Systematic line-by-line audit of every function found two more critical bugs:
+
+**Bug B — Pip value formula 10× wrong for all FX pairs:**
+- `pv = tv * (pip/ts)` where `tv` was already the pip value → multiplied by `pip/ts = 10` a second time.
+- EURUSD: formula gave $100/pip/lot, actual = $10. All FX lots were 10× undersized.
+- XAUUSD was accidentally correct (its `tv=1.0` truly was a tick value, not pip value).
+- Effect: gold dominated results artificially; FX pairs barely registered.
+- Fix: replaced `tv/ts/pip` three-field spec with single `pv` field (USD/pip/lot), calibrated to 2024–2026 rates.
+
+**Bug C — Same symbol consumed both daily slots:**
+- XAUUSD (and EURUSD, GBPUSD) appeared in both `LONDON_PAIRS` and `NY_PAIRS`.
+- Both daily trade slots could go to the same symbol every day — no diversification.
+- Fix: `traded_syms` set enforces max 1 trade per symbol per day.
+
+**Revalidated results after all 3 fixes:**
+- Best config: `orb_atr` T=3.0R RB=8bars ATR=0.25 → Phase 1 in **15 trading days**, max DD **0.4%**, monthly P&L ~**$332**
+- Avg winning trade: +$23, avg losing trade: −$10 (correct for $10 risk budget)
+- Top pairs: GBPJPY ($4,509), EURJPY ($4,032), XAUUSD ($2,996)
+- `strategy_optimizer.py` (older tick-based tool, superseded) committed for history.
 
 ---
 
@@ -426,8 +447,9 @@ The EA source at `MQL5/Experts/TRIAD_R_HS/TRIAD_R_HS.mq5` (build 2.1.6) has NOT 
 ### Files Created (new)
 | File | Purpose |
 |---|---|
-| `tools/aggressive_optimizer.py` | Multi-pair M5 optimizer — 60 combos, 11 pairs, writes findings MD |
-| `findings_aggressive_optimizer.md` | Clean optimizer results after bug fix |
+| `tools/aggressive_optimizer.py` | Multi-pair M5 optimizer — 60 combos, 11 pairs, 3 bugs fixed, final results |
+| `tools/strategy_optimizer.py` | Older tick-based optimizer — superseded, committed for history |
+| `findings_aggressive_optimizer.md` | Full findings with all 3 bug writeups and revalidated results |
 | `validation/HistoryData/eurusd-m5-fsb.csv` | 200K M5 bars EURUSD (Jan 2024–Sep 2026) |
 | `validation/HistoryData/gbpusd-m5-fsb.csv` | same for GBPUSD |
 | `validation/HistoryData/eurgbp-m5-fsb.csv` | same for EURGBP |
@@ -443,8 +465,9 @@ The EA source at `MQL5/Experts/TRIAD_R_HS/TRIAD_R_HS.mq5` (build 2.1.6) has NOT 
 ### Files Modified
 | File | What Changed |
 |---|---|
-| `tools/aggressive_optimizer.py` | Fixed `max_dd_pct` formula (sequential peak-to-trough); fixed equity curve char encoding for Windows |
-| `progress.md` | This file — updated with session 4 content |
+| `tools/aggressive_optimizer.py` | Bug A: max_dd sequential scan; Bug B: pip value formula → single `pv` field; Bug C: 1-trade-per-symbol-per-day guard |
+| `findings_aggressive_optimizer.md` | Full bug writeup + revalidated results after all 3 fixes |
+| `progress.md` | This file — updated with session 4 full audit |
 
 ---
 
@@ -543,4 +566,4 @@ Python version: 3.13 (tested and passing)
 
 ---
 
-*Last updated: end of session 4. Max drawdown bug fixed in aggressive_optimizer.py. Clean leaderboard: best config passes Phase 1 in 10 trading days with 0.3% real drawdown. All 11 M5 history files committed. 171 tests pass. Immediate next step: MetaEditor compilation + 2-week MT5 demo forward test.*
+*Last updated: end of session 4 (full audit). Three bugs found and fixed in `aggressive_optimizer.py`: (A) fake max-drawdown formula, (B) pip value 10× wrong for all FX pairs, (C) same symbol consuming both daily slots. Revalidated results: best config `orb_atr` T=3.0R RB=8bars ATR=0.25 passes Phase 1 in 15 trading days, max DD 0.4%, monthly P&L ~$332. All 11 M5 history files + `strategy_optimizer.py` committed. 171 tests pass. Immediate next step: MetaEditor compilation + 2-week MT5 demo forward test.*

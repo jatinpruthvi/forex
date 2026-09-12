@@ -1,0 +1,1 @@
+Pure Python `unittest` with `decimal.Decimal` for deterministic financial arithmetic, `zoneinfo` for London/New York DST-aware session bounds, `hashlib`/`subprocess` for git-based canonical-file integrity checks, and CSV/JSON round-trips through `tools.replay_export`.

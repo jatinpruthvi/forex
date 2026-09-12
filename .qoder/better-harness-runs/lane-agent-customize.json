@@ -1,0 +1,458 @@
+{
+  "status": "available",
+  "data": {
+    "kind": "agent-asset-baseline",
+    "schemaVersion": 1,
+    "status": "complete",
+    "scope": {
+      "provider": "qoder",
+      "workspace": "e:\\Jatin-Project\\Forex\\forex",
+      "includeUserHome": true,
+      "includeMemories": true
+    },
+    "envelopes": {
+      "lint": {
+        "status": "available",
+        "data": {
+          "kind": "agent-lint",
+          "profile": "agent-assets-review",
+          "summary": {
+            "entrypoints": 0,
+            "documents": 0,
+            "links": 0,
+            "references": 0,
+            "missingReferences": 0,
+            "findings": 15,
+            "errors": 0,
+            "warnings": 2,
+            "advisories": 13
+          },
+          "assetInventory": {
+            "provider": "qoder",
+            "summary": {
+              "skills": 17,
+              "mcps": 0,
+              "commands": 0,
+              "hooks": 0,
+              "rules": 0,
+              "agents": 0,
+              "customAgents": 0,
+              "builtinAgentOverrides": 0,
+              "plugins": 0
+            }
+          },
+          "findings": {
+            "items": [
+              {
+                "id": "skill-length-hard-cap",
+                "severity": "warning",
+                "assetKind": "skill",
+                "assetName": "subagent-driven-development",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/subagent-driven-development/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/subagent-driven-development/SKILL.md is 568 lines; long skills should move detail into references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-length-hard-cap",
+                "severity": "warning",
+                "assetKind": "skill",
+                "assetName": "writing-skills",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/writing-skills/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/writing-skills/SKILL.md is 679 lines; long skills should move detail into references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "brainstorming",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/brainstorming/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/brainstorming/SKILL.md is 250 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "dispatching-parallel-agents",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/dispatching-parallel-agents/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/dispatching-parallel-agents/SKILL.md is 167 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "finance-expert",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/finance-expert/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/finance-expert/SKILL.md is 300 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "find-skills",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/find-skills/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/find-skills/SKILL.md is 141 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "finishing-a-development-branch",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/finishing-a-development-branch/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/finishing-a-development-branch/SKILL.md is 225 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "receiving-code-review",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/receiving-code-review/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/receiving-code-review/SKILL.md is 205 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "subagent-driven-development",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/subagent-driven-development/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/subagent-driven-development/SKILL.md is 568 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "systematic-debugging",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/systematic-debugging/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/systematic-debugging/SKILL.md is 283 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "test-driven-development",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/test-driven-development/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/test-driven-development/SKILL.md is 320 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "trading-strategies",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/trading-strategies/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/trading-strategies/SKILL.md is 426 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "using-git-worktrees",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/using-git-worktrees/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/using-git-worktrees/SKILL.md is 167 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "writing-plans",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/writing-plans/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/writing-plans/SKILL.md is 171 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              },
+              {
+                "id": "skill-long-without-progressive-references",
+                "severity": "advisory",
+                "assetKind": "skill",
+                "assetName": "writing-skills",
+                "scope": "user",
+                "file": "C:/Users/Mishay/.agents/skills/writing-skills/SKILL.md",
+                "line": 1,
+                "evidence": "C:/Users/Mishay/.agents/skills/writing-skills/SKILL.md is 679 lines and has no existing local Markdown references.",
+                "sourceLabel": "User",
+                "rubricRef": "Progressive Disclosure"
+              }
+            ],
+            "total": 15,
+            "omitted": 0
+          }
+        }
+      },
+      "inventory": {
+        "status": "available",
+        "data": {
+          "scope": {
+            "platform": "qoder",
+            "includeUserHome": true,
+            "includeMemories": true
+          },
+          "summary": {
+            "projectAssets": 0,
+            "userAssets": 1,
+            "pluginAssets": 3,
+            "sessionSourceHints": 1,
+            "memories": 2,
+            "builtinAgentOverrides": 0
+          },
+          "coverageRows": [
+            {
+              "surface": "Skills",
+              "scopes": [
+                "Global",
+                "Plugin"
+              ],
+              "count": 20,
+              "paths": [
+                "~/.agents/skills/brainstorming/SKILL.md",
+                "~/.agents/skills/dispatching-parallel-agents/SKILL.md",
+                "~/.agents/skills/executing-plans/SKILL.md",
+                "~/.agents/skills/finance-expert/SKILL.md",
+                "~/.agents/skills/find-skills/SKILL.md"
+              ]
+            },
+            {
+              "surface": "MCP",
+              "scopes": [
+                "Plugin"
+              ],
+              "count": 1,
+              "paths": [
+                "~/.qoder/plugins/cache/qoder-bundler/computer-use/.mcp.json"
+              ]
+            },
+            {
+              "surface": "Plugins",
+              "scopes": [
+                "Plugin"
+              ],
+              "count": 3,
+              "paths": [
+                "~/.qoder/plugins/cache/qoder-bundler/better-harness/.qoder-plugin/plugin.json",
+                "~/.qoder/plugins/cache/qoder-bundler/computer-use/.qoder-plugin/plugin.json",
+                "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin"
+              ]
+            }
+          ],
+          "ownerRoutes": {
+            "items": [
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "brainstorming",
+                "owner": "User"
+              },
+              {
+                "kind": "plugins",
+                "scope": "plugin",
+                "name": "Better Harness",
+                "version": "0.2.9",
+                "owner": "Better Harness"
+              },
+              {
+                "kind": "mcps",
+                "scope": "plugin",
+                "name": "computer-use",
+                "owner": "computer-use"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "dispatching-parallel-agents",
+                "owner": "User"
+              },
+              {
+                "kind": "plugins",
+                "scope": "plugin",
+                "name": "Computer Use",
+                "version": "1.0.1",
+                "owner": "Computer Use"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "executing-plans",
+                "owner": "User"
+              },
+              {
+                "kind": "plugins",
+                "scope": "plugin",
+                "name": "Qoder Create Plugin",
+                "version": "0.1.0",
+                "owner": "Qoder Create Plugin"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "finance-expert",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "find-skills",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "finishing-a-development-branch",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "receiving-code-review",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "requesting-code-review",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "subagent-driven-development",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "systematic-debugging",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "test-driven-development",
+                "owner": "User"
+              },
+              {
+                "kind": "skills",
+                "scope": "user",
+                "name": "trading-strategies",
+                "owner": "User"
+              }
+            ],
+            "total": 24,
+            "omitted": 8
+          },
+          "memories": {
+            "included": true,
+            "contentPolicy": "raw-memory-content-not-read",
+            "categories": [],
+            "titleCount": 0,
+            "details": {
+              "contentPolicy": "metadata-only",
+              "scanState": "scanned-empty",
+              "scopeCounts": [],
+              "integrity": {
+                "status": "reviewed",
+                "titleCount": 0,
+                "reviewedTitleCount": 0,
+                "truncated": false,
+                "exactCollisionGroups": 0,
+                "similarityCandidates": 0
+              }
+            }
+          },
+          "warnings": []
+        }
+      },
+      "integrity": {
+        "status": "available",
+        "data": {
+          "kind": "asset-integrity-review",
+          "profile": "asset-integrity-review",
+          "status": "reviewed",
+          "contentPolicy": "memory-title-and-path-metadata-only",
+          "summary": {
+            "findingCount": 0,
+            "memories": {
+              "titleCount": 0,
+              "reviewedTitleCount": 0,
+              "truncated": false,
+              "exactCollisionGroups": 0,
+              "similarityCandidates": 0
+            },
+            "plugins": {
+              "enabledPluginCount": 3,
+              "nameCollisionGroups": 0,
+              "capabilityOverlapGroups": 0,
+              "familyCandidates": 0
+            },
+            "hooks": {
+              "enabledHookCount": 0,
+              "overRecommendedLimit": false,
+              "exactDuplicateGroups": 0,
+              "fanoutCandidates": 0
+            }
+          },
+          "findings": {
+            "items": [],
+            "total": 0,
+            "omitted": 0
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "sharedInventorySnapshot": true,
+      "compact": true,
+      "findingLimitPerEnvelope": 16,
+      "ownerRouteLimit": 16
+    }
+  }
+}

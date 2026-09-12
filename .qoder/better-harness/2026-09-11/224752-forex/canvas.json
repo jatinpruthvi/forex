@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 2,
+  "summary": {
+    "evidenceMode": "session-limited",
+    "evidenceBoundary": {
+      "manifest": {
+        "schemaVersion": 2,
+        "sourceFingerprint": "2dc64829c1ca1f6c",
+        "adapterVersion": "qoder-task-loop-source-v2",
+        "platform": "qoder",
+        "selection": {
+          "strategy": "all-eligible",
+          "eligibleCount": 0,
+          "analyzedCount": 0,
+          "confidence": "Low"
+        }
+      },
+      "episodeCoverage": {
+        "episodeCount": 0,
+        "editedEpisodeCount": 0,
+        "closedEpisodeCount": 0,
+        "recoveredEpisodeCount": 0
+      },
+      "deliveryEvidenceLevels": [],
+      "sourceGaps": []
+    },
+    "semanticFacets": {
+      "schemaVersion": 1,
+      "status": "supplementary",
+      "entries": [
+        {
+          "id": "session-insight:source-coverage",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "source-coverage",
+            "Low"
+          ],
+          "summary": "Analyzed 0 of 0 sessions; 0/6 enabled source roots exist. Use this as the current workspace evidence boundary for final insight cards.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:validation-behavior",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "validation-behavior",
+            "Low"
+          ],
+          "summary": "No validation command category was observed in the analyzed session sample. Inspect more sessions or add explicit validation guidance before claiming validation-after-edit behavior.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:post-edit-validation",
+          "kind": "rework-correction",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "post-edit-validation",
+            "Low"
+          ],
+          "summary": "No edit event was observed in the analyzed sample. Inspect more sessions before making claims about edit or validation habits.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:execution-friction",
+          "kind": "friction-taxonomy",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "execution-friction",
+            "Low"
+          ],
+          "summary": "No strong execution friction signal in the analyzed sample. Keep friction claims narrow unless additional failed commands, rejected actions, or warnings are inspected.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        }
+      ]
+    },
+    "learningCapture": {
+      "schemaVersion": 1,
+      "state": "N/A",
+      "summary": "N/A — requires two comparable observation windows and an intervention comparison.",
+      "interventions": []
+    },
+    "aiAgentPractice": {
+      "inspectedSurfaces": [],
+      "coverageRows": [
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Global",
+            "Plugin"
+          ],
+          "count": 20,
+          "paths": [
+            "~/.agents/skills/brainstorming/SKILL.md",
+            "~/.agents/skills/dispatching-parallel-agents/SKILL.md",
+            "~/.agents/skills/executing-plans/SKILL.md",
+            "~/.agents/skills/finance-expert/SKILL.md",
+            "~/.agents/skills/find-skills/SKILL.md",
+            "~/.agents/skills/finishing-a-development-branch/SKILL.md",
+            "~/.agents/skills/receiving-code-review/SKILL.md",
+            "~/.agents/skills/requesting-code-review/SKILL.md",
+            "~/.agents/skills/subagent-driven-development/SKILL.md",
+            "~/.agents/skills/systematic-debugging/SKILL.md",
+            "~/.agents/skills/test-driven-development/SKILL.md",
+            "~/.agents/skills/trading-strategies/SKILL.md"
+          ]
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 1,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.mcp.json"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 3,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin"
+          ]
+        },
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        }
+      ],
+      "repositorySourceRows": [],
+      "memoryDetails": {
+        "contentPolicy": "metadata-only",
+        "scanState": "scanned-empty",
+        "scopeCounts": [],
+        "integrity": {
+          "status": "reviewed",
+          "titleCount": 0,
+          "reviewedTitleCount": 0,
+          "truncated": false,
+          "exactCollisionGroups": 0,
+          "similarityCandidates": 0
+        }
+      }
+    },
+    "projectName": "forex",
+    "locale": "en",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 26,
+    "overview": "The project's strongest harness assets - a 171-method contract and regression suite plus frozen-registry integrity - do not reach the currently changed optimizer chain: its result artifacts disagree, the documented run overwrites a tracked document, and latent defects sit in staged code that no check would catch. No Qoder session evidence is observable on this machine, so agent work-loop behavior is unobserved and this review is session-limited.",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "Task Understanding",
+        "score": 52,
+        "summary": "progress.md provides a file-role map and documented run commands, but no AGENTS.md routes an agent, the narrative already drifts from the artifacts it describes, and the current diff mixes bulk data churn with core logic edits.",
+        "findingRefs": [
+          "data-churn-mixed-with-logic"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "Controlled Execution",
+        "score": 52,
+        "summary": "Setup and run commands are documented (Python 3.13, pip install pytest tzdata), but there is no manifest, doctor route, or managed output boundary - the documented optimizer run overwrites a tracked findings document.",
+        "findingRefs": [
+          "optimizer-overwrites-findings-doc"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "Change Validation",
+        "score": 55,
+        "summary": "A dense 171-method contract and regression suite covers the EA and TRIAD chains with token-named failures, but nothing maps the currently changed optimizer chain; defects in this very diff confirm the gap.",
+        "findingRefs": [
+          "changed-chain-unverified",
+          "strategy-optimizer-format-defect",
+          "findings-wrong-data-window"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "Reliable Delivery",
+        "score": 48,
+        "summary": "Acceptance is narrative: staged progress notes, regenerated findings, and validation comments disagree on the champion result, no CI or merge gate exists, and recovery relies on git alone.",
+        "findingRefs": [
+          "result-artifacts-disagree"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "Learning Capture",
+        "score": 35,
+        "summary": "A bounded review was completed, but no Qoder session evidence is observable on this machine and the project owns no memory or skill assets, so no repeated-work or learning claim is decidable.",
+        "findingRefs": [
+          "session-evidence-unobservable"
+        ]
+      }
+    ],
+    "assignmentSummaries": []
+  },
+  "findings": [
+    {
+      "id": "changed-chain-unverified",
+      "title": "A regression in the changed optimizer tools passes the entire test suite",
+      "severity": "Medium",
+      "reason": "The current diff rewrites the data loader in tools/aggressive_optimizer.py, adds the 802-line tools/strategy_optimizer.py, and adds tools/_validate_4yr.py, but none of the 171 test methods under tests/ import any of these modules (verified by import map). The suite is the project's declared validation route - progress.md documents the 171 tests and the evidence pack routes validation through tests/ - so a load_pair regression (wrong CSV picked, or silently loading no data) passes every check; the defects sitting in this same diff show the gap is live. Owner: tests/ has no focused coverage for the changed chain. Uncertainty: the changed scripts declare no test requirement of their own, so this is a wiring gap between existing validation and the changed entrypoint, not an execution failure.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd the smallest focused pytest coverage for the changed optimizer chain in tests/, following the existing contract-test style of tests/test_source_contract.py: loader behavior of tools/aggressive_optimizer.py (including the no-match and multi-match paths of load_pair) and the write path of tools/strategy_optimizer.py.\n\n## Validation\n\n- Run the focused tests and confirm a deliberately wrong loader pick fails a named test",
+      "expectedArtifact": "Test",
+      "expectedOutput": [
+        "Update the existing Test owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "result-artifacts-disagree",
+      "title": "Result artifacts disagree on the champion strategy and its numbers",
+      "severity": "Medium",
+      "reason": "Three co-changed artifacts in the current diff state different results for the same revalidation: staged progress.md says the best config is RB=8 with Phase 1 in 15 days and GBPJPY $4,509; the regenerated findings_aggressive_optimizer.md says the best is RB=6 with Phase 1 in 8 days (its RB=8 row is number 5 at 12 days) and GBPJPY $5,789; tools/_validate_4yr.py's own comment says 12 days. Nothing in the repo reconciles them, and which numbers are correct cannot be decided without a run (nothing was executed in this review). Consequence: any future task that trusts the repo's narrative may select or trade the wrong configuration. Owners: progress.md, findings_aggressive_optimizer.md, and tools/_validate_4yr.py each record results independently. Uncertainty: the inconsistency is statically verified; adjudicating the correct numbers requires running the pipeline.",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nMake one authoritative source for the revalidation result: re-run the documented pipeline (python tools/aggressive_optimizer.py), then update progress.md, findings_aggressive_optimizer.md, and the tools/_validate_4yr.py comments to the same best-config and headline numbers, or clearly mark the superseded ones.\n\n## Validation\n\n- The three artifacts state the same best config, Phase-1 duration, and GBPJPY figure, or explicitly mark the stale values as superseded",
+      "expectedArtifact": "Document",
+      "expectedOutput": [
+        "Update the existing Document owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "optimizer-overwrites-findings-doc",
+      "title": "Each optimizer run overwrites the tracked findings document and its bug writeups",
+      "severity": "Medium",
+      "reason": "write_findings in tools/aggressive_optimizer.py writes directly to the tracked findings_aggressive_optimizer.md. The current diff shows the consequence: a regeneration removed 169 lines of curated bug writeups while the staged progress.md still references that content. The project already gitignores its other generated validation outputs (validation/*.csv, *_report.json), so a managed-output convention exists; this document is the one generated report written into a tracked path, and recovery is only through git. Owner: the output path choice in tools/aggressive_optimizer.py plus the repo's ignore conventions. Uncertainty: whether this particular regeneration was intended; the destructive output contract itself is static and observed.",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nRoute the optimizer's generated findings to a gitignored output path consistent with the existing validation-output ignores, or preserve the curated sections when regenerating, and update progress.md references to the new location.\n\n## Validation\n\n- Running the documented optimizer command no longer modifies a tracked findings_*.md file, and the referenced bug writeups remain available",
+      "expectedArtifact": "Code",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "strategy-optimizer-format-defect",
+      "title": "Staged strategy_optimizer.py crashes its findings output on any viable run",
+      "severity": "Low",
+      "reason": "Line 716 of the staged tools/strategy_optimizer.py uses an invalid f-string format spec (a ':.2f if ... else ...' expression inside the spec), which raises ValueError whenever write_findings formats a win-rate line; the correct conditional form is already used at line 554 of the same file. The path is currently inert because the tick CSVs named in TICK_FILES are absent from the repo (verified), and the staged progress.md labels the file as superseded and committed for history, so the defect is present in staged code but has not fired. Deterministic static defect; runtime was not executed in this review.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nFix the invalid f-string format spec at line 716 of tools/strategy_optimizer.py to match the correct conditional form already used at line 554 of the same file.\n\n## Validation\n\n- A minimal formatting reproduction of the write_findings win-rate line no longer raises, or the focused coverage from the changed-chain finding passes",
+      "expectedArtifact": "Code",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "findings-wrong-data-window",
+      "title": "Regenerated findings report the wrong data window for the current dataset",
+      "severity": "Low",
+      "reason": "write_findings in tools/aggressive_optimizer.py hardcodes a header claiming roughly Jan 2024 to Sep 2026, about 2.5 years and 200K bars per pair, but the rewritten loader now selects the 2022-09-11 to 2026-09-11 four-year files (about 289K rows per pair). Every result in the regenerated findings_aggressive_optimizer.md is therefore presented under a false evidence basis, which matters in a repository whose purpose is validating a trading strategy over a specific window. Owner: the hardcoded template line. Uncertainty: low - both the template and the selected data files were opened.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nDerive the data-window header in write_findings from the files actually loaded (span and row count) instead of the hardcoded string.\n\n## Validation\n\n- The regenerated findings state the actual loaded span and bar count, matching the selected CSV filenames",
+      "expectedArtifact": "Code",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "data-churn-mixed-with-logic",
+      "title": "A 7.5M-line data swap is mixed into the core logic change",
+      "severity": "Low",
+      "reason": "The current diff combines a 5-line loader fix and a new 802-line script with an 11-file tracked CSV deletion (about 2.2M rows) and roughly 160MB of untracked replacement CSVs under validation/HistoryData/, which .gitignore does not cover. Review signal for the logic change is drowned by data churn, and the untracked bulk data sits as unmanaged working-tree noise; the project already ignores its other validation outputs, so the ignore convention exists. Owners: repository data conventions and .gitignore. Uncertainty: whether the deleted and added CSVs are data-equivalent was not verified (that needs execution); the counts route inspection only.",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nSeparate the data move from the logic change (commit them independently) and extend .gitignore to cover the large market-data CSVs under validation/HistoryData/, consistent with the existing validation-output ignores.\n\n## Validation\n\n- git status no longer lists the market-data CSVs as untracked noise, and the logic change reviews on its own",
+      "expectedArtifact": "Config",
+      "expectedOutput": [
+        "Update the existing Config owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "session-evidence-unobservable",
+      "title": "No observable Qoder session evidence leaves repeated-work learning undecidable",
+      "severity": "Low",
+      "reason": "The production session source probe checked the six enabled Qoder source roots for this workspace and found that 0 of 6 exist (audit log, run manifests, log sessions, project sessions, and home sessions; two further roots are disabled). The 30-day window therefore admits 0 eligible sessions and 0 Task Episodes, so this and future harness reviews on this machine cannot distinguish repeated work, validation habits, or memory value, and must stay session-limited. The cause is not established by the evidence - absent roots could reflect where this Qoder install stores its data, retention, or teardown, not a project defect. Per the review model, this unresolved observation boundary requires an explicit evidence-gap record instead of a no-activity claim.",
+      "dimensionRefs": [
+        "learning-capture"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nFor harness reviews on this machine, record the session-evidence boundary explicitly: run the Better Harness session source probe (session-analysis sources --platform qoder --workspace <target>) before any session-derived claim, and report reviews as session-limited while zero enabled roots exist. Do not treat zero sessions as zero activity.\n\n## Validation\n\n- The probe runs and its root-existence result is stated in the next review's evidence boundary",
+      "expectedArtifact": "Document",
+      "expectedOutput": [
+        "Update the existing Document owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+- All user-tunable behavior is exposed as `input` variables prefixed with `Inp` (e.g. `InpPhase`, `InpProfile`, `InpNewsCsvFile`), separating configuration from constants and enums defined at file scope.
+- Session and time logic is implemented via paired civil-time helpers (`LondonUtcOffsetSeconds`/`NewYorkUtcOffsetSeconds`, `LocalWallToUtc`, `ServerToUtc`/`ServerToUtc`, `BuildBoundsForCivilDate`, `GetCurrentSessionBounds`) rather than ad-hoc datetime math inside event handlers.
+- Audit logging goes through a central `LogEvent(level, event_name, detail)` function that writes a semicolon-delimited CSV header once and appends rows with server time, balance, and equity.
+- Persistence uses atomic commit markers: critical state groups are written as multiple fields followed by a checksum/signature field (e.g. `StateSig`, `HaltSig`) flushed last, so partial writes are rejected on reload.
+- Configuration and runtime identity are captured as FNV-style hashes (`BuildConfigHash`, `RuntimeIdentitySignature`, `AccountStateSignature`) used to detect config drift or unauthorized state reuse across terminal restarts.
+- News calendar loading validates every row strictly — timestamp format, 3-letter currency code, and required `COVERAGE` declaration — and treats missing or stale coverage as a hard failure rather than a warning.

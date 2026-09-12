@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: tools
+title: Forex Strategy Research & Validation Toolkit
+scope:
+    - tools/
+source_files: []
+depends_on: []
+related_to:
+    - path: tests

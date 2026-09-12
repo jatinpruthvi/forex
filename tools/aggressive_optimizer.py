@@ -147,10 +147,12 @@ class Trade:
 # ---------------------------------------------------------------------------
 
 def load_pair(symbol: str) -> list[Bar]:
-    fname = f"{symbol.lower()}-m5-fsb.csv"
-    path  = DATA_DIR / fname
-    if not path.exists():
+    # Support both old (*-fsb.csv) and new (*-YYYY-MM-DD_YYYY-MM-DD.csv) naming
+    candidates = list(DATA_DIR.glob(f"{symbol.lower()}-m5-*.csv"))
+    if not candidates:
         return []
+    # Prefer longer (more data) file; fall back to any match
+    path = max(candidates, key=lambda p: p.stat().st_size)
     bars = []
     with open(path, newline="") as f:
         rdr = csv.reader(f)

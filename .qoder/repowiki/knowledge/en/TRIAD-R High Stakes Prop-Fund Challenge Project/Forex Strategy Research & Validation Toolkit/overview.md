@@ -1,0 +1,1 @@
+Standalone Python scripts for backtesting, parameter grid searching, and registry-conformant validation of The5ers challenge strategies against historical tick data.

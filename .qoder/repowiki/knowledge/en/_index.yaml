@@ -1,0 +1,109 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: "2026-09-12T07:22:44Z"
+modules:
+    "":
+        dir_name: TRIAD-R High Stakes Prop-Fund Challenge Project
+        title: TRIAD-R High Stakes Prop-Fund Challenge Project
+        scope:
+            - .gitignore
+            - STRATEGY-PORTFOLIO-AUDIT.md
+            - THE5ERS-*.md
+            - TRIAD-*.md
+            - findings_*.md
+            - progress.md
+            - prop-fund-challenge-improvement-plan.md
+            - signal-rate-research-findings.md
+            - strategy-improvements-plan.md
+            - studyarena-*.md
+            - THE5ERS-2.5K-CHALLENGE-PLAN.md
+            - THE5ERS-CHALLENGE-OPTIMIZATION.md
+            - THE5ERS-CHALLENGE-STRATEGY-V2.md
+            - THE5ERS-CHALLENGE-V2-REVALIDATION.md
+            - THE5ERS-END-TO-END-PRECODE-CHECKLIST.md
+            - THE5ERS-HIGH-STAKES-RESEARCH.md
+            - THE5ERS-PROPOSAL-REVIEW.md
+            - THE5ERS-STRATEGY-IMPROVEMENT-SUGGESTION-REVIEW.md
+            - TRIAD-SURVIVE.md
+            - TRIAD_R_HS-CODE-REVIEW.md
+            - bolt-TRIAD-SWEEP
+            - bolt-TRIAD-SWEEP-2
+            - findings_aggressive_optimizer.md
+            - findings_orb_strategy.md
+            - studyarena-round10-claude-fable-5-high-reasoning.md
+            - studyarena-round10-claude-opus-5-high-reasoning.md
+            - studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md
+            - studyarena-round10-kimi-k3-high-reasoning.md
+            - studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md
+            - studyarena-round11-contestant-a.md
+            - studyarena-round11-contestant-b.md
+            - studyarena-round11-contestant-c.md
+            - studyarena-round11-contestant-d.md
+            - studyarena-round11-contestant-e.md
+            - studyarena-round11-contestant-f.md
+            - studyarena-round12-claude-fable-5-high-reasoning.md
+            - studyarena-round12-contestant-a.md
+            - studyarena-round12-contestant-b.md
+            - studyarena-round12-contestant-c.md
+            - studyarena-round12-contestant-f.md
+            - studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md
+            - studyarena-round4-contestant-b.md
+            - studyarena-round4-contestant-c.md
+            - studyarena-round4-contestant-d.md
+            - studyarena-round4-contestant-e.md
+            - studyarena-round4-contestant-f.md
+            - studyarena-round5-contestant-a.md
+            - studyarena-round5-contestant-b.md
+            - studyarena-round5-contestant-c.md
+            - studyarena-round5-contestant-d.md
+            - studyarena-round5-contestant-e.md
+            - studyarena-round5-contestant-f.md
+            - studyarena-round7-contestant-a.md
+            - studyarena-round7-contestant-b.md
+            - studyarena-round7-contestant-c.md
+            - studyarena-round7-contestant-d.md
+            - studyarena-round8-contestant-a.md
+            - studyarena-round8-contestant-b.md
+            - studyarena-round8-contestant-c.md
+            - studyarena-round8-contestant-d.md
+        source_files: []
+        children:
+            - mql5_experts
+            - tests
+            - tools
+        depends_on: []
+        related_to: []
+    mql5_experts:
+        dir_name: TRIAD MQL5 Expert Advisors (Research & Screening EAs)
+        title: TRIAD MQL5 Expert Advisors (Research & Screening EAs)
+        scope:
+            - MQL5/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: tests
+    tests:
+        dir_name: TRIAD Strategy Test Suite
+        title: TRIAD Strategy Test Suite
+        scope:
+            - tests/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: mql5_experts
+            - path: tools
+    tools:
+        dir_name: Forex Strategy Research & Validation Toolkit
+        title: Forex Strategy Research & Validation Toolkit
+        scope:
+            - tools/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: tests

@@ -1,0 +1,4 @@
+- Strategy entry geometry parameters (sweep/reclaim thresholds, stop buffers, displacement body ratios) are frozen in the EA source and mirrored in `validation/triad_v2_1_registry.json`; changing them invalidates all prior validation work.
+- New EA inputs default to preserving baseline behaviour (e.g., optional filters off by default) so existing test expectations remain stable.
+- All Python tooling reads/writes tabular data via plain CSV with explicit schemas defined per file (observed_events, replay_rows, HistoryData) rather than binary formats.
+- Validation splits are declared before data generation — selection and holdout date ranges are passed as CLI arguments and never inferred at runtime.

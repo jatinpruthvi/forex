@@ -1,0 +1,1 @@
+Pure Python 3 with only stdlib (csv, statistics, dataclasses, argparse, hashlib, json); no pandas/numpy/scipy. Historical data is read as tab-delimited tick CSVs produced by MT5 Strategy Tester or a custom replay harness.

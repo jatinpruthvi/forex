@@ -1,0 +1,1 @@
+Python unittest suite that verifies the TRIAD MQL5 EA, its screen variant, and the replay/ablation/validation tooling against a pure-Python reference implementation and committed registries.

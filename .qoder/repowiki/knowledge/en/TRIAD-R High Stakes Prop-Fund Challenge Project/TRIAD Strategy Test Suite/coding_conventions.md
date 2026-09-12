@@ -1,0 +1,6 @@
+- Each test module defines a single `unittest.TestCase` class (or multiple classes) grouped by feature area and ends with `if __name__ == "__main__": unittest.main()`.
+- Test fixtures construct minimal `ObservedEvent` / `ReplayRow` / `CandidateConfig` objects via small helper functions (e.g. `_event`, `replay_row`, `make_row`) rather than inline dicts, keeping event construction DRY across suites.
+- Assertions use exact `Decimal` equality or `assertAlmostEqual(..., places=...)` for floating-point financial results instead of approximate `assertAlmostEqual` without tolerance.
+- Contract tests read the target `.mq5` source once in `setUpClass` and assert behavior by searching for required tokens, regex patterns, or substring markers inside the file text.
+- Committed registries are loaded via `load_registry(COMMITTED_REGISTRY)` and compared against `build_registry()` to detect drift between declared and persisted configuration matrices.
+- Validation failures are asserted by expecting `ValidationError` raised from the tools package, using `self.assertRaises(ValidationError)` or `assertRaisesRegex(..., '...')` to pin error messages.

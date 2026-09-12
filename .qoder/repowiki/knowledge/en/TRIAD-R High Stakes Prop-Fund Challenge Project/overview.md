@@ -1,0 +1,1 @@
+End-to-end prop-fund challenge project that implements, validates, and optimizes the TRIAD-R MQL5 expert advisor for The5ers $2,500 New High Stakes using a Python-backed backtest/validation pipeline.
