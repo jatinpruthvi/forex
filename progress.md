@@ -669,7 +669,29 @@ New tool version `tools/audit_champion_live.py` (rewritten on the fixed model) +
 - **The config is NOT certifiable from M5 data and must not go live/demo on this evidence.** Next mandatory step: tick/1-minute validation of the fill/ambiguity windows (`tools/tick_signal_builder.py` exists; request Eightcap tick data 2019+).
 - If tick data confirms the optimistic path → 3-core only, raw account, T=2.5 RB=6, PF ~1.5.
 - Redesign lever if it confirms coin/pessimistic: wider stops (≥0.5–1.0×ATR), re-optimize on the fixed simulator only.
+---
+
+## 23. Session 8 — 2-Year Gate: "Is the edge the bug?" Answer: Mostly Yes (2026-09-12)
+
+Built `tools/optimizer_v2.py` (cost-aware: raw spread + $7/lot charged per trade inside the backtest; ambiguity-aware: coin-bound ranking + per-config ambiguity %; min-stop-pips filter; ATR-stop grid widened to 1.0×). Gate per user: validate on the 2-year FSB dataset first; only proceed to 4-year if promising.
+
+### Data accuracy
+2-year FSB files and 4-year files are **100% identical** on all overlapping 2024–26 bars (1,200 sampled, max diff 0.00000). Data inputs are clean.
+
+### 2-year gate results (costs ON, coin bound)
+- **60/72 combos negative; 59 halted at the $2,250 floor.**
+- Best: `T=2.0R RB=8 ATs=0.25 minStop=6` → **+$24/mo (PF 1.29), Phase 1 in 405 trading days**; zero-cost coin = $45/mo; pessimistic+costs busts.
+- **XAUUSD = 103% of champion P&L**; other 10 pairs net negative. Gold-only ≈ same result.
+- Wider stops cut ambiguity exactly as engineered (15% → 1–8%) **but kill the edge** (ATs≥0.75 → negative). The tight stop WAS the edge.
+
+### Verdict (per user gate): NOT PROMISING — 4-year run not warranted
+Answer to "what if the bug is our strategy": to first order it was — the old $220–360/mo was adverse-selection fills + optimistic intrabar resolution + zero costs. Honest mid bound: $24/mo, ~19 months to Phase 1, sign still hostage to 13–16% path-dependent trades.
+
+### Next steps (agreed priority)
+1. Tick/1-minute data validation (only way to certify tight-stop M5 strategies; `tick_signal_builder.py` ready — need Eightcap tick export from user).
+2. If tick confirms coin/pessimistic → pivot to TRIAD sweep/reclaim geometry (stops 0.6–1.5×ATR-M15 = 10–40 pips → cost share 2–5%, near-zero M5 ambiguity — structurally immune to this failure mode).
+3. XAUUSD is the only keeper from the ORB family.
 
 ---
 
-*Last updated: end of session 7 (fill-semantics fixes + de-certification pending tick data). Session 6 found the 4 bugs; session 7 fixed them, re-ran everything, and showed the honest expectancy band is [bust, +$104/mo after costs] with the mid bound negative. 185 tests pass. Next: tick/1-min data validation before any MetaEditor compile/demo step.*
+*Last updated: end of session 8 (2-year gate) (fill-semantics fixes + de-certification pending tick data). Session 6 found the 4 bugs; session 7 fixed them, re-ran everything, and showed the honest expectancy band is [bust, +$104/mo after costs] with the mid bound negative. 185 tests pass. Next: tick/1-min data validation before any MetaEditor compile/demo step.*

@@ -89,3 +89,43 @@ $359/mo, P1 12d); "realistic" variants $6.6–10.9K; conclusion then was
 "~$135–180/mo live". That conclusion was too optimistic because it still
 booked the 369 never-fillable winners and the optimistic ambiguity bound. See
 git history (`e3e6ccd`) for that version.
+
+---
+
+## 6. ADDENDUM (session 8): "What if the bug IS the strategy?" — tested on the 2-year gate
+
+**Tool:** `tools/optimizer_v2.py` — cost-aware (raw-account spread + $7/lot charged
+inside every trade), ambiguity-aware (coin-bound ranking, per-config ambiguity %),
+min-stop-pips filter, wider ATR-stop grid (0.25→1.0), one-slot scheduling.
+
+**Data accuracy:** the 2-year FSB files and the 4-year files are **100% identical**
+on all overlapping 2024–26 bars (1,200 sampled across EURUSD/GBPJPY/XAUUSD,
+max diff 0.00000). The 4-year set is the same source extended back to Sep-2022 —
+input data is clean; all prior results stand.
+
+### 2-year gate results (Jan 2024 → Sep 2026, 837 days, costs ON, coin bound)
+- **60 of 72 combos NEGATIVE after costs; 59 hit the $2,250 floor halt.**
+- Best survivor: `T=2.0R RB=8 ATs=0.25 minStop=6p` → **+$24/mo (PF 1.29), Phase 1 in 405 trading days**.
+- Champion edge-vs-cost split: zero-cost coin +$45/mo (PF 1.62) → with costs +$24/mo → pessimistic bound + costs **busts** (−$261, PF 0.69).
+- **XAUUSD carries 103% of the champion's P&L** (481 of 519 trades); the other 10 pairs sum negative. Gold-only ≈ identical (+$25/mo).
+- Ambiguity engineering works mechanically — wider stops cut ambiguous exits from 15% to 1–8% (ATs=0.75 → 3.2%, ATs=1.0 → 1.3%) — **but the expectancy dies with it** (ATs≥0.75 → negative). The tight stop WAS the edge.
+
+### Verdict per the agreed gate: NOT PROMISING → 4-year run not warranted
+The 2024–26 regime says: after honest fills and real costs, this ORB family is a
+marginal grinder at best ($24/mo, ~19 months to Phase 1), whose outcome sign is
+still hostage to 13–16% path-dependent trades (bounds span −$261 → +$1,859).
+Combined with session 7: **the old $220–360/mo figures were, to first order,
+the two bugs — adverse-selection fills + optimistic intrabar resolution — not
+a robust edge.**
+
+### Where this leaves the project (recommendations, in order)
+1. **Tick/1-minute validation is now the only way to certify ANY tight-stop M5
+   strategy** — it resolves the intrabar path and true limit-fill rate directly
+   (`tools/tick_signal_builder.py` is ready; need Eightcap tick export).
+2. If tick data confirms only the coin/pessimistic path → **drop the ORB family
+   and pivot validation effort to the TRIAD sweep/reclaim geometry** (the repo's
+   original EA): stops are 0.6–1.5×ATR-M15 (10–40 pips) → cost share ~2–5% of
+   risk and near-zero same-bar ambiguity on M5. That design is structurally
+   immune to the failure mode found here.
+3. Gold-only (XAUUSD) is the only instrument worth keeping from this family if
+   it is ever revisited.
