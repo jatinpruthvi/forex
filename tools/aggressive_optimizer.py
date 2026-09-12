@@ -57,18 +57,24 @@ STRATEGY_GRID   = ["orb_atr", "orb_half", "vola"]
 # ---------------------------------------------------------------------------
 # Instrument specs
 # ---------------------------------------------------------------------------
+# pv (pip value) = USD value of 1 pip per standard lot (100,000 units for FX, 100 oz for Gold).
+# FX USD-quote pairs (EURUSD, GBPUSD, AUDUSD, NZDUSD): pv = $10 exactly.
+# FX USD-base pairs (USDCAD, USDCHF): pv ≈ $10 (quote-rate varies; $10 is a reasonable mid).
+# FX GBP-cross (EURGBP): pv ≈ $12-13 (depends on GBPUSD rate); using $12.70 mid.
+# JPY pairs: pv = 100,000 * 0.01 / rate. Rates for 2024-2026 mid: USDJPY≈148, EURJPY≈163, GBPJPY≈193.
+# XAUUSD: 100 oz * $0.10/pip/oz = $10 per pip per lot (exact).
 SPECS = {
-    "EURUSD": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "GBPUSD": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "EURGBP": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "AUDUSD": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "NZDUSD": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "USDCAD": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "USDCHF": {"pip": 0.0001, "tv": 10.0, "ts": 0.00001},
-    "USDJPY": {"pip": 0.01,   "tv":  9.09, "ts": 0.001  },
-    "EURJPY": {"pip": 0.01,   "tv":  9.09, "ts": 0.001  },
-    "GBPJPY": {"pip": 0.01,   "tv":  9.09, "ts": 0.001  },
-    "XAUUSD": {"pip": 0.10,   "tv":  1.0,  "ts": 0.01   },
+    "EURUSD": {"pip": 0.0001, "pv": 10.00},
+    "GBPUSD": {"pip": 0.0001, "pv": 10.00},
+    "EURGBP": {"pip": 0.0001, "pv": 12.70},
+    "AUDUSD": {"pip": 0.0001, "pv": 10.00},
+    "NZDUSD": {"pip": 0.0001, "pv": 10.00},
+    "USDCAD": {"pip": 0.0001, "pv":  9.80},
+    "USDCHF": {"pip": 0.0001, "pv":  9.80},
+    "USDJPY": {"pip": 0.01,   "pv":  6.76},   # 100,000*0.01/148
+    "EURJPY": {"pip": 0.01,   "pv":  6.13},   # 100,000*0.01/163
+    "GBPJPY": {"pip": 0.01,   "pv":  5.18},   # 100,000*0.01/193
+    "XAUUSD": {"pip": 0.10,   "pv": 10.00},   # 100oz * $0.10/pip/oz
 }
 
 # Session pair lists
@@ -205,9 +211,9 @@ def preprocess(bars: list[Bar]) -> tuple[dict, dict]:
 def calc_lots(stop_dist: float, symbol: str) -> float:
     spec = SPECS[symbol]
     risk = ACCOUNT_BALANCE * RISK_FRACTION   # always $10
-    pv   = spec["tv"] * (spec["pip"] / spec["ts"])
-    sp   = stop_dist / spec["pip"]
-    lpl  = sp * pv + COMMISSION_PER_LOT
+    pv   = spec["pv"]                        # USD per pip per standard lot
+    sp   = stop_dist / spec["pip"]           # stop distance in pips
+    lpl  = sp * pv + COMMISSION_PER_LOT      # $ loss per lot at stop
     if lpl <= 0: return 0.0
     return max(0.0, math.floor((risk / lpl) / VOLUME_STEP) * VOLUME_STEP)
 
@@ -304,7 +310,7 @@ def simulate(sig: dict, future_bars: list[Bar], end_utc: datetime, symbol: str) 
     else:
         if fwd: exit_price = fwd[-1].close
 
-    pv      = spec["tv"] * (spec["pip"] / spec["ts"])
+    pv      = spec["pv"]                     # USD per pip per standard lot
     stop_d  = abs(entry - stop)
     gpips   = ((exit_price-entry) if direction=="long" else (entry-exit_price)) / spec["pip"]
     gross   = gpips * pv * lots
@@ -406,15 +412,19 @@ def run_backtest(
         # Sort: London first, then by symbol alphabetically for determinism
         candidates.sort(key=lambda x: (x[0], x[2]))
 
+        traded_syms: set = set()
         for prio, sig, sym, day_bars, end_utc in candidates:
             if traded >= max_per_day or balance <= daily_floor or halted:
                 break
+            if sym in traded_syms:   # max 1 trade per symbol per day
+                continue
             t       = simulate(sig, day_bars, end_utc, sym)
             balance += t.pnl_cash
             day_pnl += t.pnl_cash
             day_trades.append(t)
             all_trades.append(t)
             traded += 1
+            traded_syms.add(sym)
             peak_balance = max(peak_balance, balance)
             if balance < total_floor:
                 halted = True; break
