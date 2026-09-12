@@ -645,4 +645,31 @@ Per-pair under raw-account friction: EURJPY $3.8K · GBPJPY $3.5K · XAUUSD $3.3
 
 ---
 
-*Last updated: end of session 6 (champion audit). Session 5 re-tested the full 60-combo grid on the complete 2022-09-11 → 2026-09-11 dataset (results reproduce session 4 exactly; champion `orb_atr` T=3.0R RB=8 ATR=0.25 → P1 in 12 trading days, max DD 0.38%, ~$359/mo backtest). Live-honest expectation after friction audit: ~$135–180/mo, PF ~1.6–2.0, P1 ~35–55 days on the 3 core pairs. 171 tests pass. Next: apply Section-4 fixes, then MetaEditor compile + 2-week MT5 demo forward test.*
+## 22. Session 7 — Fill-Semantics Bugs FIXED in Code; Strategy De-Certified Pending Tick Data (2026-09-12)
+
+Follow-up to session 6: the four champion-path bugs were **fixed in `tools/aggressive_optimizer.py`** and everything re-run.
+
+### Fixes (all guarded by `legacy=True` reproducing old numbers to the cent)
+1. **Limit re-touch fills** (`require_touch=True` default): unfilled signals → no trade; exit scan starts at the fill bar.
+2. **Ambiguity knob** (`stop_first`): True=pessimistic / False=optimistic / None=deterministic 50/50 coin (new grid default).
+3. **One account-wide order/position slot**: chronological scheduling, cancel/replace, unfilled limit blocks its session slot.
+4. **Per-day pip values** (`day_pv`): JPY/USDCAD/USDCHF from own-day close (USDCAD old constant $9.80 was wrong, true $7.41@1.35); EURGBP via same-day GBPUSD.
+New tool version `tools/audit_champion_live.py` (rewritten on the fixed model) + 14 regression tests in `tests/test_optimizer_fill_logic.py` → **185/185 pass**.
+
+### Results after the fix (4-year data, zero backtest costs)
+- 11-pair old champion (T=3.0 RB=8): optimistic +$7.0K (PF 1.74) / **coin +$3.9K (PF 1.37, $78/mo)** / pessimistic **BUSTS the $2,250 floor**.
+- Grid re-ranked: new best = 3-core **T=2.5R RB=6**: optimistic +$11.0K (PF 2.66, $220/mo) / coin +$5.5K (PF 1.66, $112/mo) / pessimistic BUST. Under pessimistic bound **no grid combo survives**.
+- **13.5% of filled trades resolve on ambiguous bars** (fill bar spans stop and target) — expectancy is not identifiable from M5.
+
+### With realistic costs (raw account: 55% spread + $7/lot; stops are 2–4.5 pips → cost = 40–65% of the $10 risk unit)
+- Best survivor: 3-core T=2.5 RB=6 **optimistic bound**: +$5.2K (PF 1.57, $104/mo); +slippage still +$3.6K.
+- **Coin-flip mid bound + costs: BUSTS in every universe/config.** 11-pair + costs: breakeven at the optimistic bound.
+
+### Decision
+- **The config is NOT certifiable from M5 data and must not go live/demo on this evidence.** Next mandatory step: tick/1-minute validation of the fill/ambiguity windows (`tools/tick_signal_builder.py` exists; request Eightcap tick data 2019+).
+- If tick data confirms the optimistic path → 3-core only, raw account, T=2.5 RB=6, PF ~1.5.
+- Redesign lever if it confirms coin/pessimistic: wider stops (≥0.5–1.0×ATR), re-optimize on the fixed simulator only.
+
+---
+
+*Last updated: end of session 7 (fill-semantics fixes + de-certification pending tick data). Session 6 found the 4 bugs; session 7 fixed them, re-ran everything, and showed the honest expectancy band is [bust, +$104/mo after costs] with the mid bound negative. 185 tests pass. Next: tick/1-min data validation before any MetaEditor compile/demo step.*

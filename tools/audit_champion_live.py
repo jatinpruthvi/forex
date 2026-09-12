@@ -1,24 +1,22 @@
 """
-Champion-config live-friction audit
-===================================
-Audits the challenge-winning configuration (orb_atr, T=3.0R, ORB=8 bars,
-ATR stop=0.25xATR — and the RB=6 variant) under progressively realistic
-execution assumptions that tools/aggressive_optimizer.py does NOT model:
+Champion live-friction audit (FIXED fill model)
+===============================================
+Sits on top of the corrected simulator in tools/aggressive_optimizer.py
+(limit re-touch fills, one account-wide order/position slot, per-day pip
+values, deterministic-coin ambiguous bars) and stacks REALISTIC costs:
 
-  1. Same-bar target/stop ambiguity  -> resolved PESSIMISTICALLY (stop first).
-     The base code awards the WIN when one M5 bar covers both levels.
-  2. Spread                          -> round-trip spread charged per trade
-     (base code charges none; data is bid/mid so buys at ask lose the spread).
-  3. Entry overshoot (market entry)  -> fill at signal-bar CLOSE instead of the
-     orb level (live market order after bar close; base fills at the level).
-  4. Stop slippage                   -> extra cost on stop exits only.
-  5. Commission                      -> $7/lot round turn (base assumes $4).
+  spread (standard or raw account), $7/lot round-turn commission, market
+  entry instead of limit (chase variant), stop slippage.
+
+Ambiguity bounds are reported per variant:
+  opt = target-first, coin = deterministic 50/50, pess = stop-first.
 
 Usage:
     python tools/audit_champion_live.py
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from collections import defaultdict
@@ -29,16 +27,15 @@ sys.path.insert(0, os.path.abspath("."))
 import tools.aggressive_optimizer as m  # noqa: E402
 
 # --------------------------------------------------------------------------
-# Realistic friction inputs (Eightcap-style standard/raw account, London hours)
-# price units = same units as the pair's prices; "spread" is FULL round trip.
+# Realistic friction inputs (Eightcap-style, London hours; FULL round trip)
 # --------------------------------------------------------------------------
-SPREAD = {   # full spread in price units (typical London-session, standard acct)
+SPREAD = {
     "EURUSD": 0.00010, "GBPUSD": 0.00014, "EURGBP": 0.00014,
     "AUDUSD": 0.00012, "NZDUSD": 0.00016, "USDCAD": 0.00018,
     "USDCHF": 0.00014, "USDJPY": 0.014,  "EURJPY": 0.016,
     "GBPJPY": 0.020,   "XAUUSD": 0.28,
 }
-STOP_SLIP = {  # extra adverse fill on stop exits (news-free normal conditions)
+STOP_SLIP = {
     "EURUSD": 0.00005, "GBPUSD": 0.00007, "EURGBP": 0.00007,
     "AUDUSD": 0.00006, "NZDUSD": 0.00008, "USDCAD": 0.00009,
     "USDCHF": 0.00007, "USDJPY": 0.007,  "EURJPY": 0.008,
@@ -56,47 +53,60 @@ class XTrade:
     exit_reason: str
 
 
-def simulate_x(sig, future_bars, end_utc, symbol, *, stop_first=False,
-               entry_mode="level", charge=0.0, spread_scale=1.0, slip=False,
-               commission=4.0):
-    """Extended simulator: captures timing, supports pessimistic fills.
+def _coin(key: str) -> bool:
+    return int(hashlib.md5(key.encode()).hexdigest(), 16) % 2 == 0
 
-    Returns None when a market-entry fill is too small to size (skipped live).
-    """
+
+def simulate_x(sig, future_bars, end_utc, symbol, *, ambiguity="coin",
+               entry_mode="level", spread=False, spread_scale=1.0, slip=False,
+               commission=4.0):
+    """Fixed-fill simulator with cost knobs. Returns None when unfilled."""
     spec = m.SPECS[symbol]
+    pv = sig.get("pv") or spec["pv"]
     direction = sig["direction"]
-    stop, target0 = sig["stop"], sig["target"]
+    stop, target = sig["stop"], sig["target"]
     bbar = sig["bbar"]
     bbar_end = bbar.ts + timedelta(minutes=5)
     fwd = [b for b in future_bars if bbar_end <= b.ts < end_utc]
 
     if entry_mode == "close":
-        # Live market order: filled at the signal bar's close (overshoot cost).
-        # Lots are RE-SIZED from the actual (larger) stop distance, same $10 risk.
+        # Market chase: fill at signal-bar close, re-sized lots, same R geometry
         entry = bbar.close
         stop_d = abs(entry - stop)
-        lots = m.calc_lots(stop_d, symbol)
+        lots = m.calc_lots(stop_d, symbol, pv)
         if lots < m.VOLUME_MIN:
             return None
-        rr = abs(target0 - sig["entry"]) / max(abs(sig["entry"] - stop), 1e-12)
+        rr = abs(target - sig["entry"]) / max(abs(sig["entry"] - stop), 1e-12)
         target = entry + stop_d * rr if direction == "long" else entry - stop_d * rr
+        fill_i = 0
+        fill_ts = bbar_end
     else:
         entry, lots = sig["entry"], sig["lots"]
+        fill_i = None
+        for i, bar in enumerate(fwd):
+            if (direction == "long" and bar.low <= entry) or \
+               (direction == "short" and bar.high >= entry):
+                fill_i = i
+                break
+        if fill_i is None:
+            return None
+        fill_ts = fwd[fill_i].ts
         stop_d = abs(entry - stop)
-        target = target0
 
     exit_price, exit_reason = entry, "time"
     exit_ts = fwd[-1].ts + timedelta(minutes=5) if fwd else bbar_end
-    for bar in fwd:
+    for bar in fwd[fill_i:]:
         if direction == "long":
-            hit_t = bar.high >= target
-            hit_s = bar.low <= stop
+            hit_t, hit_s = bar.high >= target, bar.low <= stop
         else:
-            hit_t = bar.low <= target
-            hit_s = bar.high >= stop
+            hit_t, hit_s = bar.low <= target, bar.high >= stop
         if hit_t and hit_s:
-            # Ambiguous bar: base code books a WIN; pessimistic books the STOP.
-            exit_price, exit_reason = (stop, "stop") if stop_first else (target, "target")
+            if ambiguity == "coin":
+                sf = _coin(f"{bbar.ts.isoformat()}|{symbol}|{direction}")
+            else:
+                sf = ambiguity == "stop"
+            exit_price = stop if sf else target
+            exit_reason = "stop" if sf else "target"
             exit_ts = bar.ts + timedelta(minutes=5)
             break
         if hit_t:
@@ -114,17 +124,16 @@ def simulate_x(sig, future_bars, end_utc, symbol, *, stop_first=False,
         if fwd:
             exit_price = fwd[-1].close
 
-    pv = spec["pv"]
     gpips = ((exit_price - entry) if direction == "long" else (entry - exit_price)) / spec["pip"]
     gross = gpips * pv * lots
-    spread_cash = charge and (SPREAD[symbol] * spread_scale / spec["pip"]) * pv * lots or 0.0
+    spread_cash = (SPREAD[symbol] * spread_scale / spec["pip"]) * pv * lots if spread else 0.0
     net = gross - commission * lots - spread_cash
     risk_c = stop_d / spec["pip"] * pv * lots + commission * lots + spread_cash
     pnl_r = net / risk_c if risk_c > 0 else 0.0
     return XTrade(symbol, bbar_end, exit_ts, net, pnl_r, exit_reason)
 
 
-def run_variant(cache, target_r, orb_bars, atr_stop, *, stop_first=False,
+def run_variant(cache, target_r, orb_bars, atr_stop, *, ambiguity="coin",
                 entry_mode="level", spread=False, spread_scale=1.0, slip=False,
                 commission=4.0, max_per_day=2):
     all_dates = sorted({d for sym in cache for d in cache[sym][0] if d.weekday() < 5})
@@ -147,14 +156,11 @@ def run_variant(cache, target_r, orb_bars, atr_stop, *, stop_first=False,
         day_pnl = 0.0
         traded = 0
         cands = []
-        # -- London --
         ls, le = m.lw_utc(d, 7), m.lw_utc(d, 11)
         for sym in m.LONDON_PAIRS:
-            if sym not in cache:
+            if sym not in cache or d not in cache[sym][0]:
                 continue
             by_date_sym, atr_map = cache[sym]
-            if d not in by_date_sym:
-                continue
             atr = atr_map.get(d, 0.0)
             if atr <= 0:
                 continue
@@ -162,17 +168,15 @@ def run_variant(cache, target_r, orb_bars, atr_stop, *, stop_first=False,
             eb = [b for b in day_bars if ls <= b.ts < le]
             if len(eb) <= orb_bars + 1:
                 continue
-            sig = m.sig_orb_atr(eb, atr, sym, orb_bars, atr_stop, target_r)
+            pv = m.day_pv(sym, d, cache)
+            sig = m.sig_orb_atr(eb, atr, sym, orb_bars, atr_stop, target_r, pv=pv)
             if sig:
-                cands.append((0, sig, sym, day_bars, le))
-        # -- New York --
+                cands.append((sig["bbar"].ts + timedelta(minutes=5), 0, sig, sym, day_bars, le))
         ns, ne = m.ny_utc(d, 8, 30), m.ny_utc(d, 11, 0)
         for sym in m.NY_PAIRS:
-            if sym not in cache:
+            if sym not in cache or d not in cache[sym][0]:
                 continue
             by_date_sym, atr_map = cache[sym]
-            if d not in by_date_sym:
-                continue
             atr = atr_map.get(d, 0.0)
             if atr <= 0:
                 continue
@@ -180,23 +184,29 @@ def run_variant(cache, target_r, orb_bars, atr_stop, *, stop_first=False,
             eb = [b for b in day_bars if ns <= b.ts < ne]
             if len(eb) <= orb_bars + 1:
                 continue
-            sig = m.sig_orb_atr(eb, atr, sym, orb_bars, atr_stop, target_r)
+            pv = m.day_pv(sym, d, cache)
+            sig = m.sig_orb_atr(eb, atr, sym, orb_bars, atr_stop, target_r, pv=pv)
             if sig:
-                cands.append((1, sig, sym, day_bars, ne))
-        cands.sort(key=lambda x: (x[0], x[2]))
+                cands.append((sig["bbar"].ts + timedelta(minutes=5), 1, sig, sym, day_bars, ne))
+        cands.sort(key=lambda x: (x[0], x[1], x[3]))
 
         traded_syms = set()
-        for prio, sig, sym, day_bars, end_utc in cands:
+        slot_busy_until = None
+        for sig_ts, _prio, sig, sym, day_bars, end_utc in cands:
             if traded >= max_per_day or balance <= daily_floor or halted:
                 break
             if sym in traded_syms:
                 continue
-            t = simulate_x(sig, day_bars, end_utc, sym, stop_first=stop_first,
-                           entry_mode=entry_mode, charge=spread,
+            if slot_busy_until is not None and sig_ts < slot_busy_until:
+                continue
+            t = simulate_x(sig, day_bars, end_utc, sym, ambiguity=ambiguity,
+                           entry_mode=entry_mode, spread=spread,
                            spread_scale=spread_scale, slip=slip,
                            commission=commission)
-            if t is None:   # live EA skips un-sizeable market entry
+            if t is None:
+                slot_busy_until = end_utc
                 continue
+            slot_busy_until = t.exit_ts
             balance += t.pnl_cash
             day_pnl += t.pnl_cash
             trades.append(t)
@@ -216,215 +226,89 @@ def run_variant(cache, target_r, orb_bars, atr_stop, *, stop_first=False,
 
     n = len(trades)
     wins = sum(1 for t in trades if t.exit_reason == "target")
-    loss = sum(1 for t in trades if t.exit_reason == "stop")
     wr = wins / n if n else 0.0
     gw = sum(t.pnl_cash for t in trades if t.pnl_cash > 0)
     gl = abs(sum(t.pnl_cash for t in trades if t.pnl_cash <= 0))
     pf = gw / gl if gl > 0 else float("inf")
     tc = sum(t.pnl_cash for t in trades)
-    peak = run_pk = m.ACCOUNT_BALANCE
+    peak = m.ACCOUNT_BALANCE
     mdd = 0.0
     for _, v in equity:
         peak = max(peak, v)
         mdd = max(mdd, peak - v)
-    mdd_pct = mdd / peak * 100 if peak > 0 else 0.0
     return {
-        "n": n, "wr": wr, "avg_r": (sum(t.pnl_r for t in trades) / n if n else 0.0),
+        "n": n, "wr": wr,
+        "avg_r": (sum(t.pnl_r for t in trades) / n if n else 0.0),
         "pf": pf, "total": tc, "monthly": tc * 21.0 / max(tdays, 1),
-        "dd": mdd_pct, "p1_days": days_to_p1, "p1": p1,
-        "final": balance, "trades": trades,
+        "dd": mdd / peak * 100 if peak > 0 else 0.0,
+        "p1_days": days_to_p1, "p1": p1, "final": balance,
+        "halted": halted, "trades": trades,
     }
 
 
-def fill_rate_analysis(cache, target_r, orb_bars, atr_stop):
-    """Of all signals the base backtest 'fills at the orb level', how many
-    would a live LIMIT order actually fill (price must re-touch the level)?"""
-    touched_pnl = 0.0
-    missed_n = 0
-    touched_n = 0
-    missed_pnl = 0.0
-    missed_wins = 0
-    for d in sorted({dd for sym in cache for dd in cache[sym][0] if dd.weekday() < 5}):
-        cands = []
-        ls, le = m.lw_utc(d, 7), m.lw_utc(d, 11)
-        for sym in m.LONDON_PAIRS:
-            if sym not in cache or d not in cache[sym][0]:
-                continue
-            by_date_sym, atr_map = cache[sym]
-            atr = atr_map.get(d, 0.0)
-            if atr <= 0:
-                continue
-            day_bars = by_date_sym[d]
-            eb = [b for b in day_bars if ls <= b.ts < le]
-            if len(eb) > orb_bars + 1:
-                sig = m.sig_orb_atr(eb, atr, sym, orb_bars, atr_stop, target_r)
-                if sig:
-                    cands.append((sig, sym, day_bars, le))
-        ns, ne = m.ny_utc(d, 8, 30), m.ny_utc(d, 11, 0)
-        for sym in m.NY_PAIRS:
-            if sym not in cache or d not in cache[sym][0]:
-                continue
-            by_date_sym, atr_map = cache[sym]
-            atr = atr_map.get(d, 0.0)
-            if atr <= 0:
-                continue
-            day_bars = by_date_sym[d]
-            eb = [b for b in day_bars if ns <= b.ts < ne]
-            if len(eb) > orb_bars + 1:
-                sig = m.sig_orb_atr(eb, atr, sym, orb_bars, atr_stop, target_r)
-                if sig:
-                    cands.append((sig, sym, day_bars, ne))
-        cands.sort(key=lambda x: x[1])
-        seen = set()
-        for sig, sym, day_bars, end_utc in cands:
-            if sym in seen:
-                continue
-            seen.add(sym)
-            t = m.simulate(sig, day_bars, end_utc, sym)
-            entry, direction = sig["entry"], sig["direction"]
-            bbar_end = sig["bbar"].ts + timedelta(minutes=5)
-            fwd = [b for b in day_bars if bbar_end <= b.ts < end_utc]
-            if direction == "long":
-                touches = any(b.low <= entry for b in fwd)
-            else:
-                touches = any(b.high >= entry for b in fwd)
-            if touches:
-                touched_n += 1
-                touched_pnl += t.pnl_cash
-            else:
-                missed_n += 1
-                missed_pnl += t.pnl_cash
-                missed_wins += 1 if t.pnl_cash > 0 else 0
-    total = touched_pnl + missed_pnl
-    print(f"  Signals: {touched_n + missed_n} | limit would fill: {touched_n} "
-          f"| NEVER touched level (no trade live): {missed_n} "
-          f"({missed_n/(touched_n+missed_n)*100:.1f}%)")
-    print(f"  P&L booked by backtest on never-filled signals: ${missed_pnl:.2f} "
-          f"({missed_pnl/total*100:.1f}% of total P&L); "
-          f"{missed_wins}/{missed_n} of them were winners")
-
-
-def overlap_stats(trades):
-    """Max simultaneous open positions and #days with overlapping holds."""
-    by_day = defaultdict(list)
-    for t in trades:
-        by_day[t.entry_ts.date()].append(t)
-    overlap_days = 0
-    max_sim = 0
-    for d, ts_ in by_day.items():
-        events = []
-        for t in ts_:
-            events.append((t.entry_ts, 1))
-            events.append((t.exit_ts, -1))
-        events.sort(key=lambda x: (x[0], x[1]))
-        cur = 0
-        day_sim = 0
-        for _, delta in events:
-            cur += delta
-            day_sim = max(day_sim, cur)
-        if day_sim > 1:
-            overlap_days += 1
-        max_sim = max(max_sim, day_sim)
-    return max_sim, overlap_days
-
-
 def fmt(name, r):
-    p1 = f"{r['p1_days']}d" if r["p1"] else "NO"
-    print(f"  {name:<38} {r['n']:>5} {r['wr']*100:>5.1f}% {r['avg_r']:>6.3f} "
-          f"{r['pf']:>5.2f} {r['total']:>10.2f} {r['monthly']:>8.2f} "
-          f"{r['dd']:>5.2f}%  {p1:>5} ${r['final']:>9.2f}")
+    p1 = f"{r['p1_days']}d" if r["p1"] else ("HALT" if r.get("halted") else "NO")
+    print(f"  {name:<40} {r['n']:>5} {r['wr']*100:>5.1f}% {r['avg_r']:>6.3f} "
+          f"{r['pf']:>5.2f} {r['total']:>9.2f} {r['monthly']:>8.2f} "
+          f"{r['dd']:>5.2f}%  {p1:>6}")
+
+
+def show_block(cache, tr, rb):
+    print(f"\n=== orb_atr T={tr}R RB={rb} ATR=0.25 (fixed fill model) ===")
+    hdr = (f"  {'Variant':<40} {'N':>5} {'WR%':>6} {'AvgR':>6} {'PF':>5} "
+           f"{'Total$':>9} {'Mth$':>8} {'DD%':>6}  {'P1':>6}")
+    print(hdr)
+    print("  " + "-" * 92)
+    for amb, amb_tag in ((False, "opt"), (None, "coin"), (True, "pess")):
+        base = m.run_backtest(cache, "orb_atr", tr, rb, 0.25,
+                              stop_first=amb)
+        # m.run_backtest has no cost knobs -> only for zero-cost bounds
+        lbl = {"opt": "zero-cost, optimistic", "coin": "zero-cost, coin 50/50",
+               "pess": "zero-cost, pessimistic"}[amb_tag]
+        p1 = f"{base['days_to_p1']}d" if base["phase1_done"] else ("HALT" if base["halted"] else "NO")
+        print(f"  {lbl:<40} {base['signals']:>5} {base['win_rate']*100:>5.1f}% "
+              f"{base['avg_r']:>6.3f} {base['profit_factor']:>5.2f} "
+              f"{base['total_cash']:>9.2f} {base['monthly_pnl']:>8.2f} "
+              f"{base['max_dd_pct']:>5.2f}%  {p1:>6}")
+        # cost-stacked variants (only for coin + optimistic; pessimistic busts)
+        if amb_tag != "pess":
+            amb_x = {False: "target", None: "coin", True: "stop"}[amb]
+            raw = run_variant(cache, tr, rb, 0.25, ambiguity=amb_x,
+                              spread=True, spread_scale=0.55, commission=7.0)
+            fmt(f"raw acct ({amb_tag}) + spread+$7", raw)
+            worst = run_variant(cache, tr, rb, 0.25, ambiguity=amb_x,
+                                spread=True, spread_scale=0.55, slip=True, commission=7.0)
+            fmt(f"raw acct ({amb_tag}) + slip", worst)
+        else:
+            pess = run_variant(cache, tr, rb, 0.25, ambiguity="stop",
+                               spread=True, spread_scale=0.55, commission=7.0)
+            fmt("raw acct (pess) + spread+$7", pess)
 
 
 def main():
-    print("=" * 100)
-    print("CHAMPION LIVE-FRICTION AUDIT  (orb_atr London+NY, fixed $10 risk)")
-    print("=" * 100)
+    print("=" * 96)
+    print("CHAMPION LIVE-FRICTION AUDIT — FIXED FILL MODEL (re-touch, one slot, day pip values)")
+    print("=" * 96)
     cache = {}
     for sym in m.SPECS:
         bars = m.load_pair(sym)
         if bars:
             by_date, atr_map = m.preprocess(bars)
             cache[sym] = (by_date, atr_map)
-    print(f"Loaded {len(cache)} pairs, 2022-09-11 -> 2026-09-11\n")
+    print(f"Loaded {len(cache)} pairs, 2022-09-11 -> 2026-09-11")
 
-    # --- Self-check: baseline must reproduce committed numbers -------------
-    print(f"{'Variant':<38} {'N':>5} {'WR%':>6} {'AvgR':>6} {'PF':>5} "
-          f"{'Total$':>10} {'Mth$':>8} {'DD%':>6}  {'P1':>5} {'Final':>10}")
-    print("  " + "-" * 96)
+    show_block(cache, 3.0, 8)   # previous champion
+    show_block(cache, 2.5, 6)   # new #1 on fixed leaderboard
 
-    for tr, rb in ((3.0, 8), (3.0, 6)):
-        print(f"\n=== Champion T={tr}R RB={rb} bars ATR=0.25 ===")
-        base = run_variant(cache, tr, rb, 0.25)
-        fmt("A. Backtest as coded (baseline)", base)
-
-        amb = run_variant(cache, tr, rb, 0.25, stop_first=True)
-        fmt("B. + same-bar ambiguity -> STOP", amb)
-
-        spr = run_variant(cache, tr, rb, 0.25, spread=True)
-        fmt("C. + full standard spread only", spr)
-
-        ent = run_variant(cache, tr, rb, 0.25, entry_mode="close")
-        fmt("D. + market entry at bar close", ent)
-
-        com = run_variant(cache, tr, rb, 0.25, commission=7.0)
-        fmt("E. + $7/lot commission (RT)", com)
-
-        real = run_variant(cache, tr, rb, 0.25, spread=True, commission=7.0)
-        fmt("F. std spreads + $7 comm", real)
-
-        raw = run_variant(cache, tr, rb, 0.25, spread=True, spread_scale=0.55,
-                          commission=7.0)
-        fmt("F2. RAW acct: 55% spread + $7", raw)
-
-        full = run_variant(cache, tr, rb, 0.25, stop_first=True, spread=True,
-                           spread_scale=0.55, commission=7.0)
-        fmt("G. PESSIMISTIC: B+F2 (path coin-flip)", full)
-
-        worst = run_variant(cache, tr, rb, 0.25, stop_first=True, spread=True,
-                            spread_scale=0.55, slip=True, commission=7.0)
-        fmt("H. WORST: G + stop slippage", worst)
-
-        ms, od = overlap_stats(base["trades"])
-        n_flip = sum(1 for a, b in zip(base["trades"], amb["trades"])
-                     if a.exit_reason == "target" and b.exit_reason == "stop")
-        print(f"\n  Same-bar target/stop flips (wins that become losses): "
-              f"{n_flip} of {base['n']} trades ({n_flip/base['n']*100:.1f}%)")
-        print(f"  Max simultaneous open positions in backtest: {ms}; "
-              f"days with overlapping holds: {od}")
-        for label, v in (("F  (std spread+$7)", real), ("F2 (raw acct)", raw),
-                         ("H  (worst)", worst)):
-            d_base = v["total"] - base["total"]
-            print(f"  {label} vs baseline: {d_base:+.2f}$ "
-                  f"({d_base/abs(base['total'])*100 if base['total'] else 0:+.1f}% of P&L)")
-
-        pp = defaultdict(lambda: [0, 0.0])
-        for t in raw["trades"]:
-            pp[t.pair][0] += 1
-            pp[t.pair][1] += t.pnl_cash
-        print("  Per-pair under F2 (raw acct): "
-              + ", ".join(f"{s}:{n}/${p:.0f}" for s, (n, p) in
-                          sorted(pp.items(), key=lambda x: -x[1][1])))
-
-    # --- Limit-fill rate (adverse selection) --------------------------------
-    print("\n=== Limit-fill analysis: does price ever return to the entry level? ===")
-    for tr, rb in ((3.0, 8), (3.0, 6)):
-        print(f"  --- T={tr}R RB={rb} ---")
-        fill_rate_analysis(cache, tr, rb, 0.25)
-
-    # --- Pip-value drift over the window -----------------------------------
-    print("\n=== Pip-value constant drift (pv frozen at 2024-26 mids) ===")
-    yearly = defaultdict(lambda: defaultdict(list))
-    for sym in ("GBPJPY", "EURJPY", "USDJPY"):
-        for b in m.load_pair(sym):
-            yearly[b.ts.year][sym].append(b.close)
-    for sym in ("GBPJPY", "EURJPY", "USDJPY"):
-        assumed = m.SPECS[sym]["pv"]
-        row = f"  {sym:<8} assumed pv=${assumed:.2f} | "
-        for yr in sorted(yearly):
-            avg = sum(yearly[yr][sym]) / len(yearly[yr][sym])
-            true_pv = 100000 * 0.01 / avg
-            row += f"{yr}:{true_pv:.2f} ({(true_pv/assumed-1)*100:+.0f}%)  "
-        print(row)
+    # 3-core universe
+    print("\n" + "=" * 96)
+    print("3-CORE UNIVERSE: GBPJPY + EURJPY + XAUUSD only")
+    print("=" * 96)
+    LP, NP = m.LONDON_PAIRS, m.NY_PAIRS
+    m.LONDON_PAIRS, m.NY_PAIRS = ["GBPJPY", "EURJPY"], ["XAUUSD"]
+    show_block(cache, 3.0, 8)
+    show_block(cache, 2.5, 6)
+    m.LONDON_PAIRS, m.NY_PAIRS = LP, NP
 
 
 if __name__ == "__main__":
