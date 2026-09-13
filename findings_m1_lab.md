@@ -382,3 +382,120 @@ GBPJPY V8 halves the sweep threshold (0.02 → 0.01 ATR) — more, weaker
 signals; 4y PF 1.72 on n=25. (6) The no-late small-sample caveat (n=6
 negative buckets) applies to XAUUSD V2 as before. (7) Compounding is
 path-dependent — use the 2y gate row as the "starting now" expectation.
+
+## 10. S/R + PRICE ACTION + VOLUME LAB (2026-09-13) — can classic families lift ROI?
+
+**Question (user):** try different strategies — support/resistance, price
+action, volume — and check how ROI can increase.
+
+**Method.** `tools/sr_pa_lab.py` tests three genuinely different logic
+families on the SAME honest engine (M5, re-touch limit fills, coin
+ambiguity, raw costs, per-day pip values, London 07:00-11:00, T=1.5R /
+90-min, one signal per pair-day, standalone 1.5%):
+
+* **S/R (multi-day liquidity):** S1/S2/S3 = the certified triad geometry
+  (sweep + reclaim + displacement) with the reference set to the
+  3/5/10-day high/low instead of the Asian range; S4 = 5-day H/L
+  breakout & REtest (not a rider — London ORB riders have ZERO
+  follow-through, findings_fast_track_lab.md F3).
+* **Price action (candle structure, no prior-range sweep):** PA1
+  inside-bar breakout, PA2 pin-bar rejection at the Asian edge, PA3
+  engulfing, PA4 outside-bar follow.
+* **Volume (tick volume):** V1 volume-spike displacement (vol ≥ 3× 20-bar
+  avg), V2 POC retrace (volume-weighted 07:00-09:00 price), V3
+  low-volume new-extreme exhaustion. **Data constraint:** volume exists
+  in the files only from 2024-01-10 (= exactly the 2y gate window) — 4y
+  confirmation of the volume family is impossible; it can only ever be
+  reported as 2y-only/unconfirmed with this dataset.
+
+Protocol as always: selection on the 2y gate only (n ≥ 15, PF ≥ 1.2,
+total > 0, max $ per pair), confirmation on 4y, portfolio test under the
+one slot vs the frozen per-pair stack ($3,811.34).
+
+### Result 1 — standalone 2y matrix (11 pairs × 11 variants = 121 cells)
+
+**No cell clears the bar.** Every pair's pick is OFF. Family totals
+(all 11 pairs, 2y):
+
+| variant | agg n | agg $ | pairs with n≥15 |
+|---|---|---|---|
+| S1 3d sweep-reclaim | 45 | −$422 | 0 |
+| S2 5d sweep-reclaim | 29 | −$291 | 0 |
+| S3 10d sweep-reclaim | 18 | −$97 | 0 |
+| S4 5d breakout-retest | 125 | −$2,894 | 3 |
+| PA1 inside-bar break | 300 | −$2,929 | 10 |
+| PA2 pin-bar rejection | 207 | −$3,027 | 9 |
+| PA3 engulfing | 293 | −$3,026 | 8 |
+| PA4 outside-bar follow | 294 | −$3,040 | 8 |
+| V1 vol-spike displacement | 263 | −$2,669 | 8 |
+| V2 POC retrace | 70 | −$2,981 | 0 |
+| V3 low-vol exhaustion | 94 | −$2,768 | 0 |
+
+~1,558 standalone trades, ≈ −$27k in aggregate. The PA and volume
+families are well-powered (n per pair 10-82) — this is a robust
+negative, not small-sample noise. Multi-day S/R sweep+reclaim is simply
+too rare inside the 4-hour window (n 0-8 per pair) to be conclusive; the
+few positive cells (EURJPY S1 n=6 +$81, XAUUSD S3 n=1 +$49) fail the
+n≥15 bar and the 4y descriptive checks confirm noise (EURJPY S1 4y: PF
+0.99, n=9; AUDUSD S1 4y: −$38, n=4).
+
+### Result 2 — why (zero-cost diagnostic)
+
+Re-running the best-traded variants with costs OFF isolates the raw
+directional edge from friction:
+
+* EURUSD/GBPJPY: PA1/PA3/PA4/V1 zero-cost PF 0.66-0.97, still −$250 to
+  −$280 → **the candlestick/volume patterns have no directional edge at
+  all** before costs. Not a cost problem — a no-edge problem.
+* **XAUUSD PA4 (outside-bar follow) is the one real exception:** zero-cost
+  PF 1.20 on n=520 (+$1,979) — gold's range-expansion bars do carry
+  information. But the honest cost structure (commission + spread vs the
+  1.5% risk unit) is worth more than the raw edge per trade: with costs,
+  2y standalone PF 0.62, −$279, and the run HALTs at the $2,250 floor
+  after ~72 trades. Edge smaller than friction — not certifiable. (The
+  cost-on run trades far fewer times than the zero-cost run for exactly
+  this reason: the floor stops it.)
+
+### Result 3 — S/R as a confluence FILTER on the proven edge
+
+The only remaining legitimate use of S/R: not a standalone strategy, but
+a filter on the certified per-pair stack. Pre-specified rule (one rule,
+no per-pair selection): take a triad signal only if its entry is within
+0.5 ATR of any 3/5/10-day high or low.
+
+* 2y gate: triad trades 60 → 2 (the signals are Asian-range
+  sweep/reclaim events — they fire away from multi-day levels), the 2
+  survivors lose (triad −$15); portfolio **$3,289.33 → $1,497.07
+  (−$1,792)**. Rejected on the gate; 4y confirmation not run per
+  protocol.
+
+### Verdict
+
+1. **Classic S/R, candlestick price-action, and tick-volume patterns do
+   NOT add standalone ROI** under the honest model — 121/121 cells
+   negative or underpowered, every family total negative.
+2. The one raw edge found (XAUUSD outside-bar, PF 1.20 zero-cost) is
+   **smaller than transaction friction** and dies under honest costs.
+3. Multi-day S/R proximity as a filter on the proven edge **kills the
+   edge** (−$1,792 on the gate) — the existing signals are
+   intraday-range events and do not cluster at multi-day levels.
+4. **The ROI champion is unchanged: the per-pair 5-pair stack + gold**
+   (4y $3,811.34 / CAGR 26.1%; 2y gate $3,289.33 / CAGR 34.6%).
+   `python tools/order_selector.py --confirm --pairfit --compound --risk
+   0.0175`. The `EXTRA_DETECTORS` hook (order_selector) now lets any
+   future certified family plug into the slot loop; it is empty by
+   default and bit-identical (F0 reproduced $3,811.34 exactly; suite
+   201+4 green).
+
+**Honesty notes.** (1) Volume family is structurally 2y-only (tick
+volume starts 2024-01-10) — even a strong 2y result could not be
+certified with this dataset; it would need a longer tick-volume history.
+(2) PA/volume detectors use the same re-touch limit fills as the rest of
+the stack (stricter than market-entry backtests) — the zero-cost results
+show the conclusion does not hinge on fill friction for the FX pairs.
+(3) 121 configurations were examined on the 2y window; nothing survived,
+so there is no selection-bias artifact to over-discount here — the
+negative is the robust direction. (4) The XAUUSD PA4 zero-cost edge is
+recorded as a lead (gold range expansion carries information), not a
+strategy: any live use would need a lower-friction entry/cost structure
+or a bigger risk unit to make edge > friction.

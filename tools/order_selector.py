@@ -356,6 +356,11 @@ PAIRFIT_ASSIGN: dict = {
     "XAUUSD":  {"buf": 0.05, "end": (13, 30),
                 "no_late": True},                     # V2  D0a + no-late
 }
+# Extra signal families (S/R, price action, volume — tools/sr_pa_lab.py).
+# List of (name, fn(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym)
+# -> sig|None); each may add at most one candidate per pair per day on top
+# of the primary PAIR_CFG logic. Empty by default -> bit-identical.
+EXTRA_DETECTORS: list = []
 
 
 def _prev_hl(sym, d, cache):
@@ -392,36 +397,45 @@ def build_day_candidates(cache, d, ambiguity="coin"):
         if atr <= 0:
             continue
         ref_override = _prev_hl(sym, d, cache) if cfg.get("prevday") else None
+        sigs = []
         sig = th.detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym,
                         ref_override=ref_override,
                         stop_buffer=cfg.get("buf"),
                         sweep_min=cfg.get("sweep"))
-        if not sig:
+        if sig:
+            sigs.append(sig)
+        for _name, fn in EXTRA_DETECTORS:     # S/R / PA / volume families
+            s2 = fn(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym)
+            if s2:
+                sigs.append(s2)
+        if not sigs:
             continue
-        sh = {7, 8, 9, 10} if cfg.get("no_late") else TR_SIG_HOURS
-        if sh is not None and \
-                sig["sig_ts"].astimezone(_LDN).hour not in sh:
-            continue
-        sig["pv"] = m.day_pv(sym, d, cache)
         tr = cfg.get("T", TR_TARGET_MAP.get(sym, TR_TARGET))
-        t = th.sim_triad(sig, day_bars, ent_e, sym, target_r=tr,
-                         time_stop_min=cfg.get("ts", TR_TSTOP),
-                         ambiguity=ambiguity,
-                         costs=True, risk_frac=RISK_TRIAD,
-                         entry_mode=cfg.get("mode", "limit"))
-        cands.append(Cand(
-            leg="triad", sym=sym, side=sig["side"], sig_ts=sig["sig_ts"],
-            entry=sig["entry"], stop=sig["stop"], rr=tr, prio=prio,
-            day=d, end_utc=ent_e,
-            conviction=triad_conviction(sig.get("body_ratio", 0.6),
-                                        sig.get("sweep_atr", 0.2)),
-            costR=cost_to_r(sym, sig["entry"], sig["stop"]),
-            filled=t is not None,
-            pnl=t["pnl"] if t else 0.0,
-            r=t["r"] if t else 0.0,
-            exit_ts=t["exit_ts"] if t else ent_e,
-            reason=t["reason"] if t else "no_fill",
-            trade=t))
+        for sig in sigs:
+            sh = {7, 8, 9, 10} if cfg.get("no_late") else TR_SIG_HOURS
+            if sh is not None and \
+                    sig["sig_ts"].astimezone(_LDN).hour not in sh:
+                continue
+            sig["pv"] = m.day_pv(sym, d, cache)
+            t = th.sim_triad(sig, day_bars, ent_e, sym, target_r=tr,
+                             time_stop_min=cfg.get("ts", TR_TSTOP),
+                             ambiguity=ambiguity,
+                             costs=True, risk_frac=RISK_TRIAD,
+                             entry_mode=cfg.get("mode", "limit"))
+            cands.append(Cand(
+                leg="triad", sym=sym, side=sig["side"],
+                sig_ts=sig["sig_ts"],
+                entry=sig["entry"], stop=sig["stop"], rr=tr, prio=prio,
+                day=d, end_utc=ent_e,
+                conviction=triad_conviction(sig.get("body_ratio", 0.6),
+                                            sig.get("sweep_atr", 0.2)),
+                costR=cost_to_r(sym, sig["entry"], sig["stop"]),
+                filled=t is not None,
+                pnl=t["pnl"] if t else 0.0,
+                r=t["r"] if t else 0.0,
+                exit_ts=t["exit_ts"] if t else ent_e,
+                reason=t["reason"] if t else "no_fill",
+                trade=t))
     cands.sort(key=lambda c: (c.sig_ts, c.prio, c.sym))
     return cands
 
