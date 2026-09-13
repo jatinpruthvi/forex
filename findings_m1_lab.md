@@ -1,0 +1,678 @@
+# M1 Lab — 1-minute validation & improvement search (2026-09-12)
+
+**Tool:** `tools/m1_lab.py` (new file, research layer only — frozen
+registries and MQL5 EAs untouched).
+**Data:** user-uploaded M1 history (origin/main `578da08`): all 11 pairs,
+2024-09-11 → 2026-09-11, validated against the Dukascopy API
+(`validation/HistoryData/m1-data/validation-report-m1.txt`). Extracted
+from git to `/home/user/.cache/m1` (NOT committed; repo stays lean).
+**Objective (user):** "improve the current strategy, forget about
+drawdown, give me the best combination." DD is reported for reference
+only, not optimized.
+
+## Method
+
+- Signal detection UNCHANGED (champion: relaxed geometry 0.02/0.45/0.50,
+  M5 bars, warm M15 ATR, all-London 07:00-11:00, T=1.5R, 90-min
+  time-stop). `triad_honest.run_triad` gained an optional
+  `sim_bars_fn(sym, date)` execution hook + `target_r_map` /
+  `target_r_fn` / `entry_expire_min` / `breakeven_r` (all default to
+  the original behavior — regression re-verified: 4y champion still
+  exactly 94 trades / +$835.38 / P1 723d).
+- Execution walks the 1-minute bars (`sim_triad`), resolving the
+  stop-vs-target ordering that M5 had to assume. Residual ambiguity
+  (within a single 1-min bar): **0 trades across every run below.**
+
+## 1. Fidelity — does the champion survive at 1-minute resolution?
+
+2y window, champion params, 1.5% risk, core-3 all-London:
+
+| execution | n | PF | AvgR | total | DD | P1 | per pair (n/$) |
+|---|---|---|---|---|---|---|---|
+| M5 (baseline) | 55 | 2.26 | +0.391 | $813.79 | 4.4% | 201d | EURJPY 21/+362, XAUUSD 18/+323, GBPJPY 16/+128 |
+| M1 | 55 | 2.28 | +0.395 | $821.75 | 4.4% | 201d | EURJPY 21/+362, XAUUSD 18/+328, GBPJPY 16/+131 |
+
+**M1 − M5 = +$7.95 (+1.0%), identical trade count.** The M5 engine is
+an accurate proxy; the champion edge is real at 1-minute resolution.
+
+## 2. Improvement grid (M1 execution, 2y gate) — and its rejection
+
+Gate ranking by total PnL (profit objective), core-3, 1.5%:
+
+| config | 2y M1 $ | PF | 4y M5 confirm |
+|---|---|---|---|
+| **T1.5/ts90 (champion)** | $821.75 | 2.28 | **94 tr, +$835.38, PF 1.60, P1 723d** |
+| T2.5/ts90 | $879.93 | 2.08 | **KILLED: floor hit after 15 trades (−$268, PF 0.40)** |
+| T2.5/ts120 | $838.17 | 1.89 | (same family — killed) |
+| T2.0/ts120 | $829.49 | 1.96 | (same family) |
+| T1.5/ts120 | $818.47 | 2.25 | (within noise of champion) |
+| BE@1.0R (breakeven move) | $568.11 | 1.96 | rejected at gate |
+| BE@0.5R | $372.28 | 1.97 | rejected at gate |
+| entry-expire 60m | $742.24 | 2.34 | rejected at gate |
+| entry-expire 30m | $598.60 | 2.55 | rejected at gate |
+| entry-expire 15m | $156.39 | 1.54 | rejected at gate |
+
+The gate (pure 2024-26 gold-bull window) pushed T toward 2.5-4.0 for
+XAUUSD (monotonic: XAU leg +$328→+$480→+$538→+$592→+$622 at T=1.5→4.0).
+**4y confirmation kills it:** even with the floor disabled
+("forget DD"), all-T2.5 makes $471 vs $835 (PF 1.26, DD 18.4%); XAU3.0
+makes $815 but with 2× DD. The 2022-23 chop never trended 2.5R inside
+90 minutes. A regime-safe variant (XAU T=2.5 only on close>SMA55 days,
+reusing the gold leg's N) also died: floor after 14 trades (−$256) —
+the longer holds blocked better JPY fills through the shared slot.
+
+**T=1.5R / 90-min time-stop is the robust parameter set.** This is a
+textbook gate-overfit caught by confirmation — recorded so nobody
+re-fits T to the recent bull.
+
+## 3. Universe scan (M1, 2y, champion params, standalone per pair)
+
+| pair | n | PF | 2y $ | verdict |
+|---|---|---|---|---|
+| XAUUSD | 19 | 2.95 | +$379 | in core-3 |
+| EURJPY | 21 | 2.78 | +$362 | in core-3 |
+| GBPJPY | 17 | 1.75 | +$181 | in core-3 |
+| USDJPY | 17 | 1.03 | +$9 | flat — no |
+| AUDUSD | 15 | 0.98 | −$5 | no |
+| GBPUSD | 11 | 0.77 | −$58 | no |
+| NZDUSD | 21 | 0.69 | −$142 | no |
+| EURGBP | 9 | 0.47 | −$126 | no |
+| EURUSD | 10 | 0.23 | −$252 | no |
+| USDCAD | 14 | 0.34 | −$266 | no |
+| USDCHF | 10 | 0.23 | −$267 | no |
+
+**The sweep/reclaim edge exists only in JPY crosses + gold.** All
+USD-quoted pairs are negative. core-3 stays the universe — no new
+triad legs to add.
+
+## 4. Sizing — the only remaining "profit" lever (hard-rule bounded)
+
+The5ers hard rules: 5% max daily loss, −10% floor, one position.
+Worst realistic same-day realized loss = gold stop + triad stop:
+3.0% + 1.5% = 4.5% (current) — already near the cap. The maximum
+compliant nudge: **triad 1.5% → 1.75%** (worst day 4.75% < 5%).
+Triad 2.0% would sit exactly on the 5% cap — not allowed.
+
+## 5. Best combination (user's ask)
+
+One shared slot, P0 first-available selection (proven best live rule in
+the combo lab), M5 4y full window:
+
+| sizing | 4y P0 total | CAGR | DD (ref) | P1 | legs (n/$) |
+|---|---|---|---|---|---|
+| 1.5% / 3.0% (certified) | $1,869.37 | 15.0% | 5.5% | 422d | triad 54/+$602, gold 19/+$1,267 |
+| **1.75% / 3.0% (max compliant)** | **$1,960.95** | **15.6%** | 5.6% | 422d | triad 54/+$694, gold 19/+$1,267 |
+
+2y gate at 1.75%/3.0%: $1,905.45, CAGR 22.2%, DD 3.1%, P1 in 116d.
+P0 identical across opt/coin/pess and the challenge governors.
+
+**Recommendation:** run the certified 1.5%/3.0% combo; the 1.75%
+variant is +$91 (+4.9%) over 4y at the price of using 0.25% more of
+the daily-loss budget on every triad day. Both are the SAME strategy —
+the M1 lab found no parameter that improves it.
+
+## Interpretation
+
+1. **The M1 data is a validation asset, not an improvement asset, for
+   this strategy family.** Fidelity is +1.0%; every variant it enabled
+   (T-grid, breakeven, entry-expiry, 8 extra pairs) was rejected at
+   gate or confirmation.
+2. **The gate overfit trap is now documented with numbers.** The 2y
+   window (2024-09→2026-09) is one gold bull; any parameter that loves
+   it (large T) dies in the 2022-23 chop. T=1.5 is robust because it
+   wins in both regimes (by year: 2022 −$24, 2023 −$61, 2024 +$255,
+   2025 +$250, 2026 +$415 — the edge is a 2024-26 story carried by
+   gold volatility, not a 2022-23 one).
+3. **Why nothing beat P0 again:** M1 resolved the fills, and the
+   ranking was unchanged — selection value remains hindsight-only
+   (oracle $3,616 at 1.75% sizing vs $1,961 for P0, +85%).
+4. **What M1 WOULD help with (future):** intraday patterns native to
+   1-min resolution (scalping legs, tighter session windows), and
+   re-touch timing studies. Out of scope for this combo.
+
+## Honesty notes
+
+- M1 covers 2y only (2022-23 has no 1-min data); the 4y confirmation
+  ran on M5 execution (fidelity section shows M5≈M1 at +1.0%).
+- All numbers: costs ON (spread+commission), re-touch limit fills,
+  one slot, max 2 trades/day, weekday-only, per-day pip values.
+- "Forget DD" was honored in the objective function; DD is shown
+  because The5ers' floor (−10%) is a hard rule, not a preference —
+  T2.5's death came from it, so it is reported.
+- No M1 files are committed to the repo (data lives on origin/main
+  `578da08`); `tools/m1_lab.py` extracts them to
+  `/home/user/.cache/m1` at runtime.
+
+## 6. LOGIC BATTERY — genuinely different triad logic (2026-09-12 follow-up)
+
+User ask: "apply different logic, find the best & optimum result."
+New variants tested on the M5 4y decision window (champion geometry,
+core-3, T=1.5R, 90-min, 1.5%):
+
+| # | logic | 4y M5 result | verdict |
+|---|---|---|---|
+| L1 | market entry at next bar open (no re-touch) | 111 tr, PF 1.30, $533.98, DD 11.3% | REJECTED — the re-touch filter is load-bearing (WR 51%→41%: momentum days that never retrace are mostly losers at this stop) |
+| L2 | strongest-sweep-first same-day ordering | 93 tr, PF 1.66, $884.83, DD 6.6% | small win alone; **subsumed by D0a** (adds −$36 on top of it) |
+| L3 | session extended 11:00 → 13:30 (late signals + longer fill time) | 105 tr, PF 1.57, $918.78, **P1 577d** (was 723d) | KEEP |
+| L4a | stop buffer 0.10 → 0.05 ATR (stop at the true extreme) | 91 tr, **PF 1.78**, **$974.13**, **DD 4.9%** | KEEP (shape: 0.025→$945, 0.05→$974, 0.075→$826, 0.10→$835) |
+| L4b | stop buffer 0.20 ATR | 13 tr, PF 0.35, floor hit | REJECTED (wide stop breaks the pattern) |
+| L5/L6 | reclaim window 3 / 1 bars | identical to baseline | no effect |
+| C1/C2 | market-entry combos | floor hit | REJECTED |
+
+### D0a = tight stop (0.05 ATR) + extended session (13:30) — CERTIFIED
+
+Beats the champion in all three windows:
+
+| window | champion | D0a |
+|---|---|---|
+| 4y M5 (decision) | $835.38, PF 1.60, DD 7.8%, P1 723d | **$1,042.93, PF 1.70, DD 5.6%, P1 549d** |
+| 2y FSB gate | $921.31, PF 2.13, P1 330d | **$994.10, PF 1.99, P1 255d** |
+| 2y M1 (fidelity) | $821.75 | **$847.50** (+$26; note: M5 overstates this config by ~5% vs M1 — the extended/tight region is more resolution-sensitive) |
+
+Mechanics: the stop sits at the sweep extreme itself (0.05 ATR buffer vs
+0.10) — a cleaner invalidation AND a smaller R unit, so the 1.5R target
+is reached more often inside the 90-min window; the session running to
+13:30 captures late re-touch fills and 11:00-13:30 signals (never held
+overnight — flat at 13:30).
+
+### NEW BEST COMBINATION (D0a triad + gold N=55 k=2.5, one slot, P0)
+
+`python tools/order_selector.py --confirm --d0a` (reproduces exactly):
+
+| sizing | 4y total | CAGR | DD (ref) | P1 | legs (n/$) |
+|---|---|---|---|---|---|
+| 1.5% / 3.0% | **$2,075.93** | 16.3% | 4.7% | 196d | triad 59/+$809, gold 19/+$1,267 |
+| **1.75% / 3.0% (max compliant)** | **$2,222.50** | **17.2%** | 4.7% | **124d** | triad 59/+$955, gold 19/+$1,267 |
+
+2y gate at 1.75%/3.0%: $2,006.17, CAGR 23.2%, P1 115d. P0 identical
+across opt/coin/pess and challenge governors. vs the previous best
+(champion triad): **+$261 (+18% PnL), CAGR 15.6%→17.2%, Phase 1 in
+124 vs 422 trading days (~6 months instead of ~1.8 years), DD down
+5.6%→4.7%.**
+
+Selection note: with D0a's denser triad, gate-calibrated P1/t0.1
+narrowly beats P0 ON THE GATE ($1,942 vs $1,901) but 4y re-kills it
+($1,175 vs $2,076 — the gold-lockout mechanism again). P0
+first-available remains the best live selection rule.
+
+## 7. Updated recommendation
+
+Run the D0a combo (tight stop + extended session + gold + P0) at
+1.5%/3.0% — or 1.75%/3.0% if you accept using 0.25% more of the daily
+loss budget. The champion triad parameter set is otherwise unchanged
+(T=1.5R, 90-min, relaxed geometry, core-3, all-London — now until
+13:30). The M1 data's role: it validated the fills and killed the
+bull-regime overfits (T2.5 family); the 4y M5 window remains the
+decision set for anything structural.
+
+## 8. OUT-OF-THE-BOX BATTERY (2026-09-12) — new logic, new levers
+
+Beyond the parameter space: five structurally different ideas, tested
+on the M5 4y decision window (D0a base, core-3):
+
+| idea | 4y result | verdict |
+|---|---|---|
+| **Profit compounding** (size every trade off the CURRENT balance instead of fixed $2,500) | triad $1,043 → **$1,245 (+19%)**; PnL is linear in base, R/score untouched | KEEP |
+| **Hour-of-day mining** (kill dead signal hours) | 07h: n=53 PF 1.93 +$673; 08h +$113; 09h +$135; 10h +$173 (n=4); 11h −$34 (n=3); 12h −$35 (n=3); 13h +$18 (n=2) | KEEP (no-late: signals ≤10:00 only — $1,043 → $1,093, PF 1.83, DD 4.5%; note: the 11-13h buckets are small-sample, n=8 total) |
+| **NY session for JPY crosses** (13:30-16:00, London-morning ref range) | JPY: −$73 (PF 0.90); JPY+XAU: −$265 (PF 0.54) | REJECTED — NY is dead for this pattern, confirming session 9 |
+| **NEW signal family: previous-day high/low liquidity sweeps** (sweep D-1 extreme ≥0.02 ATR, reclaim, displacement — same engine, `detect(ref_override=...)`) | 12 trades, PF 0.24, −$289 | REJECTED — the Asian-range reference is the edge; D-1 extremes are not |
+| **Phase-2 timeline** (time to FULL account approval: P1 +10%, then P2 +5% on $2,750) | at final stack: **P1 day 124**, P2 (balance ≥ $2,887.50) **day 422** (equity drifts in the $2,750-2,887 band between); final 4y balance $5,829.62 | reported, no strategy change |
+
+A bug was found and fixed while wiring compounding: `_take` mutated the
+shared precomputed candidate trade dict in place, corrupting later
+policy/ambiguity runs in the same process (double-scaled PnL). Now
+scales a copy. Post-fix numbers are deterministic: P0 identical across
+opt/coin/pess and the challenge governors.
+
+### THE FINAL STACK (all keepers combined)
+
+Triad: relaxed geometry + **D0a** (stop buffer 0.05 ATR, session to
+13:30) + **no-late-signals** (≤10:00) + **compounding**, core-3
+GBPJPY/EURJPY/XAUUSD; Gold Donchian N=55 k=2.5 compounding @3%; one
+slot; P0 first-available (still the best live selection).
+
+`python tools/order_selector.py --confirm --d0a --no-late --compound --risk 0.0175`
+
+| sizing | 4y total | CAGR | DD (ref) | P1 | 2y gate |
+|---|---|---|---|---|---|
+| 1.5% / 3.0% | $2,993.07 | 21.7% | 4.2% | 196d | $2,702, CAGR 29.6%, P1 115d |
+| **1.75% / 3.0% (max compliant)** | **$3,329.62** | **23.6%** | **4.2%** | **124d** | **$2,944, CAGR 31.7%, P1 115d** |
+
+Progression of the best 4y combo across this session (same $2,500
+base, P0, one slot):
+
+| version | 4y PnL | CAGR | P1 |
+|---|---|---|---|
+| champion triad + gold (1.5/3.0) | $1,869 | 15.0% | 422d |
+| + D0a (tight stop + extend, 1.75/3.0) | $2,223 | 17.2% | 124d |
+| **+ no-late + compounding (1.75/3.0)** | **$3,330** | **23.6%** | **124d** |
+
+Leg split at the final stack (1.75/3.0): triad 56 tr/+$1,569, gold
+19 tr/+$1,761 — the two legs now contribute almost equally.
+
+Honest caveats: (a) the no-late filter rests on 8 negative trades in
+the 11-13h buckets — directionally sound (late sweeps are exhausted
+moves) but small-sample; (b) compounding makes PnL path-dependent, so
+a rough live year starts the curve below the backtest (the 4y path
+includes 2022-23 losses that shrink the base before the bull); the
+2y-gate numbers (pure bull, no prior shrinkage) are the right
+expectation for an account starting NOW at $2,500: ~$2,944 over
+~2 years, P1 in ~115 trading days; (c) 1.75% uses 4.75% of the 5%
+daily cap on a double-stop day — compliant, no headroom; (d) oracle
+(hindsight ceiling) at this stack: $8,270 (O1 books compounded PnL but
+selects candidates on fixed-base PnL — approximate) — the remaining
+gap is selection value that no live rule recovers, as before.
+
+## 9. PER-PAIR STRATEGY FIT (2026-09-13) — each pair runs the logic it is best at
+
+**Question (user):** each pair might work best under a *different* strategy —
+which player (pair) fits which strategy, and does that improve the current
+best combo?
+
+**Method.** 11 pairs × 11 logic variants, standalone, 1.5% fixed base.
+*Selection on the 2y gate only* (n ≥ 15, PF ≥ 1.2, total > 0, max $ per
+pair); *confirmation on the 4y full window* (pick must stay positive, else
+fall back to the best 4y member of the robust set {champion, D0a,
+D0a+no-late}; else OFF). Two stages keep bull-regime artifacts (e.g. T > 1.5
+in aggregate) from being certified. Same engine throughout (M5, re-touch
+fills, coin ambiguity, raw costs).
+
+Variants: V0 champion (buf 0.10, end 11:00, T 1.5, ts 90) · V1 D0a (buf
+0.05, end 13:30) · V2 D0a+no-late (sig ≤ 10:00) · V3 extend (end 13:30
+only) · V4 T 2.0 · V5 T 2.5 · V6 previous-day high/low reference · V7 NY
+window · V8 loose sweep (0.01 ATR) · V9 D0a + 120-min time-stop · V10
+market entry (D0a).
+
+**2y picks (gate):**
+
+| pair | 2y pick | 2y n | 2y PF | 2y $ |
+|---|---|---|---|---|
+| AUDUSD | V5 (T 2.5) | 15 | 1.47 | +$141 |
+| EURJPY | V9 (D0a, ts 120) | 24 | 2.80 | +$441 |
+| GBPJPY | V8 (loose sweep 0.01) | 17 | 2.25 | +$257 |
+| USDJPY | V3 (extend 13:30) | 17 | 1.24 | +$77 |
+| XAUUSD | V5 (T 2.5) | 19 | 3.21 | +$511 |
+| EURGBP, EURUSD, GBPUSD, NZDUSD, USDCAD, USDCHF | — | | | no qualifying variant → OFF |
+
+Six of eleven pairs have **no** qualifying variant in any of the 11 logics —
+the family simply does not work there (every variant negative on 2y).
+
+**4y confirmation (standalone, 1.5%):**
+
+| pair | pick | 4y n | 4y PF | 4y $ | verdict |
+|---|---|---|---|---|---|
+| AUDUSD | V5 | 26 | 1.41 | +$208 | confirmed |
+| EURJPY | V9 | 36 | 1.91 | +$447 | confirmed |
+| GBPJPY | V8 | 25 | 1.72 | +$264 | confirmed |
+| USDJPY | V3 | 36 | 1.05 | +$35 | confirmed (weak) |
+| XAUUSD | V5 | 22 | 0.50 | **−$283** | **rejected** → fallback |
+
+The XAUUSD T 2.5 pick is the clean demonstration of why the two-stage
+protocol exists: +$511 on the 2y bull gate, −$283 (PF 0.50) on 4y — a
+regime artifact. Fallback rule picks the best 4y robust variant: **V2
+(D0a + no-late), 4y n=38, PF 2.18, +$581** — the same logic the uniform
+stack already used, now *per-pair* certified.
+
+**Portfolio ablation** (assigned triad universe + gold Donchian, one slot,
+P0, 1.75% / 3.0%, compounding):
+
+| case | universe | 4y $ | CAGR | DD | P1 |
+|---|---|---|---|---|---|
+| **A) 5 pairs, per-pair (final)** | AUD V5, EURJPY V9, GBPJPY V8, USDJPY V3, XAU V2 | **$3,811.34** | **26.1%** | 4.5% | 282d |
+| B) 4 pairs (−USDJPY) | | $3,784.41 | 25.9% | 4.1% | 196d |
+| C) core-3, per-pair | EURJPY V9, GBPJPY V8, XAU V2 | $3,396.43 | 23.9% | 4.1% | 124d |
+| D) baseline uniform D0a+no-late | core-3 | $3,329.62 | 23.6% | 4.2% | 124d |
+| E) sensitivity: AUDUSD→V2 | 4 pairs | $3,203.36 | 22.9% | 4.2% | 196d |
+
+Case E (AUDUSD on its "robust" variant) loses $106 *in combo* — the fit is
+genuinely per-pair, not "best variant in aggregate".
+
+**THE PER-PAIR STACK (final, 2026-09-13):**
+
+| pair | variant | rule (vs champion defaults) |
+|---|---|---|
+| AUDUSD | V5 | target **2.5R** (rest champion: buf 0.10, 11:00, ts 90) |
+| EURJPY | V9 | D0a buf 0.05, session to **13:30**, **120-min** time-stop |
+| GBPJPY | V8 | **sweep 0.01 ATR** (rest champion) |
+| USDJPY | V3 | session to **13:30** (rest champion) |
+| XAUUSD | V2 | D0a buf 0.05, session to 13:30, **signals ≤ 10:00** |
+| + Gold Donchian N=55 k=2.5 @ 3% (unchanged) | | |
+
+`python tools/order_selector.py --confirm --pairfit --compound --risk 0.0175`
+
+| window | n | PF | total | CAGR | DD (ref) | P1 | final |
+|---|---|---|---|---|---|---|---|
+| **4y** (2022-09 → 2026-09) | 109 | 2.25 | **$3,811.34** | **26.1%** | 4.5% | 282d | $6,311.34 |
+| **2y gate** (2024-01 → 2026-09, "starting now") | 72 | — | **$3,289.33** | **34.6%** | 4.5% | 115d | — |
+
+vs baseline D: **+$481.72 (+14.5%) on 4y** and **+$345 (+11.7%) on the 2y
+gate** — the improvement survives on both windows. Leg split (4y): triad
+90/+$2,004 (AUDUSD 15/+$258, EURJPY 16/+$696, GBPJPY 15/+$247, USDJPY
+18/−$40, XAUUSD 26/+$843), gold 19/+$1,807. By year: 2022 −$23, 2023
++$171, 2024 +$615, 2025 +$2,313, 2026 (to 09-11) +$734.
+
+**The5ers compliance:** worst single day −$237.51 (2026-08-09) = **3.80%**
+of start-of-day balance — inside the 5% cap and even inside the 0.5%
+safety-buffer line (4.5%). Total floor $2,250 never approached (min equity
+well above; DD 4.5%). One slot, max 2 trades/day unchanged.
+
+**P1 tradeoff (the honest cost).** Baseline crosses $2,750 in Mar 2023
+(P1 124d); the per-pair stack first crosses in Oct 2023 (P1 282d) — the
+extra pairs (AUDUSD T 2.5, USDJPY extend) added exposure in the 2022-23
+dead zone, dragging the early equity curve. It gives the gain back,
+re-crosses Jul 2024, and **overtakes the baseline around Q2 2025**
+($3,476 vs $3,381), pulling away in the 2025-26 bull as the larger base
+compounds. If a fast Phase 1 is the priority, the §8 uniform stack remains
+the right one; for maximum returns (the stated objective) the per-pair
+stack wins on both windows.
+
+**Honesty notes.** (1) Multiple comparisons: 121 configurations selected on
+2y, confirmed on 4y. The two-stage protocol demonstrably kills the bull
+artifact (XAUUSD V5) but does not eliminate all selection bias — the
+per-pair edges (PF 1.4-2.2) are weaker than the aggregate champion's
+(PF 2.8) and must be read with that discount. (2) The A-vs-B ablation used
+4y in-combo PnL (mild confirmation-window selection); the pre-registered
+rule (keep if 4y standalone > 0) independently keeps USDJPY, and A wins on
+both PnL and CAGR regardless. (3) USDJPY V3 is **−$40 in combo** (4y
+standalone +$35) — it is ballast kept only because A still beats B; if it
+turns persistently negative it is the first pair to drop. (4) AUDUSD T 2.5
+is regime-conditional: 2022-23 was roughly flat, the edge is 2024-26
+trend; in a flat decade it contributes ~0 rather than large losses. (5)
+GBPJPY V8 halves the sweep threshold (0.02 → 0.01 ATR) — more, weaker
+signals; 4y PF 1.72 on n=25. (6) The no-late small-sample caveat (n=6
+negative buckets) applies to XAUUSD V2 as before. (7) Compounding is
+path-dependent — use the 2y gate row as the "starting now" expectation.
+
+## 10. S/R + PRICE ACTION + VOLUME LAB (2026-09-13) — can classic families lift ROI?
+
+**Question (user):** try different strategies — support/resistance, price
+action, volume — and check how ROI can increase.
+
+**Method.** `tools/sr_pa_lab.py` tests three genuinely different logic
+families on the SAME honest engine (M5, re-touch limit fills, coin
+ambiguity, raw costs, per-day pip values, London 07:00-11:00, T=1.5R /
+90-min, one signal per pair-day, standalone 1.5%):
+
+* **S/R (multi-day liquidity):** S1/S2/S3 = the certified triad geometry
+  (sweep + reclaim + displacement) with the reference set to the
+  3/5/10-day high/low instead of the Asian range; S4 = 5-day H/L
+  breakout & REtest (not a rider — London ORB riders have ZERO
+  follow-through, findings_fast_track_lab.md F3).
+* **Price action (candle structure, no prior-range sweep):** PA1
+  inside-bar breakout, PA2 pin-bar rejection at the Asian edge, PA3
+  engulfing, PA4 outside-bar follow.
+* **Volume (tick volume):** V1 volume-spike displacement (vol ≥ 3× 20-bar
+  avg), V2 POC retrace (volume-weighted 07:00-09:00 price), V3
+  low-volume new-extreme exhaustion. **Data constraint:** volume exists
+  in the files only from 2024-01-10 (= exactly the 2y gate window) — 4y
+  confirmation of the volume family is impossible; it can only ever be
+  reported as 2y-only/unconfirmed with this dataset.
+
+Protocol as always: selection on the 2y gate only (n ≥ 15, PF ≥ 1.2,
+total > 0, max $ per pair), confirmation on 4y, portfolio test under the
+one slot vs the frozen per-pair stack ($3,811.34).
+
+### Result 1 — standalone 2y matrix (11 pairs × 11 variants = 121 cells)
+
+**No cell clears the bar.** Every pair's pick is OFF. Family totals
+(all 11 pairs, 2y):
+
+| variant | agg n | agg $ | pairs with n≥15 |
+|---|---|---|---|
+| S1 3d sweep-reclaim | 45 | −$422 | 0 |
+| S2 5d sweep-reclaim | 29 | −$291 | 0 |
+| S3 10d sweep-reclaim | 18 | −$97 | 0 |
+| S4 5d breakout-retest | 125 | −$2,894 | 3 |
+| PA1 inside-bar break | 300 | −$2,929 | 10 |
+| PA2 pin-bar rejection | 207 | −$3,027 | 9 |
+| PA3 engulfing | 293 | −$3,026 | 8 |
+| PA4 outside-bar follow | 294 | −$3,040 | 8 |
+| V1 vol-spike displacement | 263 | −$2,669 | 8 |
+| V2 POC retrace | 70 | −$2,981 | 0 |
+| V3 low-vol exhaustion | 94 | −$2,768 | 0 |
+
+~1,558 standalone trades, ≈ −$27k in aggregate. The PA and volume
+families are well-powered (n per pair 10-82) — this is a robust
+negative, not small-sample noise. Multi-day S/R sweep+reclaim is simply
+too rare inside the 4-hour window (n 0-8 per pair) to be conclusive; the
+few positive cells (EURJPY S1 n=6 +$81, XAUUSD S3 n=1 +$49) fail the
+n≥15 bar and the 4y descriptive checks confirm noise (EURJPY S1 4y: PF
+0.99, n=9; AUDUSD S1 4y: −$38, n=4).
+
+### Result 2 — why (zero-cost diagnostic)
+
+Re-running the best-traded variants with costs OFF isolates the raw
+directional edge from friction:
+
+* EURUSD/GBPJPY: PA1/PA3/PA4/V1 zero-cost PF 0.66-0.97, still −$250 to
+  −$280 → **the candlestick/volume patterns have no directional edge at
+  all** before costs. Not a cost problem — a no-edge problem.
+* **XAUUSD PA4 (outside-bar follow) is the one real exception:** zero-cost
+  PF 1.20 on n=520 (+$1,979) — gold's range-expansion bars do carry
+  information. But the honest cost structure (commission + spread vs the
+  1.5% risk unit) is worth more than the raw edge per trade: with costs,
+  2y standalone PF 0.62, −$279, and the run HALTs at the $2,250 floor
+  after ~72 trades. Edge smaller than friction — not certifiable. (The
+  cost-on run trades far fewer times than the zero-cost run for exactly
+  this reason: the floor stops it.)
+
+### Result 3 — S/R as a confluence FILTER on the proven edge
+
+The only remaining legitimate use of S/R: not a standalone strategy, but
+a filter on the certified per-pair stack. Pre-specified rule (one rule,
+no per-pair selection): take a triad signal only if its entry is within
+0.5 ATR of any 3/5/10-day high or low.
+
+* 2y gate: triad trades 60 → 2 (the signals are Asian-range
+  sweep/reclaim events — they fire away from multi-day levels), the 2
+  survivors lose (triad −$15); portfolio **$3,289.33 → $1,497.07
+  (−$1,792)**. Rejected on the gate; 4y confirmation not run per
+  protocol.
+
+### Verdict
+
+1. **Classic S/R, candlestick price-action, and tick-volume patterns do
+   NOT add standalone ROI** under the honest model — 121/121 cells
+   negative or underpowered, every family total negative.
+2. The one raw edge found (XAUUSD outside-bar, PF 1.20 zero-cost) is
+   **smaller than transaction friction** and dies under honest costs.
+3. Multi-day S/R proximity as a filter on the proven edge **kills the
+   edge** (−$1,792 on the gate) — the existing signals are
+   intraday-range events and do not cluster at multi-day levels.
+4. **The ROI champion is unchanged: the per-pair 5-pair stack + gold**
+   (4y $3,811.34 / CAGR 26.1%; 2y gate $3,289.33 / CAGR 34.6%).
+   `python tools/order_selector.py --confirm --pairfit --compound --risk
+   0.0175`. The `EXTRA_DETECTORS` hook (order_selector) now lets any
+   future certified family plug into the slot loop; it is empty by
+   default and bit-identical (F0 reproduced $3,811.34 exactly; suite
+   201+4 green).
+
+**Honesty notes.** (1) Volume family is structurally 2y-only (tick
+volume starts 2024-01-10) — even a strong 2y result could not be
+certified with this dataset; it would need a longer tick-volume history.
+(2) PA/volume detectors use the same re-touch limit fills as the rest of
+the stack (stricter than market-entry backtests) — the zero-cost results
+show the conclusion does not hinge on fill friction for the FX pairs.
+(3) 121 configurations were examined on the 2y window; nothing survived,
+so there is no selection-bias artifact to over-discount here — the
+negative is the robust direction. (4) The XAUUSD PA4 zero-cost edge is
+recorded as a lead (gold range expansion carries information), not a
+strategy: any live use would need a lower-friction entry/cost structure
+or a bigger risk unit to make edge > friction.
+
+## 11. REVIEW OF EXTERNAL SUGGESTION (2026-09-13) — price-action/S/R/volume lab from a separate checkout
+
+Reviewed the "Price Action, Support/Resistance, and Activity Lab" result
+from `/home/ubuntu/forex` (separate codebase; its `findings_price_action_volume_lab.md` is not in this repo). Verdict per claim:
+
+| claim | verdict | evidence here |
+|---|---|---|
+| S/R + PA filters don't improve ROI | **CONFIRMED independently** | §10: 121/121 standalone cells negative; S/R-proximity filter −$1,792 (2y). Their "strong PA filter" (43.6% vs 67.4% baseline) and "S/R close filter" (51.8%) show the same direction |
+| "opening range already acts as natural S/R" | **consistent** | §10 Result 3: signals are intraday-range events; forcing multi-day-level proximity cut triad trades 60 → 2 |
+| "volume column all zero → volume analysis impossible" | **FACTUALLY WRONG for our M5 data** | 200,000 nonzero tick-volume bars per pair, spanning the full 2024-01-10 → 2026-09-11 window, in both the 2y FSB files and the 4y files (the 4y files are zero only before 2024-01; M1 files have no volume column — likely what was checked). We DID run the volume family: V1/V2/V3 all negative on 2y (PF 0.00-0.75). Same conclusion, wrong premise — "impossible" vs "tested and negative" matters for the roadmap |
+| "best = XAUUSD M1 trend + M5 breakout; GBP/EUR M5 breakout" (ROI 67.43%, PF 2.17, P1 323d) | **UNVERIFIABLE here** (strategy not in this repo — only TRIAD EAs exist) + two red flags | (a) If "M5 breakout" is ORB-family, this repo's 4y audit de-certified London ORB (fast-track F3: ZERO follow-through, WR 0% rider; old "3R wins" were target-path artifacts). (b) Their own last line: the pessimistic stop-first case fails the account floor for EVERY variant — see next row. Face value: 67.43% of $2,500 ≈ $1,686 over 4y vs our certified $3,811.34 (152%) — but different universes (no gold leg), not directly comparable |
+| "pessimistic stop-first fails the floor for every variant" | **THE KEY FINDING — disqualifier for their system, NOT ours** | Our P0 combo with The5ers governors (5% daily, $2,250 floor): **bit-identical $3,811.34 under optimistic / coin / stop-first**, no halt, P1 282d, DD 4.5% (zero ambiguous fills on the path taken). A strategy whose best variant fails the floor under stop-first is not certifiable under our honesty standard |
+| next: tick data, tick volume, spread widening, news filter, tick replay | **direction AGREED; one testable proxy run** | Spread-widening PROXY (skip a triad signal when the day's warm ATR ≥ 90th percentile of the trailing 30 — news-day chop): 2y $3,289.33 → $3,190.17 (−$99.16, 5 trades dropped) → **rejected on the gate**, 4y not run per protocol. True time-varying spread and news calendars are absent from this dataset (per-day pip values only) — agreed untestable here |
+
+**Adopted from the suggestion:**
+1. **Pessimistic-floor certification criterion (now standing):** any future
+   variant/leg must clear the $2,250 floor under STOP-FIRST ambiguity
+   with governors on before it can be certified. Our current stack
+   passes with bit-identical results under all three ambiguity bounds.
+2. Roadmap correction: M5 tick volume exists for the full 2y window —
+   the volume family was testable and is negative; what is missing is
+   2022-24 tick-volume history (and bid/ask), not the concept.
+3. Not adopted: their per-pair "M5 breakout" logic — unverifiable
+   without their code/backtester, and the ORB de-certification prior plus
+   the pessimistic-floor failure argue against it. If their EA source is
+   shared, it can be ported and audited against this honesty layer.
+
+One structural observation: in their lab, adding gold price-action made
+things WORSE (48.3% vs 67.4% baseline) — consistent with our design
+conclusion that the gold leg's value is in Donchian momentum (+$1,807 of
+the $3,811 4y, ~half the portfolio), not in candlestick patterns on gold.
+
+## 12. EXTERNAL ORB + M1-SLOPE STRATEGY (2026-09-13) — spec review, standalone validation, combination test
+
+### 12.1 What was received
+
+A complete strategy spec from a separate checkout, with its own reported
+results:
+
+  Instruments/sessions: GBPJPY + EURJPY (London), XAUUSD (New York).
+  1. 6-candle M5 opening range (first 6 M5 bars of the session).
+  2. Breakout trade only if the breakout candle has body >= 35% of its
+     range AND close aligned with the breakout direction.
+  3. M1 confirmation: the preceding 12-minute M1 slope is positive for
+     longs / negative for shorts.
+  4. Skip if stop distance < 10 pips.
+  5. Stop = 0.50 ATR.  6. Target = 1.5R.
+  7. One account-wide position.  8. Max 2 trades/day.
+  9. Spread + commission costs.  10. Daily/total floor governors.
+
+Their reported results (their engine, their fill model): coin-flip fills
+52.99% win-rate; stop-first 24.63% ROI over a 359-trading-day window,
+no floor halt. Their max-ROI variant (2.5R target, 0.25-ATR stop,
+all-pairs M1 trend, ~76.74%) was self-rejected by them because it hits
+the account floor under stop-first — which matches our adopted
+pessimistic-floor criterion (Section 11). Their own caveat that M1/M5
+OHLC cannot resolve the stop-vs-target order is the same honesty
+constraint we enforce.
+
+### 12.2 Implementation (this repo)
+
+`tools/external_orb.py` implements the spec verbatim as an
+`EXTRA_DETECTORS` candidate, run through the same honesty engine and
+one-slot combo loop as the champion. Documented assumptions (unspecified
+in their spec):
+
+  * Session starts: London 07:00, NY 13:30 (London wall clock).
+  * The FIRST M5 close beyond the opening range is the breakout candle;
+    if it fails the body/close/slope filters, no trade that day.
+  * Entry: MARKET at the open of the bar after the breakout close.
+  * 0.5 ATR stop from the fill; ATR = the repo daily warm M15 ATR map.
+  * No time-stop (none in their spec) -> flat at session end (11:00/16:00).
+  * M1 data exists only 2024-09-11 -> 2026-09-11 (git 578da08); earlier
+    dates produce no signal (excluded, not approximated).
+
+`order_selector.py` gained four small default-inert hooks (suite 201+4
+still green, base runs bit-identical): signal-level `end_utc` (own
+session end), `ts` (time-stop) and `mode` (entry) overrides, `gold_off`
+switch, and the no-late filter now applies to the PRIMARY signal only.
+
+Raw signal counts (2y, detector only, before cost/slot filters):
+GBPJPY 20, EURJPY 11, XAUUSD 316 — i.e. on gold the M1-slope filter is
+nearly decorative: a strong-body NY breakout candle is almost always
+preceded by a 12-minute drift in the same direction (it removes ~25% of
+candidates). On JPY pairs the same filter is the main gate (31 of ~504
+days pass). The "10-pip minimum stop" never binds: 0.5 x daily ATR is
+35-50 pips on JPY and $15-25 on gold.
+
+### 12.3 Standalone (their strategy, our engine, 1.5% fixed)
+
+  run             n    PF     PnL        CAGR    DD      floor
+  A1 2y coin      93  0.88   -262.36    -7.8%   12.9%   HALT
+  A2 2y stop      67  0.83   -267.21    -8.7%   13.1%   HALT
+  B1 4y coin      95  0.88   -260.53    -4.2%   14.3%   HALT
+  B2 4y stop      71  0.84   -257.24    -4.4%   14.2%   HALT
+  B3 2y coin @0.4% 326 0.86  -256.36    -3.9%   10.9%   HALT
+  B4 2y stop @0.4% 168 0.75  -250.08    -5.8%   10.6%   HALT
+
+  per-pair (2y, no slot contention):
+  GBPJPY  n=20  PF 0.58   -216.76
+  EURJPY  n=11  PF 0.95    -11.49
+  XAUUSD  n=81  PF 0.85   -284.22   (stop-first: n=61 PF 0.81 -271.00)
+
+Reconciliation with their +24.63% / 52.99% report: their stop-first
+made about +$615 over ~17.5 months; ours made -10.7% (-$267) over 2y.
+The ~$880 gap is $10-13 per trade — about one full round-trip cost plus
+same-bar target/stop resolution, i.e. their engine counts fills our
+pessimistic model counts as losses. Under our adopted criterion
+(pessimistic floor must hold under stop-first, Section 11) this strategy
+is disqualified as a standalone. Even at their own 0.4% capped sizing
+it stays negative and ends at $2,243-2,250 — at/below the absolute
+floor.
+
+### 12.4 Combination with the champion (the actual question)
+
+One-slot combo, certified per-pair 5-pair stack + gold (1.75%/3.0%
+compounding), external leg added:
+
+  run                      n    PF     PnL      CAGR   DD
+  C1 2y base (expect)      72  2.62   3289.33  34.6%  4.5%
+  C2 2y base + external    87  2.02   2799.43  30.5%  9.3%
+  C3 2y + ext, stop-first  87  2.02   2799.43  30.5%  9.3%
+  C4 4y base (expect)     109  2.25   3811.34  26.1%  4.5%
+  C5 4y base + external   124  1.86   3276.25  23.3%  9.3%
+  C6 4y + ext, stop-first 124  1.86   3276.25  23.3%  9.3%
+
+  2y:  3289.33 -> 2799.43   =  -489.90  (-14.9%)
+  4y:  3811.34 -> 3276.25   =  -535.09  (-14.0%)
+
+The external leg trades only 15 times per window (one slot): 347 raw
+signals collapse to 15 executed because the slot is already holding a
+champion trade or the day cap is hit. And those 15 do damage: the triad
+leg drops +1559 -> +1107 (2y) because P0 first-available lets PF 0.8-0.9
+external signals displace PF ~2.5 primary signals on the same days; the
+gold leg loses a further -37. The combo verdict is identical under both
+ambiguity models, and the 4y result (external active only inside the
+M1 window — the conservative case) confirms the 2y gate failure.
+
+### 12.5 Why it fails (structural, not parameter noise)
+
+  * No certifiable edge in the filters on these pairs: GBPJPY PF 0.58
+    (reproduces the F3 prior — London ORB, zero follow-through on JPY),
+    XAUUSD PF 0.85 at the highest frequency, EURJPY a small n at
+    ~breakeven. The body/slope filters select momentum continuation,
+    and 0.5-ATR stops with market entries stop out before 1.5R on the
+    majority of days; whatever directional edge exists is below honest
+    friction.
+  * Slot interaction: an uncorrelated leg must beat the PF of the trades
+    it displaces (~2.5), not merely be positive. A negative-edge leg
+    inside a one-slot account always subtracts.
+
+### 12.6 Caveats
+
+  * Entry reading: market at the next open after the breakout close
+    ("enter on the break"). A stop-at-range-edge fill could improve the
+    standalone PnL by roughly one spread per trade (~+$250, i.e. to
+    breakeven) — it cannot reach the PF >= 1.2 certification bar, and
+    the combination verdict is independent of it (displacement damage is
+    structural).
+  * M1 coverage ends 2026-09-11 and starts 2024-09-11; the 4y combo run
+    therefore has the external leg active only in its last 2y (no M5
+    proxy was substituted).
+  * Their 0.4% capped-compounding sizing is a ~4x lower-risk product,
+    not a max-returns one; tested as sizing sensitivity only (B3/B4).
+  * Their self-rejected 2.5R/0.25-ATR/all-pairs variant: not tested by
+    us — it already failed their own floor test, and 0.25-ATR stops +
+    all-pairs is strictly more fragile than the spec as given.
+
+### 12.7 Decision
+
+NOT ADOPTED — the combination gate fails at the first step (2y: -489.90
+under both ambiguity models, -535.09 on 4y confirmation; DD doubles).
+The standalone version is negative and halts the pessimistic floor.
+Champion unchanged: per-pair 5-pair triad stack + gold Donchian,
+$3,811.34 (4y) / $3,289.33 (2y). `tools/external_orb.py` and the
+default-inert hooks are committed for reproducibility.

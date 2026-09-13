@@ -30,6 +30,9 @@ import sys
 from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+_LONDON = ZoneInfo("Europe/London")
 
 sys.path.insert(0, os.path.abspath("."))
 import tools.aggressive_optimizer as m  # noqa: E402
@@ -85,15 +88,27 @@ def asian_range_atr(day_bars, london_s, london_e):
     return (ref_h, ref_l), atr
 
 
-def detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym):
+def detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym, disp_max=2,
+           ref_override=None, stop_buffer=None, sweep_min=None):
     """Canonical V2.1 detector; returns at most one signal dict.
 
-    ref range = bars in [ref_s, ref_e); entry window = [ent_s, ent_e)."""
+    ref range = bars in [ref_s, ref_e); entry window = [ent_s, ent_e).
+    disp_max: bars after the sweep in which the reclaim bar may occur
+    (default 2 = original detector).
+    ref_override: (ref_h, ref_l) tuple to use instead of the in-window
+    ref range (e.g. previous day's high/low — liquidity-sweep leg).
+    stop_buffer: ATR buffer for the stop (default: tsb.STOP_BUFFER_ATR;
+    per-pair strategy assignment)."""
+    sb = tsb.STOP_BUFFER_ATR if stop_buffer is None else stop_buffer
+    sm = tsb.SWEEP_ATR_MIN if sweep_min is None else sweep_min
     pre = [b for b in day_bars if ref_s <= b.ts < ref_e]
     if len(pre) < 12:
         return None
-    ref_h = max(b.high for b in pre)
-    ref_l = min(b.low for b in pre)
+    if ref_override is not None:
+        ref_h, ref_l = ref_override
+    else:
+        ref_h = max(b.high for b in pre)
+        ref_l = min(b.low for b in pre)
     win = [b for b in day_bars if ent_s <= b.ts < ent_e]
     spec = m.SPECS[sym]
 
@@ -101,24 +116,24 @@ def detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym):
     for i, b in enumerate(win):
         l_depth = (ref_l - b.low) / atr
         s_depth = (b.high - ref_h) / atr
-        if l_depth < tsb.SWEEP_ATR_MIN and s_depth < tsb.SWEEP_ATR_MIN:
+        if l_depth < sm and s_depth < sm:
             continue
-        if l_depth >= tsb.SWEEP_ATR_MIN and s_depth >= tsb.SWEEP_ATR_MIN:
+        if l_depth >= sm and s_depth >= sm:
             return None                      # two-sided sweep: consume, no trade
-        sweep_i, side = i, ("long" if l_depth >= tsb.SWEEP_ATR_MIN else "short")
+        sweep_i, side = i, ("long" if l_depth >= sm else "short")
         extreme = b.low if side == "long" else b.high
         break
     if sweep_i < 0:
         return None
 
     rec_i = -1
-    for i in range(sweep_i, min(len(win) - 1, sweep_i + 2) + 1):
+    for i in range(sweep_i, min(len(win) - 1, sweep_i + disp_max) + 1):
         b = win[i]
         if side == "long":
             extreme = min(extreme, b.low)
             if (ref_l - extreme) / atr > tsb.SWEEP_ATR_MAX:
                 return None
-            if (b.high - ref_h) / atr >= tsb.SWEEP_ATR_MIN:
+            if (b.high - ref_h) / atr >= sm:
                 return None
             if ref_l < b.close < ref_h:
                 if wick_ratio(b, "long") < tsb.RECLAIM_WICK_MIN:
@@ -129,7 +144,7 @@ def detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym):
             extreme = max(extreme, b.high)
             if (extreme - ref_h) / atr > tsb.SWEEP_ATR_MAX:
                 return None
-            if (ref_l - b.low) / atr >= tsb.SWEEP_ATR_MIN:
+            if (ref_l - b.low) / atr >= sm:
                 return None
             if ref_l < b.close < ref_h:
                 if wick_ratio(b, "short") < tsb.RECLAIM_WICK_MIN:
@@ -152,47 +167,88 @@ def detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym):
             return None
 
     entry = (disp.open + disp.close) / 2.0
-    stop = (extreme - tsb.STOP_BUFFER_ATR * atr if side == "long"
-            else extreme + tsb.STOP_BUFFER_ATR * atr)
+    stop = (extreme - sb * atr if side == "long"
+            else extreme + sb * atr)
     stop_d = abs(entry - stop)
     if not (tsb.STOP_ATR_MIN <= stop_d / atr <= tsb.STOP_ATR_MAX):
         return None
     if stop_d / spec["pip"] < 2:             # broker min-stop sanity
         return None
+    # Pattern diagnostics (used by tools/order_selector.py conviction scoring).
+    # Additive keys — existing callers ignore them.
     return dict(side=side, entry=entry, stop=stop, sig_ts=disp.ts + timedelta(minutes=5),
-                extreme=extreme)
+                extreme=extreme,
+                body_ratio=body_ratio(disp),
+                wick_ratio=wick_ratio(rec, side),
+                sweep_atr=((ref_l - extreme) / atr if side == "long"
+                           else (extreme - ref_h) / atr))
 
 
 def sim_triad(sig, day_bars, end_utc, symbol, *, target_r, time_stop_min,
-              ambiguity="coin", costs=True, risk_frac=0.004):
-    """Honest fill/exit sim. Returns trade dict or None (unfilled)."""
+              ambiguity="coin", costs=True, risk_frac=0.004,
+              entry_expire_min=None, breakeven_r=None, entry_mode="limit",
+              base_balance=None):
+    """Honest fill/exit sim. Returns trade dict or None (unfilled).
+
+    M1-lab extensions (default = original behavior):
+      entry_expire_min  limit order expires X minutes after signal
+      breakeven_r       move stop to entry once price reaches +X R
+      entry_mode        "limit" (default): rest a limit at the signal
+                        price, fill on re-touch. "market": fill at the
+                        OPEN of the first bar after the signal (no
+                        re-touch required — tests momentum-day logic).
+      base_balance      equity used for lot sizing (default: the fixed
+                        $2,500 constant). Pass the current balance to
+                        COMPOUND sizing as the account grows.
+    """
     spec = m.SPECS[symbol]
     pv = sig["pv"]
     d = sig["side"]
     entry, stop = sig["entry"], sig["stop"]
+    bbar_end = sig["sig_ts"]
+    expire_ts = (bbar_end + timedelta(minutes=entry_expire_min)
+                 if entry_expire_min else None)
+    fwd = [b for b in day_bars if bbar_end <= b.ts < end_utc
+           and (expire_ts is None or b.ts < expire_ts)]
+    if entry_mode == "market":
+        if not fwd:
+            return None
+        fill_i = 0
+        entry = fwd[0].open          # fill at the OPEN of the next bar
+    else:
+        fill_i = None
+        for i, b in enumerate(fwd):
+            if (d == "long" and b.low <= entry) or (d == "short" and b.high >= entry):
+                fill_i = i
+                break
+        if fill_i is None:
+            return None
     stop_d = abs(entry - stop)
     lpl = stop_d / spec["pip"] * pv + (v2.COMM_RT if costs else 4.0)
-    lots = max(0.0, math.floor((m.ACCOUNT_BALANCE * risk_frac / lpl) / m.VOLUME_STEP) * m.VOLUME_STEP)
+    base = m.ACCOUNT_BALANCE if base_balance is None else base_balance
+    lots = max(0.0, math.floor((base * risk_frac / lpl) / m.VOLUME_STEP) * m.VOLUME_STEP)
     if lots < m.VOLUME_MIN:
         return None
     target = entry + stop_d * target_r if d == "long" else entry - stop_d * target_r
-
-    bbar_end = sig["sig_ts"]
-    fwd = [b for b in day_bars if bbar_end <= b.ts < end_utc]
-    fill_i = None
-    for i, b in enumerate(fwd):
-        if (d == "long" and b.low <= entry) or (d == "short" and b.high >= entry):
-            fill_i = i
-            break
-    if fill_i is None:
-        return None
     fill_ts = fwd[fill_i].ts
     tstop_ts = fill_ts + timedelta(minutes=time_stop_min)
 
     exit_px, reason = entry, "cancel"
     exit_ts = fwd[-1].ts + timedelta(minutes=5) if fwd else bbar_end
     ambiguous = False
+    be_active = False
     for b in fwd[fill_i:]:
+        if breakeven_r:
+            if not be_active:
+                trig = (entry + stop_d * breakeven_r if d == "long"
+                        else entry - stop_d * breakeven_r)
+                if (d == "long" and b.high >= trig) or \
+                   (d == "short" and b.low <= trig):
+                    be_active = True   # conservative: applies next bar
+            elif d == "long":
+                stop = max(stop, entry)
+            else:
+                stop = min(stop, entry)
         if d == "long":
             hit_t, hit_s = b.high >= target, b.low <= stop
         else:
@@ -231,7 +287,28 @@ def sim_triad(sig, day_bars, end_utc, symbol, *, target_r, time_stop_min,
 
 
 def run_triad(cache, target_r, time_stop_min, universe, *, ambiguity="coin",
-              costs=True, max_per_day=2, risk_frac=0.004):
+              costs=True, max_per_day=2, risk_frac=0.004,
+              sim_bars_fn=None, entry_expire_min=None, breakeven_r=None,
+              target_r_map=None, target_r_fn=None, entry_mode="limit",
+              order="time", session_end=(11, 0), disp_max=2,
+              compound=False, sig_hours=None):
+    # compound: size each trade off the CURRENT balance instead of the
+    # fixed $2,500 base (profit compounding; DD ignored per user).
+    # sig_hours: set of London wall hours in which signals are accepted
+    # (None = all — default). From hour-of-day bucket mining.
+    # target_r_fn(sym, date) -> per-day target R override (M1 lab regime
+    # tests). Takes precedence over target_r_map/target_r when set.
+    # entry_mode: "limit" (default) or "market" (fill at next bar open).
+    # order: "time" (default, chronological) or "sweep" (strongest sweep
+    # depth first on the same day — a static best-candidate logic).
+    # session_end: London (h, m) end of the trade session (default 11:00).
+    # disp_max: bars after the sweep in which the reclaim may occur
+    # (default 2 = original detector).
+    # sim_bars_fn(sym, date) -> bars used for EXECUTION (M1 lab hook;
+    # default None = the same M5 bars the signal was detected on).
+    # Returning None/empty for a (sym, date) falls back to the M5 bars.
+    # entry_expire_min / breakeven_r: forwarded to sim_triad; defaults
+    # keep the original behavior bit-identical.
     lp, np_ = universe
     sessions = [(0, sym) for sym in lp] + [(1, sym) for sym in np_]
     all_dates = sorted({d for sym in cache for d in cache[sym][0] if d.weekday() < 5})
@@ -261,7 +338,7 @@ def run_triad(cache, target_r, time_stop_min, universe, *, ambiguity="coin",
             day_bars = by_date_sym[d]
             if prio == 0:
                 ref_s, ref_e = m.lw_utc(d, 0), m.lw_utc(d, 7)
-                ent_s, ent_e = m.lw_utc(d, 7), m.lw_utc(d, 11)
+                ent_s, ent_e = m.lw_utc(d, 7), m.lw_utc(d, *session_end)
                 end_utc = ent_e
             else:
                 ref_s, ref_e = m.lw_utc(d, 7), m.lw_utc(d, 13, 30)
@@ -270,11 +347,19 @@ def run_triad(cache, target_r, time_stop_min, universe, *, ambiguity="coin",
             atr = atr_map.get(d, 0.0)        # pre-07:00 M15 ATR (day-level)
             if atr <= 0:
                 continue
-            sig = detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym)
+            sig = detect(day_bars, ref_s, ref_e, ent_s, ent_e, atr, sym,
+                         disp_max=disp_max)
             if sig:
+                if sig_hours is not None:
+                    if sig["sig_ts"].astimezone(_LONDON).hour not in sig_hours:
+                        continue
                 sig["pv"] = m.day_pv(sym, d, cache)
                 cands.append((sig["sig_ts"], prio, sig, sym, day_bars, end_utc))
-        cands.sort(key=lambda x: (x[0], x[1], x[3]))
+        if order == "sweep":
+            cands.sort(key=lambda x: (-x[2].get("sweep_atr", 0.0),
+                                      x[0], x[1], x[3]))
+        else:
+            cands.sort(key=lambda x: (x[0], x[1], x[3]))
 
         traded_syms = set()
         slot_busy_until = None
@@ -285,9 +370,19 @@ def run_triad(cache, target_r, time_stop_min, universe, *, ambiguity="coin",
                 continue
             if slot_busy_until is not None and sig_ts < slot_busy_until:
                 continue
-            t = sim_triad(sig, day_bars, end_utc, sym, target_r=target_r,
+            sim_bars = (sim_bars_fn(sym, d) if sim_bars_fn else None) or day_bars
+            if target_r_fn:
+                tr = target_r_fn(sym, d)
+            elif target_r_map:
+                tr = target_r_map.get(sym, target_r)
+            else:
+                tr = target_r
+            t = sim_triad(sig, sim_bars, end_utc, sym, target_r=tr,
                           time_stop_min=time_stop_min, ambiguity=ambiguity,
-                          costs=costs, risk_frac=risk_frac)
+                          costs=costs, risk_frac=risk_frac,
+                          entry_expire_min=entry_expire_min,
+                          breakeven_r=breakeven_r, entry_mode=entry_mode,
+                          base_balance=balance if compound else None)
             if t is None:
                 slot_busy_until = end_utc    # limit rested to session end
                 continue
