@@ -499,3 +499,35 @@ negative is the robust direction. (4) The XAUUSD PA4 zero-cost edge is
 recorded as a lead (gold range expansion carries information), not a
 strategy: any live use would need a lower-friction entry/cost structure
 or a bigger risk unit to make edge > friction.
+
+## 11. REVIEW OF EXTERNAL SUGGESTION (2026-09-13) — price-action/S/R/volume lab from a separate checkout
+
+Reviewed the "Price Action, Support/Resistance, and Activity Lab" result
+from `/home/ubuntu/forex` (separate codebase; its `findings_price_action_volume_lab.md` is not in this repo). Verdict per claim:
+
+| claim | verdict | evidence here |
+|---|---|---|
+| S/R + PA filters don't improve ROI | **CONFIRMED independently** | §10: 121/121 standalone cells negative; S/R-proximity filter −$1,792 (2y). Their "strong PA filter" (43.6% vs 67.4% baseline) and "S/R close filter" (51.8%) show the same direction |
+| "opening range already acts as natural S/R" | **consistent** | §10 Result 3: signals are intraday-range events; forcing multi-day-level proximity cut triad trades 60 → 2 |
+| "volume column all zero → volume analysis impossible" | **FACTUALLY WRONG for our M5 data** | 200,000 nonzero tick-volume bars per pair, spanning the full 2024-01-10 → 2026-09-11 window, in both the 2y FSB files and the 4y files (the 4y files are zero only before 2024-01; M1 files have no volume column — likely what was checked). We DID run the volume family: V1/V2/V3 all negative on 2y (PF 0.00-0.75). Same conclusion, wrong premise — "impossible" vs "tested and negative" matters for the roadmap |
+| "best = XAUUSD M1 trend + M5 breakout; GBP/EUR M5 breakout" (ROI 67.43%, PF 2.17, P1 323d) | **UNVERIFIABLE here** (strategy not in this repo — only TRIAD EAs exist) + two red flags | (a) If "M5 breakout" is ORB-family, this repo's 4y audit de-certified London ORB (fast-track F3: ZERO follow-through, WR 0% rider; old "3R wins" were target-path artifacts). (b) Their own last line: the pessimistic stop-first case fails the account floor for EVERY variant — see next row. Face value: 67.43% of $2,500 ≈ $1,686 over 4y vs our certified $3,811.34 (152%) — but different universes (no gold leg), not directly comparable |
+| "pessimistic stop-first fails the floor for every variant" | **THE KEY FINDING — disqualifier for their system, NOT ours** | Our P0 combo with The5ers governors (5% daily, $2,250 floor): **bit-identical $3,811.34 under optimistic / coin / stop-first**, no halt, P1 282d, DD 4.5% (zero ambiguous fills on the path taken). A strategy whose best variant fails the floor under stop-first is not certifiable under our honesty standard |
+| next: tick data, tick volume, spread widening, news filter, tick replay | **direction AGREED; one testable proxy run** | Spread-widening PROXY (skip a triad signal when the day's warm ATR ≥ 90th percentile of the trailing 30 — news-day chop): 2y $3,289.33 → $3,190.17 (−$99.16, 5 trades dropped) → **rejected on the gate**, 4y not run per protocol. True time-varying spread and news calendars are absent from this dataset (per-day pip values only) — agreed untestable here |
+
+**Adopted from the suggestion:**
+1. **Pessimistic-floor certification criterion (now standing):** any future
+   variant/leg must clear the $2,250 floor under STOP-FIRST ambiguity
+   with governors on before it can be certified. Our current stack
+   passes with bit-identical results under all three ambiguity bounds.
+2. Roadmap correction: M5 tick volume exists for the full 2y window —
+   the volume family was testable and is negative; what is missing is
+   2022-24 tick-volume history (and bid/ask), not the concept.
+3. Not adopted: their per-pair "M5 breakout" logic — unverifiable
+   without their code/backtester, and the ORB de-certification prior plus
+   the pessimistic-floor failure argue against it. If their EA source is
+   shared, it can be ported and audited against this honesty layer.
+
+One structural observation: in their lab, adding gold price-action made
+things WORSE (48.3% vs 67.4% baseline) — consistent with our design
+conclusion that the gold leg's value is in Donchian momentum (+$1,807 of
+the $3,811 4y, ~half the portfolio), not in candlestick patterns on gold.
