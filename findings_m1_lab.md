@@ -531,3 +531,148 @@ One structural observation: in their lab, adding gold price-action made
 things WORSE (48.3% vs 67.4% baseline) — consistent with our design
 conclusion that the gold leg's value is in Donchian momentum (+$1,807 of
 the $3,811 4y, ~half the portfolio), not in candlestick patterns on gold.
+
+## 12. EXTERNAL ORB + M1-SLOPE STRATEGY (2026-09-13) — spec review, standalone validation, combination test
+
+### 12.1 What was received
+
+A complete strategy spec from a separate checkout, with its own reported
+results:
+
+  Instruments/sessions: GBPJPY + EURJPY (London), XAUUSD (New York).
+  1. 6-candle M5 opening range (first 6 M5 bars of the session).
+  2. Breakout trade only if the breakout candle has body >= 35% of its
+     range AND close aligned with the breakout direction.
+  3. M1 confirmation: the preceding 12-minute M1 slope is positive for
+     longs / negative for shorts.
+  4. Skip if stop distance < 10 pips.
+  5. Stop = 0.50 ATR.  6. Target = 1.5R.
+  7. One account-wide position.  8. Max 2 trades/day.
+  9. Spread + commission costs.  10. Daily/total floor governors.
+
+Their reported results (their engine, their fill model): coin-flip fills
+52.99% win-rate; stop-first 24.63% ROI over a 359-trading-day window,
+no floor halt. Their max-ROI variant (2.5R target, 0.25-ATR stop,
+all-pairs M1 trend, ~76.74%) was self-rejected by them because it hits
+the account floor under stop-first — which matches our adopted
+pessimistic-floor criterion (Section 11). Their own caveat that M1/M5
+OHLC cannot resolve the stop-vs-target order is the same honesty
+constraint we enforce.
+
+### 12.2 Implementation (this repo)
+
+`tools/external_orb.py` implements the spec verbatim as an
+`EXTRA_DETECTORS` candidate, run through the same honesty engine and
+one-slot combo loop as the champion. Documented assumptions (unspecified
+in their spec):
+
+  * Session starts: London 07:00, NY 13:30 (London wall clock).
+  * The FIRST M5 close beyond the opening range is the breakout candle;
+    if it fails the body/close/slope filters, no trade that day.
+  * Entry: MARKET at the open of the bar after the breakout close.
+  * 0.5 ATR stop from the fill; ATR = the repo daily warm M15 ATR map.
+  * No time-stop (none in their spec) -> flat at session end (11:00/16:00).
+  * M1 data exists only 2024-09-11 -> 2026-09-11 (git 578da08); earlier
+    dates produce no signal (excluded, not approximated).
+
+`order_selector.py` gained four small default-inert hooks (suite 201+4
+still green, base runs bit-identical): signal-level `end_utc` (own
+session end), `ts` (time-stop) and `mode` (entry) overrides, `gold_off`
+switch, and the no-late filter now applies to the PRIMARY signal only.
+
+Raw signal counts (2y, detector only, before cost/slot filters):
+GBPJPY 20, EURJPY 11, XAUUSD 316 — i.e. on gold the M1-slope filter is
+nearly decorative: a strong-body NY breakout candle is almost always
+preceded by a 12-minute drift in the same direction (it removes ~25% of
+candidates). On JPY pairs the same filter is the main gate (31 of ~504
+days pass). The "10-pip minimum stop" never binds: 0.5 x daily ATR is
+35-50 pips on JPY and $15-25 on gold.
+
+### 12.3 Standalone (their strategy, our engine, 1.5% fixed)
+
+  run             n    PF     PnL        CAGR    DD      floor
+  A1 2y coin      93  0.88   -262.36    -7.8%   12.9%   HALT
+  A2 2y stop      67  0.83   -267.21    -8.7%   13.1%   HALT
+  B1 4y coin      95  0.88   -260.53    -4.2%   14.3%   HALT
+  B2 4y stop      71  0.84   -257.24    -4.4%   14.2%   HALT
+  B3 2y coin @0.4% 326 0.86  -256.36    -3.9%   10.9%   HALT
+  B4 2y stop @0.4% 168 0.75  -250.08    -5.8%   10.6%   HALT
+
+  per-pair (2y, no slot contention):
+  GBPJPY  n=20  PF 0.58   -216.76
+  EURJPY  n=11  PF 0.95    -11.49
+  XAUUSD  n=81  PF 0.85   -284.22   (stop-first: n=61 PF 0.81 -271.00)
+
+Reconciliation with their +24.63% / 52.99% report: their stop-first
+made about +$615 over ~17.5 months; ours made -10.7% (-$267) over 2y.
+The ~$880 gap is $10-13 per trade — about one full round-trip cost plus
+same-bar target/stop resolution, i.e. their engine counts fills our
+pessimistic model counts as losses. Under our adopted criterion
+(pessimistic floor must hold under stop-first, Section 11) this strategy
+is disqualified as a standalone. Even at their own 0.4% capped sizing
+it stays negative and ends at $2,243-2,250 — at/below the absolute
+floor.
+
+### 12.4 Combination with the champion (the actual question)
+
+One-slot combo, certified per-pair 5-pair stack + gold (1.75%/3.0%
+compounding), external leg added:
+
+  run                      n    PF     PnL      CAGR   DD
+  C1 2y base (expect)      72  2.62   3289.33  34.6%  4.5%
+  C2 2y base + external    87  2.02   2799.43  30.5%  9.3%
+  C3 2y + ext, stop-first  87  2.02   2799.43  30.5%  9.3%
+  C4 4y base (expect)     109  2.25   3811.34  26.1%  4.5%
+  C5 4y base + external   124  1.86   3276.25  23.3%  9.3%
+  C6 4y + ext, stop-first 124  1.86   3276.25  23.3%  9.3%
+
+  2y:  3289.33 -> 2799.43   =  -489.90  (-14.9%)
+  4y:  3811.34 -> 3276.25   =  -535.09  (-14.0%)
+
+The external leg trades only 15 times per window (one slot): 347 raw
+signals collapse to 15 executed because the slot is already holding a
+champion trade or the day cap is hit. And those 15 do damage: the triad
+leg drops +1559 -> +1107 (2y) because P0 first-available lets PF 0.8-0.9
+external signals displace PF ~2.5 primary signals on the same days; the
+gold leg loses a further -37. The combo verdict is identical under both
+ambiguity models, and the 4y result (external active only inside the
+M1 window — the conservative case) confirms the 2y gate failure.
+
+### 12.5 Why it fails (structural, not parameter noise)
+
+  * No certifiable edge in the filters on these pairs: GBPJPY PF 0.58
+    (reproduces the F3 prior — London ORB, zero follow-through on JPY),
+    XAUUSD PF 0.85 at the highest frequency, EURJPY a small n at
+    ~breakeven. The body/slope filters select momentum continuation,
+    and 0.5-ATR stops with market entries stop out before 1.5R on the
+    majority of days; whatever directional edge exists is below honest
+    friction.
+  * Slot interaction: an uncorrelated leg must beat the PF of the trades
+    it displaces (~2.5), not merely be positive. A negative-edge leg
+    inside a one-slot account always subtracts.
+
+### 12.6 Caveats
+
+  * Entry reading: market at the next open after the breakout close
+    ("enter on the break"). A stop-at-range-edge fill could improve the
+    standalone PnL by roughly one spread per trade (~+$250, i.e. to
+    breakeven) — it cannot reach the PF >= 1.2 certification bar, and
+    the combination verdict is independent of it (displacement damage is
+    structural).
+  * M1 coverage ends 2026-09-11 and starts 2024-09-11; the 4y combo run
+    therefore has the external leg active only in its last 2y (no M5
+    proxy was substituted).
+  * Their 0.4% capped-compounding sizing is a ~4x lower-risk product,
+    not a max-returns one; tested as sizing sensitivity only (B3/B4).
+  * Their self-rejected 2.5R/0.25-ATR/all-pairs variant: not tested by
+    us — it already failed their own floor test, and 0.25-ATR stops +
+    all-pairs is strictly more fragile than the spec as given.
+
+### 12.7 Decision
+
+NOT ADOPTED — the combination gate fails at the first step (2y: -489.90
+under both ambiguity models, -535.09 on 4y confirmation; DD doubles).
+The standalone version is negative and halts the pessimistic floor.
+Champion unchanged: per-pair 5-pair triad stack + gold Donchian,
+$3,811.34 (4y) / $3,289.33 (2y). `tools/external_orb.py` and the
+default-inert hooks are committed for reproducibility.

@@ -411,22 +411,24 @@ def build_day_candidates(cache, d, ambiguity="coin"):
         if not sigs:
             continue
         tr = cfg.get("T", TR_TARGET_MAP.get(sym, TR_TARGET))
-        for sig in sigs:
-            sh = {7, 8, 9, 10} if cfg.get("no_late") else TR_SIG_HOURS
-            if sh is not None and \
+        sh = {7, 8, 9, 10} if cfg.get("no_late") else TR_SIG_HOURS
+        for i, sig in enumerate(sigs):
+            if i == 0 and sh is not None and \
                     sig["sig_ts"].astimezone(_LDN).hour not in sh:
-                continue
+                continue                 # no-late filter: PRIMARY signal only;
             sig["pv"] = m.day_pv(sym, d, cache)
-            t = th.sim_triad(sig, day_bars, ent_e, sym, target_r=tr,
-                             time_stop_min=cfg.get("ts", TR_TSTOP),
+            end_use = sig.get("end_utc", ent_e)   # extras carry own session end
+            t = th.sim_triad(sig, day_bars, end_use, sym, target_r=tr,
+                             time_stop_min=sig.get(
+                                 "ts", cfg.get("ts", TR_TSTOP)),
                              ambiguity=ambiguity,
                              costs=True, risk_frac=RISK_TRIAD,
-                             entry_mode=cfg.get("mode", "limit"))
+                             entry_mode=sig.get("mode", cfg.get("mode", "limit")))
             cands.append(Cand(
                 leg="triad", sym=sym, side=sig["side"],
                 sig_ts=sig["sig_ts"],
                 entry=sig["entry"], stop=sig["stop"], rr=tr, prio=prio,
-                day=d, end_utc=ent_e,
+                day=d, end_utc=end_use,
                 conviction=triad_conviction(sig.get("body_ratio", 0.6),
                                             sig.get("sweep_atr", 0.2)),
                 costR=cost_to_r(sym, sig["entry"], sig["stop"]),
@@ -482,16 +484,19 @@ def run_combo(cache, policy, *, theta=0.0, ambiguity="coin",
               priors=None, gold_leg: GoldLeg | None = None,
               gold_standalone_pnl: dict | None = None,
               triad_cands_by_day: dict | None = None,
-              challenge=False):
+              challenge=False, gold_off=False):
+    # gold_off: no gold leg at all (standalone external-strategy tests).
     priors = priors or DEFAULT_PRIORS
-    if gold_leg is None:
+    if gold_leg is None and not gold_off:
         gold_leg = GoldLeg(cache)
     if triad_cands_by_day is None:
         triad_cands_by_day = {d: build_day_candidates(cache, d, ambiguity)
                               for d in _all_days(cache)}
-    if gold_standalone_pnl is None:
+    if gold_standalone_pnl is None and gold_leg is not None:
         gold_standalone_pnl = {t["entry_date"]: t["pnl"]
                                for t in gold_leg.standalone(RISK_GOLD)}
+    elif gold_standalone_pnl is None:
+        gold_standalone_pnl = {}
 
     e_tr, e_go = LegStats(priors["triad"]), LegStats(priors["gold"])
     days = _all_days(cache)
@@ -523,7 +528,7 @@ def run_combo(cache, policy, *, theta=0.0, ambiguity="coin",
         day_cands = triad_cands_by_day.get(d, [])
 
         # ---------------- day open: gold exit / gold entry ---------------
-        xau = cache.get("XAUUSD", ({}, {}))[0].get(d)
+        xau = None if gold_off else cache.get("XAUUSD", ({}, {}))[0].get(d)
         open_px, first_ts = (xau[0].open, xau[0].ts) if xau else (None, None)
 
         prev_pos = gold_pos
