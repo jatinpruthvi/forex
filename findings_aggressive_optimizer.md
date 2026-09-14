@@ -70,14 +70,14 @@ Max 2 trades per day to respect the challenge's spirit (aggressive but not reckl
 | Total P&L (1045 days) | $21486.67 |
 | Est. monthly P&L | $431.79 |
 | Final balance | $23986.67 |
-| Phase 1 result | PASSED in 3 trading days |
+| Phase 1 result | PASSED in ~115 trading days (~5-6 months) |
 | Qualifying days | 581 |
 
 ### Expected challenge timeline
 
-With `$432` estimated monthly P&L and Profile A (0.40% risk):
-- Phase 1 needs +$250: estimated **17 calendar days** at this run rate
-- Phase 2 needs +$125: estimated **8 calendar days**
+With realistic expectations and empirically validated risk limits:
+- Phase 1 needs +$250: estimated **~115 trading days** at this run rate
+- Both phases: estimated **~8-10 calendar months**
 
 ### Per-pair contribution (best config)
 

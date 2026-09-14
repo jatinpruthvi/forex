@@ -190,7 +190,7 @@ Risk and target are tested as paired profiles so lower-risk candidates still hav
 
 | Profile | Maximum risk | $2,500 cash ceiling | Fixed target | Nominal risk × target |
 |---|---:|---:|---:|---:|
-| A baseline | 2.00% | $50.00 | +2.50R | 5.000% |
+| A baseline | 1.75% | $43.75 | +1.50R | 2.625% |
 | B | 1.50% | $37.50 | +3.00R | 4.500% |
 | C | 1.00% | $25.00 | +3.50R | 3.500% |
 | D | 0.50% | $12.50 | +4.00R | 2.000% |

@@ -42,7 +42,7 @@ Use **TRIAD-R Challenge Profile**, a simplified session-event router.
 
 ### Active module
 
-Use only **M5 orb_atr (Target=2.5R, ORB=30min, ATR stop=0.25)** for the first evaluation and through the first funded payout. It trades false session breakouts with a defined stop and short holding period.
+Use only **M5 sweep/reclaim reversal** for the first evaluation and through the first funded payout. It trades false session breakouts with a defined stop and short holding period.
 
 The continuation route remains a shadow-mode research candidate. It is not enabled during the first challenge.
 
@@ -103,9 +103,9 @@ If the range break does not reclaim, Sleeve A records the event as `GENUINE_BREA
 
 ### Default evaluation risk
 
-Risk **2.00% of the initial balance per trade**:
+Risk **1.75% of the initial balance per trade (Triad) / 3% (Gold)**:
 
-`$2,500 × 0.02 = $50 maximum planned loss`
+`$2,500 × 0.0175 = $43.75 maximum planned loss (Triad)`
 
 This is deliberately below 0.50%. It allows meaningful progress while preserving room for slippage and losing clusters.
 
@@ -276,7 +276,7 @@ Never use London, Indian, or local computer time for the firm reset. Query MT5 s
 
 ## 11. Expected path—not a promise
 
-At 2.00% risk, Phase 1 requires 5 net R and Phase 2 requires 12.5 net R.
+At 1.75% risk, Phase 1 requires 5.7 net R and Phase 2 requires 2.85 net R.
 
 | Verified net expectancy | Expected trades for Phase 1 | Expected trades for Phase 2 |
 |---:|---:|---:|
