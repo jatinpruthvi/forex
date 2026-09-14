@@ -35,9 +35,9 @@ Max 2 trades per day to respect the challenge's spirit (aggressive but not reckl
 
 | Strategy | Combos | Positive R | Best WR% | Best AvgR | Best Mth$ |
 |---|---|---|---|---|---|
-| `orb_atr` | 36 | 29/36 | 49.9% | 0.285 | $94.60 |
-| `orb_half` | 12 | 0/12 | 38.4% | -0.083 | $-32.02 |
-| `vola` | 12 | 0/12 | 30.8% | -0.223 | $-90.13 |
+| `orb_atr` | 36 | 19/36 | 50.0% | 0.288 | $489.64 |
+| `orb_half` | 12 | 0/12 | 18.8% | -0.125 | $-244.26 |
+| `vola` | 12 | 0/12 | 13.3% | -0.390 | $-764.98 |
 
 ---
 
@@ -45,16 +45,16 @@ Max 2 trades per day to respect the challenge's spirit (aggressive but not reckl
 
 | # | Strat | TR | RB | ATs | Sigs | WR% | AvgR | PF | DD% | Mth$ | DaysP1 | FinalBal |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | orb_atr | 2.5 | 6 | 0.25 | 1702 | 41.6% | 0.250 | 1.43 | 3.0% | $83.42 | 13 | $6650.94 |
-| 2 | orb_atr | 3.0 | 6 | 0.25 | 1697 | 34.8% | 0.198 | 1.31 | 3.9% | $66.15 | 14 | $5791.83 |
-| 3 | orb_atr | 2.0 | 6 | 0.25 | 1702 | 49.9% | 0.285 | 1.57 | 2.7% | $94.60 | 18 | $7207.31 |
-| 4 | orb_atr | 1.5 | 6 | 0.25 | 1704 | 59.0% | 0.269 | 1.66 | 3.3% | $89.32 | 20 | $6944.78 |
-| 5 | orb_atr | 2.5 | 8 | 0.25 | 1684 | 42.5% | 0.279 | 1.49 | 2.2% | $91.68 | 25 | $7062.13 |
-| 6 | orb_atr | 3.0 | 8 | 0.25 | 1683 | 35.8% | 0.235 | 1.37 | 3.5% | $77.77 | 25 | $6370.15 |
-| 7 | orb_atr | 2.5 | 4 | 0.25 | 1701 | 38.6% | 0.164 | 1.27 | 4.3% | $54.58 | 27 | $5216.20 |
-| 8 | orb_atr | 1.5 | 4 | 0.25 | 1705 | 57.3% | 0.238 | 1.56 | 1.4% | $78.74 | 34 | $6418.23 |
-| 9 | orb_atr | 2.0 | 4 | 0.25 | 1704 | 47.2% | 0.224 | 1.42 | 2.5% | $74.17 | 34 | $6190.91 |
-| 10 | orb_atr | 1.5 | 4 | 0.35 | 1902 | 53.9% | 0.174 | 1.37 | 3.0% | $63.37 | 37 | $5653.59 |
+| 1 | orb_atr | 2.5 | 6 | 0.25 | 1702 | 41.7% | 0.254 | 1.44 | 4.5% | $431.79 | 3 | $23986.67 |
+| 2 | orb_atr | 2.0 | 6 | 0.25 | 1702 | 50.0% | 0.288 | 1.58 | 3.8% | $489.64 | 4 | $26865.41 |
+| 3 | orb_atr | 3.0 | 6 | 0.25 | 1697 | 34.9% | 0.202 | 1.31 | 5.9% | $343.32 | 4 | $19584.42 |
+| 4 | orb_atr | 1.5 | 6 | 0.25 | 1704 | 59.1% | 0.272 | 1.66 | 4.7% | $462.04 | 5 | $25492.12 |
+| 5 | orb_atr | 1.5 | 6 | 0.35 | 1919 | 54.0% | 0.172 | 1.38 | 4.2% | $329.83 | 6 | $18913.14 |
+| 6 | orb_atr | 1.5 | 4 | 0.35 | 1902 | 53.9% | 0.174 | 1.38 | 4.5% | $329.58 | 7 | $18900.65 |
+| 7 | orb_atr | 2.0 | 4 | 0.35 | 1897 | 43.5% | 0.137 | 1.24 | 7.5% | $259.65 | 8 | $15420.63 |
+| 8 | orb_atr | 1.5 | 4 | 0.25 | 1705 | 57.3% | 0.239 | 1.56 | 2.0% | $405.57 | 12 | $22681.84 |
+| 9 | orb_atr | 3.0 | 8 | 0.25 | 1683 | 35.9% | 0.240 | 1.38 | 5.0% | $402.94 | 12 | $22551.22 |
+| 10 | orb_atr | 1.5 | 8 | 0.35 | 1909 | 53.9% | 0.175 | 1.38 | 3.5% | $332.32 | 12 | $19036.75 |
 
 ## 4. Best Configuration
 
@@ -62,38 +62,38 @@ Max 2 trades per day to respect the challenge's spirit (aggressive but not reckl
 
 | Metric | Value |
 |---|---|
-| Total signals | 1702 (708W / 994L / 0T) |
-| Win rate | 41.6% |
-| Avg R per trade | 0.250 |
-| Profit factor | 1.43 |
-| Max drawdown | 3.0% |
-| Total P&L (1045 days) | $4150.94 |
-| Est. monthly P&L | $83.42 |
-| Final balance | $6650.94 |
-| Phase 1 result | PASSED in 13 trading days |
-| Qualifying days | 287 |
+| Total signals | 1702 (710W / 992L / 0T) |
+| Win rate | 41.7% |
+| Avg R per trade | 0.254 |
+| Profit factor | 1.44 |
+| Max drawdown | 4.5% |
+| Total P&L (1045 days) | $21486.67 |
+| Est. monthly P&L | $431.79 |
+| Final balance | $23986.67 |
+| Phase 1 result | PASSED in 3 trading days |
+| Qualifying days | 581 |
 
 ### Expected challenge timeline
 
-With `$83` estimated monthly P&L and Profile A (0.40% risk):
-- Phase 1 needs +$250: estimated **89 calendar days** at this run rate
-- Phase 2 needs +$125: estimated **44 calendar days**
+With `$432` estimated monthly P&L and Profile A (0.40% risk):
+- Phase 1 needs +$250: estimated **17 calendar days** at this run rate
+- Phase 2 needs +$125: estimated **8 calendar days**
 
 ### Per-pair contribution (best config)
 
 | Pair | Trades | Win% | Total P&L |
 |---|---|---|---|
-| XAUUSD | 735 | 41.0% | $2357.53 |
-| EURJPY | 376 | 43.9% | $913.12 |
-| GBPJPY | 362 | 42.0% | $526.50 |
-| USDJPY | 131 | 42.0% | $274.03 |
-| EURGBP | 7 | 85.7% | $115.00 |
-| EURUSD | 19 | 52.6% | $108.96 |
-| NZDUSD | 4 | 50.0% | $19.75 |
-| GBPUSD | 30 | 33.3% | $1.90 |
-| USDCHF | 5 | 20.0% | $-19.59 |
-| USDCAD | 2 | 0.0% | $-19.69 |
-| AUDUSD | 31 | 19.4% | $-126.56 |
+| XAUUSD | 736 | 41.0% | $12239.64 |
+| EURJPY | 375 | 44.0% | $4656.29 |
+| GBPJPY | 362 | 42.0% | $2643.87 |
+| USDJPY | 131 | 42.0% | $1382.39 |
+| EURGBP | 7 | 85.7% | $585.66 |
+| EURUSD | 19 | 52.6% | $551.95 |
+| GBPUSD | 31 | 35.5% | $111.79 |
+| NZDUSD | 4 | 50.0% | $102.35 |
+| USDCHF | 5 | 20.0% | $-99.80 |
+| USDCAD | 2 | 0.0% | $-99.81 |
+| AUDUSD | 30 | 20.0% | $-587.66 |
 
 
 ---
@@ -102,17 +102,17 @@ With `$83` estimated monthly P&L and Profile A (0.40% risk):
 
 | Pair | Total Trades | Avg Win% | Total P&L |
 |---|---|---|---|
-| XAUUSD | 18968 | 42.8% | $44754.25 |
-| EURGBP | 995 | 38.0% | $1359.54 |
-| EURUSD | 2365 | 41.9% | $2418.31 |
-| EURJPY | 14343 | 43.0% | $13597.82 |
-| GBPUSD | 3074 | 40.8% | $2359.62 |
-| USDJPY | 4069 | 40.3% | $2892.71 |
-| GBPJPY | 10530 | 42.1% | $4822.08 |
-| USDCAD | 613 | 37.2% | $-7.67 |
-| AUDUSD | 5051 | 36.2% | $-1864.34 |
-| USDCHF | 819 | 29.5% | $-1495.17 |
-| NZDUSD | 989 | 30.5% | $-1889.59 |
+| EURGBP | 343 | 52.5% | $7554.01 |
+| XAUUSD | 12509 | 45.1% | $178557.14 |
+| EURUSD | 1035 | 46.8% | $8301.14 |
+| EURJPY | 8275 | 47.3% | $64971.46 |
+| USDCAD | 204 | 47.1% | $1502.21 |
+| GBPUSD | 1353 | 45.6% | $9056.56 |
+| GBPJPY | 6581 | 45.2% | $28862.33 |
+| USDJPY | 2467 | 42.2% | $9401.74 |
+| AUDUSD | 2062 | 40.0% | $-2839.27 |
+| NZDUSD | 357 | 36.7% | $-1816.58 |
+| USDCHF | 306 | 30.4% | $-3317.13 |
 
 ---
 

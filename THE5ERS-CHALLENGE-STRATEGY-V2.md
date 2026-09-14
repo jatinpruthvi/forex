@@ -191,9 +191,9 @@ Risk and target are tested as paired profiles so lower-risk candidates still hav
 | Profile | Maximum risk | $2,500 cash ceiling | Fixed target | Nominal risk × target |
 |---|---:|---:|---:|---:|
 | A baseline | 2.00% | $50.00 | +2.50R | 5.000% |
-| B | 0.35% | $8.75 | +1.75R | 0.613% |
-| C | 0.30% | $7.50 | +2.00R | 0.600% |
-| D | 0.25% | $6.25 | +2.50R | 0.625% |
+| B | 1.50% | $37.50 | +3.00R | 4.500% |
+| C | 1.00% | $25.00 | +3.50R | 3.500% |
+| D | 0.50% | $12.50 | +4.00R | 2.000% |
 
 These nominal values do not prove that a rounded live winner qualifies as a $12.50 day. Every profile is replayed with actual volume rounding and costs. No candidate above 2.00% is permitted. The winning profile is selected only after freezing the out-of-sample event series and is then used unchanged in Phase 1, Phase 2, and the initial funded period.
 
