@@ -375,9 +375,9 @@ def run_grid(session_name: str, ask_day: dict, mid_day: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 TICK_FILES = {
-    "EURUSD": Path("validation/HistoryData/EURUSD.i_202406190501_202609102250.csv"),
-    "GBPUSD": Path("validation/HistoryData/GBPUSD.i_202406190501_202609110308.csv"),
-    "USDJPY": Path("validation/HistoryData/USDJPY.i_202406190501_202609110308.csv"),
+    "EURUSD": Path("validation/HistoryData/eurusd-m5-2022-09-11_2026-09-11.csv"),
+    "GBPUSD": Path("validation/HistoryData/gbpusd-m5-2022-09-11_2026-09-11.csv"),
+    "USDJPY": Path("validation/HistoryData/usdjpy-m5-2022-09-11_2026-09-11.csv"),
 }
 
 
@@ -441,7 +441,7 @@ def main():
     print("-" * len(hdr2))
     for (sm, wm), d in sorted(combos.items()):
         s = d["signals"]
-        ann = s / eu_days * 252  # ~252 trading days/year
+        ann = (s / eu_days * 252) if eu_days > 0 else 0.0
         marker = " <-- baseline" if sm == 0.50 and wm == 0.60 else ""
         print(f"{sm:<12.2f}{wm:<10.2f}{s:<16}{s:<16}{ann:<14.0f}{marker}")
 
@@ -456,7 +456,7 @@ def main():
     bsigs = best[1]["signals"]
     print(f"Best combined: SWEEP_MAX={bsm}, WICK_MIN={bwm} -> {bsigs} signals / {eu_days} days")
     ann_best = bsigs / eu_days * 252
-    days_for_34 = 34 / (bsigs / eu_days)
+    days_for_34 = 34 / (bsigs / eu_days) if bsigs > 0 and eu_days > 0 else 0.0
     print(f"  Annualised: ~{ann_best:.0f} signals/year")
     print(f"  Days to accumulate 34 signals: ~{days_for_34:.0f} ({days_for_34/5:.0f} trading weeks)")
 

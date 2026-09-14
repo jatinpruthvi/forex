@@ -1,0 +1,1147 @@
+{
+  "combination_priorities_used": {
+    "EURUSD_LONDON": 1,
+    "GBPUSD_LONDON": 1,
+    "USDJPY_NEW_YORK": 1
+  },
+  "holdout": null,
+  "holdout_evaluated_after_selection": false,
+  "input_sha256": "a7517a62647cc97f6374278b395cab9270c8377532d2f069e0ad267eb67f3dc8",
+  "registry_sha256": "d802c2a599934073ddd42f3c755f0eb36852ff893f819809fcc806fbbaec5a61",
+  "schema_version": "TRIAD_VALIDATION_V1",
+  "sec13": null,
+  "selection": {
+    "declared_configurations": 160,
+    "holdout_rows_supplied_to_selector": false,
+    "ranked_selection_gate_passers": [],
+    "selection_gate_passers": 0,
+    "selection_gate_rejections": {
+      "R30_80-A20_80-T30-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T30-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T45-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T60-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-T90-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A20_80-TSESSION-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T30-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T45-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T60-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-T90-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R30_80-A25_75-TSESSION-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T30-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T45-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T60-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-T90-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A20_80-TSESSION-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T30-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T45-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T60-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-T90-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PA-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PA-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PB-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PB-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PC-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PC-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PD-BE0": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ],
+      "R35_75-A25_75-TSESSION-PD-BE1": [
+        "no_independently_eligible_combination",
+        "aggregate_fill_count",
+        "aggregate_expectancy",
+        "aggregate_profit_factor",
+        "stressed_expectancy"
+      ]
+    },
+    "selection_result": "NO_CHAMPION_SELECTION_GATES",
+    "selection_split": "WALK_FORWARD"
+  },
+  "warnings": [
+    "This report is not evidence that the source replay was look-ahead-free or broker-representative.",
+    "A passing report does not authorize challenge or funded trading."
+  ]
+}

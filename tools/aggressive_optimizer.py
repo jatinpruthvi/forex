@@ -36,7 +36,7 @@ from typing import Optional
 # Challenge constants
 # ---------------------------------------------------------------------------
 ACCOUNT_BALANCE    = 2500.0
-RISK_FRACTION      = 0.004         # 0.40% fixed per trade
+RISK_FRACTION      = 0.02         # 0.40% fixed per trade
 COMMISSION_PER_LOT = 4.0
 VOLUME_MIN         = 0.01
 VOLUME_STEP        = 0.01
