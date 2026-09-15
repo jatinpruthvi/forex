@@ -42,7 +42,7 @@ Use **TRIAD-R Challenge Profile**, a simplified session-event router.
 
 ### Active module
 
-Use **M1 Momentum Reversion** (EURUSD / Max 5 trades per day / 0.5% risk / T=1.0R) for the first evaluation and through the first funded payout. It trades false session breakouts with a defined stop and short holding period.
+Use **M1 Momentum Reversion** (EURUSD / Max 5 trades per day / 0.5% risk / Stop 1.5 ATR / T=1.5R) for the first evaluation and through the first funded payout. It triggers when a 1-minute candle's body size exceeds 2.5x the rolling 14-period M1 ATR. This optimized configuration reduces the Phase 1 expectation down to ~20 trading days.
 
 The continuation route remains a shadow-mode research candidate. It is not enabled during the first challenge.
 

@@ -28,7 +28,7 @@ def atr(bars: list[Bar], period: int = 14) -> float:
     if len(bars) < period: return 0.0
     return sum(b.high - b.low for b in bars[-period:]) / period
 
-def test_holy_grail_portfolio(file_paths, target_r=1.0, risk_pct=0.002, stop_atr=2.0, threshold=2.5, max_trades_per_day=3):
+def test_holy_grail_portfolio(file_paths, target_r=1.0, risk_pct=0.005, stop_atr=2.0, threshold=2.5, max_trades_per_day=5):
     balance = ACCOUNT_BALANCE
     max_dd = 0.0
     peak = balance
@@ -94,7 +94,8 @@ def test_holy_grail_portfolio(file_paths, target_r=1.0, risk_pct=0.002, stop_atr
             if dd > max_dd: max_dd = dd
 
             if passed_phase_1_days == -1 and current_balance >= balance * 1.10:
-                passed_phase_1_days = (b.ts - first_trade_ts).days
+                if first_trade_ts:
+                    passed_phase_1_days = (b.ts - first_trade_ts).days
 
             continue
 
@@ -134,11 +135,22 @@ if __name__ == "__main__":
     files = [f for f in list(DATA_DIR.glob("*.csv")) if "eurusd" in f.name]
 
     print("Testing true portfolio timeline to pass Phase 1 (M1 Unified Chronological Timeline)...")
-    res = test_holy_grail_portfolio(files, target_r=1.0, risk_pct=0.005, stop_atr=2.0, threshold=2.5, max_trades_per_day=5)
 
-    print(f"Results for EURUSD Only (Risk: 0.5% per trade, Max 5 trades/day):")
-    print(f"  Total Trades: {res['trades']}")
-    print(f"  Win Rate: {res['wr']*100:.1f}%")
-    print(f"  Maximum Account Drawdown: {res['dd']*100:.2f}%")
-    print(f"  Total PnL Generated: ${res['pnl']:.2f}")
-    print(f"  ** Days to pass Phase 1 (+10%): {res['days']} days! **")
+    # We test the top 3 best configurations from our sweep
+    configs = [
+        {"target_r": 1.0, "risk_pct": 0.005, "stop_atr": 1.5, "threshold": 2.5},
+        {"target_r": 1.5, "risk_pct": 0.005, "stop_atr": 1.5, "threshold": 2.5},
+        {"target_r": 1.0, "risk_pct": 0.005, "stop_atr": 2.0, "threshold": 2.5},
+    ]
+
+    for c in configs:
+        res = test_holy_grail_portfolio(files, target_r=c['target_r'], risk_pct=c['risk_pct'],
+                                        stop_atr=c['stop_atr'], threshold=c['threshold'], max_trades_per_day=5)
+
+        print(f"\nConfiguration: Target R: {c['target_r']}, Stop ATR: {c['stop_atr']}, Threshold: {c['threshold']}")
+        print(f"Results for EURUSD Only (Risk: 0.5% per trade, Max 5 trades/day):")
+        print(f"  Total Trades: {res['trades']}")
+        print(f"  Win Rate: {res['wr']*100:.1f}%")
+        print(f"  Maximum Account Drawdown: {res['dd']*100:.2f}%")
+        print(f"  Total PnL Generated: ${res['pnl']:.2f}")
+        print(f"  ** Days to pass Phase 1 (+10%): {res['days']} days! **")

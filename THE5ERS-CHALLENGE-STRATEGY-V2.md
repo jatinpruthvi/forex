@@ -97,18 +97,17 @@ Initial range-band test candidate: 30th-80th percentile. Challenger: 35th-75th p
 
 ## 5. Entry sequence
 
-For a long; invert every price comparison for a short:
+For the M1 Momentum Reversion Strategy (Long):
+*(Invert every price comparison for a short)*
 
-1. Price trades below the reference low by 0.05-0.50 × ATR(M15,14).
-2. An M5 candle closes back inside the reference range within three completed M5 candles.
-3. The reclaim candle's lower wick is at least 60% of its total range.
-4. The next completed M5 displacement candle has a body at least 60% of its range and closes above the prior candle midpoint.
-5. Place one limit order at the 50% retracement of the displacement candle body.
-6. Attach the calculated broker-visible stop and target in the initial order request.
-7. Cancel the order after three completed M5 bars, at the session cutoff, before the news buffer, or if price reaches the theoretical +1R level without filling.
-8. Never replace a cancelled/expired order with a market order.
+1. Calculate the rolling 14-period M1 ATR (`ATR(M1,14)`).
+2. Wait for a completed M1 candle body to exceed `2.5 × ATR(M1,14)`.
+3. If the extreme candle is bearish (Close < Open), prepare to fade by entering a Long position at market.
+4. Attach a broker-visible stop placed `1.5 × ATR(M1,14)` below the extreme candle's low.
+5. Attach a take profit limit order at `+1.5R`.
+6. Enforce a daily cap: take no more than 5 trades per calendar day on EURUSD.
 
-A breach deeper than 0.50 ATR, no reclaim, late reclaim, weak displacement, or insufficient target room is `NO_TRADE`. An accepted breakout may be logged for continuation research but cannot send an order.
+The old M5 sweep logic is deprecated and superseded by this strictly M1 momentum reversion sequence.
 
 Only one signal event per symbol/session may produce an order. Repeated sweeps of the same reference level do not reset the event.
 
@@ -116,15 +115,13 @@ Only one signal event per symbol/session may produce an order. Repeated sweeps o
 
 ## 6. Stop and cash-risk calculation
 
-For a long:
+For a long (M1 Momentum Reversion):
 
-`stop_price = sweep_low - 0.10 × ATR(M15,14)`
+`stop_price = extreme_candle_low - 1.50 × ATR(M1,14)`
 
-For a short:
+For a short (M1 Momentum Reversion):
 
-`stop_price = sweep_high + 0.10 × ATR(M15,14)`
-
-Reject if entry-to-stop distance is outside 0.60-1.50 × ATR(M15,14).
+`stop_price = extreme_candle_high + 1.50 × ATR(M1,14)`
 
 Define cash risk using live symbol economics:
 
@@ -153,9 +150,9 @@ Only one position may exist. The live configuration contains exactly one frozen 
 
 ### Champion baseline to test
 
-- Use paired Profile A from Section 8: 0.50% maximum risk with a fixed +1.0R target.
+- Use updated M1 baseline based on momentum fade: 0.50% maximum risk with a fixed +1.5R target (Stop Loss = 1.5 ATR).
 - Solve the take-profit price using `OrderCalcProfit` so estimated **net** target profit equals the profile's target R after expected commission and the configured take-profit slippage allowance.
-- Define `+1R confirmed` as a completed M5 candle close at or beyond the calculated +1R price; a tick/wick touch does not qualify.
+- Define `+1.5R confirmed` as a completed M1 candle close at or beyond the calculated +1.5R price; a tick/wick touch does not qualify.
 - If +1R has not been confirmed within 45 minutes from confirmed fill, close at market.
 - Compare moving the broker-visible stop to entry after +1R confirmation against leaving the original stop unchanged. Entry price is not called risk-free because commission, gaps, and slippage remain.
 - Close at the session hard stop.
@@ -190,8 +187,8 @@ Risk and target are tested as paired profiles so lower-risk candidates still hav
 
 | Profile | Maximum risk | $2,500 cash ceiling | Fixed target | Nominal risk × target |
 |---|---:|---:|---:|---:|
-| A baseline | 0.50% | $12.50 | +1.00R | 0.500% |
-| B | 0.40% | $10.00 | +1.25R | 0.500% |
+| A baseline (Old M5) | 0.50% | $12.50 | +1.00R | 0.500% |
+| B (M1 Momentum) | 0.50% | $12.50 | +1.50R | 0.750% |
 | C | 0.30% | $7.50 | +1.50R | 0.450% |
 | D | 0.25% | $6.25 | +2.00R | 0.500% |
 
