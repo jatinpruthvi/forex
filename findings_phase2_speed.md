@@ -170,3 +170,134 @@ Three of the four terms are already maxed: expectancy is optimised, frequency is
 | `validation/pr9_audit/` | Phase 1 audit harness |
 
 numpy is used only by the research sweeps and is **not** a repo dependency; `verify_final_config.py` needs nothing but the standard library.
+
+---
+
+# Part B — Using the same edge on a LIVE PERSONAL account (~10%/month target)
+
+**Reproduce:** `python3 validation/speed_lab/personal_account_analysis.py` (stdlib only, ~9 s)
+
+A funded account and a personal account are **different optimisation problems**. The prop
+challenge's binding constraints — the 5% daily-loss limit, the $2,250 static floor, the
++10% clock, the 1-position/≤2-trades-per-day policy — exist to protect *the firm*. On your
+own account none of them apply, so the same frozen edge can be run with more diversification
+and no clock. Part A's numbers therefore **understate** what the strategy does for you personally.
+
+## B.1 The caps are costing you return — and removing them *lowers* drawdown
+
+The ≤2-concurrent / ≤5-per-day caps were a prop-policy artefact. On the held-out TEST window
+(2024-09 → 2026-09, 25 months, fixed fractional sizing, firm gates removed):
+
+| Concurrency | Trades/day | Breaker | Risk | Mean /mo | Median /mo | Worst mo | Losing mo | Max DD | Annualised |
+|---|---|---|---|---|---|---|---|---|---|
+| 2 | 5 | −3R | 0.50% | +6.77% | +5.40% | −6.78% | 28% | 17.7% | 61% |
+| 2 | 5 | −3R | 0.75% | +10.03% | +8.10% | −10.17% | 24% | 22.7% | 83% |
+| 5 | 10 | −3R | 0.50% | +10.58% | +8.18% | −18.20% | 24% | 20.0% | 86% |
+| **11** | **20** | **−3R** | **0.50%** | **+12.72%** | **+10.93%** | −18.66% | 24% | 22.0% | 99% |
+| **all** | **all** | off | **0.50%** | **+13.05%** | **+9.51%** | −14.83% | 32% | **16.2%** | 101% |
+| all | all | off | 0.75% | +19.16% | +12.31% | −22.24% | 28% | 24.2% | 132% |
+
+**The last row at 0.50% risk is the important one: taking *every* signal produces both the
+highest mean return (+13.05%/mo) and the *lowest* max drawdown (16.2%) of any configuration
+tested.** That is not a contradiction — 11 pairs trading independently is a diversified book,
+whereas the capped version concentrates risk into whichever 2 pairs signalled first. The caps
+were forcing concentration.
+
+**Answer to your question: yes, ~10%/month is reachable, at 0.50% risk with the caps removed**
+(median +9.51%, mean +13.05%). At the capped 0.75% setting the mean is +10.03% but the median
+is only +8.10% with a worse drawdown.
+
+## B.2 Four years, no firm gates (TRAIN + TEST, fixed sizing)
+
+| Risk | 4-year total | Mean /mo | Median /mo | Worst mo | Losing mo | Max DD |
+|---|---|---|---|---|---|---|
+| 0.25% | +191% | +3.90% | +3.22% | −4.46% | 29% | 5.8% |
+| 0.36% | +277% | +5.65% | +5.03% | −6.42% | 29% | 7.9% |
+| **0.50%** | **+382%** | **+7.79%** | **+6.48%** | −8.92% | 29% | **10.9%** |
+| **0.75%** | **+569%** | **+11.62%** | **+8.96%** | −13.38% | 27% | **16.4%** |
+| 1.00% | +756% | +15.43% | +11.94% | −17.84% | 27% | 21.8% |
+| 2.00% | +1521% | +31.04% | +23.88% | −35.69% | 27% | 43.7% |
+
+On a personal account there is **no illegality ceiling** — 1.00% and 2.00% risk are perfectly
+legal, they just carry proportionally larger drawdowns. The 0.75% cap from Part A was imposed
+by the firm's $125 daily-loss rule, not by the strategy.
+
+## B.3 A personal account is the *better* fit for this edge than the prop challenge
+
+| | Prop challenge | Personal account |
+|---|---|---|
+| Probability of a good outcome | **75–77.5%** pass (one ~27-day attempt) | **87–91%** of rolling 3-month windows positive |
+| What kills you | variance over a short window | only your own drawdown tolerance |
+| Effect of the clock | decisive — 27 days is ~70 trades | none — 49 months is ~3,300 trades |
+| Binding constraint | firm's 5% daily-loss rule | your own risk appetite |
+
+The challenge asks a positive-expectancy strategy to clear a barrier **before variance kills it
+over a very short sample**. A personal account lets the law of large numbers work. Same edge,
+much better odds.
+
+## B.4 The cost Part A could ignore but a multi-year account cannot: OVERNIGHT SWAP
+
+Part A's horizon was 27 days; a personal account is years. Hold-time distribution over 3,317 trades:
+
+- median hold **3.4 h**, mean **20.9 h**, p90 **82 h**, max **233 h**
+- mean **0.771 overnight rollovers per trade**; **25.4%** of trades cross ≥1 night, **15.8%** cross ≥2
+
+Swap was **not** in the cost model. Sensitivity at 0.50% risk, capped config, 4 years:
+
+| Swap (R per rollover) | E_net per trade | 4-year total | Mean /mo | Max DD |
+|---|---|---|---|---|
+| 0.00 (as modelled) | +0.377R | +382% | +7.79% | 10.9% |
+| 0.05 | +0.338R | +355% | +7.24% | 11.6% |
+| **0.10** | **+0.300R** | **+319%** | **+6.51%** | 12.6% |
+| 0.20 | +0.223R | +258% | +5.26% | 13.5% |
+| 0.30 | +0.146R | +196% | +3.99% | 15.9% |
+
+For scale: at 0.50% risk on a $2,500 account a ~10-pip EURUSD stop sizes to ≈0.11 lots, so a
+typical $7/lot/night swap is ≈$0.77 ≈ **0.06R per night** — i.e. the realistic case sits near
+the top of this table, costing roughly 1–1.5 percentage points of monthly return.
+
+**But note the direction is not uniformly negative.** This book is **long-only**, so over
+2022–2026 it would have *earned* positive carry on the JPY crosses (USDJPY, GBPJPY, EURJPY —
+which contributed +142R of the total) and *paid* on the USD-short pairs (EURUSD, GBPUSD,
+AUDUSD, NZDUSD). Net swap is genuinely ambiguous and **broker-specific**. Pull your broker's
+actual swap table for all 11 pairs before sizing — this is the largest unquantified term.
+
+## B.5 Compounding: real arithmetic, unrealistic numbers
+
+| Risk | Fixed sizing, 4y | Compounded, 4y | Compounded max DD |
+|---|---|---|---|
+| 0.50% | +382% | +3,251% | 24.5% |
+| 0.75% | +569% | +15,666% | 34.8% |
+
+**Do not plan around the compounded column.** It assumes flawless execution for 48 consecutive
+months, an edge that never decays, unlimited liquidity, no broker constraint, and no capacity
+limit. It is shown only to make the point that *compounding multiplies drawdown faster than
+return* — a 24.5% peak-relative drawdown at 0.50% risk is the price of the +3,251%.
+
+## B.6 What to actually do, and what will bite you
+
+**Recommended personal-account setup:** every signal (no concurrency or per-day cap), **0.50%
+risk**, fixed fractional on a periodically-reset base, −3R daily breaker retained. Backtested
++13.05%/month mean, +9.51% median, 16.2% max DD over the held-out 2 years.
+
+Realistic expectations, in priority order:
+
+1. **~1 in 3 months loses money** (32% of months negative at the recommended setting), worst
+   observed month **−14.8%**, longest losing streak **3 months**, longest stretch below +10%
+   **4–6 months**. "10%/month" is an *average across years*, never a monthly drip. The mean
+   (+13.05%) sits well above the median (+9.51%) because the +10R winners arrive in clusters.
+2. **Check your margin and leverage before assuming 11 concurrent positions.** At 0.50% risk
+   with ~10-pip stops, 11 open positions ≈ 1.2 lots total — fine at 1:100, impossible at 1:30
+   on a small account. If leverage binds you, the diversification benefit in B.1 partly
+   disappears and you fall back toward the capped rows.
+3. **You will sit through a ~16–23% drawdown from your high-water mark.** There is no firm
+   floor to stop you, which is the advantage — and also means nothing stops you except your
+   own rule. Decide your personal stop *before* you are in it.
+4. **Total open risk can reach ~5.5% of the account** (11 positions × 0.50%) held across a
+   weekend gap. That is the mechanism behind the 16.2% max DD.
+5. **Swap is unquantified** (B.4) — could cost 1–1.5 points of monthly return, or pay you.
+6. **All of this is backtest.** Part A's caveats apply in full and are *more* binding here:
+   next-bar-open fills during volatility spikes, 17.6% win rate requiring total automation,
+   and a 40-start walk-forward sample with ±7% standard error. A 100%-annualised backtest
+   should be expected to degrade substantially live. Forward-test on demo for at least one
+   full losing streak before committing capital.
