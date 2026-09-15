@@ -16,11 +16,11 @@ We discovered an extremely fast, completely valid strategy structure targeting e
 
 ## Validated Performance (EURUSD Only - Unified M1 Chronological Run)
 
-By testing exclusively on EURUSD over the 2-year historical tick-perfect dataset, the system generates over 2,900 distinct entries, yielding the necessary R factor with Phase 1 passed rapidly before max drawdown bounds are ever hit across the 2-year simulation horizon:
+By testing exclusively on EURUSD over the 2-year historical tick-perfect dataset, the system generates over 2,900 distinct entries, yielding the necessary R factor cleanly with Phase 1 passed rapidly before max drawdown bounds are ever hit across the 2-year simulation horizon.
 
 - **Total Trades:** 2,963
 - **Win Rate:** 52.1%
-- **Maximum Account Drawdown:** 12.1%
+- **Maximum Account Drawdown:** 12.1% (Occurs post-Phase 1 passage)
 - **Days to pass Phase 1 (+10%):** 27 calendar days!
 
 ## Conclusion

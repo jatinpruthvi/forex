@@ -66,6 +66,7 @@ def test_holy_grail_portfolio(file_paths, target_r=1.0, risk_pct=0.002, stop_atr
             trades_today[idx] = 0
 
         if in_trade[idx]:
+            # PESSIMISTIC AMBIGUITY RESOLUTION: ALWAYS CHECK STOP LOSS FIRST BEFORE TARGET
             if direction[idx] == 1:
                 if b.low <= stop_loss[idx]:
                     pnl -= risk_pct * balance
@@ -130,7 +131,6 @@ def test_holy_grail_portfolio(file_paths, target_r=1.0, risk_pct=0.002, stop_atr
 
 if __name__ == "__main__":
     DATA_DIR = Path("validation/HistoryData/m1-data/")
-    # Find the right balance.
     files = [f for f in list(DATA_DIR.glob("*.csv")) if "eurusd" in f.name]
 
     print("Testing true portfolio timeline to pass Phase 1 (M1 Unified Chronological Timeline)...")
