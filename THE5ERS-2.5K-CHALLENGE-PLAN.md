@@ -42,7 +42,7 @@ Use **TRIAD-R Challenge Profile**, a simplified session-event router.
 
 ### Active module
 
-Use only **M5 orb_atr (Target=2.5R, ORB=30min, ATR stop=0.25)** for the first evaluation and through the first funded payout. It trades false session breakouts with a defined stop and short holding period.
+Use **M1 Momentum Reversion** (EURUSD / Max 5 trades per day / 0.5% risk / Stop 1.5 ATR / T=1.5R) for the first evaluation and through the first funded payout. It triggers when a 1-minute candle's body size exceeds 2.5x the rolling 14-period M1 ATR. This optimized configuration reduces the Phase 1 expectation down to ~20 trading days.
 
 The continuation route remains a shadow-mode research candidate. It is not enabled during the first challenge.
 
@@ -103,11 +103,11 @@ If the range break does not reclaim, Sleeve A records the event as `GENUINE_BREA
 
 ### Default evaluation risk
 
-Risk **2.00% of the initial balance per trade**:
+Risk **0.5% of the initial balance per trade**:
 
-`$2,500 × 0.02 = $50 maximum planned loss`
+`$2,500 × 0.005 = $12.50 maximum planned loss`
 
-This is deliberately below 0.50%. It allows meaningful progress while preserving room for slippage and losing clusters.
+This is deliberately at 0.50% based on high-frequency M1 data. It allows rapid progress while preserving room for slippage and losing clusters under the max drawdown threshold.
 
 ### Position-size formula
 
@@ -192,9 +192,9 @@ Drawdown is measured from the highest closed balance/equity reference, while the
 
 | Strategy drawdown | New-trade risk | Action |
 |---:|---:|---|
-| 0-2% | 2.00% = $50 | Normal |
-| 2-3.5% | 1.00% = $25 | Half risk |
-| 3.5-5% | 0.50% = $12.50, subject to lot granularity | Recovery/diagnostic only |
+| 0-2% | 0.50% = $12.50 | Normal |
+| 2-3.5% | 0.25% = $6.25 | Half risk |
+| 3.5-5% | 0.10% = $2.50, subject to lot granularity | Recovery/diagnostic only |
 | 5% or more | 0 | Stop and revalidate |
 
 Personal shutdown at 5% means stopping around $2,375, leaving approximately $125 before the firm's $2,250 termination floor. That reserve belongs to slippage and mistakes; it is not recovery-trade capital.
@@ -209,8 +209,8 @@ If 0.10% cannot be represented safely because the minimum lot risks more than $2
 
 | Closed phase return | Risk/action |
 |---:|---|
-| 0% to +8% | Normal 2.00%, subject to DD throttle |
-| +8% to +9.5% | Reduce to 1.00% |
+| 0% to +8% | Normal 0.50%, subject to DD throttle |
+| +8% to +9.5% | Reduce to 0.25% |
 | +9.5% or more | 0.50% only if lot-safe; otherwise wait for the cleanest setup |
 | Target reached | Close/cancel everything and stop immediately |
 
@@ -227,8 +227,8 @@ Use the same process. Because the target is only 5%:
 
 | Closed phase return | Risk/action |
 |---:|---|
-| 0% to +3.5% | Normal 2.00%, subject to DD throttle |
-| +3.5% to +4.5% | Reduce to 1.00% |
+| 0% to +3.5% | Normal 0.50%, subject to DD throttle |
+| +3.5% to +4.5% | Reduce to 0.25% |
 | +4.5% or more | Minimum lot-safe risk |
 | Target reached | Close/cancel everything and stop immediately |
 
@@ -276,7 +276,7 @@ Never use London, Indian, or local computer time for the firm reset. Query MT5 s
 
 ## 11. Expected path—not a promise
 
-At 2.00% risk, Phase 1 requires 5 net R and Phase 2 requires 12.5 net R.
+At 0.5% risk, Phase 1 requires 20 net R and Phase 2 requires 10 net R.
 
 | Verified net expectancy | Expected trades for Phase 1 | Expected trades for Phase 2 |
 |---:|---:|---:|
@@ -306,10 +306,10 @@ Do not call the challenge plan ready until the exact challenge profile passes:
 8. Simulate Phase 1 followed by a fresh Phase 2; rank variants by joint two-phase pass probability, not speed or monthly return.
 9. Target at least 70% Phase 1 pass probability before the **personal -5% stop** and at least 95% probability that three qualifying days exist by each phase target.
 10. The 95th-percentile maximum drawdown remains below 5% over the expected evaluation duration.
-11. Compare the 2.00%/+2.5R baseline with 1.00-1.50% risk and +2.5R exits using actual lot rounding; do not assume a nominal full winner qualifies.
+11. Compare the 0.50%/+1.0R baseline with 0.25% risk and +1.5R exits using actual lot rounding; do not assume a nominal full winner qualifies.
 12. At least 30-50 forward-demo trades with zero implementation errors.
 
-If 2.00% fails the drawdown/pass-probability tests, reduce risk. If lower risk makes the three-day condition unreliable because of lot granularity, compare robust exit variants rather than increasing lots. Do not widen the personal stop or use the firm's full 10% loss allowance. The full experiment is specified in `THE5ERS-CHALLENGE-OPTIMIZATION.md`.
+If 0.50% fails the drawdown/pass-probability tests, reduce risk. If lower risk makes the three-day condition unreliable because of lot granularity, compare robust exit variants rather than increasing lots. Do not widen the personal stop or use the firm's full 10% loss allowance. The full experiment is specified in `THE5ERS-CHALLENGE-OPTIMIZATION.md`.
 
 ---
 
