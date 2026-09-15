@@ -29,7 +29,6 @@
 #property version     "1.00"
 #property description "M5 long-only extreme-bar exhaustion fade. Reference implementation."
 #property description "SHIPS DISABLED - see the gate inputs and the README."
-#property strict
 
 #include <Trade/Trade.mqh>
 
@@ -63,6 +62,10 @@ input double InpTargetR           = 10.0;   // target = entry + this x risk dist
 input int    InpMaxHoldHours      = 96;     // timeout, then market close
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;
 
+input group "=== Execution ==="
+input int    InpMaxDeviationPoints= 20;     // max slippage accepted on a market order
+input bool   InpCloseAllOnHalt    = true;   // flatten this EA's positions when it halts
+
 input group "=== Risk ==="
 input double InpRiskPercent       = 0.50;   // % of sizing base per trade
 input bool   InpRiskOnInitialBase = true;   // true = fixed fractional (validated); false = compound
@@ -85,7 +88,6 @@ input double InpQualifyingDayProfit = 12.50;
 //+------------------------------------------------------------------+
 CTrade         trade;
 string         g_symbols[];
-int            g_handles[];
 datetime       g_last_bar[];
 int            g_day_key            = -1;
 double         g_day_start_equity   = 0.0;
@@ -99,11 +101,60 @@ string         g_halt_reason        = "";
 int            g_server_utc_offset_s= 0;
 
 //+------------------------------------------------------------------+
+//| Pick an order-filling mode the broker advertises for this symbol  |
+//+------------------------------------------------------------------+
+ENUM_ORDER_TYPE_FILLING FillingModeFor(const string sym)
+  {
+   const long modes=SymbolInfoInteger(sym,SYMBOL_FILLING_MODE);
+   if((modes & SYMBOL_FILLING_FOK)==SYMBOL_FILLING_FOK) return ORDER_FILLING_FOK;
+   if((modes & SYMBOL_FILLING_IOC)==SYMBOL_FILLING_IOC) return ORDER_FILLING_IOC;
+   return ORDER_FILLING_RETURN;
+  }
+
+//+------------------------------------------------------------------+
+//| Can this symbol be traded at all right now?                       |
+//+------------------------------------------------------------------+
+bool SymbolTradable(const string sym,string &why)
+  {
+   const long mode=SymbolInfoInteger(sym,SYMBOL_TRADE_MODE);
+   if(mode!=SYMBOL_TRADE_MODE_FULL && mode!=SYMBOL_TRADE_MODE_LONGONLY)
+     { why="trade mode is not full/long-only"; return false; }
+   if(!MQLInfoInteger(MQL_TRADE_ALLOWED))           { why="algo trading not allowed for this EA"; return false; }
+   if(!AccountInfoInteger(ACCOUNT_TRADE_EXPERT))    { why="account forbids EA trading"; return false; }
+   if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED)) { why="terminal trading disabled"; return false; }
+   return true;
+  }
+
+//+------------------------------------------------------------------+
+//| Broker minimum SL/TP distance, in price units                     |
+//+------------------------------------------------------------------+
+double StopsLevelPrice(const string sym)
+  {
+   return SymbolInfoInteger(sym,SYMBOL_TRADE_STOPS_LEVEL)*SymbolInfoDouble(sym,SYMBOL_POINT);
+  }
+
+//+------------------------------------------------------------------+
 int FindSymbol(const string sym)
   {
    for(int i=0;i<ArraySize(g_symbols);i++)
       if(g_symbols[i]==sym) return i;
    return -1;
+  }
+
+//+------------------------------------------------------------------+
+//| Close every position this EA owns                                 |
+//+------------------------------------------------------------------+
+void FlattenOwnPositions(const string reason)
+  {
+   for(int i=PositionsTotal()-1;i>=0;i--)
+     {
+      const ulong tk=PositionGetTicket(i);
+      if(tk==0) continue;
+      if(PositionGetInteger(POSITION_MAGIC)!=InpMagic) continue;
+      if(FindSymbol(PositionGetString(POSITION_SYMBOL))<0) continue;
+      PrintFormat("[FLATTEN] %s ticket=%I64u (%s)",PositionGetString(POSITION_SYMBOL),tk,reason);
+      if(Authorised()) trade.PositionClose(tk);
+     }
   }
 
 void Halt(const string reason)
@@ -112,6 +163,7 @@ void Halt(const string reason)
    g_halted=true;
    g_halt_reason=reason;
    PrintFormat("[HALT] %s",reason);
+   if(InpCloseAllOnHalt) FlattenOwnPositions(reason);
   }
 
 bool Authorised()
@@ -140,17 +192,24 @@ bool SimpleAtrBefore(const string sym,const int shift,double &atr)
   {
    atr=0.0;
    const int need=InpAtrPeriod;
-   if(shift+need+1>Bars(sym,InpTimeframe)) return false;
+   // bars required: the signal bar (shift), the `need` bars before it, and ONE more
+   // to supply the close preceding the oldest of those - a true range needs a prior close.
+   const int bars=Bars(sym,InpTimeframe);
+   if(bars<=0 || shift+need+2>bars) return false;
    MqlRates r[];
    ArraySetAsSeries(r,true);
    if(CopyRates(sym,InpTimeframe,shift+1,need,r)!=need) return false;
-   // r[0] is the bar immediately before the signal bar; we need the close
-   // preceding r[need-1] as well.
+   // r[0] is the bar immediately before the signal bar (shift+1); r[need-1] is the
+   // oldest bar in the window (shift+need). Each true range needs the close PRECEDING
+   // its bar, so the oldest one needs shift+need+1. Using shift+need instead re-reads
+   // r[need-1] itself and understates that term to a bare high-low range.
+   // Verified against the backtest: the wrong index flips 8 trigger decisions in 124k
+   // bars (0.006%) - negligible, but this EA must reproduce the validated numbers exactly.
    double prev_close=0.0;
    {
     MqlRates one[];
     ArraySetAsSeries(one,true);
-    if(CopyRates(sym,InpTimeframe,shift+need,1,one)!=1) return false;
+    if(CopyRates(sym,InpTimeframe,shift+need+1,1,one)!=1) return false;
     prev_close=one[0].close;
    }
    double sum=0.0;
@@ -232,10 +291,13 @@ void RollDayIfNeeded(const datetime now)
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   trade.SetExpertMagicNumber(InpMagic);
-   trade.SetDeviationInPoints(20);
+   trade.SetExpertMagicNumber((ulong)InpMagic);
+   trade.SetDeviationInPoints(InpMaxDeviationPoints);
+   trade.SetAsyncMode(false);
 
    g_server_utc_offset_s=InpExpectedServerUtcOffsetHours*3600;
+   // CTrade has no per-symbol filling helper; pick a mode the broker advertises.
+   trade.SetTypeFilling(FillingModeFor(_Symbol));
    g_initial_balance=AccountInfoDouble(ACCOUNT_BALANCE);
 
    string raw=InpUseAllEleven
@@ -244,7 +306,6 @@ int OnInit()
    const int n=StringSplit(raw,',',g_symbols);
    if(n<=0) { Halt("no symbols configured"); return INIT_PARAMETERS_INCORRECT; }
 
-   ArrayResize(g_handles,n);
    ArrayResize(g_last_bar,n);
    for(int i=0;i<n;i++)
      {
@@ -253,12 +314,13 @@ int OnInit()
       g_symbols[i]=s;
       if(!SymbolSelect(s,true))
         { PrintFormat("[WARN] symbol %s not available on this account - skipped",s); }
-      g_handles[i]=INVALID_HANDLE;
       g_last_bar[i]=0;
      }
 
    if(InpRiskOnInitialBase && InpSizingBaseOverride>0.0)
       g_initial_balance=InpSizingBaseOverride;
+
+   RebuildTodayState();
 
    if(Authorised())
       Print("[INIT] order submission ENABLED - all gates true");
@@ -270,6 +332,44 @@ int OnInit()
    return INIT_SUCCEEDED;
   }
 
+//+------------------------------------------------------------------+
+//| Reconstruct today's realised R and trade count from history so a  |
+//| mid-day restart does not silently reset the -3R daily breaker.    |
+//+------------------------------------------------------------------+
+void RebuildTodayState()
+  {
+   const datetime now=TimeCurrent();
+   g_day_key=ServerDayKey(now);
+   g_day_start_equity=EquityNow();
+   g_day_net_r=0.0;
+   g_day_trades=0;
+   g_day_locked=false;
+
+   const double rc=SizingBase()*InpRiskPercent/100.0;
+   if(rc<=0.0) return;
+
+   const datetime day_start=(datetime)(g_day_key*86400)-g_server_utc_offset_s;
+   HistorySelect(day_start,now+1);
+   const int total=HistoryDealsTotal();
+   for(int i=0;i<total;i++)
+     {
+      const ulong dt=HistoryDealGetTicket(i);
+      if(dt==0) continue;
+      if(HistoryDealGetInteger(dt,DEAL_MAGIC)!=InpMagic) continue;
+      if(FindSymbol(HistoryDealGetString(dt,DEAL_SYMBOL))<0) continue;
+      const long ek=HistoryDealGetInteger(dt,DEAL_ENTRY);
+      if(ek==DEAL_ENTRY_IN) { g_day_trades++; continue; }
+      if(ek!=DEAL_ENTRY_OUT && ek!=DEAL_ENTRY_OUT_BY) continue;
+      const double profit=HistoryDealGetDouble(dt,DEAL_PROFIT)
+                         +HistoryDealGetDouble(dt,DEAL_SWAP)
+                         +HistoryDealGetDouble(dt,DEAL_COMMISSION);
+      g_day_net_r+=profit/rc;
+     }
+   if(InpDailyBreakerR>0.0 && g_day_net_r<=-InpDailyBreakerR) g_day_locked=true;
+   PrintFormat("[INIT] restored server-day state: realised R %+.2f, trades %d, locked=%s",
+               g_day_net_r,g_day_trades,g_day_locked?"true":"false");
+  }
+
 double SizingBase()
   {
    if(InpSizingBaseOverride>0.0) return InpSizingBaseOverride;
@@ -279,8 +379,7 @@ double SizingBase()
 
 void OnDeinit(const int reason)
   {
-   for(int i=0;i<ArraySize(g_handles);i++)
-      if(g_handles[i]!=INVALID_HANDLE) IndicatorRelease(g_handles[i]);
+   Comment("");
   }
 
 //+------------------------------------------------------------------+
@@ -320,7 +419,9 @@ void ScanClosedDeals()
       const ulong dt=HistoryDealGetTicket(i);
       if(dt==0) continue;
       if(HistoryDealGetInteger(dt,DEAL_MAGIC)!=InpMagic) continue;
-      if(HistoryDealGetInteger(dt,DEAL_ENTRY)!=DEAL_ENTRY_OUT) continue;
+      if(FindSymbol(HistoryDealGetString(dt,DEAL_SYMBOL))<0) continue;
+      const long ek=HistoryDealGetInteger(dt,DEAL_ENTRY);
+      if(ek!=DEAL_ENTRY_OUT && ek!=DEAL_ENTRY_OUT_BY) continue;
       const double profit=HistoryDealGetDouble(dt,DEAL_PROFIT)
                          +HistoryDealGetDouble(dt,DEAL_SWAP)
                          +HistoryDealGetDouble(dt,DEAL_COMMISSION);
@@ -408,9 +509,26 @@ void EvaluateSymbol(const int idx,const datetime now)
       return;
      }
 
+   string why="";
+   if(!SymbolTradable(sym,why))
+     { PrintFormat("[SKIP] %s not tradable: %s",sym,why); return; }
+
    const int digits=(int)SymbolInfoInteger(sym,SYMBOL_DIGITS);
    const double sl=NormalizeDouble(stop,digits);
    const double tp=NormalizeDouble(target,digits);
+
+   // Broker minimum stop distance: a 2.0 x ATR stop on a quiet pair can sit inside it,
+   // and the order would be rejected. Skip rather than silently widen the stop, because
+   // widening changes the risk-per-trade the validation assumed.
+   const double min_dist=StopsLevelPrice(sym);
+   if(min_dist>0.0)
+     {
+      if(entry-sl<min_dist)
+        { PrintFormat("[SKIP] %s stop distance %.5f is inside broker stops level %.5f",sym,entry-sl,min_dist); return; }
+      if(tp-entry<min_dist)
+        { PrintFormat("[SKIP] %s target distance %.5f is inside broker stops level %.5f",sym,tp-entry,min_dist); return; }
+     }
+   trade.SetTypeFilling(FillingModeFor(sym));
 
    PrintFormat("[SIGNAL] %s LONG body=%.5f atr=%.5f (%.2fx) entry=%.5f sl=%.5f tp=%.5f lots=%.2f risk=$%.2f",
                sym,body,atr,body/atr,entry,sl,tp,lots,risk_cash);

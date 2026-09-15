@@ -24,6 +24,12 @@ On each newly opened M5 bar, look at the bar that just closed:
 smoothing; the backtest used a simple mean. Swapping it changes every signal and invalidates
 all validated numbers.
 
+The window is the 14 bars **strictly before** the signal bar (live: shifts 2-15), and each
+true range needs the close *preceding* its own bar - so the oldest term reads shift 16.
+Getting that index wrong understates one of the 14 terms to a bare high-low range; measured
+against the backtest it flips **8 trigger decisions in 124,000 bars (0.006%)**. Negligible in
+practice, but it was fixed so the EA reproduces the validated numbers exactly.
+
 ## Universe
 
 Default: the **8 pairs selected on TRAIN only** (`EURGBP, AUDUSD, NZDUSD, USDCAD, USDCHF,
@@ -108,12 +114,52 @@ python3 validation/speed_lab/margin_and_swap_exposure.py   # Part C: margin + sw
 All three are standard-library only, per the repo's no-dependency convention. numpy is used
 only by the exploratory `sweep*.py` files and is not required for any shipped artifact.
 
+## Compilation status - please read
+
+**This EA has not been compiled.** The validation environment has no MetaEditor, so it was
+checked by static audit instead: balanced braces and parens, all 23 functions defined, all 36
+inputs declared and referenced (plus 6 input group headers), no undeclared globals, and every external call resolved to
+either an MQL5 builtin or a documented `CTrade` method from `<Trade/Trade.mqh>`.
+
+That is not a substitute for the compiler. **Before trusting it:**
+
+1. Open in MetaEditor and press F7. Fix every warning, not just errors.
+2. Run in the Strategy Tester on M5 with *"Every tick based on real ticks"*, all 8 symbols
+   available, over 2024-09 to 2026-09, at 0.50% risk.
+3. Confirm the tester reproduces the validated shape: **median about +10.9%/month, max DD
+   about 11%, roughly 32% losing months**. If it does not, something differs - most likely
+   the ATR window, the symbol's tick value, or the broker's spread. Do not enable live
+   trading until it matches.
+4. Only then work through the gate checklist above.
+
+## Execution guards
+
+The EA refuses an entry rather than distorting the validated risk model:
+
+| Guard | Behaviour |
+|---|---|
+| Broker **stops level** | Skips if `entry - SL` or `TP - entry` is inside `SYMBOL_TRADE_STOPS_LEVEL`. It does **not** widen the stop, because widening changes the risk-per-trade the validation assumed |
+| **Margin** | Skips if required margin exceeds 90% of free margin |
+| **Broken geometry** | Skips if the fill is already at/beyond the intended stop |
+| **Lot floor** | Skips if the computed size rounds below `SYMBOL_VOLUME_MIN` |
+| **Tradability** | Skips unless `SYMBOL_TRADE_MODE` is full/long-only and algo trading is permitted at EA, account and terminal level |
+| **Filling mode** | Chosen per symbol from `SYMBOL_FILLING_MODE` (FOK, else IOC, else RETURN) |
+
+On `Halt()` the EA flattens its own positions when `InpCloseAllOnHalt=true` (default), so a
+halt never leaves orphaned risk running.
+
+`RebuildTodayState()` runs in `OnInit` and reconstructs today's realised R and trade count
+from deal history, so **a mid-day restart no longer silently resets the -3R daily breaker**.
+
 ## Known limits of this implementation
 
 - Single-symbol chart attachment is not required; the EA iterates its symbol list from
   `OnTick` on whatever chart it is attached to.
-- `ScanClosedDeals()` attributes realised P&L to the current server day for the −3R breaker.
-  After a restart mid-day the breaker resets — acceptable, but it is a reset, not a restore.
+- `RebuildTodayState()` restores the daily breaker across a restart, but sets
+  `g_day_start_equity` to the equity *at init*, not the true start-of-server-day equity.
+  After a mid-day restart the prop-mode `InpDailyLossLimitPct` baseline is therefore wrong
+  until the next server midnight. The -3R breaker itself is restored correctly, so for
+  prop-challenge use avoid restarting mid-day.
 - The 96 h timeout is enforced by polling in `ManageTimeouts()`; the EA must stay online.
 - No news filter. None was validated; adding one is untested upside, not a known improvement.
 - Lot size is floored to the broker's volume step, so on a very small account the realised
