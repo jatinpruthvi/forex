@@ -301,3 +301,109 @@ Realistic expectations, in priority order:
    and a 40-start walk-forward sample with ±7% standard error. A 100%-annualised backtest
    should be expected to degrade substantially live. Forward-test on demo for at least one
    full losing streak before committing capital.
+
+---
+
+# Part C — Resolving B.6: margin, concurrency, swap concentration, and a better universe
+
+**Reproduce:** `python3 validation/speed_lab/margin_and_swap_exposure.py` (stdlib only, ~9 s)
+
+B.6 said "check margin and swap with your broker." Both are partly answerable from the repo's
+own data. Doing so produced a **material improvement** to the recommended configuration.
+
+## C.1 The TRAIN-selected 8-pair universe is better out-of-sample on every metric
+
+The per-pair table in B.1/B.2 is a *combined* 4-year view, and picking winners from it would
+be exactly the in-sample selection error PR #9 made. So the subset was chosen on **TRAIN only**
+(2022-09 → 2024-09) and then measured on the untouched TEST window.
+
+TRAIN per-pair net expectancy selected 8 of 11 (dropping **EURUSD −0.153R, USDJPY −0.151R,
+GBPUSD −0.117R**). Result on TEST, personal-account sizing, every signal taken, 0.50% risk:
+
+| Universe | Mean /mo | **Median /mo** | Worst mo | Losing mo | **Max DD** | Total |
+|---|---|---|---|---|---|---|
+| All 11 pairs | +13.05% | +9.51% | −14.83% | 32% | 16.2% | +326% |
+| **TRAIN-selected 8** | **+13.63%** | **+10.87%** | **−11.11%** | 32% | **10.9%** | **+341%** |
+
+Higher mean, higher median, smaller worst month, **and a third less drawdown** — selected
+honestly, evaluated once. This is now the recommended default. It also happens to drop the two
+clearest swap *payers* (EURUSD, GBPUSD), improving C.3.
+
+Note the selection kept **XAUUSD** (TRAIN +0.319R) even though it was −0.219R on TEST. That is
+the gold regime decay identified in Part 1 — honest selection means living with it, and the
+result improved anyway.
+
+**Updated answer to the 10%/month question: median +10.87%/month at 0.50% risk with a 10.9%
+max drawdown, on the held-out window.** That is a better risk-adjusted answer than Part B's.
+
+## C.2 Margin and leverage — feasible at 1:100, impossible below
+
+Worst case, all positions open simultaneously at 0.50% risk on $2,500: **1.46 lots total,
+~$157,854 notional** (lot sizes from each pair's real median stop distance; notional from
+base-currency contract size × the last close in the data).
+
+| Leverage | Margin required | % of equity | Free margin | Verdict |
+|---|---|---|---|---|
+| 1:30 | $5,262 | 210.5% | −$2,762 | **IMPOSSIBLE — margin call** |
+| 1:50 | $3,157 | 126.3% | −$657 | **IMPOSSIBLE — margin call** |
+| 1:100 | $1,579 | 63.1% | $921 | tight |
+| 1:200 | $789 | 31.6% | $1,711 | feasible |
+| 1:500 | $316 | 12.6% | $2,184 | feasible |
+
+**Realised concurrency is far below the worst case.** Over 4 years: mean **3.11** positions
+open, ≤4 open **76.7%** of the time, ≥11 open only **0.44%** of the time. Max observed was
+**14** (not 11 — a position held up to 233 h overlaps later signals), so B.1's "11 concurrent"
+understates the tail. At the mean concurrency, 1:100 uses only ~18% of equity.
+
+**Conclusion: 1:100 leverage works; 1:30 and 1:50 do not** and would silently skip signals,
+failing to reproduce the validated numbers. This is a hard broker-selection requirement.
+
+## C.3 Swap exposure map — the drag lands on the pairs that already lose
+
+Swap cannot be computed without a broker table, but *where it lands* can. Per pair over 4 years:
+
+| Pair | Trades | Nights/trade | ≥1 night | Net R | % of total R | Carry 2022-24 | Carry 2024-26 |
+|---|---|---|---|---|---|---|---|
+| EURGBP | 381 | 0.845 | 26.5% | **+509** | **40.7%** | pays | earns |
+| USDCHF | 359 | 0.813 | 30.1% | +231 | 18.5% | earns | earns |
+| NZDUSD | 379 | 0.741 | 25.9% | +190 | 15.2% | earns | neutral |
+| GBPJPY | 265 | 0.830 | 24.9% | +133 | 10.7% | earns++ | compressed |
+| AUDUSD | 354 | 0.726 | 24.6% | +101 | 8.1% | earns | neutral |
+| USDCAD | 215 | 1.051 | 30.7% | +91 | 7.3% | earns | neutral |
+| EURJPY | 260 | 0.892 | 26.5% | +73 | 5.8% | earns++ | compressed |
+| XAUUSD | 163 | 0.656 | 21.5% | +5 | 0.4% | pays | pays |
+| USDJPY | 421 | 0.710 | 24.5% | −25 | −2.0% | earns++ | compressed |
+| EURUSD | 265 | 0.653 | 21.1% | −26 | −2.1% | **pays** | mild/neutral |
+| GBPUSD | 255 | 0.580 | 20.4% | −33 | −2.6% | **pays** | mild/neutral |
+| **Total** | **3,317** | **0.771** | | **+1,250** | 100% | | |
+
+**The clear swap payers (EURUSD, GBPUSD) are precisely the two pairs with negative price
+expectancy — and precisely the two the TRAIN selection in C.1 drops.** The pairs carrying 85%
+of the profit mostly *earned* carry. So the B.4 stress table's −0.10R/night case is pessimistic
+for the recommended universe; realistic drag is likely a few tenths of a percentage point of
+monthly return, not 1–1.5.
+
+**One honest caution:** the JPY crosses (GBPJPY, EURJPY, USDJPY — +181R combined, 14.5%)
+earned a large carry tailwind in 2022–24 that **compressed sharply after 2024** as the BoJ
+hiked. The backtest charges zero swap, so it neither claimed nor lost that benefit — but do
+not assume the historical tailwind repeats.
+
+## C.4 Executable artifact
+
+The frozen config now ships as an EA following the repo's `TRIAD_R_HS` safety convention:
+
+**`MQL5/Experts/FIVE_M5_EXHAUST/FIVE_M5_EXHAUST.mq5`** + `README.md`
+
+- **Disabled by default** — `InpEnableOrderSubmission=false` and all eight gate flags `false`.
+  Signals are logged; no orders are placed until every gate is explicitly signed off.
+- Hand-rolled **simple-mean** true-range ATR. The README warns against substituting `iATR()`,
+  whose Wilder/RMA smoothing would change every signal and invalidate the validation.
+- Rejects broken stop geometry, enforces the 96 h timeout, the −3R daily breaker, the
+  Fri-21:00-server entry block, and a 90%-of-free-margin guard.
+- Prop-challenge mode available via `InpProfitTarget` / `InpEquityFloor` /
+  `InpDailyLossLimitPct` / `InpQualifyingDays`; all default to 0 (personal-account mode).
+- Defaults to the TRAIN-selected 8-pair universe from C.1.
+
+The gate checklist in the README maps each flag to the specific evidence required — including
+`InpForwardDemoGatePassed`, which requires demo-running through **at least one full losing
+streak** (32% of months lose, worst observed −14.8%, longest streak 3 months) before enabling.
