@@ -638,13 +638,30 @@ so the −3R breaker sees true net R; the `ProcessOnce()` throttle gates only th
 `ManageTimeouts()`, so a frozen `TimeCurrent()` across a weekend cannot starve the 96 h timeout; and
 the broker's minimum stop distance is checked for the target as well as the stop.
 
-**Cumulative: 27 bugs across six audits** (round 1 static, round 2 by emulation, round 3 by
+### Round 7 — from asking what actually *proves* the validated configuration is in force (1 more, fixed)
+
+Six rounds audited the EA's code paths. None of them checked whether the *inputs* running were the
+inputs that were validated — because the EA itself claimed to check that, and the claim was hollow.
+
+| # | where | what | severity | outcome |
+|---|---|---|---|---|
+| 28 | `OnInit()` release-ID gate | `InpValidationReleaseId` was **a string compared against a string**. On a match the EA printed *"release ID matches the validated configuration"* — a statement about a **label**, not about the numbers actually in force. Nothing compared them: retype `InpBodyAtrMultiple` as 3.0, or `InpTimeframe` as M15, or set `InpRiskPercent` to 2.0, and the EA still announced it was running the validated build while trading a different strategy. Freezing the trigger, stop, target, timeframe and risk existed precisely to stop that, yet the freeze was decorative. Matters most for an EA being **sold**: a buyer following published figures has no way to know whether the seller's settings survived the download, and an operator who changes one parameter "just to see" gets results matching nothing that was validated — while the log certifies otherwise | **High** — the one safety mechanism that was supposed to guarantee reproducibility guaranteed nothing | **Fixed** — `CheckFrozenParameters()` runs in `OnInit` after the sizing base is read. **Hard** drift (trigger, ATR period, stop multiples, target R, hold hours, timeframe, risk *above* 0.50%) calls `Halt()` and returns `INIT_PARAMETERS_INCORRECT`; **soft** drift (risk *below* 0.50%, commission no longer matching the broker, universe/count/Friday/sizing-base changes) logs a `[WARN]` naming the consequence and trades on |
+
+Two asymmetries are deliberate. Risk *above* 0.50% is hard because 2.0% risks four times the
+validated figure on a strategy whose drawdown statistics were measured at 0.50%; risk *below* is soft
+because it only coarsens lot granularity. And commission drift is **soft on purpose** — moving to
+Fusion Markets Zero means setting `InpCommissionPerLotRT` to 4.50, so a hard check there would brick
+the EA for following this document's own advice. Flattening on a hard parameter-drift halt is correct
+rather than reckless: `ProcessOnce()` returns immediately once `g_halted` is set, so leaving positions
+open would strand them with no timeout and no drawdown-breaker management.
+
+**Cumulative: 28 bugs across seven audits** (round 1 static, round 2 by emulation, round 3 by
 re-reading against MQL5 time semantics, round 4 from the broker/balance question, round 5 from the
-FXCC/myfxbook check, round 6 from fixing the defaults for a named broker). 26 fixed, 1 refuted and
-deliberately left alone. After round 6 the equivalence proof still holds — `ea_emulator.py` reports
-ATR, signals and gates **IDENTICAL** (3,290 = 3,290) and `selftest_ea_dump.py` passes with all four
-verbatim function copies identical and 9/9 mutations caught. Compilation remains unverified — there
-is no MetaEditor in this environment.
+FXCC/myfxbook check, round 6 from fixing the defaults for a named broker, round 7 from checking the
+inputs rather than the code). 27 fixed, 1 refuted and deliberately left alone. After round 7 the
+equivalence proof still holds — `ea_emulator.py` reports ATR, signals and gates **IDENTICAL**
+(3,290 = 3,290) and `selftest_ea_dump.py` passes with all four verbatim function copies identical and
+9/9 mutations caught. Compilation remains unverified — there is no MetaEditor in this environment.
 
 ---
 

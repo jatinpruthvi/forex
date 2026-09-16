@@ -561,6 +561,115 @@ int CountOpen()
 double EquityNow() { return AccountInfoDouble(ACCOUNT_EQUITY); }
 
 //+------------------------------------------------------------------+
+//| Verify the FROZEN parameters still hold their validated values.  |
+//|                                                                  |
+//| InpValidationReleaseId is a STRING THE OPERATOR TYPES. It proves |
+//| nothing about the parameters actually in force. Before this check|
+//| nothing anywhere compared InpBodyAtrMultiple, InpAtrPeriod,      |
+//| InpStopAtrMultiple, InpTargetR, InpMaxHoldHours or InpTimeframe  |
+//| against the values the expectancy was measured at - so a buyer   |
+//| could set the trigger to 3.0x ATR, or the timeframe to M15, or   |
+//| InpRiskPercent to 5.0, and the EA would still print              |
+//| "release=M5_EXHAUST_2026_09" and "order submission ENABLED"      |
+//| while trading something that was never validated. Every number   |
+//| published for this EA - +0.704R, ~+15%/month, 8.3% drawdown, the |
+//| $2,000 balance floor - is conditional on these values.           |
+//|                                                                  |
+//| Two tiers, because not every input is frozen:                    |
+//|   HARD: strategy-defining. A change makes this a DIFFERENT       |
+//|         strategy, so the EA halts. Retuning is what this repo's  |
+//|         own PR #9 did, and it overstated itself by 2.5x.         |
+//|   SOFT: account/broker settings that legitimately vary (risk %,  |
+//|         commission, universe, caps). These warn, with the        |
+//|         consequence named, because the published profile no      |
+//|         longer applies even though the strategy is unchanged.    |
+//+------------------------------------------------------------------+
+bool SameD(const double a,const double b) { return MathAbs(a-b)<=1e-9; }
+
+string CheckFrozenParameters()
+  {
+   string hard="",soft="";
+
+   // ---- HARD: the frozen strategy definition ----
+   if(!SameD(InpBodyAtrMultiple,4.0))
+      hard+=StringFormat("InpBodyAtrMultiple=%.2f (validated 4.00); ",InpBodyAtrMultiple);
+   if(InpAtrPeriod!=14)
+      hard+=StringFormat("InpAtrPeriod=%d (validated 14); ",InpAtrPeriod);
+   if(!SameD(InpStopAtrMultiple,2.0))
+      hard+=StringFormat("InpStopAtrMultiple=%.2f (validated 2.00); ",InpStopAtrMultiple);
+   if(!SameD(InpMinStopAtrMultiple,1.0))
+      hard+=StringFormat("InpMinStopAtrMultiple=%.2f (validated 1.00); ",InpMinStopAtrMultiple);
+   if(!SameD(InpTargetR,10.0))
+      hard+=StringFormat("InpTargetR=%.2f (validated 10.00); ",InpTargetR);
+   if(InpMaxHoldHours!=96)
+      hard+=StringFormat("InpMaxHoldHours=%d (validated 96); ",InpMaxHoldHours);
+   if(InpTimeframe!=PERIOD_M5)
+      hard+=StringFormat("InpTimeframe=%d (validated PERIOD_M5=%d); ",
+                         (int)InpTimeframe,(int)PERIOD_M5);
+   if(!SameD(InpRiskPercent,0.50))
+     {
+      // Risk % is a legitimate choice, but every drawdown, margin and balance figure published
+      // for this EA scales with it - and the $2,000 floor was derived AT 0.50%. Above it the
+      // operator is taking more risk than anything measured here; that is a hard stop.
+      if(InpRiskPercent>0.50)
+         hard+=StringFormat("InpRiskPercent=%.2f%% EXCEEDS the validated 0.50%% - the published "
+                            "drawdown (~8-13%%), the ~16%% peak margin at 1:500 and the $2,000 "
+                            "balance floor all scale with it and none of them were measured at "
+                            "this setting; ",InpRiskPercent);
+      else
+         soft+=StringFormat("InpRiskPercent=%.2f%% is below the validated 0.50%% - safer, but "
+                            "expect proportionally lower return, and the lot-granularity floor "
+                            "RISES (a smaller risk budget reaches 0.01 lots at a higher balance); ",
+                            InpRiskPercent);
+     }
+
+   // ---- SOFT: account/broker/universe settings that legitimately vary ----
+   if(!SameD(InpCommissionPerLotRT,7.0))
+      soft+=StringFormat("InpCommissionPerLotRT=%.2f differs from the 7.00 the published cost "
+                         "model assumed - correct if your broker charges this (Fusion Zero 4.50, "
+                         "Tickmill 4.00, FXCC 0.00), wrong if it was left by accident, because it "
+                         "sizes every position; ",InpCommissionPerLotRT);
+   if(InpUseAllEleven)
+      soft+="InpUseAllEleven=true trades the 11-pair universe, not the TRAIN-selected 8 the "
+            "headline figures come from; ";
+   if(InpMaxConcurrent!=99)
+      soft+=StringFormat("InpMaxConcurrent=%d is a prop-firm cap; the personal-account figures "
+                         "(~+15%%/month) assume 99 = take every signal, and capping it roughly "
+                         "halves realised return; ",InpMaxConcurrent);
+   if(InpMaxTradesPerDay!=99)
+      soft+=StringFormat("InpMaxTradesPerDay=%d is a prop-firm cap; the personal-account figures "
+                         "assume 99; ",InpMaxTradesPerDay);
+   if(!InpRiskOnInitialBase)
+      soft+="InpRiskOnInitialBase=false compounds on the live balance; the validated profile is "
+            "fixed-fractional on the initial balance, and compounding carries a deeper "
+            "peak-relative drawdown (~22.6% vs ~11.7%); ";
+   if(!InpBlockFridayLate)
+      soft+="InpBlockFridayLate=false allows entries that carry a fresh position into the weekend "
+            "gap, which the validation excluded; ";
+   if(InpFridayCutoffHour!=21)
+      soft+=StringFormat("InpFridayCutoffHour=%d differs from the validated 21 (a SERVER hour); ",
+                         InpFridayCutoffHour);
+   if(InpSizingBaseOverride>0.0 && g_initial_balance>0.0
+      && InpSizingBaseOverride>g_initial_balance*1.001)
+      soft+=StringFormat("InpSizingBaseOverride=%.2f EXCEEDS the actual initial balance %.2f - "
+                         "every position would be sized for money that is not there, an over-risk "
+                         "of %.0f%%; ",InpSizingBaseOverride,g_initial_balance,
+                         (InpSizingBaseOverride/g_initial_balance-1.0)*100.0);
+
+   if(hard!="")
+      PrintFormat("[ERROR] FROZEN PARAMETERS HAVE BEEN RETUNED and no longer describe the "
+                  "validated strategy: %s. InpValidationReleaseId=\"%s\" is meaningless while "
+                  "these differ - the published expectancy, drawdown, margin and minimum-balance "
+                  "figures DO NOT APPLY. Restore the validated values or re-run the whole "
+                  "validation. Halting.",hard,InpValidationReleaseId);
+   if(soft!="")
+      PrintFormat("[WARN] settings differ from the configuration the published figures were "
+                  "measured on: %s. The strategy logic is unchanged, but the quoted numbers no "
+                  "longer describe this account.",soft);
+   return hard;
+  }
+
+//+------------------------------------------------------------------+
 int OnInit()
   {
    trade.SetExpertMagicNumber((ulong)InpMagic);
@@ -571,6 +680,18 @@ int OnInit()
    trade.SetTypeFilling(FillingModeFor(_Symbol));
    CheckServerOffset();
    g_initial_balance=AccountInfoDouble(ACCOUNT_BALANCE);
+
+   // Frozen-parameter verification. Must run after g_initial_balance is read, because the
+   // InpSizingBaseOverride check compares against it. A drift in the strategy-defining
+   // parameters halts: the EA would otherwise trade an unvalidated strategy while still
+   // printing the validated release id. Halt() flattens (InpCloseAllOnHalt), which is the
+   // correct complement - ProcessOnce returns early once halted, so leaving positions open
+   // would strand them without timeout or breaker management.
+   if(CheckFrozenParameters()!="")
+     {
+      Halt("frozen strategy parameters were retuned - see the [ERROR] above");
+      return INIT_PARAMETERS_INCORRECT;
+     }
 
    // Netting vs hedging decides whether this EA can reproduce the validated numbers at all.
    g_netting=((ENUM_ACCOUNT_MARGIN_MODE)AccountInfoInteger(ACCOUNT_MARGIN_MODE)

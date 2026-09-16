@@ -426,6 +426,18 @@ chart symbol differing from the traded symbols is not a problem); `RecomputeDayS
 `TimeCurrent()` over a weekend cannot starve the 96 h timeout; and the broker minimum stop distance
 is checked for **both** the stop and the target before entry.
 
+Round 7 (found by asking what actually *proves* the validated configuration is in force):
+
+| Bug | Impact |
+|---|---|
+| **Not one frozen parameter was checked — the release id certified a configuration the EA never verified** | `InpValidationReleaseId` was a **string compared against a string**. Type it in and `OnInit` printed *"release ID matches the validated configuration"* — a statement about a label, not about the inputs actually running. Nothing compared the numbers. Retype `InpBodyAtrMultiple` as 3.0, or `InpTimeframe` as M15, or set `InpRiskPercent` to 2.0, and the EA still claimed to be running the validated build while trading a different strategy. This EA's convention already froze the *trigger, stop, target, timeframe and risk* for exactly this reason, and five earlier rounds audited the code paths without noticing the inputs themselves were unchecked. A buyer following published results — or an operator tweaking a parameter "just to see" — would get results that match nothing that was validated. Added `CheckFrozenParameters()`, run in `OnInit` after the sizing base is read: **hard** drift (trigger, ATR period, stop multiples, target R, hold hours, timeframe, or risk *above* 0.50%) calls `Halt()` and refuses to initialise; **soft** drift (risk below 0.50%, a commission input that no longer matches the broker, universe/count/Friday/sizing-base changes) logs a `[WARN]` naming the consequence and trades on. Risk is deliberately asymmetric — 2.0% risks four times the validated figure, 0.25% merely changes lot granularity. Commission drift is *soft on purpose*: moving to Fusion Markets Zero means setting `InpCommissionPerLotRT` to 4.50, and a hard check there would brick the EA for following this README's own advice. Tested by `test_ea_frozen_parameters.py` (18 checks, 3/3 mutants caught) |
+
+Checked and **cleared** in round 7: `Halt()` closing every position on a hard parameter-drift stop is
+correct, not reckless, because `ProcessOnce()` returns immediately once `g_halted` is set — leaving
+positions open would strand them with no timeout and no drawdown-breaker management. And the check runs
+*after* `g_initial_balance` is read, so the `InpSizingBaseOverride` comparison is against the real
+balance rather than zero.
+
 **On the degenerate-stop guard, note the direction:** adding it *lowered* backtested expectancy
 (TEST E_net +0.399R → **+0.376R**), because those trades were **winners** in the backtest — a
 0.4-pip stop puts the +10R target only 4 pips away, so it hits often. They are still removed,
