@@ -123,10 +123,35 @@ its stops are.
 | XAUUSD at 2 **or** 3 digits | Brokers differ; the repo data carries 3 | Handled — the EA reads `SYMBOL_DIGITS` and never infers it |
 | Low **long** swap | Long-only, 0.772 nights per trade, 25.3% of trades cross ≥1 night | Swap is a persistent one-way drag the cost model does not charge; 0.10R/night costs ~1.3 points of monthly return |
 
+### `InpCommissionPerLotRT` must be set to your broker's actual commission
+
+This input is **not** cosmetic. It is added to the stop distance inside `LossPerLot()`, so it
+divides every position size. Leaving it at the `7.0` default when the broker charges something
+else moves realised risk away from the `0.50%` mandate:
+
+| Broker / account | Round turn | Set `InpCommissionPerLotRT` to |
+|---|---|---|
+| FXCC ECN XL ("ZERO") | $0.00 | `0.0` |
+| Tickmill Pro | $4.00 | `4.0` |
+| Fusion Markets Zero | $4.50 | `4.5` |
+| IC Markets Raw Spread | $7.00 | `7.0` (the default — this is what the backtest assumed) |
+| Pepperstone Razor | $7.00 | `7.0` |
+
+Setting it too **high** under-sizes: on a $0-commission broker the `7.0` default makes every
+position 6.5–12.1% too small, so realised risk lands at **0.439–0.468% instead of 0.500%**.
+Setting it too **low** over-sizes past the risk mandate, which is the dangerous direction — and a
+negative value would understate the loss per lot badly enough to warrant the `[WARN]` the EA now
+emits at init.
+
+Note the strategic consequence, derived in §3 and §6 of the findings doc: **a fixed commission is
+the part of your cost that cannot widen at the rollover**, and 43.8% of these entries land there.
+That is why a $0-commission spread-only account (FXCC) looks best at peak hours and finishes worst
+once rollover widening is priced, and why Fusion's $4.50 of fixed commission wins every scenario.
+
 Before funding, verify on the **account type you will actually use**: hedging vs netting, the
 symbol names (the EA resolves suffixes, but confirm the `[INIT]` lines), the measured server
-offset, and the leverage offered by the entity you register under — these differ between a
-broker's ASIC, FCA, CySEC and offshore entities.
+offset, the commission actually charged, and the leverage offered by the entity you register under
+— these differ between a broker's ASIC, FCA, CySEC and offshore entities.
 
 ## Gate checklist
 
@@ -322,6 +347,20 @@ Round 4 (found while answering "which broker, and what minimum balance"):
 Checked and **cleared** in the same round (no change needed): the 96 h timeout is a wall-clock
 test in the EA but a 1,152-*bar* count in the backtest, which diverge across weekends — measured
 on TEST, only **10 of 1,198 trades** close a different bar and the worst gap is **6 minutes**.
+
+Round 5 (found while checking FXCC and myfxbook as the candidate broker):
+
+| Bug | Impact |
+|---|---|
+| **The volume sent to the broker carried a 1-ULP float residue** | `NormaliseLots()` ended with `MathFloor(lots/step)*step` and returned it directly. `0.01` has no exact binary64 representation, so `n*step` is frequently not the number it prints as — 35 steps is `0.35000000000000003`. A broker that validates volume against `SYMBOL_VOLUME_STEP` by exact comparison rejects that with `TRADE_RETCODE_INVALID_VOLUME` (10014) or `INVALID_VOLUME_STEP`. Measured on the real validated trade list, the share of sized volumes affected is **3 of 1,111 at $1,565, 15 at $2,000, and 25 at $2,500 (2.3%)** — about one live signal in 43 at the reference balance. **No backtest can catch this**, because no backtest round-trips a volume through a broker's server. Prices were already normalised; the volume was the one thing that wasn't. Now rounded to the step's own decimal count, with a guard so the clean-up can never authorise *more* volume than the floor did. The decimal count is derived by scaling, **not** `-log10(step)` — log10 gives `0.25` one decimal, which would round `0.25` **up** to `0.3`, a 20% over-size |
+| **`CheckServerOffset()` mis-reported every server west of UTC by one hour** | `(double)((detected+1800)/3600)` looks like round-to-nearest, but both operands are integers so MQL5 performs **integer division, which truncates toward zero**. Adding 1800 before a truncation rounds correctly for positive values and wrongly for negative ones: UTC−1 reported as 0, −2 as −1, −5 as −4. Order flow was never corrupted (`ServerDayKey` uses `TimeCurrent` directly), but the *diagnostic* was — it could raise a bogus WARN against a correct offset or stay silent against a real one, and a silent offset mismatch is exactly how a session filter drifts with no visible symptom. Invisible on the GMT+2/+3 MT5 servers everyone tests on, which is why four earlier rounds missed it. Now `MathFloor(((double)detected+1800.0)/3600.0)` |
+| **Suspected — and refuted: do not "fix" the lot floor with a tolerance** | `MathFloor(raw/step)` can drop a whole step when the quotient lands a ULP below an integer, and the obvious remedy is `MathFloor(q+1e-9)`. Measured against exact rational arithmetic across all 3,290 trades × 3 balances, the shipped plain floor disagrees with true intent **zero** times, while that tolerance **over-sizes 7 trades at $2,000 and 2 at $2,500**. The reason: `stop_pips` derives from price differences, so `loss_per_lot` is not a round number even when it prints like one (11.80 pips on AUDUSD gives `125.00000000000699`, not `125`). A quotient of `9.99999999999944` is therefore **not** float noise around 10 — it faithfully reports a stop a whisker wider than the round number, so 9 steps *is* the authorised size. Recording this so it is not "fixed" later: the tolerance is the bug |
+
+Also hardened in round 5: `InpCommissionPerLotRT` sits *inside* `LossPerLot()` and therefore sizes
+every position, but nothing surfaced it — see the table below for why that matters when you change
+broker. The EA now prints it in its first `[INIT]` line beside the sizing base, and warns if it is
+negative. Tests: `test_ea_lot_normalisation.py` and `test_ea_server_offset.py`, both with mutation
+control (3 and 4 mutants caught respectively).
 
 **On the degenerate-stop guard, note the direction:** adding it *lowered* backtested expectancy
 (TEST E_net +0.399R → **+0.376R**), because those trades were **winners** in the backtest — a

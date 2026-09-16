@@ -182,6 +182,7 @@ Peak-hour quotes only (the flattering view):
 | Fusion Markets Zero | $4.50 | **+0.638R** | **+14.93%** | 9.6% | +373% |
 | Pepperstone Razor | $7.00 | +0.600R | +14.15% | 10.2% | +354% |
 | Tickmill Pro | $4.00 | +0.620R | +14.54% | 9.9% | +363% |
+| FXCC ECN XL (myfxbook live) | **$0.00** | +0.633R | +14.79% | 9.7% | +370% |
 
 With rollover widening applied to UTC 21:00–22:59 entries. **The multiplier is an assumption,
 not a measurement** — published data implies ~12× on EURUSD, so it is swept:
@@ -192,9 +193,11 @@ not a measurement** — published data implies ~12× on EURUSD, so it is swept:
 | IC Markets Raw | +0.574R | +0.516R | +0.400R | +0.284R |
 | Fusion Markets Zero | **+0.608R** | **+0.550R** | **+0.434R** | **+0.317R** |
 | Pepperstone Razor | +0.571R | +0.511R | +0.393R | +0.275R |
-| Tickmill Pro | +0.577R | +0.492R | +0.321R | **+0.150R** |
+| Tickmill Pro | +0.577R | +0.492R | +0.321R | +0.150R |
+| FXCC ECN XL (myfxbook live) | +0.558R | +0.407R | +0.107R | **−0.193R** |
 
-Mean %/month under the same sweep: Fusion +14.24% → +7.66%; Tickmill +13.54% → **+3.62%**.
+Mean %/month under the same sweep: Fusion +14.24% → +7.66%; Tickmill +13.54% → +3.62%;
+**FXCC +13.12% → −4.35%** — the only broker in the group that goes negative.
 
 ### What this says
 
@@ -212,10 +215,70 @@ Mean %/month under the same sweep: Fusion +14.24% → +7.66%; Tickmill +13.54% �
   weeks measures it directly; the CSV carries the entry timestamp on every row, so the rollover
   subset can be isolated and its realised spread compared against the London-session subset.
 
+### FXCC checked directly, and what myfxbook does and does not settle
+
+FXCC (fxcc.com) and the myfxbook spread comparison were both checked as asked. FXCC's live
+per-pair quotes come from **myfxbook's own FXCC feed** (broker id 5191), sampled from real
+accounts — not from FXCC's marketing:
+
+| pair | FXCC live | break-even ceiling (§1) | headroom |
+|---|---|---|---|
+| EURGBP | 0.9 | 4.14 pips | 4.6× |
+| AUDUSD | 0.6 | 3.15 pips | 5.3× |
+| NZDUSD | 0.7 | 2.51 pips | 3.6× |
+| USDCAD | 0.5 | 5.47 pips | 11× |
+| USDCHF | 0.5 | 5.86 pips | 12× |
+| EURJPY | 1.3 | 5.99 pips | 4.6× |
+| GBPJPY | 1.3 | 12.64 pips | 9.7× |
+| XAUUSD | 16¢ = 1.6 pips | none — negative edge | n/a |
+
+Every FX pair clears its ceiling with room to spare, and the account terms are genuinely good
+for an EA: **$0 commission, no minimum deposit, 1:1000 max leverage, no requotes, EAs and
+custom scripts explicitly allowed, free VPS, swap-free accounts, stop-out 50%**. It passes
+every requirement in §3 except one, and the one it fails is the one that matters most here.
+
+**The problem is structural, not a bad quote.** FXCC's cost is 100% spread and 0% commission.
+A commission is a *fixed* cost — it does not widen at the rollover. A spread is *variable*, and
+it does. So FXCC has no fixed-cost ballast at all, and 43.8% of this strategy's entries land in
+the rollover window. That is why it is second-best at peak hours (+0.633R, essentially tied with
+Fusion's +0.638R) and **worst of all six once the rollover is priced**: +0.107R at 8× widening
+and −0.193R at 12×, the only negative figure in the table. Fusion, with $4.50 of fixed
+commission, is still +0.317R at 12×.
+
+The second problem is which entity offers the leverage. FXCC runs two:
+
+| entity | regulator | leverage | segregated funds | usable here? |
+|---|---|---|---|---|
+| FX Central Clearing Ltd (Cyprus) | CySEC, licence 121/10; ICF to €20,000 | 1:30 retail | **Yes** | **No** — §2(b) measures 1:30 at 260–275% margin, a stop-out |
+| Central Clearing Ltd (Comoros) | MISA (Mwali), licence BFX2024085 | up to 1:1000 | **No**, per FXEmpire's entity table | Yes on margin, but this is the weak-regulator, unsegregated one |
+
+So the entity that can actually carry this strategy's margin is the one that does not segregate
+client funds, and the entity that does segregate is capped at leverage the strategy cannot use.
+That trade-off is not unique to FXCC — it is the general shape of offshore forex — but it should
+be chosen deliberately rather than discovered later. The 100% deposit bonus (up to $2,000) is a
+further reason for caution when the EA is sold on: bonuses typically carry traded-volume and
+withdrawal conditions that a buyer would inherit without expecting them.
+
+**On myfxbook's comparison page specifically:** it is region-filtered, and the default view here
+listed FOREX.com, tastyfx and Oanda. Two limits make it the wrong tool for *this* decision:
+
+1. **The spread table excludes commission**, so a $0-commission spread-only account and a
+   $7-commission raw account are not comparable in it. There is a separate Commissions toggle.
+2. Against our break-even ceilings those three are fine on paper (FOREX.com EURGBP 0.2, NZDUSD
+   0.9; tastyfx 0.9/1.8) except **Oanda's NZDUSD at 2.4 against a 2.51 ceiling — 1.05× headroom,
+   i.e. NZDUSD is a zero-edge pair there**. But all three are retail/US-oriented at 1:30–1:50
+   leverage, and §2(b) measures 1:50 at 156–165% margin: **a stop-out before the strategy's own
+   risk limit**. None of them can run this EA regardless of how good the spreads look.
+
+The useful thing myfxbook provided is FXCC's live per-pair feed above. It cannot settle the
+question that actually decides the broker — the 21:00–22:00 UTC rollover spread — because a
+single snapshot is not a session-weighted average. That still needs `EA_SIGNAL_DUMP.mq5` on a
+demo account.
+
 **Broker spreads/commissions above are from published independent measurements (compareforexbrokers
-2026 raw-account testing; lowspreadbroker 30-day live tests, 2026) and several cells are
-interpolated from the same broker's other pairs rather than directly published. They move
-constantly and are not a quote.**
+2026 raw-account testing; lowspreadbroker 30-day live tests, 2026; myfxbook's live FXCC quote
+feed, 2026) and several cells are interpolated from the same broker's other pairs rather than
+directly published. They move constantly and are not a quote.**
 
 ---
 
@@ -278,20 +341,48 @@ No trade that *is* taken ever risks under half the target — sub-0.01-lot signa
 outright rather than under-sized. So granularity shows up as skipped trades, not as quiet
 under-risking.
 
-**Recommendation: $2,000–2,500.**
+### The single number
 
-- **$1,565** is the true floor for the seven FX pairs — zero skipped signals, 94% risk fidelity.
-- Adding XAUUSD raises the floor **10×** to **$16,101**, because a gold stop is ~93 pips on a
-  100 oz contract. But gold's TEST gross expectancy is **negative** (−0.187R), so a buyer is
-  better off setting `InpSymbols` to the seven FX pairs than funding 10× the balance to trade a
-  pair that lost money out of sample.
-- $2,000–2,500 leaves headroom for the ~12% drawdown and ~−11% worst month, and keeps realised
-  risk within 3–5% of target.
+> ## $2,000
+> Seven FX pairs (XAUUSD excluded), 1:500 leverage, `InpRiskPercent = 0.50`.
 
-At 1:500 there is no margin constraint at any of these balances. The remaining checks are the
-broker's minimum deposit (IC Markets $200, Pepperstone $0–200, Tickmill $100, Fusion ~$0) and
-whether the *entity* you register under actually offers 1:500 — ASIC, FCA and CySEC entities are
-capped far lower than the offshore ones, so leverage and regulation trade off against each other.
+That is the answer. The reasoning in one line each:
+
+- **Below $1,565 the EA starts silently dropping signals**, because a trade is only takeable
+  when `balance ≥ 2 × loss_per_lot` and the worst trade in the 7-pair stream costs $782/lot
+  (EURJPY). $1,565 is that arithmetic floor: 0.0% of signals skipped, realised risk 0.470%.
+- **$1,565 is a knife-edge, not a recommendation.** It is set by one outlier trade, with zero
+  buffer. At $2,000 nothing is skipped either (realised risk 0.475%) and there is 28% of
+  headroom above the floor, so a slightly wider stop than the historical worst still fits.
+- **Above $2,000 you buy almost nothing.** $2,500 moves realised risk from 0.475% to 0.481% and
+  monthly return by well under a point. The granularity floor is satisfied; the rest is
+  preference. (Every headline figure in this repo is quoted at $2,500 purely because that is the
+  prop-challenge account size the config was selected on — not because $2,500 trades better.)
+- **Leverage, not balance, is the margin constraint.** At 1:500 peak margin is ~16% of equity at
+  *every* balance from $500 to $16,000 (§2b), so margin never binds here. At 1:50 it is 156–165%
+  and the broker stops you out first — which is why 1:500 is a requirement, not a preference.
+- **Do not add gold to get a bigger number.** XAUUSD raises the floor 10× to $16,101, to trade a
+  pair whose held-out TEST expectancy is **negative** (−0.187R gross, −0.219R net). Set
+  `InpSymbols` to the seven FX pairs instead; that is both cheaper and better.
+
+If a single alternative is wanted for a more conservative buyer: **$2,500**, which is the exact
+balance the +12.60%/mo and 11.7% maxDD figures were measured at.
+
+**One input must be changed with the broker.** `InpCommissionPerLotRT` defaults to `7.0` and is
+*inside* the lot-size calculation, not just reporting. On a $0-commission broker such as FXCC,
+leaving it at 7.0 under-sizes every position by 6.5–12.1%, so realised risk lands at 0.439–0.468%
+instead of 0.500%. Set it to the broker's actual round-turn commission: Fusion $4.50, Tickmill
+$4.00, IC Markets / Pepperstone $7.00, FXCC $0.00. The mirror error is the dangerous one — a
+broker charging *more* than the input over-sizes past the risk mandate. Round 5 of the audit made
+the EA print this value in its first log line and warn if it is negative.
+
+At 1:500 there is no margin constraint at any of these balances, and no broker's minimum deposit
+is binding either (FXCC $0, Fusion ~$0, Pepperstone $0–200, Tickmill $100, IC Markets $200). The
+only remaining check is **whether the entity you register under actually offers 1:500** — ASIC,
+FCA and CySEC retail entities are capped at 1:30–1:50, far below what §2(b) needs, so leverage and
+tier-1 regulation are traded against each other and must be chosen deliberately. §3's FXCC entity
+table is the clearest example: the regulated entity cannot carry the margin, and the entity that
+can is the weak-regulator one.
 
 ---
 
@@ -320,11 +411,34 @@ EURGBP (0.20–0.30) and USDCHF (0.39) in the group, but the worst EURJPY (1.1�
 NY-aligned, hedging explicitly allowed, EAs allowed, stop-out ≤50%, 21 account currencies. Its
 pricing is less competitive than the three above, so it trades cost for counterparty strength.
 
+**Not recommended despite the best-looking terms — FXCC.** Checked directly as asked (§3). The
+account terms are the most EA-friendly in the group: $0 commission, no minimum deposit, up to
+1:1000, no requotes, EAs explicitly allowed, free VPS, swap-free accounts, and every FX pair
+clears its break-even ceiling by 3.6–12×. At peak hours it is second-best of six (+0.633R,
++14.79%/mo), a hair behind Fusion. It still loses, for two reasons:
+
+1. **It has no fixed-cost ballast.** With $0 commission, 100% of its cost is spread, and spread
+   is what widens at the rollover where 43.8% of these entries land. It is the *worst* of the six
+   once that is priced — +0.107R at 8× and **−0.193R at 12×, the only negative in the table**
+   (−4.35%/mo). A broker whose entire cost is variable is the wrong shape for a strategy that
+   trades the rollover.
+2. **Leverage and fund segregation sit in different entities.** The CySEC entity segregates funds
+   and carries ICF cover to €20,000 but is capped at 1:30, which §2(b) measures as a stop-out.
+   The MISA (Comoros) entity offers 1:1000 but, per FXEmpire's entity comparison, does not
+   segregate. The 100% deposit bonus adds traded-volume/withdrawal conditions a buyer would
+   inherit unexpectedly.
+
 **Avoid for this universe — Tickmill**, despite the industry's lowest commission ($4 Pro, $2 VIP
 above $50k). Its spreads on EURGBP (0.40), GBPJPY (1.00) and XAUUSD (1.50) are the widest of the
 group, and §3 shows commission is second-order here: Tickmill's cheap commission does not stop it
-being **worst at 12× rollover widening (+0.150R)**. The lesson generalises — for this strategy buy
-on measured rollover spread, not on commission.
+being **worst-but-one at 12× rollover widening (+0.150R)**.
+
+**The lesson from Tickmill and FXCC is the same one, and it is the rule to buy on:** for this
+strategy a broker's cost must be judged by *what happens to it at 21:00 UTC*, not by its headline.
+Commission is fixed and survives the rollover; spread is variable and does not. So the ranking is
+set by measured rollover spread, with commission acting as the part of the cost that cannot widen
+— which is why Fusion ($4.50 fixed, tightest spreads on four pairs) wins every scenario and why
+the two cheapest-looking options on paper, FXCC ($0 commission) and Tickmill ($4), finish last.
 
 **Avoid — Exness**, despite excellent quotes, because its server is **fixed GMT+0 year-round**.
 That shifts every server-day boundary 3 hours from the +3 the validation assumed, so the daily
@@ -388,9 +502,39 @@ After all four fixes the equivalence proof still holds: `ea_emulator.py` reports
 gates **IDENTICAL** (3,290 = 3,290), and `selftest_ea_dump.py` passes with all four verbatim
 function copies still identical to the EA's and 9/9 mutations caught.
 
-**Cumulative: 22 bugs across four audits** (round 1 static, round 2 by emulation, round 3 by
-re-reading against MQL5 time semantics, round 4 from the broker/balance question), all fixed.
-Compilation remains unverified — there is no MetaEditor in this environment.
+### Round 5 — from the FXCC/myfxbook broker check (3 more; 1 fixed, 1 fixed, 1 refuted)
+
+Asked again whether any bug remained. Three findings, of which the third is the interesting one
+because the audit *disproved* a fix that looked obviously correct.
+
+| # | where | what | severity | outcome |
+|---|---|---|---|---|
+| 23 | `NormaliseLots()` | The volume sent to `trade.Buy()` was `MathFloor(lots/step)*step` with no normalisation. `0.01` has no exact binary64 representation, so `n*step` carries a 1-ULP residue — 35 steps is `0.35000000000000003`, not `0.35`. A broker validating volume against `SYMBOL_VOLUME_STEP` by exact comparison rejects that with `TRADE_RETCODE_INVALID_VOLUME` (10014). Measured on the real validated trade list: **3 of 1,111 volumes at $1,565, 15 at $2,000, 25 at $2,500 (2.3%)** — roughly one live signal in 43 at the reference balance. No backtest can catch it, because no backtest round-trips a volume through a server. | **High, live-only** | **Fixed** — rounds to the step's own decimal count, with an explicit guard that the clean-up can never authorise more volume than the floor did |
+| 24 | `CheckServerOffset()` | `(double)((detected+1800)/3600)` reads as round-to-nearest but both operands are integers, so MQL5 does integer division, which **truncates toward zero**. Correct east of UTC, wrong west of it: −1h reported as 0, −2h as −1, −5h as −4 — **every** negative offset an hour high. Does not corrupt order flow (`ServerDayKey` uses `TimeCurrent` directly) but corrupts the one diagnostic relied on when porting to a new broker: it can raise a bogus WARN or suppress a real one, and a silent offset mismatch shifts the session filter with no visible symptom. Invisible on the common GMT+2/+3 MT5 servers, which is why four earlier rounds missed it. | Medium | **Fixed** — `MathFloor(((double)detected+1800.0)/3600.0)` |
+| 25 | `NormaliseLots()` floor | Suspected that `MathFloor(raw/step)` loses a whole step when the quotient lands a ULP below an integer, and that the fix is a tolerance (`MathFloor(q+1e-9)`). **The suspicion was right about the mechanism and wrong about the remedy.** Against exact rational arithmetic over all 3,290 trades × 3 balances, the shipped plain floor disagrees with true intent **zero** times, while the tolerance **over-sizes 7 trades at $2,000 and 2 at $2,500**. Cause: `stop_pips` comes from price differences, so `loss_per_lot` is not a round number even when it prints like one (11.80 pips on AUDUSD gives `125.00000000000699`). A quotient of `9.99999999999944` is therefore not float noise around 10 — it correctly reports a stop a whisker wider than the round number, so 9 steps *is* the authorised size. | Would have been **high** (over-sizing breaches the 0.50% mandate) | **Refuted — no change made.** The floor is left byte-identical to the validated replay; the trap is recorded so it is not "fixed" later |
+
+Also hardened in round 5, not a bug but a live-fidelity risk: `InpCommissionPerLotRT` is *inside*
+`LossPerLot()` and therefore sizes every position, yet nothing surfaced it. On a $0-commission
+broker the `7.0` default under-sizes all positions 6.5–12.1% (realised risk 0.439–0.468% instead
+of 0.500%); on a broker charging more it over-sizes past the mandate. The EA now prints the value
+in its first `[INIT]` line next to the sizing base and warns if it is negative.
+
+Two new tests, both with mutation control so the assertions are provably load-bearing:
+`test_ea_lot_normalisation.py` (9 sections; 3 mutants caught) and `test_ea_server_offset.py`
+(6 sections; 4 mutants caught, including "no rounding at all" and "ceil instead of floor"). Both
+caught bugs in themselves on first run — a hardcoded `should_warn` set that silently exempted
+every negative offset, and a tie-break expectation for UTC−5:30 that assumed round-half-away
+from zero where `MathFloor(x+0.5)` rounds half up — which is the reason they are committed.
+
+After round 5 the equivalence proof still holds: `ea_emulator.py` reports ATR, signals and gates
+**IDENTICAL**, `selftest_ea_dump.py` passes 9/9 mutations, and its layer-0 drift check caught the
+`NormaliseLots` copy in `EA_SIGNAL_DUMP.mq5` going stale the moment the EA was patched — the copy
+was then updated and the check re-passed.
+
+**Cumulative: 25 bugs across five audits** (round 1 static, round 2 by emulation, round 3 by
+re-reading against MQL5 time semantics, round 4 from the broker/balance question, round 5 from
+the FXCC/myfxbook check). 24 fixed, 1 refuted and deliberately left alone. Compilation remains
+unverified — there is no MetaEditor in this environment.
 
 ---
 
@@ -407,3 +551,19 @@ Compilation remains unverified — there is no MetaEditor in this environment.
   21:00–22:00 rollover.
 - Commission structures: Fusion Markets $4.50 RT, Tickmill Pro $4.00 RT, IC Markets / FP
   Markets / Exness $7.00 RT per lot.
+- FXCC: fxcc.com homepage and account terms (ECN XL / "ZERO": $0 commission, spreads from 0.0,
+  up to 1:1000, no minimum deposit, no requotes, EAs and custom scripts allowed, free VPS,
+  segregated client funds, 100% deposit bonus to $2,000); **live per-pair quotes from myfxbook's
+  FXCC feed, broker id 5191** (`myfxbook.com/forex-broker-quotes/fxcc/5191`); FXEmpire's FXCC
+  entity comparison (FX Central Clearing Ltd, CySEC 121/10, 1:30, segregated, ICF €20,000 vs
+  Central Clearing Ltd, MISA Comoros BFX2024085, 1:1000, **not** segregated; margin call 100%,
+  stop-out 50%, min volume 0.01, swap-free available; ECN XL live spreads EURUSD 0.0, GBPJPY
+  1.5–1.9, XAUUSD 17–18¢ vs 33¢ industry average); FXScouts and daytrading.com FXCC reviews
+  (EURUSD average 0.60 pips; EURGBP 0.3–0.6; gold 12–20¢).
+- `myfxbook.com/forex-broker-spreads` live comparison table, retrieved 2026 — region-filtered;
+  visible rows FOREX.com-Live 536 (EURGBP 0.2, NZDUSD 0.9, USDCAD 0.5, EURJPY 0.9, GBPJPY 1.7),
+  tastyfx (0.9 / 1.8 / 1.3 / 2.1 / 2.5) and Oanda (1.1 / 2.4 / 1.9 / 2.6 / 3.0). Spread only —
+  the page's Commissions toggle is separate, so the table is not comparable across account models.
+- MQL5 `TimeCurrent()` / `TimeGMT()` semantics, and C-style integer division truncating toward
+  zero (the round-5 bug 24 mechanism); IEEE-754 binary64 representation of `0.01` and the ULP
+  residue in `n*step` (bug 23), measured in `test_ea_lot_normalisation.py`.

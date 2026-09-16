@@ -98,16 +98,36 @@ double LossPerLot(const string sym,const double distance)
    return px_loss+InpCommissionPerLotRT;
   }
 
+// VERBATIM COPY of the EA's patched NormaliseLots() (round 5). The volume is rounded to
+// the step's own decimal count so the value sent to trade.Buy() carries no 1-ULP residue:
+// `n*step` cannot represent 0.01 exactly, so 35 steps came out as 0.35000000000000003 and
+// a broker validating volume against SYMBOL_VOLUME_STEP with an exact comparison rejects it
+// with TRADE_RETCODE_INVALID_VOLUME. The decimal count is derived by scaling, not by
+// -log10(step), which would give 0.25 one decimal and round it UP to 0.3.
+// selftest_ea_dump.py layer 0 asserts this copy still equals the EA's, semantically.
 double NormaliseLots(const string sym,double lots)
   {
    const double step=SymbolInfoDouble(sym,SYMBOL_VOLUME_STEP);
    const double vmin=SymbolInfoDouble(sym,SYMBOL_VOLUME_MIN);
    const double vmax=SymbolInfoDouble(sym,SYMBOL_VOLUME_MAX);
    if(step<=0.0) return 0.0;
-   lots=MathFloor(lots/step)*step;
-   if(lots<vmin) return 0.0;
-   if(lots>vmax) lots=vmax;
-   return lots;
+
+   const double floored=MathFloor(lots/step)*step;   // the authorised volume, residue and all
+
+   // decimals needed to print `step` exactly: 0.01->2, 0.1->1, 1.0->0, 0.25->2, 0.125->3
+   int vd=0;
+   double s=step;
+   while(vd<8 && MathAbs(s-MathRound(s))>1e-12) { s*=10.0; vd++; }
+
+   double clean=NormalizeDouble(floored,vd);
+   // Never let the clean-up authorise more volume than the floor did. If it somehow
+   // would, fall back to the floored value - under-sizing is survivable, over-sizing
+   // breaches the risk mandate silently.
+   if(clean>floored+1e-10) clean=floored;
+
+   if(clean<vmin) return 0.0;
+   if(clean>vmax) clean=vmax;
+   return clean;
   }
 
 int ServerDayKey(const datetime server_time) { return (int)((long)server_time/86400L); }

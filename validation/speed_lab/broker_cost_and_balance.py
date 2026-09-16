@@ -450,6 +450,15 @@ def main():
         "Tickmill Pro": dict(comm=4.00, flat=False, sprd={
             "EURGBP": 0.40, "AUDUSD": 0.37, "NZDUSD": 0.50, "USDCAD": 0.50,
             "USDCHF": 0.52, "EURJPY": 0.70, "GBPJPY": 1.00, "XAUUSD": 1.50}),
+        # FXCC ECN XL ("ZERO"): spread-only, NO commission. Spreads are the LIVE quotes
+        # published on myfxbook's FXCC feed (broker id 5191), sampled from real accounts -
+        # EURGBP 0.9, AUDUSD 0.6, NZDUSD 0.7, USDCAD 0.5, USDCHF 0.5, EURJPY 1.3,
+        # GBPJPY 1.3, and XAUUSD 16 cents = 1.6 pips at this model's 0.10 gold pip.
+        # A single snapshot is noisier than a 30-day average, so this row is CONSERVATIVE:
+        # daytrading.com's FXCC averages are tighter still (EURGBP 0.3-0.6, gold 12-20c).
+        "FXCC ECN XL (myfxbook live)": dict(comm=0.00, flat=False, sprd={
+            "EURGBP": 0.90, "AUDUSD": 0.60, "NZDUSD": 0.70, "USDCAD": 0.50,
+            "USDCHF": 0.50, "EURJPY": 1.30, "GBPJPY": 1.30, "XAUUSD": 1.60}),
     }
 
     def apply_costs(comm, sprd, flat, roll_mult):

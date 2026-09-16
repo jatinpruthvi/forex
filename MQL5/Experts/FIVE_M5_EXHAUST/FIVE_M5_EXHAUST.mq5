@@ -77,7 +77,7 @@ input double InpSizingBaseOverride= 0.0;    // >0 pins the base (prop: 2500). 0 
 input double InpDailyBreakerR     = 3.0;    // stop opening after this many net losing R today
 input int    InpMaxConcurrent     = 99;     // 99 = take every signal (validated best, Part B)
 input int    InpMaxTradesPerDay   = 99;
-input double InpCommissionPerLotRT= 7.0;    // $ round turn, used in lot sizing
+input double InpCommissionPerLotRT= 7.0;    // $ round turn. MUST match your broker - it sizes lots
 input bool   InpBlockFridayLate   = true;   // no new entries after the Friday cutoff (server time)
 input int    InpFridayCutoffHour  = 21;     // server hour; matches the validated backtest
 
@@ -303,7 +303,16 @@ void CheckServerOffset()
       return;
      }
    const long detected=(long)TimeCurrent()-(long)TimeGMT();
-   const double hours=(double)((detected+1800)/3600);      // round to the nearest whole hour
+   // Round to the nearest whole hour. `(detected+1800)/3600` looks like it does that, but
+   // both operands are integers, so MQL5 performs INTEGER division, which truncates TOWARD
+   // ZERO. That is correct for a server east of UTC and wrong for one west of it: -3600s
+   // reported UTC+0 instead of UTC-1, -7200s reported UTC-1 instead of UTC-2, -18000s
+   // reported UTC-4 instead of UTC-5 - every negative offset came out an hour high. The
+   // +1800 rounding trick needs a FLOOR, not a truncation. Getting this wrong does not
+   // corrupt trading (ServerDayKey uses TimeCurrent directly) but it emits a bogus WARN,
+   // or suppresses a real one, on exactly the check the operator relies on when porting
+   // the EA to a new broker - and US-based servers do run west of UTC.
+   const double hours=MathFloor(((double)detected+1800.0)/3600.0);
    PrintFormat("[INIT] detected broker server offset: UTC%+.0f (configured expectation UTC%+d)",
                hours,InpExpectedServerUtcOffsetHours);
    if((int)hours!=InpExpectedServerUtcOffsetHours)
@@ -366,16 +375,52 @@ double LossPerLot(const string sym,const double distance)
    return px_loss+InpCommissionPerLotRT;
   }
 
+//+------------------------------------------------------------------+
+//| Round a lot count down to the broker's volume step.              |
+//|                                                                  |
+//| `n*step` is a binary multiply, and 0.01 is not representable in  |
+//| binary64 - so the volume handed to trade.Buy() carries a 1-ULP   |
+//| residue. Measured over n = 1..20000, 92% of values print as      |
+//| 0.35000000000000003 rather than 0.35, and 13% are a full ULP off |
+//| the correctly-rounded decimal. Strict brokers validate volume    |
+//| against the step with an exact comparison and reject such a value|
+//| with TRADE_RETCODE_INVALID_VOLUME (10014) / INVALID_VOLUME_STEP, |
+//| so the signal is lost live while every backtest still passes.    |
+//|                                                                  |
+//| The residue is removed by rounding to the step's own decimal     |
+//| count. That count is derived by scaling, NOT by -log10(step):    |
+//| log10 mis-handles non-decimal steps (0.25 -> 1 decimal, which    |
+//| would round 0.25 UP to 0.3 and over-size the position). The      |
+//| residue is ~1e-17, four orders of magnitude below the rounding   |
+//| boundary, so clean-up can never cross into the next step - and   |
+//| the explicit guard below makes that a checked property rather    |
+//| than an argument. Sizing MAGNITUDE is unaffected: over 196,000   |
+//| realistic loss-per-lot values the plain floor never lost a whole |
+//| step, so this changes only the bit pattern sent, never the size. |
+//+------------------------------------------------------------------+
 double NormaliseLots(const string sym,double lots)
   {
    const double step=SymbolInfoDouble(sym,SYMBOL_VOLUME_STEP);
    const double vmin=SymbolInfoDouble(sym,SYMBOL_VOLUME_MIN);
    const double vmax=SymbolInfoDouble(sym,SYMBOL_VOLUME_MAX);
    if(step<=0.0) return 0.0;
-   lots=MathFloor(lots/step)*step;
-   if(lots<vmin) return 0.0;
-   if(lots>vmax) lots=vmax;
-   return lots;
+
+   const double floored=MathFloor(lots/step)*step;   // the authorised volume, residue and all
+
+   // decimals needed to print `step` exactly: 0.01->2, 0.1->1, 1.0->0, 0.25->2, 0.125->3
+   int vd=0;
+   double s=step;
+   while(vd<8 && MathAbs(s-MathRound(s))>1e-12) { s*=10.0; vd++; }
+
+   double clean=NormalizeDouble(floored,vd);
+   // Never let the clean-up authorise more volume than the floor did. If it somehow
+   // would, fall back to the floored value - under-sizing is survivable, over-sizing
+   // breaches the risk mandate silently.
+   if(clean>floored+1e-10) clean=floored;
+
+   if(clean<vmin) return 0.0;
+   if(clean>vmax) clean=vmax;
+   return clean;
   }
 
 //+------------------------------------------------------------------+
@@ -519,8 +564,19 @@ int OnInit()
       PrintFormat("[INIT] order submission DISABLED - first closed gate: %s. Signals are still "
                   "logged; nothing is sent.",FirstClosedGate());
 
-   PrintFormat("[INIT] release=%s symbols=%d risk=%.2f%% base=%.2f targetR=%.1f hold=%dh",
-               InpValidationReleaseId,n,InpRiskPercent,SizingBase(),InpTargetR,InpMaxHoldHours);
+   PrintFormat("[INIT] release=%s symbols=%d risk=%.2f%% base=%.2f targetR=%.1f hold=%dh comm=$%.2f/lot RT",
+               InpValidationReleaseId,n,InpRiskPercent,SizingBase(),InpTargetR,InpMaxHoldHours,
+               InpCommissionPerLotRT);
+   // InpCommissionPerLotRT is not a reporting input - it is inside LossPerLot(), so it sets
+   // every position size. Leaving it at the $7.00 default on a broker that charges less
+   // under-sizes (FXCC's $0 commission -> lots 6.5-12.1% too small, realised risk 0.439-
+   // 0.468% instead of 0.500%); on a broker that charges MORE it over-sizes past the risk
+   // mandate, which is the dangerous direction. Print it next to the sizing base so the
+   // mismatch is visible in the first log line instead of in the fills.
+   if(InpCommissionPerLotRT<0.0)
+      PrintFormat("[WARN] InpCommissionPerLotRT=%.2f is negative - LossPerLot would understate "
+                  "the loss per lot and OVER-size every position. Set it to your broker's "
+                  "actual round-turn commission.",InpCommissionPerLotRT);
    return INIT_SUCCEEDED;
   }
 
