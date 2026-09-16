@@ -3,6 +3,12 @@
 Reference implementation of the frozen configuration validated in
 [`findings_phase2_speed.md`](../../../findings_phase2_speed.md).
 
+**Companion documents:** [`docs/PERSONAL_LIVE_ACCOUNT.md`](../../../docs/PERSONAL_LIVE_ACCOUNT.md)
+answers "can this make ~10%/month on my own money, and what is the minimum balance" —
+including the risk frontier, the fixed-vs-compounded choice, swap, and a deployment
+checklist. [`findings_broker_and_balance.md`](../../../findings_broker_and_balance.md)
+covers broker selection, the cost model and the full seven-round bug audit (28 bugs).
+
 > **SHIPS DISABLED.** `InpEnableOrderSubmission` defaults to `false` and all eight gate
 > flags default to `false`, following the convention set by `TRIAD_R_HS`. Until you set
 > them, the EA logs signals and manages nothing. It has been validated on historical data

@@ -3,6 +3,11 @@
 Companion to `findings_phase2_speed.md`. Produced by
 `validation/speed_lab/broker_cost_and_balance.py` (stdlib only, ~14 s).
 
+For the personal-account view of the same edge — the ~10%/month question, the risk frontier,
+fixed versus compounded sizing, swap, and a deployment checklist — see
+`docs/PERSONAL_LIVE_ACCOUNT.md`. It states which configuration each of its tables was
+measured on, because several are in circulation and they differ by roughly 2×.
+
 All figures are the frozen M5 long-only 4×ATR exhaustion fade, TRAIN-selected 8-pair universe
 (`EURGBP, AUDUSD, NZDUSD, USDCAD, USDCHF, EURJPY, GBPJPY, XAUUSD`), held-out TEST period
 2024-09-11 → 2026-09-11, 1,198 signals, next-bar-open fills, pessimistic intrabar exits,
