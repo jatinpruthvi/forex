@@ -109,10 +109,15 @@ Set each flag to `true` only when the condition is genuinely met:
 python3 validation/speed_lab/verify_final_config.py        # Part A: prop challenge  (~8 s)
 python3 validation/speed_lab/personal_account_analysis.py  # Part B: personal account (~9 s)
 python3 validation/speed_lab/margin_and_swap_exposure.py   # Part C: margin + swap map
+python3 validation/speed_lab/ea_emulator.py                # EA == backtest, on repo data
+python3 validation/speed_lab/selftest_ea_dump.py           # tests the broker-dump chain (~3 min)
+python3 validation/speed_lab/compare_ea_dump.py            # YOUR broker's dump (run it in MT5 first)
 ```
 
-All three are standard-library only, per the repo's no-dependency convention. numpy is used
+All of these are standard-library only, per the repo's no-dependency convention. numpy is used
 only by the exploratory `sweep*.py` files and is not required for any shipped artifact.
+`selftest_ea_dump.py` needs no MetaTrader — it synthesises a dump from the repo's own data — and
+writes a ~70 MB `selftest_dump.csv` that is gitignored and safe to delete.
 
 ## Verification — what was actually checked
 
@@ -166,6 +171,68 @@ Balanced braces/parens, 23 functions all defined, 37 inputs all declared and ref
 undeclared globals, no stray `};`, and every external call resolving to either an MQL5 builtin
 or a documented `CTrade` method from `<Trade/Trade.mqh>`.
 
+### 3. On your own broker — `EA_SIGNAL_DUMP.mq5`
+
+Emulation proves the EA's *logic* matches the backtest, but it does so on the repo's CSV data.
+It cannot tell you what your broker's feed does. `MQL5/Scripts/EA_SIGNAL_DUMP.mq5` closes that
+gap: it is a **read-only script** (places no orders, modifies nothing) that dumps, for every M5
+bar of *your* broker's history, exactly what the EA would compute — ATR, trigger, stop/target
+geometry, lot size, server-day key and Friday flag.
+
+It carries **verbatim copies** of the EA's `SimpleAtrBefore()`, `LossPerLot()`,
+`NormaliseLots()` and `ServerDayKey()`. `selftest_ea_dump.py` mechanically diffs those copies
+against the EA and fails on drift, so the script cannot silently diverge from what it claims to
+verify.
+
+It also dumps three deliberately **wrong** values next to the correct ones, so the bugs this EA
+had are visible as data rather than as prose:
+
+| Column | The bug it represents |
+|---|---|
+| `atr_wilder` | MT5's built-in `iATR()` (Wilder/RMA). Must differ from `atr_simple` on essentially every bar — measured ratio spans **0.51× to 4.41×** |
+| `daykey_bug` | Server-day key with the UTC offset added to a value that is *already* server time |
+| `friday_bug` | The same double-offset in the Friday test, which **inverted** the block: fired 18:00–20:59 and missed the 21:00–23:59 pre-close window |
+
+Workflow:
+
+```
+MetaTrader  ->  run EA_SIGNAL_DUMP.mq5 (any chart)  ->  MQL5/Files/ea_signal_dump.csv
+repo        ->  python3 validation/speed_lab/compare_ea_dump.py
+```
+
+`compare_ea_dump.py` has two independent layers, because your broker's bars are not the repo's:
+
+* **Layer 1 — self-consistency.** Re-derives every column from the raw OHLC in the same row.
+  Needs *no* overlap with the repo data at all, so it works on any dump, any broker, any period.
+  Also confirms the three bug-evidence columns above are non-trivial and that no row sizes an
+  oversized position.
+* **Layer 2 — cross-feed.** Joins on the signal bar's UTC timestamp and compares against
+  `verify_final_config.py`. It reports the OHLC agreement rate **first**, because that
+  determines how to read the rest: where the bars are identical, ATR and every decision must
+  match exactly, and any difference is an EA bug. Where the bars differ, the feeds differ and
+  divergence is expected, not a failure.
+
+It also prints your broker's `pip` / `tick_value` / `volume_step` next to the repo's
+assumptions. A difference there is **not a bug** — it means realised lot sizes and P/L will
+scale differently from the backtest, which is worth knowing before you size a position.
+
+Two practical notes:
+
+* Set `InpBarsToDump` large enough to overlap the repo data, which ends **2026-09-11**. The
+  default 20000 M5 bars is only ~10 weeks; use **120000** for roughly a year. The comparator
+  says so explicitly if it finds zero overlap rather than reporting a vacuous pass.
+* Run it in a **live terminal**, not the Strategy Tester. In the tester `TimeGMT() ==
+  TimeCurrent()` by design, so the real broker offset cannot be measured and the configured
+  `InpServerUtcOffsetHours` is used instead.
+
+`selftest_ea_dump.py` tests the whole chain without MetaTrader: it synthesises a dump from the
+repo's own data in exactly the MQL5 output format, then requires Layers 1 and 2 to pass **and**
+requires the comparator to *fail* on nine deliberately corrupted dumps (Wilder ATR swapped in,
+trigger at 3× instead of 4×, 1× stop, wrong digit count, +9R target, doubled lots, guard
+disabled, and both double-offset bugs restored). All nine are caught. A comparator that cannot
+fail is worse than no comparator — that is precisely how the double-offset bug survived the
+first audit.
+
 ### Bugs this process found and fixed
 
 Round 1 (static audit):
@@ -212,15 +279,23 @@ Accepting a slightly lower number here is the honest choice.
 
 ### Still not verified — read before trusting it
 
-**Compilation is unverified.** A static audit is not a compiler. Before enabling anything:
+**Compilation is unverified.** A static audit is not a compiler. **Your broker's feed is
+unverified** — everything in this repo was validated on the repo's CSV data, not your broker's.
+Before enabling anything:
 
 1. Open in MetaEditor, press **F7**. Fix every warning, not just errors.
-2. Strategy Tester, M5, *"Every tick based on real ticks"*, 2024-09 → 2026-09, 0.50% risk,
+2. Run `MQL5/Scripts/EA_SIGNAL_DUMP.mq5` in a **live terminal** with `InpBarsToDump=120000`,
+   then `python3 validation/speed_lab/compare_ea_dump.py`. **Layer 1 must PASS** — that is the
+   EA's arithmetic checked against itself on your broker's own bars, and it needs no data
+   overlap. Where Layer 2 finds identical OHLC, ATR and every decision must match exactly too.
+   Read the broker contract-terms table: if `tick_value` differs from the repo's, your realised
+   P/L per lot differs from every number quoted here.
+3. Strategy Tester, M5, *"Every tick based on real ticks"*, 2024-09 → 2026-09, 0.50% risk,
    all 8 symbols available in Market Watch.
-3. It must reproduce the validated shape: **median ≈ +10.3%/month, max DD ≈ 11%, roughly 32%
+4. It must reproduce the validated shape: **median ≈ +10.3%/month, max DD ≈ 11%, roughly 32%
    losing months.** If it does not, something differs — most likely the ATR window, a symbol's
    tick value, or your broker's spread. Do not open any gate until it matches.
-4. Then work through the gate checklist.
+5. Then work through the gate checklist.
 
 Two intentional differences from the backtest, neither a bug:
 
@@ -230,6 +305,7 @@ Two intentional differences from the backtest, neither a bug:
 - **Entry price.** The EA fills at `tick.ask`; the backtest uses the next bar's open.
   `InpMaxEntryLagSeconds` exists to keep these close. Note the EA sizes from the *actual*
   ask-based stop distance, so dollar risk stays at `InpRiskPercent` regardless of spread.
+
 ## Execution guards
 
 The EA refuses an entry rather than distorting the risk model the validation assumed:
