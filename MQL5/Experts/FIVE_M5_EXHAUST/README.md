@@ -37,8 +37,8 @@ EURJPY, GBPJPY, XAUUSD`). Held-out TEST, personal-account sizing, every signal t
 
 | Universe | Mean /mo | **Median /mo** | Worst mo | Max DD |
 |---|---|---|---|---|
-| All 11 pairs | +13.05% | +9.51% | −14.83% | 16.2% |
-| **TRAIN-selected 8 (default)** | **+13.63%** | **+10.87%** | **−11.11%** | **10.9%** |
+| All 11 pairs | +12.20% | +9.51% | −14.83% | 16.2% |
+| **TRAIN-selected 8 (default)** | **+12.74%** | **+10.34%** | **−11.11%** | **11.3%** |
 
 The 8-pair set is better out-of-sample on *every* metric — higher mean, higher median,
 smaller worst month, and a third less drawdown — and it drops the two worst swap-paying
@@ -138,6 +138,28 @@ day-of-week mapping is right (MQL5 `day_of_week==5` and Python `weekday()==4` ar
 
 Re-run it any time with `python3 validation/speed_lab/ea_emulator.py` (~30 s).
 
+### The server clock — read this, it is the subtlest thing in the file
+
+MQL5's `TimeCurrent()` returns **broker server time**, and bar times (`SERIES_LASTBAR_DATE`),
+deal times (`DEAL_TIME`) and position times (`POSITION_TIME`) are all on that *same* clock.
+So **no code in this EA converts time**. `InpExpectedServerUtcOffsetHours` is informational
+only — it is never added to anything.
+
+The backtest works the other way round: the repo's CSVs are **UTC** (verified — the market
+closes Fri 20:55/21:55 UTC and reopens Sun 21:00/22:00 UTC, with zero Saturday bars), so it
+*adds* +3 h to reach the server day. Both end up on the same server-day boundaries, which is
+what `ea_emulator.py` now proves.
+
+`CheckServerOffset()` measures the real offset at init (`TimeCurrent() - TimeGMT()`) and warns
+if your broker is not UTC+3. The EA still keeps correct day boundaries either way, but a
+different offset means the backtested daily-loss and qualifying-day windows are not directly
+comparable — re-validate before prop use. Skipped in the Strategy Tester, where
+`TimeGMT() == TimeCurrent()` by design.
+
+**A side benefit:** because the EA follows the broker's clock natively, it stays correct if
+your broker shifts UTC+2 ↔ UTC+3 seasonally. The backtest used a fixed +3 h for all four
+years, so its server-day assignment is approximate during any UTC+2 period.
+
 ### 2. Static audit
 
 Balanced braces/parens, 23 functions all defined, 37 inputs all declared and referenced, no
@@ -171,6 +193,23 @@ Round 2 (found while writing the emulator):
 | `SizingBase()` honoured `InpSizingBaseOverride` even in compounding mode | Silently disabled compounding. Now applies only in fixed-fractional mode |
 | `Buy()`'s boolean return was trusted alone | It can be true for a request merely accepted. Now confirms `TRADE_RETCODE_DONE`/`DONE_PARTIAL`/`PLACED` |
 
+Round 3 (found by re-reading against the MQL5 time semantics, then re-verifying):
+
+| Bug | Impact |
+|---|---|
+| **The UTC offset was added to `TimeCurrent()`, which is *already* server time** | Every day boundary landed at 21:00 server instead of 00:00 — so the −3R breaker reset at the wrong hour and qualifying days were counted over 21:00→21:00 windows, which is not how the firm counts them. Worse, the Friday block was **exactly inverted**: shifting by +3 h made it fire on Fri 18:00–20:59 server and then *miss* Fri 21:00–23:59 entirely, because the shifted time rolls into Saturday (`day_of_week` 6). It blocked a harmless window and left the pre-close window — where a position gets carried into the weekend gap — wide open. Measured by mutation test: the buggy version disagrees with the backtest on **12.2% of server-day keys and 4.9% of Friday decisions** |
+| **No minimum stop distance — a degenerate stop sized an enormous unprotected position** | `dist = (next_open − signal_low) + 2×ATR`, so a gap down through the signal bar's low shrinks it. In 4 years of data it reaches **exactly 0**, and since `lots = risk / (dist × pip_value + commission)`, `dist = 0` sizes to **1.78 lots on a $2,500 account with no stop protection at all**. 25 more signals have stops under 1×ATR (up to 1.16 lots on a 0.4-pip stop). They cluster at 20:55–22:00 — the daily roll and weekend close, where the next-bar open is a stale wide-spread print. Fixed with `InpMinStopAtrMultiple` (default 1.0) on **both** the EA and the backtest |
+| Sizing used the raw stop while the order sent the normalised one | Dollars at risk differed slightly from `InpRiskPercent`. The stop is now normalised *before* sizing |
+| Friday cutoff hour was hard-coded | Now `InpFridayCutoffHour` (default 21, matching the validation) |
+
+**On the degenerate-stop guard, note the direction:** adding it *lowered* backtested expectancy
+(TEST E_net +0.399R → **+0.376R**), because those trades were **winners** in the backtest — a
+0.4-pip stop puts the +10R target only 4 pips away, so it hits often. They are still removed,
+because the backtest assumes the stop executes exactly at its price, and **a 0.4-pip stop
+cannot be executed**: one pip of slippage is a 3.5R loss. This is the same error class as the
+close-bar-fill problem found in Phase 2 — a backtest flattering trades that cannot exist live.
+Accepting a slightly lower number here is the honest choice.
+
 ### Still not verified — read before trusting it
 
 **Compilation is unverified.** A static audit is not a compiler. Before enabling anything:
@@ -178,7 +217,7 @@ Round 2 (found while writing the emulator):
 1. Open in MetaEditor, press **F7**. Fix every warning, not just errors.
 2. Strategy Tester, M5, *"Every tick based on real ticks"*, 2024-09 → 2026-09, 0.50% risk,
    all 8 symbols available in Market Watch.
-3. It must reproduce the validated shape: **median ≈ +10.9%/month, max DD ≈ 11%, roughly 32%
+3. It must reproduce the validated shape: **median ≈ +10.3%/month, max DD ≈ 11%, roughly 32%
    losing months.** If it does not, something differs — most likely the ATR window, a symbol's
    tick value, or your broker's spread. Do not open any gate until it matches.
 4. Then work through the gate checklist.

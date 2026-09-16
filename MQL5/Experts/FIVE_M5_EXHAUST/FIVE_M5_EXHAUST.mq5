@@ -47,7 +47,9 @@ input bool   InpForwardDemoGatePassed   = false;   // demo run through one full 
 input bool   InpExplicitUserApproval    = false;   // you accept a ~16-23% peak-relative drawdown
 input long   InpAuthorizedLogin         = 0;       // 0 = any login
 input string InpExpectedAccountCurrency = "USD";
-input int    InpExpectedServerUtcOffsetHours = 3;   // repo convention: broker server is UTC+3
+input int    InpExpectedServerUtcOffsetHours = 3;   // informational; see OnInit offset check.
+                                                    // TimeCurrent() is ALREADY server time, so
+                                                    // this is never added to it.
 input long   InpMagic                   = 26091501;
 
 input group "=== Universe (TRAIN-selected 8; see README before changing) ==="
@@ -58,6 +60,7 @@ input group "=== Frozen strategy parameters - DO NOT RETUNE ==="
 input double InpBodyAtrMultiple   = 4.0;    // trigger: body > this x ATR
 input int    InpAtrPeriod         = 14;     // simple mean of true range, prior bars
 input double InpStopAtrMultiple   = 2.0;    // stop = signal low - this x ATR
+input double InpMinStopAtrMultiple= 1.0;    // reject if the resulting stop is nearer than this x ATR
 input double InpTargetR           = 10.0;   // target = entry + this x risk distance
 input int    InpMaxHoldHours      = 96;     // timeout, then market close
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;
@@ -75,7 +78,8 @@ input double InpDailyBreakerR     = 3.0;    // stop opening after this many net 
 input int    InpMaxConcurrent     = 99;     // 99 = take every signal (validated best, Part B)
 input int    InpMaxTradesPerDay   = 99;
 input double InpCommissionPerLotRT= 7.0;    // $ round turn, used in lot sizing
-input bool   InpBlockFridayLate   = true;   // no new entries after Fri 21:00 server
+input bool   InpBlockFridayLate   = true;   // no new entries after the Friday cutoff (server time)
+input int    InpFridayCutoffHour  = 21;     // server hour; matches the validated backtest
 
 input group "=== Prop-challenge mode (Part A). Leave all zero for a personal account ==="
 input double InpProfitTarget      = 0.0;    // >0 = stop trading once equity >= this (e.g. 2750)
@@ -100,7 +104,6 @@ int            g_qualifying_days    = 0;
 bool           g_halted             = false;
 bool           g_target_reached     = false;   // latched: prop target met, stand down for good
 string         g_halt_reason        = "";
-int            g_server_utc_offset_s= 0;
 
 //+------------------------------------------------------------------+
 //| Pick an order-filling mode the broker advertises for this symbol  |
@@ -187,6 +190,34 @@ bool Authorised()
   }
 
 //+------------------------------------------------------------------+
+//| TimeCurrent() is server time, so nothing in this EA converts it.  |
+//| But the BACKTEST that produced the validated numbers assumed a    |
+//| fixed UTC+3 server. If this broker is on a different offset, the  |
+//| server-day boundaries differ and the backtest is not directly     |
+//| comparable - so measure the real offset and warn.                 |
+//| Skipped in the Strategy Tester, where TimeGMT()==TimeCurrent() by |
+//| design and the reading would always be zero.                      |
+//+------------------------------------------------------------------+
+void CheckServerOffset()
+  {
+   if(MQLInfoInteger(MQL_TESTER) || MQLInfoInteger(MQL_VISUAL_MODE))
+     {
+      PrintFormat("[INIT] tester mode: server offset cannot be measured there; assuming UTC%+d "
+                  "as configured",InpExpectedServerUtcOffsetHours);
+      return;
+     }
+   const long detected=(long)TimeCurrent()-(long)TimeGMT();
+   const double hours=(double)((detected+1800)/3600);      // round to the nearest whole hour
+   PrintFormat("[INIT] detected broker server offset: UTC%+.0f (configured expectation UTC%+d)",
+               hours,InpExpectedServerUtcOffsetHours);
+   if((int)hours!=InpExpectedServerUtcOffsetHours)
+      PrintFormat("[WARN] broker server is UTC%+.0f but the validation assumed UTC%+d. The EA "
+                  "still keeps correct server-day boundaries, but the backtested daily-loss and "
+                  "qualifying-day windows are not directly comparable. Re-validate before "
+                  "prop-challenge use.",hours,InpExpectedServerUtcOffsetHours);
+  }
+
+//+------------------------------------------------------------------+
 //| Simple-mean true-range ATR over the `period` bars strictly BEFORE |
 //| `shift`. Deliberately NOT iATR (Wilder/RMA) - see header.         |
 //+------------------------------------------------------------------+
@@ -251,9 +282,18 @@ double NormaliseLots(const string sym,double lots)
    return lots;
   }
 
-int ServerDayKey(const datetime t)
+//+------------------------------------------------------------------+
+//| Server-day key.                                                  |
+//|                                                                  |
+//| IMPORTANT: TimeCurrent() ALREADY returns broker SERVER time, and |
+//| bar times, deal times and position times are all on that same    |
+//| clock. Nothing here may add the UTC offset again - doing so put  |
+//| every day boundary at 21:00 server instead of 00:00 server, and  |
+//| inverted the Friday block (see the README bug table).            |
+//+------------------------------------------------------------------+
+int ServerDayKey(const datetime server_time)
   {
-   return (int)((t+g_server_utc_offset_s)/86400);
+   return (int)((long)server_time/86400L);
   }
 
 int CountOpen()
@@ -279,9 +319,9 @@ int OnInit()
    trade.SetDeviationInPoints(InpMaxDeviationPoints);
    trade.SetAsyncMode(false);
 
-   g_server_utc_offset_s=InpExpectedServerUtcOffsetHours*3600;
    // CTrade has no per-symbol filling helper; pick a mode the broker advertises.
    trade.SetTypeFilling(FillingModeFor(_Symbol));
+   CheckServerOffset();
    g_initial_balance=AccountInfoDouble(ACCOUNT_BALANCE);
 
    string raw=InpUseAllEleven
@@ -377,7 +417,7 @@ void RecomputeDayState(const datetime now)
   {
    const int dk=ServerDayKey(now);
    // cast to long before multiplying: day_key*86400 is ~1.73e9 and overflows int32 in 2038
-   const datetime day_start=(datetime)((long)dk*86400L)-(datetime)g_server_utc_offset_s;
+   const datetime day_start=(datetime)((long)dk*86400L);   // server midnight; now is already server time
 
    if(dk!=g_day_key)
      {
@@ -464,14 +504,31 @@ void EvaluateSymbol(const int idx,const datetime now)
    const double entry=tick.ask;
    if(entry<=0.0) return;
 
-   const double stop=l-InpStopAtrMultiple*atr;
-   const double dist=entry-stop;
+   const int digits=(int)SymbolInfoInteger(sym,SYMBOL_DIGITS);
+   // Normalise the stop FIRST, then size from it. Sizing on the raw stop while sending the
+   // normalised one meant the dollars actually at risk differed slightly from InpRiskPercent.
+   const double sl=NormalizeDouble(l-InpStopAtrMultiple*atr,digits);
+   const double dist=entry-sl;
    if(dist<=0.0)
      {
-      PrintFormat("[SKIP] %s broken geometry: entry %.5f <= stop %.5f",sym,entry,stop);
+      PrintFormat("[SKIP] %s broken geometry: entry %.5f <= stop %.5f",sym,entry,sl);
       return;                                  // matches the backtest's rejection rule
      }
-   const double target=entry+InpTargetR*dist;
+   // DEGENERATE-STOP GUARD. dist = (next_open - signal_low) + 2*ATR, so a gap down through
+   // the signal bar's low shrinks it - in the data, as far as dist == 0. Because lots are
+   // sized as risk_cash / (dist x pip_value + commission), a near-zero stop produces an
+   // ENORMOUS position: dist == 0 sizes to 1.78 lots on a $2,500 account with no stop
+   // protection at all, and round-turn cost exceeds 1R (cost_R > 1) so the trade cannot
+   // win. 25 such signals occur in 4 years and they cluster at the daily roll and the
+   // weekend close (20:55-22:00), where the next-bar open is a stale, wide-spread print.
+   // Requiring a real stop removes ~3% of signals and every degenerate one.
+   if(dist<InpMinStopAtrMultiple*atr)
+     {
+      PrintFormat("[SKIP] %s degenerate stop: distance %.5f < %.2f x ATR (%.5f) - would size "
+                  "an unprotected oversized position",sym,dist,InpMinStopAtrMultiple,atr);
+      return;
+     }
+   const double tp=NormalizeDouble(entry+InpTargetR*dist,digits);
 
    // ---- gates that block a new entry ----
    // (day rollover and realised-R recompute happen centrally in ProcessOnce)
@@ -481,9 +538,14 @@ void EvaluateSymbol(const int idx,const datetime now)
 
    if(InpBlockFridayLate)
      {
+      // `now` is already server time - do NOT shift it. Shifting by +3h made this fire on
+      // Friday 18:00-20:59 server and then MISS Friday 21:00-23:59 server entirely, because
+      // the shifted time rolls into Saturday (day_of_week 6). That is exactly backwards: it
+      // blocked a harmless window and left the pre-close window, where a position would be
+      // carried into the weekend gap, wide open.
       MqlDateTime srv;
-      TimeToStruct(now+g_server_utc_offset_s,srv);
-      if(srv.day_of_week==5 && srv.hour>=21) { g_day_locked=true; return; }
+      TimeToStruct(now,srv);
+      if(srv.day_of_week==5 && srv.hour>=InpFridayCutoffHour) { g_day_locked=true; return; }
      }
    if(InpDailyBreakerR>0.0 && g_day_net_r<=-InpDailyBreakerR) { g_day_locked=true; return; }
    if(g_target_reached) return;                     // prop target met - no new risk, ever
@@ -521,10 +583,6 @@ void EvaluateSymbol(const int idx,const datetime now)
    string why="";
    if(!SymbolTradable(sym,why))
      { PrintFormat("[SKIP] %s not tradable: %s",sym,why); return; }
-
-   const int digits=(int)SymbolInfoInteger(sym,SYMBOL_DIGITS);
-   const double sl=NormalizeDouble(stop,digits);
-   const double tp=NormalizeDouble(target,digits);
 
    // Broker minimum stop distance: a 2.0 x ATR stop on a quiet pair can sit inside it,
    // and the order would be rejected. Skip rather than silently widen the stop, because

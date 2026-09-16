@@ -59,6 +59,7 @@ SRV_MS, MS_DAY = 3 * 3600 * 1000, 86_400_000
 
 # ---- frozen strategy parameters ----
 K, STOP_ATR, TARGET_R, HOLD_H = 4.0, 2.0, 10.0, 96
+MIN_STOP_ATR = 1.0        # reject a stop nearer than this x ATR (gap-through degenerate cases)
 TRAIN_END = 1726012800000            # 2024-09-11T00:00:00Z
 
 
@@ -127,6 +128,11 @@ def build(sym):
         stop = l[i] - STOP_ATR * a
         dist = entry - stop
         if dist <= 0:
+            continue
+        # Degenerate-stop guard: a gap down through the signal bar's low can shrink the stop
+        # to ~0, and lot size = risk / (dist x pip_value + commission) then explodes while
+        # round-turn cost exceeds 1R. Mirrors InpMinStopAtrMultiple in the EA.
+        if dist < MIN_STOP_ATR * a:
             continue
         target = entry + TARGET_R * dist
         stop_pips = dist / pip

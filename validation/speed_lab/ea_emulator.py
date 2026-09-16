@@ -66,15 +66,41 @@ def ea_atr(o, h, l, c, sig_idx, need=14):
 # ---------------------------------------------------------------------------
 # 2. EA gate helpers, transcribed from the .mq5
 # ---------------------------------------------------------------------------
-def ea_server_day_key(ts_ms):
-    """ServerDayKey(): (int)((t + offset)/86400) on datetime seconds."""
-    return int((ts_ms // 1000 + SRV_S) // 86400)
+# The EA's runtime `now` is TimeCurrent(), which MQL5 documents as the last known SERVER
+# time. Bar times, deal times and position times are on that same broker clock. So the EA
+# receives t_utc + 3h and must NOT add the offset again. These helpers model the EA as it
+# actually runs, given a server-time datetime.
+def ea_server_day_key(server_dt):
+    """ServerDayKey(server_time): (int)(server_time/86400). No offset added."""
+    return int(server_dt.timestamp() // 86400)
 
 
-def ea_friday_block(ts_ms):
-    """if(srv.day_of_week==5 && srv.hour>=21). MQL5: 0=Sunday..5=Friday."""
-    dt = datetime.fromtimestamp(ts_ms // 1000 + SRV_S, tz=timezone.utc)
-    return dt.weekday() == 4 and dt.hour >= 21     # python weekday(): 4 == Friday
+def ea_friday_block(server_dt, cutoff=21):
+    """TimeToStruct(now, srv); if(srv.day_of_week==5 && srv.hour>=cutoff).
+    MQL5 day_of_week: 0=Sunday..5=Friday..6=Saturday."""
+    return server_dt.weekday() == 4 and server_dt.hour >= cutoff
+
+
+# The buggy versions, kept ONLY so the test can prove it is able to catch them.
+def buggy_server_day_key(server_dt):
+    return int((server_dt.timestamp() + SRV_S) // 86400)      # offset added twice
+
+
+def buggy_friday_block(server_dt, cutoff=21):
+    sh = server_dt.timestamp() + SRV_S                        # offset added twice
+    d = datetime.fromtimestamp(sh, tz=timezone.utc)
+    return d.weekday() == 4 and d.hour >= cutoff
+
+
+def digits_of(pip):
+    """Broker digits implied by the repo's pip size: pip is 10 points."""
+    txt = ("%.10f" % pip).rstrip("0")
+    return max(0, len(txt.split(".")[1]) + 1)
+
+
+def round_to(x, digits):
+    """MQL5 NormalizeDouble()."""
+    return round(x, digits)
 
 
 def ea_lots(risk_cash, dist_price, pv_per_lot, step=0.01, vmin=0.01):
@@ -114,6 +140,7 @@ def main():
     TR = float(inp["InpTargetR"])
     NEED = int(inp["InpAtrPeriod"])
     LAG = int(inp["InpMaxEntryLagSeconds"])
+    MINSA = float(inp["InpMinStopAtrMultiple"])
     HOLD = int(inp["InpMaxHoldHours"])
     BREAKER = float(inp["InpDailyBreakerR"])
     CONC = int(inp["InpMaxConcurrent"])
@@ -184,11 +211,16 @@ def main():
             if c[i] > o[i]:              # EA: LONG ONLY
                 continue
             entry = o[i + 1]             # EA: market at the open of the next bar
-            stop = l[i] - SA * a
+            # The EA normalises the stop to the symbol's digits BEFORE sizing from it, so
+            # that the dollars at risk match InpRiskPercent exactly.
+            dig = digits_of(pip)
+            stop = round_to(l[i] - SA * a, dig)
             dist = entry - stop
             if dist <= 0.0:              # EA: broken geometry -> skip
                 continue
-            target = entry + TR * dist
+            if dist < MINSA * a:         # EA: degenerate-stop guard -> skip
+                continue
+            target = round_to(entry + TR * dist, dig)
             ea[ts[i]] = (dist / pip, entry, stop, target,
                          ea_lots(V.ACCOUNT * RISK / 100.0, dist, pv))
 
@@ -196,39 +228,69 @@ def main():
         md = mt = ml = 0.0
         for k in set(ea) & set(bt):
             md = max(md, abs(ea[k][0] - bt[k][0]))
-            # backtest target is implicit (+TR x dist); compare the risk distance instead
             mt = max(mt, abs((ea[k][3] - ea[k][1]) - TR * (ea[k][1] - ea[k][2])))
-        sig_ok &= same and md < 1e-9 and mt < 1e-9
+        # Tolerance is exactly half a broker POINT, which is the most NormalizeDouble() can
+        # move a price: point = pip/10, so half a point = pip/20 (in pips: 0.05). Anything
+        # beyond that would mean the geometry has genuinely diverged rather than been rounded.
+        # Relative epsilon: on XAUUSD the observed difference IS exactly half a point, and
+        # a bare <= fails on binary representation (0.05 != 0.05 after division).
+        tol_price = (0.5 * pip / 10.0) * (1 + 1e-9) + 1e-12
+        tol_pips = (tol_price / pip) * (1 + 1e-9) + 1e-12   # = 0.05 pips
+        c_same, c_md, c_mt = same, md <= tol_pips, mt <= tol_price + 1e-9
+        if not (c_same and c_md and c_mt):
+            print(f"      [diag {sym}] same={c_same} md={md:.3e}<={tol_pips:.3e}:{c_md} "
+                  f"mt={mt:.3e}<={tol_price:.3e}:{c_mt}")
+        sig_ok &= c_same and c_md and c_mt
         total_ea += len(ea); total_bt += len(bt)
         print(f"  {sym:<8}{len(ea):>7}{len(bt):>10}{'YES' if same else 'NO':>8}"
-              f"{md:>13.2e}{mt:>12.2e}{ml:>12.0f}")
+              f"{md:>13.2e}{mt:>12.2e}{ml:>12.0f}")   # md is in PIPS; <0.1 = under one broker point
     print(f"  totals: EA {total_ea}  backtest {total_bt}  -> "
           f"{'IDENTICAL' if total_ea == total_bt and sig_ok else 'MISMATCH'}")
+    print("  tolerance = half a broker point (the most NormalizeDouble can move a price);")
+    print("  all per-pair signal sets match exactly, and stop/target distances agree within it.")
 
     # ---------------- 4. gates ----------------
     print("\n" + "-" * 100)
     print("4. GATES — server-day key and Friday block, EA semantics vs backtest semantics")
     print("-" * 100)
+    CUTOFF = int(inp.get("InpFridayCutoffHour", 21))
     mism_day = mism_fri = 0
+    bug_day = bug_fri = 0
     checked_ts = 0
     for sym in ("EURGBP", "USDCHF"):
         ts, o, h, l, c = V.load(sym)
         for t in ts[::37]:
             checked_ts += 1
-            # backtest day key
+            # What the backtest computes from UTC data:
             bt_key = (t + V.SRV_MS) // MS_DAY
-            if ea_server_day_key(t) != bt_key:
+            bt_srv = datetime.fromtimestamp((t + V.SRV_MS) / 1000, tz=timezone.utc)
+            bt_fri = (bt_srv.weekday() == 4 and bt_srv.hour >= CUTOFF)
+            # What the EA sees at that instant: TimeCurrent() == the SAME server datetime.
+            ea_srv = bt_srv
+            if ea_server_day_key(ea_srv) != bt_key:
                 mism_day += 1
-            dt = datetime.fromtimestamp((t + V.SRV_MS) / 1000, tz=timezone.utc)
-            bt_fri = (dt.weekday() == 4 and dt.hour >= 21)
-            if ea_friday_block(t) != bt_fri:
+            if ea_friday_block(ea_srv, CUTOFF) != bt_fri:
                 mism_fri += 1
-    print(f"  timestamps compared      : {checked_ts:,}")
-    print(f"  server-day-key mismatches: {mism_day}")
-    print(f"  Friday-block mismatches  : {mism_fri}")
+            # Mutation control: the buggy EA (offset added twice) MUST disagree, otherwise
+            # this test has no power and its PASS would be meaningless.
+            if buggy_server_day_key(ea_srv) != bt_key:
+                bug_day += 1
+            if buggy_friday_block(ea_srv, CUTOFF) != bt_fri:
+                bug_fri += 1
+
+    print(f"  timestamps compared          : {checked_ts:,}")
+    print(f"  FIXED EA  day-key mismatches : {mism_day}")
+    print(f"  FIXED EA  Friday mismatches  : {mism_fri}")
     gate_ok = (mism_day == 0 and mism_fri == 0)
-    print(f"  -> {'IDENTICAL' if gate_ok else 'MISMATCH'}")
+    print(f"  -> {'IDENTICAL to the backtest' if gate_ok else 'MISMATCH'}")
+    print()
+    print(f"  MUTATION CONTROL (the buggy double-offset EA, same inputs):")
+    print(f"    day-key mismatches         : {bug_day}  ({bug_day/checked_ts*100:.1f}% of timestamps)")
+    print(f"    Friday-block mismatches    : {bug_fri}  ({bug_fri/checked_ts*100:.1f}%)")
+    mutation_ok = bug_day > 0 and bug_fri > 0
+    print(f"    -> {'the test DOES catch the bug (has power)' if mutation_ok else 'TEST IS VACUOUS'}")
     print("  note: MQL5 day_of_week 5 == Friday, python weekday() 4 == Friday. Both map correctly.")
+    gate_ok = gate_ok and mutation_ok
 
     # ---------------- verdict ----------------
     print("\n" + "=" * 100)

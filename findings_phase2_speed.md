@@ -407,3 +407,91 @@ The frozen config now ships as an EA following the repo's `TRIAD_R_HS` safety co
 The gate checklist in the README maps each flag to the specific evidence required — including
 `InpForwardDemoGatePassed`, which requires demo-running through **at least one full losing
 streak** (32% of months lose, worst observed −14.8%, longest streak 3 months) before enabling.
+
+---
+
+# Part D — Corrections forced by verifying the EA
+
+Building and then auditing `MQL5/Experts/FIVE_M5_EXHAUST` found two problems that change the
+numbers reported above. Both are recorded here so Parts A–C are not read on their own.
+
+## D.1 A degenerate-stop guard was missing from the backtest too
+
+`dist = (next_bar_open − signal_bar_low) + 2×ATR`, so a gap down through the signal bar's low
+shrinks the stop. Across 4 years of the repo's data it reaches **exactly zero**, and since
+`lots = risk_cash / (dist_pips × pip_value + commission)`, a zero-distance stop sizes to
+**1.78 lots on a $2,500 account with no stop protection whatsoever**. 25 further signals have
+stops under 1×ATR — up to **1.16 lots on a 0.4-pip stop**. They cluster at 20:55–22:00, i.e.
+the daily roll and the weekend close, where the next bar's open is a stale, wide-spread print.
+
+A minimum stop distance of 1.0×ATR (`InpMinStopAtrMultiple`) was added to **both** the EA and
+`verify_final_config.py`. It removes ~3% of signals and every degenerate one.
+
+**Note the direction of the effect: this made the backtest *worse*.** TEST net expectancy fell
+from +0.3985R to **+0.3755R**, because those trades were *winners* in simulation — a 0.4-pip
+stop puts the +10R target only 4 pips away, so it hits often. They are removed anyway, because
+the backtest assumes the stop executes exactly at its price and **a 0.4-pip stop cannot be
+executed**: one pip of slippage is a 3.5R loss. This is the same error class as the
+signal-bar-close fill caught earlier in Phase 2 — a backtest flattering trades that cannot
+exist live. The lower number is the honest one.
+
+## D.2 Corrected headline results (degenerate-stop guard applied)
+
+**Prop challenge, held-out TEST window, 40 walk-forward starts:**
+
+| Risk | Pass rate | Median days | p90 | Max DD | Worst day | Legal? |
+|---|---|---|---|---|---|---|
+| 0.25% | 87.5% | 78 | 156 | 13.3% | −$34 | ✓ |
+| **0.50%** | **75.0%** | **27** | 76 | 17.4% | −$69 | ✓ **recommended** |
+| **0.75%** | **70.0%** | **17** | 46 | 19.4% | −$103 | ✓ **fastest legal** |
+| 1.00% | 55.0% | 15 | 22 | 21.9% | −$125 | ✗ breaches the daily-loss limit |
+
+TEST aggregate: n = 1,673, **E_net +0.3755R**, costs 21.0% of 1R, 2.29 trades/day, +0.861 R/day.
+
+**These supersede the tables in §3.1, §3.2 and Part B.** The conclusions are unchanged —
+0.75% remains the fastest legal setting and 1.00% remains illegal — but the pass rates are
+2.5–5 points lower than first reported, and 0.75% now sits exactly *on* the repo's ≥70% gate
+rather than comfortably above it.
+
+**Personal account, held-out TEST window, every signal taken, 0.50% risk:**
+
+| Universe | Mean /mo | Median /mo | Worst mo | Max DD | Total |
+|---|---|---|---|---|---|
+| All 11 pairs | +12.20% | +9.51% | −14.83% | 16.2% | +305% |
+| **TRAIN-selected 8** | **+12.74%** | **+10.34%** | **−11.11%** | **11.3%** | **+318%** |
+
+The 8-pair universe still wins on every metric. The median falls from +10.87% to **+10.34%** —
+still at the ~10%/month target, but with less headroom than Part C claimed.
+
+## D.3 What verifying the EA proved about the strategy code
+
+`validation/speed_lab/ea_emulator.py` re-implements the EA's decision path independently and
+compares it to the backtest. After the fixes:
+
+| Check | Result |
+|---|---|
+| ATR window | **IDENTICAL** — 477,430 bars, 0 mismatches |
+| Signals + geometry | **IDENTICAL** — 3,290 vs 3,290 trades, all 11 pairs matching exactly |
+| Server-day key and Friday block | **IDENTICAL** — 15,643 timestamps, 0 mismatches |
+
+The gate check includes a **mutation control**: the pre-fix EA (which added the UTC offset to
+`TimeCurrent()`, already server time) is run against the same inputs and disagrees on **12.2%
+of server-day keys and 4.9% of Friday decisions**. That confirms the test can actually detect
+the bug rather than passing vacuously — worth stating, because the first version of this test
+*did* pass vacuously: it fed the EA functions UTC timestamps, mirroring the backtest's
+assumption instead of the EA's real runtime input, and so could not see the error.
+
+The double-counted offset had inverted the Friday block: it fired on Fri 18:00–20:59 server
+and missed Fri 21:00–23:59 entirely, because the shifted time rolls into Saturday. It blocked
+a harmless window and left the pre-close window — where a position is carried into the weekend
+gap — unprotected.
+
+## D.4 Verification status of the EA itself
+
+**Logic: proven equivalent** to the validated backtest, as above.
+**Compilation: NOT verified** — there is no MetaEditor in this environment. Static audit is
+clean (balanced braces/parens, 23 functions defined, 37 inputs declared and referenced, no
+undeclared globals, `OnTick`/`OnTimer` both wired, timer set and killed in pairs), but that is
+not a compiler. The EA README gives the acceptance test: Strategy Tester on M5 real ticks,
+2024-09 → 2026-09 at 0.50% risk must reproduce median ≈ +10.3%/month, max DD ≈ 11%, ~32%
+losing months. **Do not open any gate until it matches.**
