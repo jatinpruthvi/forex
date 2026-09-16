@@ -495,3 +495,47 @@ undeclared globals, `OnTick`/`OnTimer` both wired, timer set and killed in pairs
 not a compiler. The EA README gives the acceptance test: Strategy Tester on M5 real ticks,
 2024-09 → 2026-09 at 0.50% risk must reproduce median ≈ +10.3%/month, max DD ≈ 11%, ~32%
 losing months. **Do not open any gate until it matches.**
+
+---
+
+## Part E — broker cost budget and minimum balance
+
+Added after Parts A–D. Full detail in [`findings_broker_and_balance.md`](findings_broker_and_balance.md),
+produced by `validation/speed_lab/broker_cost_and_balance.py`.
+
+**Jurisdiction.** For a person resident in India this configuration cannot be run legally: all
+eight instruments are non-INR OTC spot pairs, offshore OTC/CFD trading on them is not permitted
+under FEMA 1999, the LRS cannot fund it, and the RBI Alert List (95 entities, 19 Nov 2025) names
+every tightly-priced broker that suits the strategy plus MetaTrader 4 and 5 themselves. See
+§0 of that file.
+
+**Spread budget.** The validated model charges 0.55× standard spread + $7/lot round turn, which
+is 22.8% of 1R and consumes 30% of the gross edge. Per-pair break-even round-turn spreads:
+NZDUSD 2.51 pips (least headroom, 2.9×), AUDUSD 3.15, EURGBP 4.14, USDCAD 5.47, USDCHF 5.86,
+EURJPY 5.99, GBPJPY 12.64. **XAUUSD has none** — its TEST gross expectancy is −0.187R, so no
+spread makes it work; it was +0.319R on TRAIN and decayed. Recorded as information, not applied
+as a retune, because dropping it on TEST evidence would fit the held-out set.
+
+**Rollover dominates broker choice.** 43.8% of TEST entries fall in the server 20:00–00:59
+rollover/close window and 30.7% in the single hour UTC 21:00. Published 30-day tests put EURUSD
+at 0.1 pips in London but 1.2 average / 3.1 max across the rollover. On peak-hour quotes every
+real raw account beats the validated assumption (+0.60 to +0.64R vs +0.537R); at 8–12× rollover
+widening that reverses (+0.15 to +0.43R). Commission is second-order — $4.00 vs $7.00 round turn
+matters less than a 2× change in rollover spread, because the wide stops make 1R large in
+dollars. The number to measure is each broker's 21:00–22:00 UTC spread on EURGBP, NZDUSD and
+XAUUSD, which `EA_SIGNAL_DUMP.mq5` on a demo account produces directly.
+
+**Minimum balance.** The binding floor is lot granularity, not margin: the EA skips a trade when
+`floor(risk/loss_per_lot/0.01)×0.01 < 0.01`, i.e. when `balance < 2 × loss_per_lot`. That is
+**$1,565** for the seven FX pairs and **$16,101** including XAUUSD, whose ~93-pip stop on a
+100 oz contract raises the floor 10×. Skipped trades are the wide-stop ones, so a small account
+runs a biased subset rather than the validated strategy. Margin is decided by leverage, not
+balance: ~82% of equity at 1:100, ~41% at 1:200, ~274% at 1:30.
+
+**Correction to Part B.** `personal_account_analysis.py` publishes TEST 0.50% = +6.26%/month
+using `replay_personal`'s prop-firm defaults (≤2 concurrent, ≤5/day). The EA ships
+`InpMaxConcurrent = 99` and `InpMaxTradesPerDay = 99` — every signal — which gives
+**+12.60%/month** fixed and **+11.94%/month geometric compounded**, maxDD 11.7% and 22.6%
+respectively. Both figures are correct for their configuration; the caps are firm protection,
+not edge protection. A ~10%/month target is inside the compounded result, at roughly double the
+drawdown.

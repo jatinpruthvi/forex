@@ -8,6 +8,17 @@ Reference implementation of the frozen configuration validated in
 > them, the EA logs signals and manages nothing. It has been validated on historical data
 > only — **it has never been forward-tested or traded.**
 
+> **JURISDICTION.** If you are resident in India, this EA cannot be run legally. All eight
+> instruments are non-INR OTC spot pairs, which FEMA 1999 permits only through an
+> RBI-authorised person on a recognised Indian exchange; offshore OTC/CFD trading on them is
+> not permitted and the Liberalised Remittance Scheme cannot fund it. The RBI Alert List
+> (95 entities, 19 Nov 2025) names every tightly-priced broker that suits this strategy —
+> IC Markets, Pepperstone, Fusion Markets, Tickmill, FP Markets, Exness, XM and others —
+> **and also names MetaTrader 4 and MetaTrader 5 themselves**. Reported FEMA s.13 penalties
+> reach three times the amount involved and, for a wilful violation, five years. See
+> [`findings_broker_and_balance.md`](../../../findings_broker_and_balance.md) §0. Nothing
+> else in this file changes that; the rest of it applies if your residency is not Indian.
+
 ## The rule (frozen — do not retune)
 
 On each newly opened M5 bar, look at the bar that just closed:
@@ -69,6 +80,15 @@ The EA refuses an entry when required margin exceeds 90% of free margin, but on 
 leverage it will skip most signals and you will not reproduce the validated numbers.
 **You need 1:100 or better; 1:200 is comfortable.**
 
+**Updated by measurement** — [`findings_broker_and_balance.md`](../../../findings_broker_and_balance.md)
+§2(b) replays the actual TEST trade stream instead of assuming a position count. The 8-pair
+stream reaches **9 concurrent positions** and 13 trades in a day at peak, and margin usage is
+almost independent of balance because lots scale with it. Peak margin as a share of equity is
+**~82% at 1:100, ~41% at 1:200, ~16% at 1:500, and ~274% at 1:30** — so at the EU/UK retail
+leverage cap this configuration cannot be run as validated at any balance, and at 1:100 a
+margin call arrives before the EA's own −3R daily breaker does. Leverage, not account size, is
+the constraint.
+
 ## Swap — the largest unquantified cost
 
 The backtest charges spread and commission but **not overnight swap**. Mean exposure is
@@ -109,6 +129,7 @@ Set each flag to `true` only when the condition is genuinely met:
 python3 validation/speed_lab/verify_final_config.py        # Part A: prop challenge  (~8 s)
 python3 validation/speed_lab/personal_account_analysis.py  # Part B: personal account (~9 s)
 python3 validation/speed_lab/margin_and_swap_exposure.py   # Part C: margin + swap map
+python3 validation/speed_lab/broker_cost_and_balance.py    # spread budget + min balance (~14 s)
 python3 validation/speed_lab/ea_emulator.py                # EA == backtest, on repo data
 python3 validation/speed_lab/selftest_ea_dump.py           # tests the broker-dump chain (~3 min)
 python3 validation/speed_lab/compare_ea_dump.py            # YOUR broker's dump (run it in MT5 first)
