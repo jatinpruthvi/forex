@@ -456,6 +456,96 @@ once: symbol suffix, server offset, netting mode, and minimum stop distance.
 
 ---
 
+## 7. Fusion Markets Zero selected — the defaults audit
+
+Fusion Markets Zero was chosen. `validation/speed_lab/fusion_markets_defaults.py` checks every EA
+input against Fusion's actual conditions on the held-out TEST trade list. Full per-input table in
+the EA README; this is what it found.
+
+### Three shipped defaults are wrong for this broker
+
+| Input | Shipped | Must be | Measured consequence of leaving it |
+|---|---|---|---|
+| `InpValidationReleaseId` | `"LOCKED"` | `"M5_EXHAUST_2026_09"` | `Authorised()` requires equality with `InpRequiredReleaseId`, so **no order is ever submitted**. Not a performance issue — the EA simply never trades, and now says which gate is closed |
+| `InpCommissionPerLotRT` | `7.0` | **`4.50`** | Fusion Zero is $2.25/side. The input sits inside `LossPerLot()`, so an overstated commission **under-sizes 55.2% of trades** at $2,000 (mean 0.158 vs 0.168 lots, −6.2%). Result: **+14.33%/mo instead of +15.01%**, maxDD 8.8% instead of 8.3%. Under-sizing is the safe direction, but it is a real fidelity loss and it is silent |
+| `InpSymbols` | 8 pairs incl. `XAUUSD` | drop `XAUUSD` | Gold's held-out expectancy is −0.219R and it raises the granularity floor 10× to $16,101 (§5) |
+
+Everything else is correct as shipped. `InpExpectedAccountCurrency = "USD"` must **stay** USD:
+Fusion offers fourteen base currencies and charges commission in the account currency, so on an AUD
+account the commission is AUD 4.50 and no published number here transfers. `InpMaxConcurrent = 99`
+is fine against Fusion's 200-position cap (this stream peaks at 9 concurrent, 13 in a day).
+`InpSizingBaseOverride = 0.0` is right — setting it to 2500 while holding $2,000 would over-risk by
+25%.
+
+### Leave the server offset at +3, and expect a winter warning
+
+Fusion's server is New York aligned and observes DST: **GMT+3 in US summer, GMT+2 in winter**
+(myfxbook lists GMT+3). `InpExpectedServerUtcOffsetHours = 3` is the validated assumption, so it
+stays — the input is informational, and `CheckServerOffset()` will `[WARN]` for roughly November to
+March. That warning is the detector working.
+
+Measured across offsets +4…0 on the 7-pair TEST stream:
+
+| server | signals | E_net | %/mo | worst mo | maxDD | total | rollovers | nights/trade |
+|---|---|---|---|---|---|---|---|---|
+| UTC+3 (validated) | 1,111 | +0.704R | +15.01% | −10.01% | 8.3% | +375% | 890 | 0.801 |
+| UTC+2 (Fusion winter) | 1,111 | +0.704R | +15.64% | −10.01% | 6.7% | +391% | **1,141** | **1.027** |
+| UTC+1 | 1,111 | +0.704R | +14.11% | −10.01% | 8.7% | +353% | 1,245 | 1.121 |
+| UTC+0 | 1,111 | +0.704R | +14.34% | −10.54% | 8.6% | +359% | 1,249 | 1.124 |
+| UTC+4 | 1,111 | +0.704R | +15.59% | −10.54% | 10.8% | +390% | 844 | 0.760 |
+
+**Expectancy is identical at every offset**, because signals and exits are keyed to UTC; only the
+server-day grouping moves. Monthly return stays within ~1.5 points and drawdown between 6.7% and
+10.8%. So the offset is *not* an edge question — unlike Exness's fixed GMT+0, which was rejected in
+§6 for a 3-hour boundary shift, Fusion's 1-hour seasonal shift is benign.
+
+**The one figure that moves materially is the rollover count: +28.2% on the winter clock.** The
+mechanism is worth understanding because it means the validated assumption is *flattering*: 30.7% of
+entries occur at UTC 21:00, and with a +3 server the day boundary sits exactly on that hour, so
+those trades begin a fresh server day and cross no rollover. Move the boundary an hour later and
+they cross one. Swap is the largest unquantified cost in this analysis (§2c), so reading Fusion's
+actual long-swap table for all seven symbols — the `InpSwapCostGatePassed` condition — matters more
+here than the offset itself.
+
+### Do not take the swap-free account
+
+Fusion's Islamic/swap-free variant replaces swap with a spread markup (quoted from 1.4 pips).
+Modelled on Fusion's own winter clock:
+
+| account | E_net | %/mo | maxDD |
+|---|---|---|---|
+| Zero, no swap charged | +0.704R | +15.64% | 6.7% |
+| Zero, swap 0.10R/night | +0.704R | +13.78% | 7.2% |
+| Zero, swap 0.20R/night | +0.704R | +12.07% | 8.4% |
+| Zero, swap 0.30R/night | +0.704R | +9.76% | 11.3% |
+| **Swap-Free (+1.4p markup)** | **+0.467R** | **+10.89%** | 9.4% |
+
+The markup only pays if long swap exceeds **~0.25R per night** — far above realistic levels on
+these pairs. Take the Zero account.
+
+### Account-level requirements that are not EA inputs
+
+- **Entity: VFSC (Vanuatu, 40256) or FSA (Seychelles) for 1:500.** The ASIC retail entity is capped
+  at 1:30, where §2(b) measures peak margin at 260–275% of equity — a stop-out before the EA's own
+  −3R breaker acts. This is the most consequential decision at account opening.
+- **Hedging: confirmed allowed**, so `g_netting` stays false and the EA does not forgo the 13.8% of
+  signals that stack on an open symbol. The validated profile applies.
+- Client funds segregated at National Australia Bank; negative balance protection; margin call 90%;
+  stop-out reported at 20% by some sources and 50% by others — both satisfy the ≤50% requirement,
+  but confirm on the account.
+- **Budget for a paid VPS.** Fusion's free VPS needs 20 lots/month; at $2,000 this strategy trades
+  ~2–3 lots/month. Without 24/5 uptime the 96 h timeout and the daily breaker both stop working.
+- Fusion does not accept US residents — relevant when selling the EA abroad.
+- Demo accounts are reported as both 30-day and non-expiring; either is enough for the two-week
+  `EA_SIGNAL_DUMP.mq5` measurement below.
+
+**Summary for Fusion Markets Zero: $2,000, seven FX pairs, 1:500 via the VFSC/FSA entity, Zero
+account in USD, `InpCommissionPerLotRT = 4.50`, release id set, offset left at 3.** Modelled at
++15.01%/month with an 8.3% max drawdown before swap; swap is the remaining unknown and the winter
+clock makes it 28% larger than the validated figure assumed.
+
+---
+
 ## Bugs found in this analysis while building it
 
 Five were in this analysis itself, each caught by reconciliation rather than by review:
@@ -531,10 +621,30 @@ After round 5 the equivalence proof still holds: `ea_emulator.py` reports ATR, s
 `NormaliseLots` copy in `EA_SIGNAL_DUMP.mq5` going stale the moment the EA was patched — the copy
 was then updated and the check re-passed.
 
-**Cumulative: 25 bugs across five audits** (round 1 static, round 2 by emulation, round 3 by
-re-reading against MQL5 time semantics, round 4 from the broker/balance question, round 5 from
-the FXCC/myfxbook check). 24 fixed, 1 refuted and deliberately left alone. Compilation remains
-unverified — there is no MetaEditor in this environment.
+### Round 6 — from setting the defaults for Fusion Markets Zero (2 more, both fixed)
+
+Choosing a specific broker means checking every input against it, which surfaced two bugs that five
+strategy-level audits had missed — both in the execution path, where no backtest ever looks.
+
+| # | where | what | severity | outcome |
+|---|---|---|---|---|
+| 26 | `FillingModeFor()` | Tested `SYMBOL_FILLING_FOK` first — the pattern copied around MQL5 forums. Wrong twice over. **Rejection:** `TRADE_RETCODE_INVALID_FILL` (10030) is almost always a FOK request to a market-execution server; `SYMBOL_FILLING_MODE` describes the *symbol* while the account's execution mode can be stricter, so the advertised bitmask is no guarantee — and Fusion is NDD/market execution where IOC is the norm. The EA logged the error and **lost the signal**, with no retry. **Economics:** FOK fills the whole volume at once or dies, and this EA enters on a bar whose body exceeded 4×ATR (a volatility spike) with 43.8% of entries in the rollover where depth is thinnest — FOK turns thin depth into a lost trade, diverging from a backtest that assumes every signal fills. IOC partial-fills instead, which is *smaller than sized* and therefore under-risks: the safe direction | **High** — lost signals on the exact conditions the strategy trades in | **Fixed** — IOC preferred, and a 10030 now steps down IOC → FOK → RETURN instead of giving up; `DONE_PARTIAL` reported with a `[WARN]` |
+| 27 | `ManageTimeouts()`, `FlattenOwnPositions()` | Both printed `[TIMEOUT]`/`[FLATTEN]` and then did `if(Authorised()) trade.PositionClose(tk)`. The gate exists to stop the EA *taking* new risk; blocking a close is backwards, since closing **reduces** risk. Reachable the obvious way: an operator sets `InpEnableOrderSubmission=false` to "pause" the EA, forcing a reinit, after which the 96 h timeout stops firing and `Halt()` latches `g_halted` while flattening nothing — positions left permanently unmanaged, with a log claiming they were closed. They kept broker SL/TP so they were not naked, but **a halt that silently fails to flatten is precisely what this repo's gate convention exists to prevent** | **High** — a safety mechanism that reports success while doing nothing | **Fixed** — closes go through `CloseOwnPosition()`, never gated; a failed close is an `[ERROR]` demanding manual intervention; `FlattenOwnPositions()` prints the true tally (`N closed, M FAILED`) instead of implying success |
+
+Cleared in round 6 without change: the filling mode *is* re-resolved per symbol immediately before
+each `Buy()`, so the `OnInit` call from `_Symbol` is only a default and a chart symbol differing from
+the traded symbols is harmless; `RecomputeDayState()` includes `DEAL_SWAP` **and** `DEAL_COMMISSION`,
+so the −3R breaker sees true net R; the `ProcessOnce()` throttle gates only the history rescan, not
+`ManageTimeouts()`, so a frozen `TimeCurrent()` across a weekend cannot starve the 96 h timeout; and
+the broker's minimum stop distance is checked for the target as well as the stop.
+
+**Cumulative: 27 bugs across six audits** (round 1 static, round 2 by emulation, round 3 by
+re-reading against MQL5 time semantics, round 4 from the broker/balance question, round 5 from the
+FXCC/myfxbook check, round 6 from fixing the defaults for a named broker). 26 fixed, 1 refuted and
+deliberately left alone. After round 6 the equivalence proof still holds — `ea_emulator.py` reports
+ATR, signals and gates **IDENTICAL** (3,290 = 3,290) and `selftest_ea_dump.py` passes with all four
+verbatim function copies identical and 9/9 mutations caught. Compilation remains unverified — there
+is no MetaEditor in this environment.
 
 ---
 
@@ -564,6 +674,24 @@ unverified — there is no MetaEditor in this environment.
   visible rows FOREX.com-Live 536 (EURGBP 0.2, NZDUSD 0.9, USDCAD 0.5, EURJPY 0.9, GBPJPY 1.7),
   tastyfx (0.9 / 1.8 / 1.3 / 2.1 / 2.5) and Oanda (1.1 / 2.4 / 1.9 / 2.6 / 3.0). Spread only —
   the page's Commissions toggle is separate, so the table is not comparable across account models.
-- MQL5 `TimeCurrent()` / `TimeGMT()` semantics, and C-style integer division truncating toward
-  zero (the round-5 bug 24 mechanism); IEEE-754 binary64 representation of `0.01` and the ULP
-  residue in `n*step` (bug 23), measured in `test_ea_lot_normalisation.py`.
+- Fusion Markets Zero: commission $2.25/side = $4.50 round turn, raw spreads from 0.0, no minimum
+  deposit, 0.01 minimum volume, MT4/MT5/cTrader/TradingView, EAs and scalping allowed, hedging
+  allowed, max 200 open positions, 14 base currencies, margin call 90%, stop-out 20% (rationalfx,
+  earnforex) or 50% (fxrebate), client funds segregated at National Australia Bank, free VPS only
+  above 20 lots/month, US/North Korea/Iran/Myanmar not accepted (tradeinformer, monkeytrade,
+  dailyforex, ecnexecution, fxleaders, fxscouts, verifiedpropfirm, HelloSafe, 2025–2026).
+- Fusion Markets server clock: **GMT+2 winter / GMT+3 summer, New York aligned, observes DST**
+  (fxrebate "Trading Platform Time GMT+03:00, Observe DST Change: Yes, DST Change Timezone
+  GMT+02:00"; likerebateforex "Server Time GMT+2, or GMT+3 during summer"; myfxbook broker page
+  "Timezone (GMT+3:00)"; earnforex "GMT+2"; server location New York). Leverage 1:500 on the
+  VFSC (Vanuatu, 40256) / FSA (Seychelles) entities, 1:30 on ASIC retail.
+- Fusion Markets swap-free/Islamic account: spreads from 1.4 pips, admin fees after seven days
+  (fxleaders); modelled in `fusion_markets_defaults.py` rather than quoted.
+- MQL5 filling modes: `TRADE_RETCODE_INVALID_FILL` (10030) is "unsupported filling type", typically
+  a FOK request to a server that only accepts IOC; `SYMBOL_FILLING_MODE` describes the symbol and
+  the account's execution mode may be stricter; guidance is to start with IOC and to retry with a
+  different mode on rejection (mql5.com forums 487581 and 377657; trading-strategies.academy,
+  2025). This is the mechanism behind round-6 bug 26.
+- MQL5 `TimeCurrent()` freezes at the last tick during a market halt, and in the Strategy Tester
+  `TimeGMT() == TimeTradeServer()`, so a live-only offset measurement must be short-circuited under
+  `MQL_TESTER` (mql5.com blog 774934).

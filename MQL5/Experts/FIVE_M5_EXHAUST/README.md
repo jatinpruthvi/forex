@@ -148,6 +148,55 @@ the part of your cost that cannot widen at the rollover**, and 43.8% of these en
 That is why a $0-commission spread-only account (FXCC) looks best at peak hours and finishes worst
 once rollover widening is priced, and why Fusion's $4.50 of fixed commission wins every scenario.
 
+### Worked example — Fusion Markets Zero
+
+Everything below is measured in `validation/speed_lab/fusion_markets_defaults.py`, on the held-out
+TEST trade list, not read off the broker's site.
+
+**Open the account as:** the **VFSC (Vanuatu) or FSA (Seychelles) entity**, **Zero** account,
+**USD** base currency, **hedging** mode (Fusion supports it, so no signals are forgone), and
+**not** the Islamic/swap-free variant. The ASIC retail entity caps leverage at 1:30, where this
+stream's peak margin measures 260–275% of equity — the broker stops you out before the EA's own
+−3R breaker ever acts. Classic instead of Zero roughly doubles the cost per round turn (~$9 vs
+~$4.75). Swap-free trades a 1.4-pip spread markup for no swap, and the markup only pays if long
+swap exceeds **~0.25R per night** — far above realistic levels on these pairs.
+
+**Three inputs must change from their shipped defaults:**
+
+| Input | Shipped | Set to | Why |
+|---|---|---|---|
+| `InpCommissionPerLotRT` | `7.0` | **`4.50`** | Fusion Zero is $2.25/side. This input is inside `LossPerLot()`, so leaving it at 7.0 **under-sizes 55.2% of trades** at $2,000 (mean position 0.158 vs 0.168 lots, −6.2%), costing **+14.33%/mo instead of +15.01%** with a slightly deeper drawdown (8.8% vs 8.3%) |
+| `InpSymbols` | 8 pairs incl. `XAUUSD` | **drop `XAUUSD`** | Gold's held-out expectancy is negative (−0.219R) and it raises the lot-granularity floor 10× to $16,101 |
+| `InpValidationReleaseId` | `"LOCKED"` | **`"M5_EXHAUST_2026_09"`** | `Authorised()` requires it to equal `InpRequiredReleaseId`. As shipped, **no order is ever submitted** |
+
+Everything else stays at its default. In particular **leave `InpExpectedServerUtcOffsetHours` at
+`3`** even though Fusion will spend about four months a year on GMT+2 — it is the validated
+assumption, and the input is informational. Expect a `[WARN]` from roughly November to March; that
+is the detector working, not a fault.
+
+**What the seasonal clock actually costs.** Fusion's server is New York aligned and observes DST,
+so it is GMT+3 in US summer and GMT+2 in winter. Measured across offsets +4…0 on the 7-pair TEST
+stream: **expectancy is identical (+0.704R) at every offset**, because signals and exits are keyed
+to UTC. Only the server-day grouping moves — monthly return stays within about a point
+(+14.11% to +15.64%) and max drawdown between 6.7% and 10.8%.
+
+The one figure that moves materially is the **rollover count: 890 nights at GMT+3 versus 1,141 at
+GMT+2, +28.2%.** The reason is subtle and worth knowing: 30.7% of entries occur at UTC 21:00, and
+with a +3 server the day boundary sits exactly on that hour, so those trades begin a fresh server
+day and cross no rollover at all. Move the boundary an hour later and they cross one. **The
+validated +3 assumption is therefore flattering on swap**, and Fusion is on the unflattering clock
+for part of the year. That makes reading Fusion's actual long-swap table for all seven symbols —
+the `InpSwapCostGatePassed` condition — more important than usual, not less.
+
+**Two practical notes.** Fusion's free VPS requires 20 lots/month; at $2,000 this strategy trades
+roughly 2–3 lots/month, so **budget for a paid VPS** — the EA must run 24/5 or the 96 h timeout and
+the daily breaker both stop working. And Fusion does not accept US residents, which matters if the
+EA is sold abroad.
+
+**Balance: $2,000** on the seven FX pairs at 1:500 — see
+[`findings_broker_and_balance.md`](../../../findings_broker_and_balance.md) §5. Peak margin is ~16%
+of equity, so margin is not the constraint; lot granularity is.
+
 Before funding, verify on the **account type you will actually use**: hedging vs netting, the
 symbol names (the EA resolves suffixes, but confirm the `[INIT]` lines), the measured server
 offset, the commission actually charged, and the leverage offered by the entity you register under
@@ -361,6 +410,21 @@ every position, but nothing surfaced it — see the table below for why that mat
 broker. The EA now prints it in its first `[INIT]` line beside the sizing base, and warns if it is
 negative. Tests: `test_ea_lot_normalisation.py` and `test_ea_server_offset.py`, both with mutation
 control (3 and 4 mutants caught respectively).
+
+Round 6 (found while setting the defaults for a specific broker, Fusion Markets Zero):
+
+| Bug | Impact |
+|---|---|
+| **`FillingModeFor()` preferred FOK over IOC — and nothing retried a rejection** | The function tested `SYMBOL_FILLING_FOK` first, the pattern copied around MQL5 forums. That is wrong twice over here. **(1) Rejection:** `TRADE_RETCODE_INVALID_FILL` (10030, "unsupported filling type") is almost always a FOK request to a market-execution server. `SYMBOL_FILLING_MODE` describes the *symbol*; the account's execution mode can be stricter, so the advertised bitmask is not a guarantee — Fusion is NDD/market execution, where IOC is the norm. The EA logged the error and **lost the signal**. **(2) Economics:** FOK fills the whole volume at once or dies. This EA enters on a bar whose body exceeded 4×ATR — during a volatility spike — and 43.8% of entries land in the rollover, where depth is thinnest. FOK converts thin depth into a lost trade, diverging from a backtest that assumes every signal fills. IOC takes what is available and cancels the rest, so a partial fill is *smaller than sized* and under-risks — the safe direction, and `DONE_PARTIAL` is now reported with a `[WARN]`. IOC is now preferred, and any 10030 steps down the list (IOC → FOK → RETURN) instead of giving up |
+| **`Authorised()` gated the *close* path, so a halt could announce a flatten it never performed** | Both `ManageTimeouts()` and `FlattenOwnPositions()` did `Print("[TIMEOUT]…"/"[FLATTEN]…")` and then `if(Authorised()) trade.PositionClose(tk)`. The gate exists to stop the EA *taking* new risk; blocking a close is backwards, because closing **reduces** risk. Reachable the obvious way: an operator sets `InpEnableOrderSubmission=false` to "pause" the EA, which forces a reinit, and from then on the 96 h timeout stops firing and `Halt()` latches `g_halted` while flattening nothing — positions left permanently unmanaged, with a log that says they were closed. They kept their broker SL/TP, so they were not naked, but a silently-failing halt is exactly what this EA's gate convention exists to prevent. Closes now go through `CloseOwnPosition()`, which is **never** gated, reports a failed close as an `[ERROR]` demanding manual intervention, and `FlattenOwnPositions()` prints the true tally — `N closed, M FAILED` — rather than implying success. Dry-run from a clean start is unaffected: nothing was opened, so there is nothing to close |
+
+Checked and **cleared** in round 6 (no change needed): the filling mode *is* re-resolved per symbol
+immediately before each `Buy()` (the `OnInit` call from `_Symbol` is only an initial default, so a
+chart symbol differing from the traded symbols is not a problem); `RecomputeDayState()` includes
+`DEAL_SWAP` **and** `DEAL_COMMISSION` in realised R, so the −3R breaker sees true net R; the
+`ProcessOnce()` throttle gates only the history rescan, not `ManageTimeouts()`, so a frozen
+`TimeCurrent()` over a weekend cannot starve the 96 h timeout; and the broker minimum stop distance
+is checked for **both** the stop and the target before entry.
 
 **On the degenerate-stop guard, note the direction:** adding it *lowered* backtested expectancy
 (TEST E_net +0.399R → **+0.376R**), because those trades were **winners** in the backtest — a

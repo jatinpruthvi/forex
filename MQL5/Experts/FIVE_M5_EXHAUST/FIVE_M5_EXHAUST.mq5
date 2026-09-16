@@ -112,12 +112,50 @@ bool           g_netting_warned     = false;
 //+------------------------------------------------------------------+
 //| Pick an order-filling mode the broker advertises for this symbol  |
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| Filling mode this symbol's server will accept.                   |
+//|                                                                  |
+//| IOC is tried FIRST, deliberately. The usual snippet found online  |
+//| tests SYMBOL_FILLING_FOK first, and that is wrong twice over for |
+//| this strategy:                                                   |
+//|  (1) FOK is the mode most often refused - TRADE_RETCODE_INVALID_ |
+//|      FILL (10030, "unsupported filling type") is almost always a |
+//|      FOK request to a market-execution server, and most such     |
+//|      servers advertise IOC. The bitmask in SYMBOL_FILLING_MODE   |
+//|      describes the SYMBOL; the account's execution mode can be   |
+//|      stricter, so the advertised set is not a guarantee.         |
+//|  (2) FOK is also the worst economics here. It fills the whole    |
+//|      volume at once or dies. This EA enters on a bar whose body  |
+//|      exceeded 4x ATR - i.e. during a volatility spike - and      |
+//|      43.8% of entries land in the 20:00-00:59 rollover, where   |
+//|      depth is thinnest. FOK turns thin depth into a LOST SIGNAL, |
+//|      which diverges from a backtest that assumes every signal    |
+//|      fills. IOC takes what is there and cancels the rest: a      |
+//|      partial fill is smaller than sized, so it UNDER-risks, and  |
+//|      DONE_PARTIAL is already handled at the retcode check.       |
+//| RETURN is last: it is an exchange-execution mode and is commonly |
+//| rejected on market/instant execution.                            |
+//+------------------------------------------------------------------+
 ENUM_ORDER_TYPE_FILLING FillingModeFor(const string sym)
   {
    const long modes=SymbolInfoInteger(sym,SYMBOL_FILLING_MODE);
-   if((modes & SYMBOL_FILLING_FOK)==SYMBOL_FILLING_FOK) return ORDER_FILLING_FOK;
    if((modes & SYMBOL_FILLING_IOC)==SYMBOL_FILLING_IOC) return ORDER_FILLING_IOC;
+   if((modes & SYMBOL_FILLING_FOK)==SYMBOL_FILLING_FOK) return ORDER_FILLING_FOK;
    return ORDER_FILLING_RETURN;
+  }
+
+//+------------------------------------------------------------------+
+//| The next filling mode to try after a rejection, or -1 if none.   |
+//| Advertised modes are not a guarantee (see above), so on          |
+//| INVALID_FILL the EA steps down the list instead of losing the    |
+//| signal. Retrying is safe: 10030 means the server refused the     |
+//| REQUEST, so no position was opened by the failed attempt.        |
+//+------------------------------------------------------------------+
+int NextFillingMode(const ENUM_ORDER_TYPE_FILLING used)
+  {
+   if(used==ORDER_FILLING_IOC)  return (int)ORDER_FILLING_FOK;
+   if(used==ORDER_FILLING_FOK)  return (int)ORDER_FILLING_RETURN;
+   return -1;
   }
 
 //+------------------------------------------------------------------+
@@ -217,10 +255,47 @@ int FindSymbol(const string sym)
   }
 
 //+------------------------------------------------------------------+
+//| Close one of this EA's positions.                                |
+//|                                                                  |
+//| NEVER gated by Authorised(). That gate exists to stop the EA     |
+//| TAKING new risk without approval; closing a position REDUCES     |
+//| risk, so blocking it is backwards. The previous code did         |
+//| `if(Authorised()) trade.PositionClose(tk)` in both the 96h       |
+//| timeout and the halt-flatten path, after printing "[TIMEOUT] ..."|
+//| and "[FLATTEN] ...". So if any gate went false while positions   |
+//| were open - most plausibly an operator setting                 |
+//| InpEnableOrderSubmission=false to "pause" the EA, which forces a |
+//| reinit - the log announced a flatten that never happened, the 96h|
+//| timeout stopped firing, and Halt() latched g_halted so nothing   |
+//| would ever manage those positions again. They kept their broker  |
+//| SL/TP, so they were not naked, but a halt that silently fails to |
+//| flatten is exactly the failure mode this EA's gate convention    |
+//| exists to prevent. Dry-run from a clean start is unaffected: no  |
+//| positions were ever opened, so there is nothing to close.        |
+//+------------------------------------------------------------------+
+bool CloseOwnPosition(const ulong tk,const string sym,const string why)
+  {
+   if(!Authorised())
+      PrintFormat("[WARN] %s ticket=%I64u closing while order submission is DISABLED (%s). "
+                  "Closes are never gated - only entries are. Reason: %s",
+                  sym,tk,FirstClosedGate(),why);
+   if(!trade.PositionClose(tk))
+     {
+      PrintFormat("[ERROR] %s ticket=%I64u CLOSE FAILED retcode=%u %s - the position is still "
+                  "open and still carries risk. Intervene manually.",sym,tk,
+                  trade.ResultRetcode(),trade.ResultRetcodeDescription());
+      return false;
+     }
+   g_daystate_dirty=true;                 // a close changes realised R for the day
+   return true;
+  }
+
+//+------------------------------------------------------------------+
 //| Close every position this EA owns                                 |
 //+------------------------------------------------------------------+
 void FlattenOwnPositions(const string reason)
   {
+   int closed=0,failed=0;
    for(int i=PositionsTotal()-1;i>=0;i--)
      {
       const ulong tk=PositionGetTicket(i);
@@ -228,8 +303,12 @@ void FlattenOwnPositions(const string reason)
       if(PositionGetInteger(POSITION_MAGIC)!=InpMagic) continue;
       if(FindSymbol(PositionGetString(POSITION_SYMBOL))<0) continue;
       PrintFormat("[FLATTEN] %s ticket=%I64u (%s)",PositionGetString(POSITION_SYMBOL),tk,reason);
-      if(Authorised()) trade.PositionClose(tk);
+      if(CloseOwnPosition(tk,PositionGetString(POSITION_SYMBOL),reason)) closed++; else failed++;
      }
+   // Report the true outcome. Claiming a flatten that did not fully happen is the bug.
+   PrintFormat("[FLATTEN] done: %d closed, %d FAILED (%s)",closed,failed,reason);
+   if(failed>0)
+      PrintFormat("[ERROR] %d position(s) survived the flatten - manual intervention required",failed);
   }
 
 void Halt(const string reason)
@@ -613,7 +692,7 @@ void ManageTimeouts(const datetime now)
         {
          PrintFormat("[TIMEOUT] %s ticket=%I64u held %dh - closing at market",
                      sym,tk,(int)((now-opened)/3600));
-         if(Authorised()) trade.PositionClose(tk);
+         CloseOwnPosition(tk,sym,"96h max-hold timeout");
         }
      }
   }
@@ -828,7 +907,8 @@ void EvaluateSymbol(const int idx,const datetime now)
       if(tp-entry<min_dist)
         { PrintFormat("[SKIP] %s target distance %.5f is inside broker stops level %.5f",sym,tp-entry,min_dist); return; }
      }
-   trade.SetTypeFilling(FillingModeFor(sym));
+   ENUM_ORDER_TYPE_FILLING fill=FillingModeFor(sym);
+   trade.SetTypeFilling(fill);
 
    PrintFormat("[SIGNAL] %s LONG body=%.5f atr=%.5f (%.2fx) entry=%.5f sl=%.5f tp=%.5f lots=%.2f risk=$%.2f",
                sym,body,atr,body/atr,entry,sl,tp,lots,risk_cash);
@@ -838,23 +918,48 @@ void EvaluateSymbol(const int idx,const datetime now)
       PrintFormat("[DRY-RUN] order submission disabled (%s) - signal logged only",FirstClosedGate());
       return;
      }
-   if(trade.Buy(lots,sym,entry,sl,tp,StringFormat("M5EXHAUST %s",sym)))
+
+   // One attempt per filling mode. TRADE_RETCODE_INVALID_FILL (10030) means the server
+   // refused the REQUEST, so nothing was opened and stepping down the list is safe. It
+   // rescues the signal that the advertised SYMBOL_FILLING_MODE bitmask promised wrongly -
+   // the bitmask describes the symbol, but the account's execution mode can be stricter.
+   for(int attempt=0;attempt<3;attempt++)
      {
-      // Buy() can return true for a request that was merely accepted; confirm the retcode.
+      const bool sent=trade.Buy(lots,sym,entry,sl,tp,StringFormat("M5EXHAUST %s",sym));
+      // Buy() can return true for a request that was merely accepted; the retcode decides.
       const uint rc=trade.ResultRetcode();
-      if(rc==TRADE_RETCODE_DONE || rc==TRADE_RETCODE_DONE_PARTIAL || rc==TRADE_RETCODE_PLACED)
+      if(sent && (rc==TRADE_RETCODE_DONE || rc==TRADE_RETCODE_DONE_PARTIAL
+                  || rc==TRADE_RETCODE_PLACED))
         {
          g_day_trades++;
          g_daystate_dirty=true;    // rescan immediately so the daily breaker sees this fill
-         PrintFormat("[FILLED] %s %.2f lots retcode=%u order=%I64u",sym,lots,rc,trade.ResultOrder());
+         PrintFormat("[FILLED] %s %.2f lots retcode=%u order=%I64u filling=%d%s",sym,lots,rc,
+                     trade.ResultOrder(),(int)fill,attempt>0?" (after filling-mode retry)":"");
+         if(rc==TRADE_RETCODE_DONE_PARTIAL)
+            PrintFormat("[WARN] %s PARTIAL fill - the open volume is below the %.2f lots sized "
+                        "for %.2f%% risk, so this trade risks LESS than the mandate. Check depth "
+                        "at the rollover if this repeats.",sym,lots,InpRiskPercent);
+         return;
         }
-      else
-         PrintFormat("[ERROR] %s request accepted but retcode=%u %s",sym,rc,
-                     trade.ResultRetcodeDescription());
+      if(rc==TRADE_RETCODE_INVALID_FILL)
+        {
+         const int nxt=NextFillingMode(fill);
+         if(nxt<0)
+           {
+            PrintFormat("[ERROR] %s every filling mode was refused (last retcode=%u %s) - signal "
+                        "lost. Ask the broker which modes this account supports.",sym,rc,
+                        trade.ResultRetcodeDescription());
+            return;
+           }
+         PrintFormat("[WARN] %s filling mode %d refused (retcode=%u %s) - retrying with %d",
+                     sym,(int)fill,rc,trade.ResultRetcodeDescription(),nxt);
+         fill=(ENUM_ORDER_TYPE_FILLING)nxt;
+         trade.SetTypeFilling(fill);
+         continue;
+        }
+      PrintFormat("[ERROR] %s order failed retcode=%u %s",sym,rc,trade.ResultRetcodeDescription());
+      return;
      }
-   else
-      PrintFormat("[ERROR] %s order failed retcode=%u %s",sym,trade.ResultRetcode(),
-                  trade.ResultRetcodeDescription());
   }
 
 //+------------------------------------------------------------------+
