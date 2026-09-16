@@ -104,6 +104,10 @@ int            g_qualifying_days    = 0;
 bool           g_halted             = false;
 bool           g_target_reached     = false;   // latched: prop target met, stand down for good
 string         g_halt_reason        = "";
+bool           g_netting            = false;   // account allows only ONE position per symbol
+datetime       g_last_daystate      = 0;       // throttle: see ProcessOnce
+bool           g_daystate_dirty     = true;    // force a recompute after any fill
+bool           g_netting_warned     = false;
 
 //+------------------------------------------------------------------+
 //| Pick an order-filling mode the broker advertises for this symbol  |
@@ -114,6 +118,72 @@ ENUM_ORDER_TYPE_FILLING FillingModeFor(const string sym)
    if((modes & SYMBOL_FILLING_FOK)==SYMBOL_FILLING_FOK) return ORDER_FILLING_FOK;
    if((modes & SYMBOL_FILLING_IOC)==SYMBOL_FILLING_IOC) return ORDER_FILLING_IOC;
    return ORDER_FILLING_RETURN;
+  }
+
+//+------------------------------------------------------------------+
+//| Map a canonical name like "EURGBP" onto whatever this broker      |
+//| actually calls it. Suffixes differ by account TYPE as well as by  |
+//| broker - "EURGBP", "EURGBP.m", "EURGBPm", "EURGBP.pro",           |
+//| "EURGBP-ECN" are all the same instrument at different firms.      |
+//|                                                                  |
+//| Without this the failure is silent: SymbolSelect() fails, OnInit  |
+//| logs a warning that scrolls past, and the EA then trades a subset |
+//| of the universe - or nothing at all - while looking healthy.      |
+//| Suffix matching is deliberately conservative: the remainder must  |
+//| start with punctuation, or be short and lower-case. That accepts  |
+//| real suffixes while refusing to resolve "USD" onto "USDCAD".      |
+//+------------------------------------------------------------------+
+bool SuffixPlausible(const string suf)
+  {
+   const int n=StringLen(suf);
+   if(n==0) return true;                       // exact match
+   const ushort c0=StringGetCharacter(suf,0);
+   // Punctuation-delimited suffixes are unambiguous: every instrument this EA trades has a
+   // canonical name of 6+ characters, so ".micro", ".pro", "-ECN", "_raw" cannot collide with
+   // a different instrument. Accept those at any length - rejecting ".micro" would silently
+   // drop a pair on a micro account, which is exactly the failure this function exists to
+   // prevent.
+   if(c0=='.' || c0=='-' || c0=='_') return true;
+   // Alphanumeric suffixes ARE ambiguous, so restrict them hard: lower-case letters only,
+   // and at most 4. That accepts "EURGBPm" / "EURGBPpro" / "EURGBPecn" while refusing to
+   // resolve "USD" onto "USDCAD" (upper-case remainder) or "XAUUSD" onto "XAUUSD2" (digit).
+   if(n>4) return false;
+   for(int i=0;i<n;i++)
+     {
+      const ushort c=StringGetCharacter(suf,i);
+      if(c<'a' || c>'z') return false;
+     }
+   return true;
+  }
+
+bool ResolveSymbol(const string base,string &resolved)
+  {
+   resolved="";
+   if(base=="") return false;
+   const int blen=StringLen(base);
+   const int total=SymbolsTotal(false);        // false = every symbol the server offers
+   string best="";
+   bool   best_selected=false;
+   int    matches=0;
+   for(int i=0;i<total;i++)
+     {
+      const string nm=SymbolName(i,false);
+      if(StringLen(nm)<blen) continue;
+      if(StringSubstr(nm,0,blen)!=base) continue;
+      const string suf=StringSubstr(nm,blen);
+      if(!SuffixPlausible(suf)) continue;
+      matches++;
+      if(suf=="")                               // exact name always wins outright
+        { resolved=base; return true; }
+      const bool sel=(SymbolInfoInteger(nm,SYMBOL_SELECT)==1);
+      if(best=="" || (sel && !best_selected)) { best=nm; best_selected=sel; }
+     }
+   if(best=="") return false;
+   resolved=best;
+   if(matches>1)
+      PrintFormat("[WARN] %d account symbols start with '%s'; using '%s'. If that is the wrong "
+                  "one, set InpSymbols to the exact name your account uses.",matches,base,best);
+   return true;
   }
 
 //+------------------------------------------------------------------+
@@ -169,6 +239,32 @@ void Halt(const string reason)
    g_halt_reason=reason;
    PrintFormat("[HALT] %s",reason);
    if(InpCloseAllOnHalt) FlattenOwnPositions(reason);
+  }
+
+//+------------------------------------------------------------------+
+//| Name the first gate that is still closed. An EA that only says    |
+//| "disabled" gives whoever is deploying it nothing to act on.       |
+//+------------------------------------------------------------------+
+string FirstClosedGate()
+  {
+   if(!InpEnableOrderSubmission)                return "InpEnableOrderSubmission=false (master switch)";
+   if(InpValidationReleaseId!=InpRequiredReleaseId)
+      return StringFormat("release id mismatch: InpValidationReleaseId='%s' != InpRequiredReleaseId='%s'",
+                          InpValidationReleaseId,InpRequiredReleaseId);
+   if(!InpBacktestGatePassed)                   return "InpBacktestGatePassed=false";
+   if(!InpOutOfSampleGatePassed)                return "InpOutOfSampleGatePassed=false";
+   if(!InpSwapCostGatePassed)                   return "InpSwapCostGatePassed=false";
+   if(!InpMarginGatePassed)                     return "InpMarginGatePassed=false";
+   if(!InpForwardDemoGatePassed)                return "InpForwardDemoGatePassed=false";
+   if(!InpExplicitUserApproval)                 return "InpExplicitUserApproval=false";
+   if(InpAuthorizedLogin!=0 && AccountInfoInteger(ACCOUNT_LOGIN)!=InpAuthorizedLogin)
+      return StringFormat("account login %I64d != InpAuthorizedLogin %I64d",
+                          AccountInfoInteger(ACCOUNT_LOGIN),InpAuthorizedLogin);
+   if(InpExpectedAccountCurrency!="" &&
+      AccountInfoString(ACCOUNT_CURRENCY)!=InpExpectedAccountCurrency)
+      return StringFormat("account currency '%s' != InpExpectedAccountCurrency '%s'",
+                          AccountInfoString(ACCOUNT_CURRENCY),InpExpectedAccountCurrency);
+   return "";
   }
 
 bool Authorised()
@@ -296,6 +392,34 @@ int ServerDayKey(const datetime server_time)
    return (int)((long)server_time/86400L);
   }
 
+//+------------------------------------------------------------------+
+//| Does this EA already hold a position on `sym`?                   |
+//|                                                                  |
+//| On a NETTING account (ACCOUNT_MARGIN_MODE_RETAIL_NETTING) a second|
+//| trade.Buy() on the same symbol does NOT create a second position:|
+//| it merges into the existing one at a volume-weighted average      |
+//| price and OVERWRITES its SL and TP. The first trade's 2xATR stop |
+//| and +10R target would be silently destroyed and replaced by the  |
+//| second trade's levels, and the merged volume would be risked as  |
+//| though each leg had been sized independently. 13.8% of TEST      |
+//| signals (165 of 1,198) enter while the same symbol is already    |
+//| open, and up to 3 stack on one symbol - so this is not a corner  |
+//| case. The whole validation assumes independent positions, which  |
+//| is hedging-mode behaviour.                                       |
+//+------------------------------------------------------------------+
+bool PositionOpenOn(const string sym)
+  {
+   for(int i=PositionsTotal()-1;i>=0;i--)
+     {
+      const ulong tk=PositionGetTicket(i);
+      if(tk==0) continue;
+      if(PositionGetInteger(POSITION_MAGIC)!=InpMagic) continue;
+      if(PositionGetString(POSITION_SYMBOL)!=sym) continue;
+      return true;
+     }
+   return false;
+  }
+
 int CountOpen()
   {
    int n=0;
@@ -324,6 +448,20 @@ int OnInit()
    CheckServerOffset();
    g_initial_balance=AccountInfoDouble(ACCOUNT_BALANCE);
 
+   // Netting vs hedging decides whether this EA can reproduce the validated numbers at all.
+   g_netting=((ENUM_ACCOUNT_MARGIN_MODE)AccountInfoInteger(ACCOUNT_MARGIN_MODE)
+              ==ACCOUNT_MARGIN_MODE_RETAIL_NETTING);
+   if(g_netting)
+      PrintFormat("[WARN] account margin mode is NETTING: only one position per symbol is "
+                  "possible. Stacked entries on a symbol would MERGE and overwrite the open "
+                  "position's SL/TP, destroying the first trade's stop, so this EA skips a "
+                  "signal when it already holds that symbol. That forgoes about 13%% of "
+                  "signals; on held-out TEST the profile becomes roughly +10.4%%/month with "
+                  "an 11.9%% max drawdown instead of +12.6%%/month and 11.7%%. The validated "
+                  "figures assume HEDGING mode. Switch the account to hedging to get them.");
+   else
+      Print("[INIT] account margin mode is HEDGING - independent positions, matches the validation");
+
    string raw=InpUseAllEleven
       ? "EURUSD,GBPUSD,EURGBP,AUDUSD,NZDUSD,USDCAD,USDCHF,USDJPY,EURJPY,GBPJPY,XAUUSD"
       : InpSymbols;
@@ -331,15 +469,39 @@ int OnInit()
    if(n<=0) { Halt("no symbols configured"); return INIT_PARAMETERS_INCORRECT; }
 
    ArrayResize(g_last_bar,n);
+   int resolved_count=0;
    for(int i=0;i<n;i++)
      {
       string s=g_symbols[i];
       StringTrimLeft(s); StringTrimRight(s);
-      g_symbols[i]=s;
-      if(!SymbolSelect(s,true))
-        { PrintFormat("[WARN] symbol %s not available on this account - skipped",s); }
+      string actual="";
+      if(!ResolveSymbol(s,actual))
+        {
+         // Leave the slot empty rather than keeping a name that cannot trade: an unresolved
+         // symbol must never reach EvaluateSymbol or FindSymbol.
+         PrintFormat("[ERROR] symbol %s does not exist on this account under any plausible "
+                     "suffix - it will NOT be traded. Check InpSymbols against Market Watch.",s);
+         g_symbols[i]="";
+         g_last_bar[i]=0;
+         continue;
+        }
+      if(actual!=s)
+         PrintFormat("[INIT] %s resolved to this broker's symbol '%s'",s,actual);
+      g_symbols[i]=actual;
+      if(!SymbolSelect(actual,true))
+         PrintFormat("[WARN] SymbolSelect failed for %s",actual);
       g_last_bar[i]=0;
+      resolved_count++;
      }
+   if(resolved_count==0)
+     {
+      Halt("no configured symbol could be resolved on this account");
+      return INIT_PARAMETERS_INCORRECT;
+     }
+   if(resolved_count<n)
+      PrintFormat("[WARN] only %d of %d configured symbols resolved - the EA will trade a "
+                  "SUBSET of the validated universe, so realised results will not match the "
+                  "published figures",resolved_count,n);
 
    // The EA watches up to 11 symbols but OnTick only fires on ticks for the CHART
    // symbol. A pair whose bar opens while the chart symbol is quiet would not be
@@ -354,7 +516,8 @@ int OnInit()
    if(Authorised())
       Print("[INIT] order submission ENABLED - all gates true");
    else
-      Print("[INIT] order submission DISABLED (gates not satisfied). Analysis/signals only.");
+      PrintFormat("[INIT] order submission DISABLED - first closed gate: %s. Signals are still "
+                  "logged; nothing is sent.",FirstClosedGate());
 
    PrintFormat("[INIT] release=%s symbols=%d risk=%.2f%% base=%.2f targetR=%.1f hold=%dh",
                InpValidationReleaseId,n,InpRiskPercent,SizingBase(),InpTargetR,InpMaxHoldHours);
@@ -468,6 +631,7 @@ void RecomputeDayState(const datetime now)
 void EvaluateSymbol(const int idx,const datetime now)
   {
    const string sym=g_symbols[idx];
+   if(sym=="") return;                                  // unresolved at init
    if(SymbolInfoInteger(sym,SYMBOL_SELECT)!=1) return;
 
    const datetime bar_time=(datetime)SeriesInfoInteger(sym,InpTimeframe,SERIES_LASTBAR_DATE);
@@ -535,6 +699,19 @@ void EvaluateSymbol(const int idx,const datetime now)
    if(g_day_locked) return;
    if(InpMaxConcurrent<99 && CountOpen()>=InpMaxConcurrent) return;
    if(InpMaxTradesPerDay<99 && g_day_trades>=InpMaxTradesPerDay) return;
+   // Netting: never add to a symbol we already hold - see PositionOpenOn().
+   if(g_netting && PositionOpenOn(sym))
+     {
+      if(!g_netting_warned)
+        {
+         g_netting_warned=true;
+         Print("[INFO] netting account: skipping entries on symbols already held. This "
+               "message is printed once; each individual skip is logged at signal level.");
+        }
+      PrintFormat("[SKIP] %s netting account already holds this symbol - a second entry would "
+                  "merge and overwrite the open position's SL/TP",sym);
+      return;
+     }
 
    if(InpBlockFridayLate)
      {
@@ -602,7 +779,7 @@ void EvaluateSymbol(const int idx,const datetime now)
 
    if(!Authorised())
      {
-      Print("[DRY-RUN] order submission disabled - signal logged only");
+      PrintFormat("[DRY-RUN] order submission disabled (%s) - signal logged only",FirstClosedGate());
       return;
      }
    if(trade.Buy(lots,sym,entry,sl,tp,StringFormat("M5EXHAUST %s",sym)))
@@ -612,6 +789,7 @@ void EvaluateSymbol(const int idx,const datetime now)
       if(rc==TRADE_RETCODE_DONE || rc==TRADE_RETCODE_DONE_PARTIAL || rc==TRADE_RETCODE_PLACED)
         {
          g_day_trades++;
+         g_daystate_dirty=true;    // rescan immediately so the daily breaker sees this fill
          PrintFormat("[FILLED] %s %.2f lots retcode=%u order=%I64u",sym,lots,rc,trade.ResultOrder());
         }
       else
@@ -668,7 +846,18 @@ void ProcessOnce()
       return;
      }
    const datetime now=TimeCurrent();
-   RecomputeDayState(now);
+   // RecomputeDayState() does HistorySelect() plus a loop over every deal in the server day.
+   // OnTick can fire hundreds of times a second on an active symbol, and OnTimer adds one more
+   // per second, so running it unconditionally means hundreds of full history scans a second -
+   // enough to starve the very bar-open evaluation the entry-lag guard depends on. TimeCurrent()
+   // has one-second granularity, so gating on it throttles to one scan per second, and the
+   // dirty flag forces an immediate rescan after a fill so the -3R breaker never lags.
+   if(g_daystate_dirty || now!=g_last_daystate)
+     {
+      RecomputeDayState(now);
+      g_last_daystate=now;
+      g_daystate_dirty=false;
+     }
    ManageTimeouts(now);
    CheckHardStops();
 

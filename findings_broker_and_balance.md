@@ -10,41 +10,23 @@ All figures are the frozen M5 long-only 4×ATR exhaustion fade, TRAIN-selected 8
 
 ---
 
-## 0. Jurisdiction blocks this for an Indian resident — read first
+## 0. Scope: intended end users are outside India
 
-This was prepared for a user in Ahmedabad, India, and the answer is constrained by law before
-it is constrained by spreads.
+The author is resident in India but intends to **sell this EA to non-Indian users**, so
+jurisdiction is not treated as a blocker here and the analysis below is written for a buyer
+resident outside India.
 
-Under **FEMA 1999**, a person resident in India may deal in foreign exchange only through an
-RBI-authorised person, and may trade currency derivatives only on a recognised Indian exchange
-(NSE / BSE / MSE) via a SEBI-registered broker. OTC spot forex and CFDs on non-INR pairs
-through an offshore broker are not permitted. The **Liberalised Remittance Scheme expressly
-prohibits** remitting funds abroad for margin trading or forex speculation.
+It is recorded once, for completeness, because it does constrain the author personally: under
+FEMA 1999 a person resident in India may deal in forex only through an RBI-authorised person and
+may trade currency derivatives only on a recognised Indian exchange (NSE/BSE/MSE) via a
+SEBI-registered broker; none of the 8 pairs is available there, and the Liberalised Remittance
+Scheme cannot fund offshore margin trading. The RBI Alert List (95 entities, 19 Nov 2025) names
+every tightly-priced broker modelled in §3 and also MetaTrader 4 and 5 themselves. **This affects
+the author running the EA on their own account. It does not affect a buyer in a jurisdiction where
+leveraged OTC forex is permitted** — which is the intended market, and which is what §1–§4 address.
 
-**Every instrument this strategy trades is affected.** None of the 8 pairs is an INR pair, and
-none is among the contracts available on Indian exchanges — USDINR, EURINR, GBPINR, JPYINR
-futures and options, plus EURUSD, GBPUSD and USDJPY cross-currency futures. The strategy
-additionally requires continuous 24×5 M5 spot bars spanning the daily rollover, which
-exchange-traded currency futures do not provide (fixed session hours, contract expiry, rolls).
-
-The **RBI Alert List** (95 entities, updated 19 November 2025) names, among others: IC Markets,
-Pepperstone, Fusion Markets, Tickmill, FP Markets, Exness, XM, IG Markets, Admiral, Think
-Markets, BlackBull, Vantage, VT Markets, HF Markets/HotForex — that is, **every broker modelled
-in §3 below** — and also lists **MetaTrader 4 and MetaTrader 5 themselves**, plus the prop firms
-FTMO, FundedNext and Smart Prop Trader. RBI states the list is not exhaustive, so absence from
-it is not authorisation.
-
-Reported penalties under FEMA s.13: up to **three times the amount involved** or ₹2 lakh
-(whichever is higher), **₹5,000 per day** for a continuing violation, and up to **5 years
-imprisonment** for a serious or wilful violation under s.13(1C). Funds in unauthorised offshore
-accounts may be attached.
-
-The broker comparison in §3 is therefore provided as **cost analysis** — the spread budget and
-the rollover finding are real properties of the strategy and are needed to interpret any
-backtest — and **not as a recommendation to open an account**. It should not be acted on by a
-person resident in India. Confirm your own residency status and take advice from a professional
-qualified in Indian exchange-control law. If your residency is not Indian, §1–§4 apply as
-written.
+Anyone deploying this should confirm the position in *their own* jurisdiction and the leverage
+cap their broker's entity offers, because §2(b) shows the configuration needs ≥1:200.
 
 ---
 
@@ -272,9 +254,97 @@ for a long-only book it is a persistent one-way drag that varies by pair.
 
 ---
 
+## 5. Minimum balance at 1:500 leverage — the direct answer
+
+At 1:500 the margin floor stops binding: measured on the actual TEST stream, peak margin is ~16%
+of equity and nearly independent of balance, because lots scale with balance. So the minimum is
+set entirely by **lot granularity** — the EA skips a trade when `floor(risk/loss_per_lot/0.01)×0.01
+< 0.01`, i.e. when `balance < 2 × loss_per_lot`.
+
+Realised risk per trade, which is the fidelity measure that matters (target 0.500%):
+
+| balance | 8 pairs: skipped | 8 pairs: realised risk | 7 FX pairs: skipped | 7 FX: realised risk |
+|---|---|---|---|---|
+| $500 | 11.2% | 0.422% | 4.5% | 0.422% |
+| $1,000 | 6.3% | 0.452% | **0.5%** | 0.453% |
+| **$1,565** | 4.0% | 0.468% | **0.0%** | **0.470%** |
+| $2,000 | 3.3% | 0.472% | 0.0% | 0.475% |
+| $2,500 | 2.4% | 0.476% | 0.0% | 0.481% |
+| $5,000 | 0.5% | 0.485% | 0.0% | 0.491% |
+| $16,101 | 0.1% | 0.494% | 0.0% | 0.497% |
+| $25,000 | 0.0% | 0.496% | 0.0% | 0.498% |
+
+No trade that *is* taken ever risks under half the target — sub-0.01-lot signals are skipped
+outright rather than under-sized. So granularity shows up as skipped trades, not as quiet
+under-risking.
+
+**Recommendation: $2,000–2,500.**
+
+- **$1,565** is the true floor for the seven FX pairs — zero skipped signals, 94% risk fidelity.
+- Adding XAUUSD raises the floor **10×** to **$16,101**, because a gold stop is ~93 pips on a
+  100 oz contract. But gold's TEST gross expectancy is **negative** (−0.187R), so a buyer is
+  better off setting `InpSymbols` to the seven FX pairs than funding 10× the balance to trade a
+  pair that lost money out of sample.
+- $2,000–2,500 leaves headroom for the ~12% drawdown and ~−11% worst month, and keeps realised
+  risk within 3–5% of target.
+
+At 1:500 there is no margin constraint at any of these balances. The remaining checks are the
+broker's minimum deposit (IC Markets $200, Pepperstone $0–200, Tickmill $100, Fusion ~$0) and
+whether the *entity* you register under actually offers 1:500 — ASIC, FCA and CySEC entities are
+capped far lower than the offshore ones, so leverage and regulation trade off against each other.
+
+---
+
+## 6. Which broker
+
+Ranked against the requirements in §3 and the EA README's broker table, on the modelled numbers
+rather than on marketing.
+
+**First choice — Fusion Markets, Zero account.** Lowest commission in the group ($4.50 round turn)
+and the best measured spreads on four of this universe's eight pairs (AUDUSD 0.09, USDCAD 0.23,
+NZDUSD 0.30, USDCHF 0.41). It won **every** rollover scenario in §3: +0.638R at peak quotes,
++0.434R at 8× widening, +0.317R at 12×. ASIC-regulated. Caveat: a smaller firm than IC Markets,
+and its leverage depends on which entity you register under.
+
+**Strong alternative — IC Markets, Raw Spread.** Its **$7 round-turn commission is exactly what
+the backtest assumed**, so it reproduces the validated cost model with no adjustment — worth a lot
+when you are selling an EA against published numbers. Best measured spreads on the two pairs where
+this strategy is most concentrated (EURGBP 0.27, EURJPY 0.30). Server GMT+2 winter / GMT+3 summer,
+aligned to the NY 17:00 close, which matches the validation's +3 assumption half the year. Largest
+firm in the group, MT5, hedging, own VPS, $200 minimum.
+
+**Pepperstone Razor** — choose it if FCA regulation matters for your buyer's jurisdiction. Best
+EURGBP (0.20–0.30) and USDCHF (0.39) in the group, but the worst EURJPY (1.1–1.2), and GMT+2/+3.
+
+**Dukascopy** — worth a look specifically for buyer confidence: a Swiss bank, MT5, GMT+2/+3
+NY-aligned, hedging explicitly allowed, EAs allowed, stop-out ≤50%, 21 account currencies. Its
+pricing is less competitive than the three above, so it trades cost for counterparty strength.
+
+**Avoid for this universe — Tickmill**, despite the industry's lowest commission ($4 Pro, $2 VIP
+above $50k). Its spreads on EURGBP (0.40), GBPJPY (1.00) and XAUUSD (1.50) are the widest of the
+group, and §3 shows commission is second-order here: Tickmill's cheap commission does not stop it
+being **worst at 12× rollover widening (+0.150R)**. The lesson generalises — for this strategy buy
+on measured rollover spread, not on commission.
+
+**Avoid — Exness**, despite excellent quotes, because its server is **fixed GMT+0 year-round**.
+That shifts every server-day boundary 3 hours from the +3 the validation assumed, so the daily
+breaker, qualifying-day windows and Friday cutoff no longer correspond to what was measured. The
+EA's own day boundaries stay internally correct — `CheckServerOffset()` warns — but the published
+figures would need re-validating on that clock first.
+
+**The decisive step before funding, whatever you pick:** run `EA_SIGNAL_DUMP.mq5` on a **demo**
+account for two weeks with `InpBarsToDump=120000`, then `compare_ea_dump.py`. The CSV carries the
+entry timestamp on every row, so you can isolate the UTC 21:00–22:59 subset and compare its
+realised spread against the London-session subset on *your* account type. That replaces the 8×
+rollover assumption — the single largest uncertainty in this cost model, worth roughly 5 points of
+monthly return — with a measurement. It also surfaces the four silent cross-broker failures at
+once: symbol suffix, server offset, netting mode, and minimum stop distance.
+
+---
+
 ## Bugs found in this analysis while building it
 
-Each was caught by reconciliation, not by review:
+Five were in this analysis itself, each caught by reconciliation rather than by review:
 
 1. **`month_stats(res, A0=V.ACCOUNT)` binds its default at import time.** Python evaluates
    default arguments once, so every balance row was silently divided by $2,500 and `mean %/mo`
@@ -289,7 +359,38 @@ Each was caught by reconciliation, not by review:
 4. **`replay_personal`'s prop caps were inherited as the EA's behaviour**, halving reported
    returns. See the correction in §4.
 5. **Rollover widening was applied to the flat backtest model**, which by definition does not
-   vary by hour, corrupting the reference row and every "vs assumed" percentage derived from it.
+   vary by hour, corrupting the reference row and every percentage derived from it.
+
+Answering "is there still a bug?" then produced a fourth audit round on the EA itself. Four more
+defects, two of them serious:
+
+6. **Netting accounts were never detected** (serious). A second `Buy()` on a netting account
+   merges into the open position and **overwrites its SL/TP**, destroying the first trade's stop.
+   13.8% of TEST signals stack on a symbol already open. Fixed by detecting
+   `ACCOUNT_MARGIN_MODE` and skipping same-symbol entries; cost of running on netting quantified.
+7. **Broker symbol suffixes silently shrank the universe** (serious for an EA being sold).
+   `SymbolSelect()` fails on `EURGBP.m`, one warning scrolls past, and the EA trades a subset
+   while looking healthy. Fixed with `ResolveSymbol()`/`SuffixPlausible()`, tested by
+   `validation/speed_lab/test_ea_symbol_resolution.py` including mutation control — the
+   permissive variant is shown to mis-resolve `USD` onto `USDCAD`, proving the rule is
+   load-bearing.
+8. **`ProcessOnce()` ran a full deal-history scan on every tick** — hundreds of `HistorySelect()`
+   calls a second, enough to starve the bar-open evaluation the entry-lag guard depends on.
+   Throttled to one scan per second with a dirty flag forcing an immediate rescan after a fill.
+9. **"Gates not satisfied" never said which gate** — useless to a buyer whose account is not USD.
+   Added `FirstClosedGate()`.
+
+Checked and cleared, no change needed: the 96 h timeout is wall-clock in the EA but a 1,152-*bar*
+count in the backtest, which diverge across weekends. Measured on TEST, only 10 of 1,198 trades
+close a different bar and the worst gap is 6 minutes.
+
+After all four fixes the equivalence proof still holds: `ea_emulator.py` reports ATR, signals and
+gates **IDENTICAL** (3,290 = 3,290), and `selftest_ea_dump.py` passes with all four verbatim
+function copies still identical to the EA's and 9/9 mutations caught.
+
+**Cumulative: 22 bugs across four audits** (round 1 static, round 2 by emulation, round 3 by
+re-reading against MQL5 time semantics, round 4 from the broker/balance question), all fixed.
+Compilation remains unverified — there is no MetaEditor in this environment.
 
 ---
 

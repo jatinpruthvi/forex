@@ -8,16 +8,14 @@ Reference implementation of the frozen configuration validated in
 > them, the EA logs signals and manages nothing. It has been validated on historical data
 > only — **it has never been forward-tested or traded.**
 
-> **JURISDICTION.** If you are resident in India, this EA cannot be run legally. All eight
-> instruments are non-INR OTC spot pairs, which FEMA 1999 permits only through an
-> RBI-authorised person on a recognised Indian exchange; offshore OTC/CFD trading on them is
-> not permitted and the Liberalised Remittance Scheme cannot fund it. The RBI Alert List
-> (95 entities, 19 Nov 2025) names every tightly-priced broker that suits this strategy —
-> IC Markets, Pepperstone, Fusion Markets, Tickmill, FP Markets, Exness, XM and others —
-> **and also names MetaTrader 4 and MetaTrader 5 themselves**. Reported FEMA s.13 penalties
-> reach three times the amount involved and, for a wilful violation, five years. See
-> [`findings_broker_and_balance.md`](../../../findings_broker_and_balance.md) §0. Nothing
-> else in this file changes that; the rest of it applies if your residency is not Indian.
+> **INTENDED MARKET.** This EA is written for buyers resident **outside India**, where leveraged
+> OTC forex is permitted. The author is resident in India and will not be running it on their own
+> account there: FEMA 1999 restricts residents to RBI-authorised persons and recognised Indian
+> exchanges, none of the eight instruments is available on them, the LRS cannot fund offshore
+> margin trading, and the RBI Alert List (95 entities, 19 Nov 2025) names both the tightly-priced
+> brokers below and MetaTrader 4/5 themselves. Anyone deploying this must confirm the position in
+> **their own** jurisdiction, and note that §Broker requirements needs leverage ≥1:200, which
+> tier-1 regulated entities often do not offer.
 
 ## The rule (frozen — do not retune)
 
@@ -107,6 +105,28 @@ TRAIN selection drops. Realistic drag is likely small — but **pull your broker
 for all 8 symbols and set `InpSwapCostGatePassed` only after you have.** The JPY crosses'
 carry tailwind compressed sharply after 2024 as the BoJ hiked, so do not assume the past
 benefit repeats.
+
+## Broker requirements
+
+Derived in [`findings_broker_and_balance.md`](../../../findings_broker_and_balance.md). These are
+requirements of *this strategy*, not general advice — most come from where it trades and how wide
+its stops are.
+
+| Requirement | Why | What happens if not met |
+|---|---|---|
+| **Hedging** account mode | 13.8% of signals stack on a symbol already open, up to 3 deep | Netting merges them and overwrites SL/TP. The EA now skips instead, costing ~13% of signals: ~+10.4%/mo and 11.9% DD rather than +12.6% and 11.7% |
+| **Raw / ECN** pricing, fixed commission | Raw beat a standard spread-marked account on 6 of 8 pairs, because wide stops make 1R large in dollars so a flat commission is a smaller slice of it than the spread | Higher cost per trade |
+| **Tight spread at the rollover**, not in London | **43.8% of entries land in server 20:00–00:59 and 30.7% in the single hour UTC 21:00.** Published tests put EURUSD at 0.1 pips in London but 1.2 avg / 3.1 max across the rollover | Headline spreads describe the ~42% of trades that don't enter at the roll. At 8–12× rollover widening, expectancy falls from ~+0.64R to ~+0.15–0.43R |
+| **Leverage ≥ 1:200**, ideally 1:500 | Peak margin is ~82% of equity at 1:100, ~41% at 1:200, ~16% at 1:500, ~274% at 1:30 | At 1:100 a margin call arrives before the EA's own −3R breaker. At the 1:30 EU/UK retail cap the configuration cannot be run at any balance |
+| **Server time UTC+2/+3**, aligned to the NY 17:00 close | The validation assumed a fixed +3 h. `CheckServerOffset()` measures and warns | A UTC+0 server shifts every server-day boundary by 3 h, so the daily breaker, qualifying days and Friday cutoff no longer match the validated windows. Re-validate before use |
+| **Market execution, no requotes, no news freeze, no minimum hold time** | Entries happen on a bar whose body exceeded 4×ATR — i.e. *during* a volatility spike, often at the roll | A broker-side news freeze or requote policy deletes the entry the strategy depends on |
+| XAUUSD at 2 **or** 3 digits | Brokers differ; the repo data carries 3 | Handled — the EA reads `SYMBOL_DIGITS` and never infers it |
+| Low **long** swap | Long-only, 0.772 nights per trade, 25.3% of trades cross ≥1 night | Swap is a persistent one-way drag the cost model does not charge; 0.10R/night costs ~1.3 points of monthly return |
+
+Before funding, verify on the **account type you will actually use**: hedging vs netting, the
+symbol names (the EA resolves suffixes, but confirm the `[INIT]` lines), the measured server
+offset, and the leverage offered by the entity you register under — these differ between a
+broker's ASIC, FCA, CySEC and offshore entities.
 
 ## Gate checklist
 
@@ -289,6 +309,19 @@ Round 3 (found by re-reading against the MQL5 time semantics, then re-verifying)
 | **No minimum stop distance — a degenerate stop sized an enormous unprotected position** | `dist = (next_open − signal_low) + 2×ATR`, so a gap down through the signal bar's low shrinks it. In 4 years of data it reaches **exactly 0**, and since `lots = risk / (dist × pip_value + commission)`, `dist = 0` sizes to **1.78 lots on a $2,500 account with no stop protection at all**. 25 more signals have stops under 1×ATR (up to 1.16 lots on a 0.4-pip stop). They cluster at 20:55–22:00 — the daily roll and weekend close, where the next-bar open is a stale wide-spread print. Fixed with `InpMinStopAtrMultiple` (default 1.0) on **both** the EA and the backtest |
 | Sizing used the raw stop while the order sent the normalised one | Dollars at risk differed slightly from `InpRiskPercent`. The stop is now normalised *before* sizing |
 | Friday cutoff hour was hard-coded | Now `InpFridayCutoffHour` (default 21, matching the validation) |
+
+Round 4 (found while answering "which broker, and what minimum balance"):
+
+| Bug | Impact |
+|---|---|
+| **Netting accounts were never detected** | On `ACCOUNT_MARGIN_MODE_RETAIL_NETTING` a second `Buy()` on a symbol does **not** open a second position — it merges into the open one at a volume-weighted average price and **overwrites its SL and TP**. The first trade's 2×ATR stop and +10R target would be silently destroyed and replaced by the second trade's levels, and the merged volume would carry risk as though each leg had been sized independently. **13.8% of TEST signals (165 of 1,198) enter while the same symbol is already open, and up to 3 stack on one symbol**, so this is not a corner case — and the entire validation assumes independent positions, i.e. hedging behaviour. Now detected in `OnInit`, with a per-symbol skip via `PositionOpenOn()`. A netting account forgoes ~13% of signals and lands at roughly **+10.4%/month with an 11.9% max drawdown instead of +12.6% and 11.7%**; use a hedging account to get the validated figures |
+| **Broker symbol suffixes silently shrank the universe** | `InpSymbols` holds canonical names, but brokers call the same instrument `EURGBP.m`, `EURGBPm`, `EURGBP.pro`, `EURGBP-ECN` or `EURGBP.micro` depending on firm *and account type*. `SymbolSelect()` fails, one warning scrolls past, and the EA then trades a subset — or nothing — while looking healthy. Added `ResolveSymbol()`/`SuffixPlausible()`, which accepts punctuation-delimited suffixes at any length and alphanumeric ones only when short and lower-case, so `USD` can never resolve onto `USDCAD`. Unresolvable symbols now log an `[ERROR]`, are blanked so they cannot reach `EvaluateSymbol`, and if *none* resolve the EA halts; a partial resolution warns that results will not match the published figures. Tested by `test_ea_symbol_resolution.py` (transliterated logic + mutation control) |
+| `ProcessOnce()` ran a full deal-history scan on **every tick** | `RecomputeDayState()` does `HistorySelect()` plus a loop over every deal in the server day. `OnTick` can fire hundreds of times a second on an active symbol and `OnTimer` adds one more, so that is hundreds of full history scans a second — enough to starve the bar-open evaluation the `InpMaxEntryLagSeconds` guard depends on. `TimeCurrent()` has one-second granularity, so gating on it throttles to one scan per second, and a dirty flag set on every fill forces an immediate rescan so the −3R breaker never lags |
+| "Gates not satisfied" never said *which* gate | Useless to whoever is deploying it — and a buyer on a non-USD account would see only "DISABLED", with no hint that `InpExpectedAccountCurrency` was the blocker. Added `FirstClosedGate()`, reported both at init and on every dry-run signal |
+
+Checked and **cleared** in the same round (no change needed): the 96 h timeout is a wall-clock
+test in the EA but a 1,152-*bar* count in the backtest, which diverge across weekends — measured
+on TEST, only **10 of 1,198 trades** close a different bar and the worst gap is **6 minutes**.
 
 **On the degenerate-stop guard, note the direction:** adding it *lowered* backtested expectancy
 (TEST E_net +0.399R → **+0.376R**), because those trades were **winners** in the backtest — a
