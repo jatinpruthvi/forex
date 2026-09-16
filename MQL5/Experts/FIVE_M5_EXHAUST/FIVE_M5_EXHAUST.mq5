@@ -65,6 +65,7 @@ input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;
 input group "=== Execution ==="
 input int    InpMaxDeviationPoints= 20;     // max slippage accepted on a market order
 input bool   InpCloseAllOnHalt    = true;   // flatten this EA's positions when it halts
+input int    InpMaxEntryLagSeconds= 30;     // skip a signal if the bar opened longer ago than this
 
 input group "=== Risk ==="
 input double InpRiskPercent       = 0.50;   // % of sizing base per trade
@@ -97,6 +98,7 @@ bool           g_day_locked         = false;
 double         g_initial_balance    = 0.0;
 int            g_qualifying_days    = 0;
 bool           g_halted             = false;
+bool           g_target_reached     = false;   // latched: prop target met, stand down for good
 string         g_halt_reason        = "";
 int            g_server_utc_offset_s= 0;
 
@@ -271,24 +273,6 @@ int CountOpen()
 double EquityNow() { return AccountInfoDouble(ACCOUNT_EQUITY); }
 
 //+------------------------------------------------------------------+
-void RollDayIfNeeded(const datetime now)
-  {
-   const int dk=ServerDayKey(now);
-   if(dk==g_day_key) return;
-   if(g_day_key!=-1)
-     {
-      // settle the finished day's qualifying-day count
-      const double pnl=EquityNow()-g_day_start_equity;
-      if(InpQualifyingDays>0 && pnl>=InpQualifyingDayProfit) g_qualifying_days++;
-     }
-   g_day_key=dk;
-   g_day_start_equity=EquityNow();
-   g_day_net_r=0.0;
-   g_day_trades=0;
-   g_day_locked=false;
-  }
-
-//+------------------------------------------------------------------+
 int OnInit()
   {
    trade.SetExpertMagicNumber((ulong)InpMagic);
@@ -317,10 +301,15 @@ int OnInit()
       g_last_bar[i]=0;
      }
 
-   if(InpRiskOnInitialBase && InpSizingBaseOverride>0.0)
-      g_initial_balance=InpSizingBaseOverride;
+   // The EA watches up to 11 symbols but OnTick only fires on ticks for the CHART
+   // symbol. A pair whose bar opens while the chart symbol is quiet would not be
+   // evaluated until the chart symbol next ticks - late entries, or missed signals.
+   // A 1-second timer makes evaluation independent of which symbol is ticking.
+   EventSetTimer(1);
 
-   RebuildTodayState();
+   RecomputeDayState(TimeCurrent());
+   PrintFormat("[INIT] server-day state: realised R %+.2f, trades %d, locked=%s",
+               g_day_net_r,g_day_trades,g_day_locked?"true":"false");
 
    if(Authorised())
       Print("[INIT] order submission ENABLED - all gates true");
@@ -332,53 +321,18 @@ int OnInit()
    return INIT_SUCCEEDED;
   }
 
-//+------------------------------------------------------------------+
-//| Reconstruct today's realised R and trade count from history so a  |
-//| mid-day restart does not silently reset the -3R daily breaker.    |
-//+------------------------------------------------------------------+
-void RebuildTodayState()
-  {
-   const datetime now=TimeCurrent();
-   g_day_key=ServerDayKey(now);
-   g_day_start_equity=EquityNow();
-   g_day_net_r=0.0;
-   g_day_trades=0;
-   g_day_locked=false;
-
-   const double rc=SizingBase()*InpRiskPercent/100.0;
-   if(rc<=0.0) return;
-
-   const datetime day_start=(datetime)(g_day_key*86400)-g_server_utc_offset_s;
-   HistorySelect(day_start,now+1);
-   const int total=HistoryDealsTotal();
-   for(int i=0;i<total;i++)
-     {
-      const ulong dt=HistoryDealGetTicket(i);
-      if(dt==0) continue;
-      if(HistoryDealGetInteger(dt,DEAL_MAGIC)!=InpMagic) continue;
-      if(FindSymbol(HistoryDealGetString(dt,DEAL_SYMBOL))<0) continue;
-      const long ek=HistoryDealGetInteger(dt,DEAL_ENTRY);
-      if(ek==DEAL_ENTRY_IN) { g_day_trades++; continue; }
-      if(ek!=DEAL_ENTRY_OUT && ek!=DEAL_ENTRY_OUT_BY) continue;
-      const double profit=HistoryDealGetDouble(dt,DEAL_PROFIT)
-                         +HistoryDealGetDouble(dt,DEAL_SWAP)
-                         +HistoryDealGetDouble(dt,DEAL_COMMISSION);
-      g_day_net_r+=profit/rc;
-     }
-   if(InpDailyBreakerR>0.0 && g_day_net_r<=-InpDailyBreakerR) g_day_locked=true;
-   PrintFormat("[INIT] restored server-day state: realised R %+.2f, trades %d, locked=%s",
-               g_day_net_r,g_day_trades,g_day_locked?"true":"false");
-  }
-
 double SizingBase()
   {
-   if(InpSizingBaseOverride>0.0) return InpSizingBaseOverride;
-   if(InpRiskOnInitialBase)      return g_initial_balance;
+   // The override pins a FIXED base; it only makes sense in fixed-fractional mode.
+   // Honouring it while compounding would silently disable compounding.
+   if(InpRiskOnInitialBase)
+      return InpSizingBaseOverride>0.0 ? InpSizingBaseOverride : g_initial_balance;
    return AccountInfoDouble(ACCOUNT_BALANCE);
   }
 
 void OnDeinit(const int reason)
   {
+   EventKillTimer();
    Comment("");
   }
 
@@ -406,30 +360,66 @@ void ManageTimeouts(const datetime now)
   }
 
 //+------------------------------------------------------------------+
-//| Track realised R for the daily breaker                            |
+//| Recompute today's realised R and trade count FROM SCRATCH.        |
+//|                                                                    |
+//| This is deliberately idempotent. The previous version added each   |
+//| closed deal to a running total using a 1-second-granularity        |
+//| watermark; because many ticks share one second, the same deals were|
+//| re-selected and re-added on every tick, inflating g_day_net_r until|
+//| the -3R breaker tripped spuriously and locked out all trading. It  |
+//| also mis-attributed deals closed across midnight to the new day,   |
+//| because the day rollover ran before the scan.                      |
+//|                                                                    |
+//| Recomputing from the server-day window fixes both, and makes the   |
+//| restart path and the live path the same code.                      |
 //+------------------------------------------------------------------+
-void ScanClosedDeals()
+void RecomputeDayState(const datetime now)
   {
-   static datetime last_scan=0;
-   const datetime now=TimeCurrent();
-   HistorySelect(last_scan==0?now-86400:last_scan,now+1);
-   const int total=HistoryDealsTotal();
-   for(int i=0;i<total;i++)
+   const int dk=ServerDayKey(now);
+   // cast to long before multiplying: day_key*86400 is ~1.73e9 and overflows int32 in 2038
+   const datetime day_start=(datetime)((long)dk*86400L)-(datetime)g_server_utc_offset_s;
+
+   if(dk!=g_day_key)
      {
-      const ulong dt=HistoryDealGetTicket(i);
-      if(dt==0) continue;
-      if(HistoryDealGetInteger(dt,DEAL_MAGIC)!=InpMagic) continue;
-      if(FindSymbol(HistoryDealGetString(dt,DEAL_SYMBOL))<0) continue;
-      const long ek=HistoryDealGetInteger(dt,DEAL_ENTRY);
-      if(ek!=DEAL_ENTRY_OUT && ek!=DEAL_ENTRY_OUT_BY) continue;
-      const double profit=HistoryDealGetDouble(dt,DEAL_PROFIT)
-                         +HistoryDealGetDouble(dt,DEAL_SWAP)
-                         +HistoryDealGetDouble(dt,DEAL_COMMISSION);
-      const double base=SizingBase();
-      const double rc=base*InpRiskPercent/100.0;
-      if(rc>0.0) g_day_net_r+=profit/rc;
+      if(g_day_key!=-1 && InpQualifyingDays>0)
+        {
+         const double pnl=EquityNow()-g_day_start_equity;
+         if(pnl>=InpQualifyingDayProfit) g_qualifying_days++;
+        }
+      g_day_key=dk;
+      g_day_start_equity=EquityNow();
+      g_day_trades=0;
+      g_day_locked=false;
      }
-   last_scan=now;
+
+   const double rc=SizingBase()*InpRiskPercent/100.0;
+   double net=0.0;
+   int    entries=0;
+   if(rc>0.0)
+     {
+      HistorySelect(day_start,now+1);
+      const int total=HistoryDealsTotal();
+      for(int i=0;i<total;i++)
+        {
+         const ulong dt=HistoryDealGetTicket(i);
+         if(dt==0) continue;
+         if(HistoryDealGetInteger(dt,DEAL_MAGIC)!=InpMagic) continue;
+         if(FindSymbol(HistoryDealGetString(dt,DEAL_SYMBOL))<0) continue;
+         const long ek=HistoryDealGetInteger(dt,DEAL_ENTRY);
+         if(ek==DEAL_ENTRY_IN) { entries++; continue; }
+         if(ek!=DEAL_ENTRY_OUT && ek!=DEAL_ENTRY_OUT_BY) continue;
+         net+=(HistoryDealGetDouble(dt,DEAL_PROFIT)
+              +HistoryDealGetDouble(dt,DEAL_SWAP)
+              +HistoryDealGetDouble(dt,DEAL_COMMISSION))/rc;
+        }
+     }
+   g_day_net_r=net;
+   // Two sources of truth: EvaluateSymbol increments on fill, this recounts from deal
+   // history. Deal history can lag a fill by a tick or two, and letting the recount LOWER
+   // the counter would let InpMaxTradesPerDay be exceeded. Take the max so it never
+   // regresses within a server day (the rollover above resets it legitimately).
+   if(entries>g_day_trades) g_day_trades=entries;
+   if(InpDailyBreakerR>0.0 && g_day_net_r<=-InpDailyBreakerR) g_day_locked=true;
   }
 
 //+------------------------------------------------------------------+
@@ -441,16 +431,29 @@ void EvaluateSymbol(const int idx,const datetime now)
    if(SymbolInfoInteger(sym,SYMBOL_SELECT)!=1) return;
 
    const datetime bar_time=(datetime)SeriesInfoInteger(sym,InpTimeframe,SERIES_LASTBAR_DATE);
-   if(bar_time==g_last_bar[idx]) return;      // already processed this bar
-   g_last_bar[idx]=bar_time;
+   if(bar_time==g_last_bar[idx]) return;      // this bar already evaluated
 
+   // Do NOT mark the bar processed until the data is actually in hand. Marking it first
+   // meant a single failed CopyRates (history not yet synced for this symbol) permanently
+   // discarded that bar's signal.
    MqlRates b[];
    ArraySetAsSeries(b,true);
-   if(CopyRates(sym,InpTimeframe,1,1,b)!=1) return;   // the just-closed bar (shift 1)
-   const double o=b[0].open, l=b[0].low, c=b[0].close;
-
+   if(CopyRates(sym,InpTimeframe,1,1,b)!=1) return;   // retry next tick/timer
    double atr=0.0;
-   if(!SimpleAtrBefore(sym,1,atr)) return;
+   if(!SimpleAtrBefore(sym,1,atr)) return;            // retry next tick/timer
+   g_last_bar[idx]=bar_time;                          // data confirmed - commit the bar
+
+   // Fidelity guard: the whole validation rests on filling at the OPEN of the next bar.
+   // If we are evaluating this bar long after it opened, that assumption is broken and the
+   // trade would not match the backtested distribution. Skip rather than enter late.
+   if((long)(now-bar_time)>InpMaxEntryLagSeconds)
+     {
+      PrintFormat("[SKIP] %s bar opened %ds ago (> %ds lag limit) - entry would not match the validated fill",
+                  sym,(int)(now-bar_time),InpMaxEntryLagSeconds);
+      return;
+     }
+
+   const double o=b[0].open, l=b[0].low, c=b[0].close;
 
    const double body=MathAbs(c-o);
    if(body<=InpBodyAtrMultiple*atr) return;   // not an extreme bar
@@ -471,7 +474,7 @@ void EvaluateSymbol(const int idx,const datetime now)
    const double target=entry+InpTargetR*dist;
 
    // ---- gates that block a new entry ----
-   RollDayIfNeeded(now);
+   // (day rollover and realised-R recompute happen centrally in ProcessOnce)
    if(g_day_locked) return;
    if(InpMaxConcurrent<99 && CountOpen()>=InpMaxConcurrent) return;
    if(InpMaxTradesPerDay<99 && g_day_trades>=InpMaxTradesPerDay) return;
@@ -483,12 +486,18 @@ void EvaluateSymbol(const int idx,const datetime now)
       if(srv.day_of_week==5 && srv.hour>=21) { g_day_locked=true; return; }
      }
    if(InpDailyBreakerR>0.0 && g_day_net_r<=-InpDailyBreakerR) { g_day_locked=true; return; }
-   if(InpProfitTarget>0.0 && EquityNow()>=InpProfitTarget) return;
+   if(g_target_reached) return;                     // prop target met - no new risk, ever
 
    // ---- sizing ----
    const double risk_cash=SizingBase()*InpRiskPercent/100.0;
    const double loss_per_lot=LossPerLot(sym,dist);
-   if(loss_per_lot<=0.0) { Halt("cannot price stop distance for "+sym); return; }
+   if(loss_per_lot<=0.0)
+     {
+      // Transient: tick size/value can be unavailable for a moment. Skipping this entry is
+      // the right response; halting (and flattening) the whole EA over it is not.
+      PrintFormat("[SKIP] %s cannot price stop distance (tick size/value unavailable)",sym);
+      return;
+     }
    const double lots=NormaliseLots(sym,risk_cash/loss_per_lot);
    if(lots<=0.0)
      {
@@ -500,7 +509,7 @@ void EvaluateSymbol(const int idx,const datetime now)
    // ---- margin ----
    double need=0.0;
    if(!OrderCalcMargin(ORDER_TYPE_BUY,sym,lots,entry,need))
-     { Halt("OrderCalcMargin failed for "+sym); return; }
+     { PrintFormat("[SKIP] %s OrderCalcMargin failed",sym); return; }
    const double free=AccountInfoDouble(ACCOUNT_MARGIN_FREE);
    if(need>free*0.90)
      {
@@ -540,11 +549,19 @@ void EvaluateSymbol(const int idx,const datetime now)
      }
    if(trade.Buy(lots,sym,entry,sl,tp,StringFormat("M5EXHAUST %s",sym)))
      {
-      g_day_trades++;
-      PrintFormat("[FILLED] %s %.2f lots ticket=%I64u",sym,lots,trade.ResultOrder());
+      // Buy() can return true for a request that was merely accepted; confirm the retcode.
+      const uint rc=trade.ResultRetcode();
+      if(rc==TRADE_RETCODE_DONE || rc==TRADE_RETCODE_DONE_PARTIAL || rc==TRADE_RETCODE_PLACED)
+        {
+         g_day_trades++;
+         PrintFormat("[FILLED] %s %.2f lots retcode=%u order=%I64u",sym,lots,rc,trade.ResultOrder());
+        }
+      else
+         PrintFormat("[ERROR] %s request accepted but retcode=%u %s",sym,rc,
+                     trade.ResultRetcodeDescription());
      }
    else
-      PrintFormat("[ERROR] %s order failed retcode=%d %s",sym,trade.ResultRetcode(),
+      PrintFormat("[ERROR] %s order failed retcode=%u %s",sym,trade.ResultRetcode(),
                   trade.ResultRetcodeDescription());
   }
 
@@ -553,6 +570,27 @@ void EvaluateSymbol(const int idx,const datetime now)
 //+------------------------------------------------------------------+
 void CheckHardStops()
   {
+   // Prop mode: once the target is met the challenge is won, so carrying further risk is
+   // pointless. Latched, because g_day_locked is cleared at every server midnight and would
+   // otherwise let the EA start trading again the next day on an already-passed account.
+   // If a qualifying-day requirement is configured, do NOT stand down until it is also met -
+   // flattening early would forfeit days still needed to pass.
+   if(!g_target_reached && InpProfitTarget>0.0 && EquityNow()>=InpProfitTarget)
+     {
+      const bool quals_ok=(InpQualifyingDays<=0 || g_qualifying_days>=InpQualifyingDays);
+      if(quals_ok)
+        {
+         g_target_reached=true;
+         PrintFormat("[TARGET] equity %.2f >= target %.2f with %d/%d qualifying days - "
+                     "flattening and standing down for good",
+                     EquityNow(),InpProfitTarget,g_qualifying_days,InpQualifyingDays);
+         FlattenOwnPositions("profit target and qualifying days reached");
+        }
+      else
+         PrintFormat("[TARGET] equity %.2f >= target %.2f but only %d/%d qualifying days - "
+                     "holding, still trading",
+                     EquityNow(),InpProfitTarget,g_qualifying_days,InpQualifyingDays);
+     }
    if(InpEquityFloor>0.0 && EquityNow()<=InpEquityFloor)
       Halt(StringFormat("equity %.2f breached floor %.2f",EquityNow(),InpEquityFloor));
    if(InpDailyLossLimitPct>0.0 && g_day_start_equity>0.0)
@@ -564,7 +602,7 @@ void CheckHardStops()
   }
 
 //+------------------------------------------------------------------+
-void OnTick()
+void ProcessOnce()
   {
    if(g_halted)
      {
@@ -572,8 +610,7 @@ void OnTick()
       return;
      }
    const datetime now=TimeCurrent();
-   RollDayIfNeeded(now);
-   ScanClosedDeals();
+   RecomputeDayState(now);
    ManageTimeouts(now);
    CheckHardStops();
 
@@ -584,4 +621,10 @@ void OnTick()
            EquityNow(),g_day_net_r,g_day_trades,CountOpen(),g_qualifying_days,
            g_day_locked?"\n DAY LOCKED":""));
   }
+
+//+------------------------------------------------------------------+
+//| OnTick fires only for the chart symbol; the timer covers the rest |
+//+------------------------------------------------------------------+
+void OnTick()  { ProcessOnce(); }
+void OnTimer() { ProcessOnce(); }
 //+------------------------------------------------------------------+

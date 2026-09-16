@@ -114,53 +114,124 @@ python3 validation/speed_lab/margin_and_swap_exposure.py   # Part C: margin + sw
 All three are standard-library only, per the repo's no-dependency convention. numpy is used
 only by the exploratory `sweep*.py` files and is not required for any shipped artifact.
 
-## Compilation status - please read
+## Verification — what was actually checked
 
-**This EA has not been compiled.** The validation environment has no MetaEditor, so it was
-checked by static audit instead: balanced braces and parens, all 23 functions defined, all 36
-inputs declared and referenced (plus 6 input group headers), no undeclared globals, and every external call resolved to
-either an MQL5 builtin or a documented `CTrade` method from `<Trade/Trade.mqh>`.
+This EA cannot be compiled here (no MetaEditor in the validation environment), so it was
+verified two ways instead.
 
-That is not a substitute for the compiler. **Before trusting it:**
+### 1. Logic equivalence, proven by emulation
 
-1. Open in MetaEditor and press F7. Fix every warning, not just errors.
-2. Run in the Strategy Tester on M5 with *"Every tick based on real ticks"*, all 8 symbols
-   available, over 2024-09 to 2026-09, at 0.50% risk.
-3. Confirm the tester reproduces the validated shape: **median about +10.9%/month, max DD
-   about 11%, roughly 32% losing months**. If it does not, something differs - most likely
-   the ATR window, the symbol's tick value, or the broker's spread. Do not enable live
-   trading until it matches.
-4. Only then work through the gate checklist above.
+`validation/speed_lab/ea_emulator.py` re-implements the EA's decision path **independently** —
+transcribed from the `.mq5` line by line, in the EA's own order — and compares it against
+`verify_final_config.py`, which produced the validated numbers. It parses the EA's inputs
+straight out of the source file, so the test cannot silently drift from the EA.
 
+| Check | Result |
+|---|---|
+| ATR window (`SimpleAtrBefore` vs `atr_prior`) | **IDENTICAL** — 477,430 bars compared, 0 mismatches, max relative difference 0.000e+00 |
+| Signals + geometry (trigger, long-only filter, stop, target, broken-geometry rejection) | **IDENTICAL** — 3,317 vs 3,317 trades, all 11 pairs matching exactly, stop distances differing by 0.0 |
+| Gate semantics (server-day key, Friday 21:00 block) | **IDENTICAL** — 15,643 timestamps, 0 mismatches |
+| Ships disabled | **PASS** — master switch and all six sign-off gates default to `false` |
+
+So the EA trades *the same strategy that was validated*. It also confirms the MQL5↔Python
+day-of-week mapping is right (MQL5 `day_of_week==5` and Python `weekday()==4` are both Friday).
+
+Re-run it any time with `python3 validation/speed_lab/ea_emulator.py` (~30 s).
+
+### 2. Static audit
+
+Balanced braces/parens, 23 functions all defined, 37 inputs all declared and referenced, no
+undeclared globals, no stray `};`, and every external call resolving to either an MQL5 builtin
+or a documented `CTrade` method from `<Trade/Trade.mqh>`.
+
+### Bugs this process found and fixed
+
+Round 1 (static audit):
+
+| Bug | Impact |
+|---|---|
+| `SimpleAtrBefore()` read the prior close for the oldest window bar from `shift+need`, which *is* that bar | Its true range degenerated to a bare high-low range. Flipped **8 trigger decisions in 124k bars (0.006%)** — small, but it broke exact reproduction. Fixed to `shift+need+1`; bar-count guard was also off by one |
+| Called `trade.SetTypeFillingBySymbol()`, which does not exist in `CTrade` | **Would not have compiled.** Replaced with a per-symbol mode from `SYMBOL_FILLING_MODE` |
+| No broker `SYMBOL_TRADE_STOPS_LEVEL` check | Orders would be rejected. Now skips rather than widening the stop (widening would change risk per trade) |
+| `Halt()` left positions open | Now flattens its own positions via `InpCloseAllOnHalt` |
+| Mid-day restart reset the −3R breaker | Now rebuilt from deal history |
+
+Round 2 (found while writing the emulator):
+
+| Bug | Impact |
+|---|---|
+| **`ScanClosedDeals()` used a 1-second-granularity watermark and *added* deals to a running total** | Many ticks share one second, so the same closed deals were re-selected and re-added **on every tick**. `g_day_net_r` inflated until the −3R breaker tripped spuriously and **locked out all trading**. Also mis-attributed deals closed across midnight to the wrong day. Replaced with an idempotent `RecomputeDayState()` that recounts from the server-day window |
+| **`OnTick()` only fires for the chart symbol** | With 8–11 symbols watched from one chart, a pair whose bar opened while the chart symbol was quiet would be evaluated late or never — breaking the next-bar-open fill the validation depends on. Added a 1-second `EventSetTimer` driving the same `ProcessOnce()` |
+| Bar was marked processed *before* `CopyRates`/ATR succeeded | One failed history sync permanently discarded that bar's signal. Now committed only after the data is in hand, and retried otherwise |
+| No entry-freshness guard | The EA could enter minutes after the bar opened, so the trade would not match the backtested fill distribution. Added `InpMaxEntryLagSeconds` (default 30 s) |
+| Prop-mode target was not latched, and ignored `InpQualifyingDays` | `g_day_locked` clears at every server midnight, so the EA would resume trading the next day on an already-passed account; and it flattened before the qualifying days were earned, which would forfeit them. Now latched in `g_target_reached` and gated on both conditions |
+| `g_day_trades` had two sources of truth and could regress | A fill increments it, then the history recount could overwrite it with a *lower* number before the deal synced, letting `InpMaxTradesPerDay` be exceeded. Now takes the max within a server day |
+| Transient tick-value / margin-calc failures called `Halt()` | A momentary glitch would flatten the whole book and disable the EA until restart. Now they skip the entry and log |
+| `day_key*86400` computed in `int` | ~1.73e9, overflowing int32 in 2038. Now cast to `long` |
+| `SizingBase()` honoured `InpSizingBaseOverride` even in compounding mode | Silently disabled compounding. Now applies only in fixed-fractional mode |
+| `Buy()`'s boolean return was trusted alone | It can be true for a request merely accepted. Now confirms `TRADE_RETCODE_DONE`/`DONE_PARTIAL`/`PLACED` |
+
+### Still not verified — read before trusting it
+
+**Compilation is unverified.** A static audit is not a compiler. Before enabling anything:
+
+1. Open in MetaEditor, press **F7**. Fix every warning, not just errors.
+2. Strategy Tester, M5, *"Every tick based on real ticks"*, 2024-09 → 2026-09, 0.50% risk,
+   all 8 symbols available in Market Watch.
+3. It must reproduce the validated shape: **median ≈ +10.9%/month, max DD ≈ 11%, roughly 32%
+   losing months.** If it does not, something differs — most likely the ATR window, a symbol's
+   tick value, or your broker's spread. Do not open any gate until it matches.
+4. Then work through the gate checklist.
+
+Two intentional differences from the backtest, neither a bug:
+
+- **Exits.** The EA sets real SL/TP and the broker resolves them tick-by-tick; the backtest
+  resolves on bar OHLC and books the *stop* when a bar spans both levels. Live results should
+  therefore be slightly **better** than backtested, not worse.
+- **Entry price.** The EA fills at `tick.ask`; the backtest uses the next bar's open.
+  `InpMaxEntryLagSeconds` exists to keep these close. Note the EA sizes from the *actual*
+  ask-based stop distance, so dollar risk stays at `InpRiskPercent` regardless of spread.
 ## Execution guards
 
-The EA refuses an entry rather than distorting the validated risk model:
+The EA refuses an entry rather than distorting the risk model the validation assumed:
 
 | Guard | Behaviour |
 |---|---|
-| Broker **stops level** | Skips if `entry - SL` or `TP - entry` is inside `SYMBOL_TRADE_STOPS_LEVEL`. It does **not** widen the stop, because widening changes the risk-per-trade the validation assumed |
+| **Entry freshness** | Skips if the bar opened more than `InpMaxEntryLagSeconds` (default 30 s) ago — a late fill would not match the backtested next-bar-open distribution |
+| Broker **stops level** | Skips if `entry - SL` or `TP - entry` is inside `SYMBOL_TRADE_STOPS_LEVEL`. It does **not** widen the stop, because widening changes risk per trade |
 | **Margin** | Skips if required margin exceeds 90% of free margin |
 | **Broken geometry** | Skips if the fill is already at/beyond the intended stop |
 | **Lot floor** | Skips if the computed size rounds below `SYMBOL_VOLUME_MIN` |
 | **Tradability** | Skips unless `SYMBOL_TRADE_MODE` is full/long-only and algo trading is permitted at EA, account and terminal level |
 | **Filling mode** | Chosen per symbol from `SYMBOL_FILLING_MODE` (FOK, else IOC, else RETURN) |
+| **Retcode** | Confirms `TRADE_RETCODE_DONE`/`DONE_PARTIAL`/`PLACED`; a `Buy()` that merely returned true is not counted as a fill |
 
-On `Halt()` the EA flattens its own positions when `InpCloseAllOnHalt=true` (default), so a
-halt never leaves orphaned risk running.
+Transient failures (unavailable tick value, failed `OrderCalcMargin`) **skip the entry and
+log** — they do not halt. `Halt()` is reserved for rule breaches, and flattens the EA's own
+positions when `InpCloseAllOnHalt=true` (default) so a halt never leaves orphaned risk.
 
-`RebuildTodayState()` runs in `OnInit` and reconstructs today's realised R and trade count
-from deal history, so **a mid-day restart no longer silently resets the -3R daily breaker**.
+`RecomputeDayState()` recounts today's realised R and trade count from deal history on every
+pass. It is idempotent by design, and the trade counter takes the max of the history count and
+the in-session count so it can never regress within a server day.
 
 ## Known limits of this implementation
 
-- Single-symbol chart attachment is not required; the EA iterates its symbol list from
-  `OnTick` on whatever chart it is attached to.
-- `RebuildTodayState()` restores the daily breaker across a restart, but sets
-  `g_day_start_equity` to the equity *at init*, not the true start-of-server-day equity.
-  After a mid-day restart the prop-mode `InpDailyLossLimitPct` baseline is therefore wrong
-  until the next server midnight. The -3R breaker itself is restored correctly, so for
-  prop-challenge use avoid restarting mid-day.
-- The 96 h timeout is enforced by polling in `ManageTimeouts()`; the EA must stay online.
+- **Attach to any one chart.** The EA iterates its symbol list from `ProcessOnce()`, driven by
+  both `OnTick` and a 1-second `OnTimer`. The timer matters: `OnTick` alone fires only for the
+  chart symbol, so without it a quiet pair's signals would be evaluated late or never.
+- **Strategy Tester caveat.** In the tester, `OnTimer` runs on simulated time and multi-symbol
+  data must be present in Market Watch. Test with *"Every tick based on real ticks"* and all 8
+  symbols downloaded, or the tester will not reproduce the validated distribution.
+- `RecomputeDayState()` rebuilds realised R and the trade count from deal history, so the −3R
+  breaker survives a restart. But `g_day_start_equity` is set to the equity *at init*, not the
+  true start-of-server-day equity, so after a mid-day restart the prop-mode
+  `InpDailyLossLimitPct` baseline is wrong until the next server midnight. **For prop-challenge
+  use, avoid restarting mid-day.**
+- The 96 h timeout is enforced by polling in `ManageTimeouts()`; the EA must stay online. SL/TP
+  are real broker-side orders, so those protect the position even if the EA disconnects.
 - No news filter. None was validated; adding one is untested upside, not a known improvement.
-- Lot size is floored to the broker's volume step, so on a very small account the realised
-  risk per trade is *lower* than `InpRiskPercent` — the backtest models the same floor.
+- Lot size is floored to the broker's volume step, so on a very small account the realised risk
+  per trade is *lower* than `InpRiskPercent`. The backtest models the same floor.
+- `g_qualifying_days` is tracked and displayed but only consulted before standing down at the
+  prop target. The EA does not itself verify that the firm has credited those days — check the
+  firm's dashboard, not this counter.
