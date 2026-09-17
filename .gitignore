@@ -13,3 +13,7 @@ __pycache__/
 # Offline validation data/reports (the frozen registry remains tracked)
 validation/*.csv
 validation/*_report.json
+
+# EA_SIGNAL_DUMP outputs: regenerable, large (~70MB for a year of M5 x 11 symbols)
+MQL5/Files/ea_signal_dump*.csv
+validation/speed_lab/selftest_dump.csv
