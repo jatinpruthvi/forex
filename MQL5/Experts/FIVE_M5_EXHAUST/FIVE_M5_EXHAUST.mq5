@@ -578,7 +578,9 @@ double EquityNow() { return AccountInfoDouble(ACCOUNT_EQUITY); }
 //| Two tiers, because not every input is frozen:                    |
 //|   HARD: strategy-defining. A change makes this a DIFFERENT       |
 //|         strategy, so the EA halts. Retuning is what this repo's  |
-//|         own PR #9 did, and it overstated itself by 2.5x.         |
+//|         own PR #9 did: its expectancy was +0.0685R               |
+//|         zero-cost and -1.0259R with costs modelled.              |
+//|         Not an overstatement - a sign flip.                      |
 //|   SOFT: account/broker settings that legitimately vary (risk %,  |
 //|         commission, universe, caps). These warn, with the        |
 //|         consequence named, because the published profile no      |
