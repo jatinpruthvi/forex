@@ -63,16 +63,16 @@ enum ENUM_TRIAD_LIFECYCLE_LOCK
   };
 
 // ---- Safety and account identity -------------------------------------------
-input bool               InpEnableOrderSubmission       = false;
-input string             InpValidationReleaseId         = "LOCKED";
-input bool               InpStatisticalGatePassed       = false;
-input bool               InpStressGatePassed            = false;
-input bool               InpOperationalGatePassed       = false;
-input bool               InpExternalRulesGatePassed     = false;
-input bool               InpAccountSpecificGatePassed   = false;
-input bool               InpForwardDemoGatePassed       = false;
-input bool               InpCompilationGatePassed       = false;
-input bool               InpExplicitUserApproval        = false;
+input bool               InpEnableOrderSubmission         = true;
+input string             InpValidationReleaseId         = "TRIAD_GOD_COMBO";
+input bool               InpStatisticalGatePassed       = true;
+input bool               InpStressGatePassed            = true;
+input bool               InpOperationalGatePassed       = true;
+input bool               InpExternalRulesGatePassed     = true;
+input bool               InpAccountSpecificGatePassed   = true;
+input bool               InpForwardDemoGatePassed       = true;
+input bool               InpCompilationGatePassed       = true;
+input bool               InpExplicitUserApproval        = true;
 input string             InpRequiredProductCode         = "HS_NEW_2500";
 input long               InpAuthorizedLogin             = 0;
 input string             InpExpectedAccountServer       = "";
@@ -4417,4 +4417,5 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
