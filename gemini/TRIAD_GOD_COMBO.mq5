@@ -1425,8 +1425,8 @@ bool IsExternalCashflowDeal(const ENUM_DEAL_TYPE type)
           type==DEAL_TYPE_CORRECTION || type==DEAL_TYPE_BONUS ||
           IsCommissionCashflowDeal(type) || type==DEAL_TYPE_INTEREST ||
           type==DEAL_TYPE_BUY_CANCELED || type==DEAL_TYPE_SELL_CANCELED ||
-          type==DEAL_TYPE_DIVIDEND || type==DEAL_TYPE_DIVIDEND_FRANKED ||
-          type==DEAL_TYPE_TAX;
+          
+          false;
   }
 
 void CheckExternalCashflow(const bool force=false)
