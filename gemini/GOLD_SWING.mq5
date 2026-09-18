@@ -12,6 +12,7 @@ input int    InpDonchianPeriod = 55;      // 55-Day Donchian Breakout
 input double InpChandelierAtrMult = 2.5;  // 2.5x ATR Trailing Stop
 input int    InpAtrPeriod = 14;           // ATR calculation period
 input double InpRiskPercent = 1.0;        // 1.0% fixed risk per trade
+input long   InpMagic = 55555;            // EA Magic Number
 
 int handle_atr;
 int handle_highest;
