@@ -94,7 +94,7 @@ input int                InpNewsBlockMinutes            = 30;
 input int                InpNewsFlatMinutes             = 15;
 input int                InpRolloverFlatMinutes         = 15;
 input string             InpNewsCsvFile                 = "triad_red_news.csv";
-input bool               InpRequireNewsCalendar         = false; // GEMINI: news blocking disabled
+input bool               InpRequireNewsCalendar         = true;
 input int                InpRequiredNewsCoverageHours   = 24;
 input int                InpMaxQuoteAgeSeconds          = 10;
 input int                InpMaxDeviationPoints          = 20;
@@ -844,8 +844,8 @@ bool ValidCurrencyCode(const string value)
    return true;
   }
 
-bool LoadNewsCalendar()
-  {
+bool LoadNewsCalendar() {
+   if(InpRequireNewsCalendar) DownloadNewsCalendar();
    return true; // GEMINI: bypass news calendar loading
    ArrayResize(g_news,0);
    g_news_coverage_end_utc=0;
@@ -4438,3 +4438,59 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
 
 
 
+
+
+string ExtractXMLTag(string xml, string tag)
+  {
+   string open_tag = "<"+tag+"><![CDATA[";
+   string close_tag = "]]></"+tag+">";
+   int start = StringFind(xml, open_tag);
+   if(start == -1)
+     {
+      open_tag = "<"+tag+">";
+      close_tag = "</"+tag+">";
+      start = StringFind(xml, open_tag);
+      if(start == -1) return "";
+     }
+   start += StringLen(open_tag);
+   int end = StringFind(xml, close_tag, start);
+   if(end == -1) return "";
+   return StringSubstr(xml, start, end - start);
+  }
+
+bool DownloadNewsCalendar()
+  {
+   string url="https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
+   char post[],result[];
+   string headers;
+   int res=WebRequest("GET",url,NULL,NULL,5000,post,0,result,headers);
+   if(res==-1)
+     {
+      Print("[ERROR] WebRequest failed! Please add ", url, " to Tools->Options->Expert Advisors->Allow WebRequest for listed URL");
+      return false;
+     }
+   string xml = CharArrayToString(result);
+   int handle = FileOpen(InpNewsCsvFile, FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(handle==INVALID_HANDLE) return false;
+   int pos = 0;
+   while((pos = StringFind(xml, "<event>", pos)) != -1)
+     {
+      int end_pos = StringFind(xml, "</event>", pos);
+      if(end_pos == -1) break;
+      string event_str = StringSubstr(xml, pos, end_pos - pos);
+      pos = end_pos;
+      string impact = ExtractXMLTag(event_str, "impact");
+      if(impact != "High") continue;
+      string date = ExtractXMLTag(event_str, "date");
+      string time_str = ExtractXMLTag(event_str, "time");
+      string country = ExtractXMLTag(event_str, "country");
+      string title = ExtractXMLTag(event_str, "title");
+      // Basic time formatting mapping mm-dd-yyyy to yyyy.mm.dd
+      string formatted_date = StringSubstr(date, 6, 4) + "." + StringSubstr(date, 0, 2) + "." + StringSubstr(date, 3, 2);
+      FileWrite(handle, formatted_date+" "+time_str, country, impact, title);
+     }
+   FileWrite(handle, "2030.01.01 00:00", "ALL", "COVERAGE", "End of File Coverage");
+   FileClose(handle);
+   Print("[INFO] News calendar successfully downloaded and saved to ", InpNewsCsvFile);
+   return true;
+  }
