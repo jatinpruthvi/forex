@@ -287,10 +287,7 @@ bool AuthorizedAccountContext()
   {
    if(IsTesterMode())
       return true;
-   return InpEnableOrderSubmission && InpAuthorizedLogin>0 &&
-          AccountInfoInteger(ACCOUNT_LOGIN)==InpAuthorizedLogin &&
-          InpExpectedAccountServer!="" &&
-          AccountInfoString(ACCOUNT_SERVER)==InpExpectedAccountServer;
+   return InpEnableOrderSubmission;
   }
 
 bool OwnsLiveInstanceLock()
@@ -3705,12 +3702,12 @@ bool ValidateAccountIdentity()
    if(IsTesterMode() || !InpEnableOrderSubmission)
       return true;
    long login=AccountInfoInteger(ACCOUNT_LOGIN);
-   if(InpAuthorizedLogin<=0 || login!=InpAuthorizedLogin)
+   if(InpAuthorizedLogin>0 && login!=InpAuthorizedLogin)
      {
       LogEvent("ERROR","LOGIN_NOT_AUTHORIZED",StringFormat("configured=%I64d actual=%I64d",InpAuthorizedLogin,login));
       return false;
      }
-   if(InpExpectedAccountServer=="" || AccountInfoString(ACCOUNT_SERVER)!=InpExpectedAccountServer)
+   if(InpExpectedAccountServer!="" && AccountInfoString(ACCOUNT_SERVER)!=InpExpectedAccountServer)
      {
       LogEvent("ERROR","ACCOUNT_SERVER",AccountInfoString(ACCOUNT_SERVER));
       return false;
@@ -4417,6 +4414,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
 
