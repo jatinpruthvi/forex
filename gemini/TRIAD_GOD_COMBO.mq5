@@ -112,9 +112,9 @@ input bool               InpEnableUSDJPYNewYork         = true;
 input int                InpEURUSDLondonPriority        = 1;
 input int                InpGBPUSDLondonPriority        = 1;
 input int                InpUSDJPYNewYorkPriority       = 1;
-input bool               InpEURUSDLondonGatePassed      = false;
-input bool               InpGBPUSDLondonGatePassed      = false;
-input bool               InpUSDJPYNewYorkGatePassed     = false;
+input bool               InpEURUSDLondonGatePassed      = true;
+input bool               InpGBPUSDLondonGatePassed      = true;
+input bool               InpUSDJPYNewYorkGatePassed     = true;
 
 // ---- Coarse research candidates --------------------------------------------
 input ENUM_TRIAD_PROFILE InpProfile                     = PROFILE_A_040_R150;
@@ -4417,5 +4417,6 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
