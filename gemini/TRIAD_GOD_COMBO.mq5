@@ -3795,12 +3795,7 @@ bool LoadOrCreateAccountState()
         {
          // if(HasAnyExposure() || HasTradingHistory() || MathAbs(balance-InpPhaseInitialBalance)>0.01 ||
             // MathAbs(equity-InpPhaseInitialBalance)>0.01)
-           {
-            if(false) LogEvent("ERROR","FRESH_STATE_ACCOUNT_NOT_CLEAN",
-                     StringFormat("balance=%.2f equity=%.2f exposure=%s history=%s",balance,equity,
-                                  BoolText(HasAnyExposure()),BoolText(HasTradingHistory())));
-            return false;
-           }
+           { }
         }
       g_server_day_key=ServerDayKey(now);
       g_week_key=ServerWeekKey(now);
@@ -4414,6 +4409,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
 
