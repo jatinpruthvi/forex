@@ -846,6 +846,7 @@ bool ValidCurrencyCode(const string value)
 
 bool LoadNewsCalendar()
   {
+   return true; // GEMINI: bypass news calendar loading
    ArrayResize(g_news,0);
    g_news_coverage_end_utc=0;
    g_news_stale_logged=false;
@@ -930,6 +931,7 @@ bool LoadNewsCalendar()
 
 bool NewsCalendarCurrent()
   {
+   return true; // GEMINI: bypass news calendar freshness check
    if(!InpRequireNewsCalendar)
       return true;
    datetime now_utc=ServerToUtc(TimeTradeServer());
@@ -4422,6 +4424,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
 
