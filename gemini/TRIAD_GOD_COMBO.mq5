@@ -83,7 +83,7 @@ input ENUM_TRIAD_LIFECYCLE_LOCK InpLifecycleLock        = LIFECYCLE_ACTIVE;
 input double             InpPhaseInitialBalance         = 2500.0;
 input int                InpDashboardConfirmedDays      = 0;
 input bool               InpUseEstimatedDaysInTester    = true;
-input bool               InpAuthorizeFreshPhaseState    = false;
+input bool               InpAuthorizeFreshPhaseState    = true;
 input bool               InpAuthorizeHaltReset          = false;
 input bool               InpResetTesterStateOnInit      = true;
 input long               InpMagic                       = 26090321;
@@ -4414,6 +4414,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
 
