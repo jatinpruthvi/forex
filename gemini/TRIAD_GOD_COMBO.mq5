@@ -77,7 +77,7 @@ input string             InpRequiredProductCode         = "HS_NEW_2500";
 input long               InpAuthorizedLogin             = 0;
 input string             InpExpectedAccountServer       = "";
 input string             InpExpectedAccountCurrency     = "USD";
-input int                InpExpectedAccountLeverage     = 100;
+input int                InpExpectedAccountLeverage     = 0; // 0 = any leverage
 input ENUM_TRIAD_PHASE   InpPhase                       = TRIAD_PHASE_1;
 input ENUM_TRIAD_LIFECYCLE_LOCK InpLifecycleLock        = LIFECYCLE_ACTIVE;
 input double             InpPhaseInitialBalance         = 2500.0;
@@ -3717,7 +3717,7 @@ bool ValidateAccountIdentity()
       LogEvent("ERROR","ACCOUNT_CURRENCY",AccountInfoString(ACCOUNT_CURRENCY));
       return false;
      }
-   if((int)AccountInfoInteger(ACCOUNT_LEVERAGE)!=InpExpectedAccountLeverage)
+   if(InpExpectedAccountLeverage>0 && (int)AccountInfoInteger(ACCOUNT_LEVERAGE)!=InpExpectedAccountLeverage)
      {
       LogEvent("ERROR","ACCOUNT_LEVERAGE",StringFormat("expected=%d actual=%I64d",
                InpExpectedAccountLeverage,AccountInfoInteger(ACCOUNT_LEVERAGE)));
@@ -4414,6 +4414,8 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
+
 
 
 
