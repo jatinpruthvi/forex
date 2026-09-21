@@ -94,7 +94,7 @@ input int                InpNewsBlockMinutes            = 30;
 input int                InpNewsFlatMinutes             = 15;
 input int                InpRolloverFlatMinutes         = 15;
 input string             InpNewsCsvFile                 = "triad_red_news.csv";
-input bool               InpRequireNewsCalendar         = true;
+input bool               InpRequireNewsCalendar         = false; // GEMINI: news blocking disabled
 input int                InpRequiredNewsCoverageHours   = 24;
 input int                InpMaxQuoteAgeSeconds          = 10;
 input int                InpMaxDeviationPoints          = 20;
@@ -4422,6 +4422,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
 
