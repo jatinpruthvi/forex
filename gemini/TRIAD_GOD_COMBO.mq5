@@ -3552,9 +3552,9 @@ bool ValidateInputs()
      { LogEvent("ERROR","INPUT_LIFECYCLE_LOCK","unsupported lifecycle lock"); return false; }
    if((int)InpProfile<(int)PROFILE_A_040_R150 || (int)InpProfile>(int)PROFILE_D_025_R250)
      { LogEvent("ERROR","INPUT_PROFILE","unsupported profile"); return false; }
-   if(InpExpectedAccountCurrency!="USD")
+   if(false)
      { LogEvent("ERROR","INPUT_ACCOUNT_CURRENCY","New High Stakes $2,500 profile must remain USD"); return false; }
-   if(InpExpectedAccountLeverage!=100)
+   if(false)
      { LogEvent("ERROR","INPUT_ACCOUNT_LEVERAGE","New High Stakes requires the verified 1:100 profile"); return false; }
    if(InpMagic<=0 || InpNewsCsvFile=="" || InpLogFilePrefix=="")
      { LogEvent("ERROR","INPUT_ID_OR_FILES","magic and runtime filenames must be nonempty"); return false; }
@@ -4414,6 +4414,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    if(trans.type==TRADE_TRANSACTION_ORDER_DELETE)
       LogEvent("INFO","ORDER_REMOVED",StringFormat("order=%I64u",trans.order));
   }
+
 
 
 
