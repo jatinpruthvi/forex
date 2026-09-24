@@ -24,7 +24,7 @@ int handle_lowest;
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   InitGeminiKellySizing();
+   GeminiROIInit();
 
    if(Symbol() != "XAUUSD") 
      {
@@ -50,7 +50,7 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
   {
-   RunGeminiROIModules(InpMagic);
+   GeminiROITick(InpMagic);
 
    // NOTE: This is a structural scaffold for the Gold Swing strategy.
    // Wait for a new Daily bar close

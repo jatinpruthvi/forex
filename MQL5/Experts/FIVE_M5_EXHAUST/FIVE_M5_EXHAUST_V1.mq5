@@ -675,7 +675,7 @@ string CheckFrozenParameters()
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   InitGeminiKellySizing();
+   GeminiROIInit();
 
    trade.SetExpertMagicNumber((ulong)InpMagic);
    trade.SetDeviationInPoints(InpMaxDeviationPoints);
@@ -1160,10 +1160,10 @@ void ProcessOnce()
 //| OnTick fires only for the chart symbol; the timer covers the rest |
 //+------------------------------------------------------------------+
 void OnTick()  {
-   RunGeminiROIModules(InpMagic);
+   GeminiROITick(InpMagic);
  ProcessOnce(); }
 void OnTimer() {
-   RunGeminiROIModules(InpMagic);
+   GeminiROITick(InpMagic);
  ProcessOnce(); }
 //+------------------------------------------------------------------+
 

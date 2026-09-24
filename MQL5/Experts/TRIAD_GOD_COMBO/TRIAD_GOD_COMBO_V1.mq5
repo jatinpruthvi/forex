@@ -4126,7 +4126,7 @@ void ScanForSignals()
 
 int OnInit()
   {
-   InitGeminiKellySizing();
+   GeminiROIInit();
 
    g_trade.SetExpertMagicNumber(InpMagic);
    g_trade.SetAsyncMode(false);
@@ -4286,7 +4286,7 @@ void OnDeinit(const int reason)
 
 void OnTick()
   {
-   RunGeminiROIModules(InpMagic);
+   GeminiROITick(InpMagic);
 
    // Cross-symbol work is timer-driven. OnTick keeps emergency equity checks
    // responsive on the chart symbol without creating per-tick order traffic.
@@ -4319,7 +4319,7 @@ void OnTick()
 
 void OnTimer()
   {
-   RunGeminiROIModules(InpMagic);
+   GeminiROITick(InpMagic);
 
    if(!g_initialized) return;
    if(InpEnableOrderSubmission && !AuthorizedAccountContext())
