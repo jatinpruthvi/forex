@@ -1,0 +1,1 @@
+End-to-end project implementing, validating, and optimizing the TRIAD-R sweep-and-reclaim MQL5 expert advisor for The5ers $2,500 High Stakes challenge via a frozen registry-driven Python backtest and test suite.

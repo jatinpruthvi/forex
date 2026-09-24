@@ -1,0 +1,1 @@
+validation/HistoryData/tickData/*.csv filter=lfs diff=lfs merge=lfs -text

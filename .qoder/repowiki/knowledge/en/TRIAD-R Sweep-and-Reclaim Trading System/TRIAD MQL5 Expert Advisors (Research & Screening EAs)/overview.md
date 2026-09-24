@@ -1,0 +1,1 @@
+Two MQL5 expert advisors implementing the TRIAD-R V2.1 sweep-and-reclaim strategy: a production-grade single-position EA with lifecycle locks and a demo-only screening EA with an on-chart challenge dashboard.

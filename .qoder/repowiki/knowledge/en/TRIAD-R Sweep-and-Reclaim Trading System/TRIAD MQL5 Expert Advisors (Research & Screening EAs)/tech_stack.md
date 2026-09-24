@@ -1,0 +1,1 @@
+MQL5 Expert Advisors targeting MetaTrader 5, using `#property tester_file "triad_red_news.csv"` for backtesting, `CTrade` for order submission, and terminal GlobalVariables for live-instance locking and state persistence in the production EA.

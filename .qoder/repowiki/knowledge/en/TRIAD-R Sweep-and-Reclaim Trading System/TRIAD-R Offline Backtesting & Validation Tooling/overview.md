@@ -1,0 +1,1 @@
+Standalone Python scripts that backtest ORB/sweep strategies on historical tick data and produce a registry-conformant, bootstrap-validated TRIAD-R challenge replay pipeline.

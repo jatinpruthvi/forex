@@ -1,0 +1,7 @@
+- Every script is fully self-contained with its own `if __name__ == "__main__": main()` entry point and no cross-imports except the tight validation pipeline where `triad_ablation` imports from `replay_export` and both import shared types from `triad_validation`.
+- DST handling is implemented locally per script via a `_last_sunday(year, month)` helper plus session offset functions (`london_offset`/`ny_offset`, `lw_to_srv`/`ny_to_srv`) that convert wall-clock session times to Eightcap server time (UTC+3).
+- Tick data is parsed by streaming a tab-delimited CSV with `csv.reader`, skipping the header row, and grouping `(datetime, price)` pairs into day-keyed dicts before building M5/M15 bars via a `_bar_key(dt, period)` floored-minute function.
+- ATR(14) is computed as a simple mean of the last 14 completed M15 bar ranges `(high - low)` filtered by a `before` datetime cutoff, returning 0.0 when fewer than 14 bars exist.
+- Lot sizing derives from a fixed risk fraction of account balance (0.4% per trade) divided by stop-distance pip value plus commission, then floored to `VOLUME_STEP` (0.01) and clamped to `VOLUME_MIN`.
+- Grid searches enumerate parameters via nested `for` loops over module-level constant lists (e.g. `TARGET_R_GRID`, `ORB_BARS_GRID`, `STOP_MODE_GRID`) and skip invalid combinations inside the innermost loop rather than via `itertools`.
+- Results are reported through formatted console tables and a `write_findings` / JSON-report writer that appends sections describing methodology, top combos, and recommended next steps.

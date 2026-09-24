@@ -1,0 +1,1 @@
+MQL5 for live trading EAs on MetaTrader 5; Python 3.13 with only stdlib plus `pytest` and `tzdata` for backtesting, parameter grid search, ablation, and validation against M5 OHLCV CSV history files.
