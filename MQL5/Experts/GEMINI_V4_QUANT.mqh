@@ -172,3 +172,4 @@ double GeminiV4_FVG_Score(string symbol, ENUM_ORDER_TYPE type)
      
    return 1.0;
   }
+
