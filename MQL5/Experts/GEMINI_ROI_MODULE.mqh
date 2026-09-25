@@ -662,7 +662,6 @@ void GeminiLoadCOTData()
    g_cot_count = 0;
    int fh = FileOpen(GInpCOTCsvFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_SHARE_READ, ',');
    if(fh == INVALID_HANDLE) { Print("[GEMINI] COT file not found: ",GInpCOTCsvFile); return; }
-   // Expected CSV format: currency,net_position (e.g. EUR,45000 means longs heavy = bullish)
    while(!FileIsEnding(fh) && g_cot_count < 10)
      {
       string currency  = FileReadString(fh);
@@ -677,6 +676,187 @@ void GeminiLoadCOTData()
      }
    FileClose(fh);
    Print("[GEMINI] COT data loaded: ",g_cot_count," currencies");
+  }
+
+//===================================================================
+//  AUTO-DOWNLOADER: ForexFactory News Calendar
+//  Add https://nfs.faireconomy.media to MT5 allowed WebRequest URLs
+//===================================================================
+bool GeminiDownloadForexFactoryNews()
+  {
+   if(!GInpEnableNewsPrepos) return false;
+
+   string url = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
+   char   post[], result[];
+   string headers;
+   int    res = WebRequest("GET", url, NULL, NULL, 10000, post, 0, result, headers);
+   if(res == -1)
+     {
+      Print("[GEMINI] ForexFactory download FAILED. Add ",url," to Tools->Options->Expert Advisors->Allow WebRequest. Error=",GetLastError());
+      return false;
+     }
+
+   string xml = CharArrayToString(result);
+   int wh = FileOpen(GInpNewsPreposCsv, FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(wh == INVALID_HANDLE)
+     { Print("[GEMINI] Cannot write news CSV: ",GInpNewsPreposCsv); return false; }
+
+   int pos = 0;
+   int events_written = 0;
+   // Write coverage sentinel — EA needs this to know the file is valid through next week
+   datetime coverage_end = TimeCurrent() + 8*24*3600; // 8 days from now
+   FileWrite(wh, TimeToString(coverage_end, TIME_DATE|TIME_MINUTES), "ALL", "COVERAGE", "Gemini auto-coverage");
+
+   while((pos = StringFind(xml, "<event>", pos)) != -1)
+     {
+      int end_pos = StringFind(xml, "</event>", pos);
+      if(end_pos == -1) break;
+      string ev = StringSubstr(xml, pos, end_pos - pos);
+      pos = end_pos;
+
+      // Extract fields
+      string impact = _GExtractXML(ev, "impact");
+      if(impact != "High") continue;
+
+      string date_str = _GExtractXML(ev, "date");   // MM-DD-YYYY
+      string time_str = _GExtractXML(ev, "time");   // e.g. "8:30am"
+      string country  = _GExtractXML(ev, "country");
+      string title    = _GExtractXML(ev, "title");
+
+      // Convert MM-DD-YYYY to YYYY.MM.DD for MQL5 StringToTime compatibility
+      string yyyy = StringSubstr(date_str,6,4);
+      string mm   = StringSubstr(date_str,0,2);
+      string dd   = StringSubstr(date_str,3,2);
+      string fmt_date = yyyy+"."+mm+"."+dd+" "+time_str;
+
+      FileWrite(wh, fmt_date, country, impact, title);
+      events_written++;
+     }
+   FileClose(wh);
+   Print("[GEMINI] ForexFactory news downloaded: ",events_written," High-impact events saved to ",GInpNewsPreposCsv);
+   return true;
+  }
+
+string _GExtractXML(const string &xml, const string tag)
+  {
+   string open1 = "<"+tag+"><![CDATA[";
+   string close1= "]]></"+tag+">";
+   string open2 = "<"+tag+">";
+   string close2= "</"+tag+">";
+   int s = StringFind(xml, open1);
+   string op, cl;
+   if(s >= 0) { op=open1; cl=close1; }
+   else        { s=StringFind(xml,open2); op=open2; cl=close2; }
+   if(s < 0) return "";
+   s += StringLen(op);
+   int e = StringFind(xml, cl, s);
+   if(e < 0) return "";
+   return StringSubstr(xml, s, e-s);
+  }
+
+//===================================================================
+//  AUTO-DOWNLOADER: CFTC COT Report
+//  Add https://www.cftc.gov to MT5 allowed WebRequest URLs
+//  Downloads the disaggregated futures-only report and parses net
+//  non-commercial positions for the 7 major forex currencies.
+//===================================================================
+bool GeminiDownloadCOTReport()
+  {
+   if(!GInpEnableCOTFilter) return false;
+
+   string url = "https://www.cftc.gov/dea/newcot/f_disagg.txt";
+   char   post[], result[];
+   string headers;
+   int    res = WebRequest("GET", url, NULL, NULL, 30000, post, 0, result, headers);
+   if(res == -1)
+     {
+      Print("[GEMINI] CFTC COT download FAILED. Add https://www.cftc.gov to MT5 allowed URLs. Error=",GetLastError());
+      return false;
+     }
+
+   string raw = CharArrayToString(result);
+
+   // Mapping: search string → our 3-letter currency code
+   string search_keys[] = {
+      "EURO FX",         "EUR",
+      "BRITISH POUND",   "GBP",
+      "JAPANESE YEN",    "JPY",
+      "AUSTRALIAN DOLLAR","AUD",
+      "CANADIAN DOLLAR", "CAD",
+      "SWISS FRANC",     "CHF",
+      "NEW ZEALAND DOLLAR","NZD"
+   };
+
+   int wh = FileOpen(GInpCOTCsvFile, FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(wh == INVALID_HANDLE) { Print("[GEMINI] Cannot write COT CSV: ",GInpCOTCsvFile); return false; }
+   FileWrite(wh, "currency", "net_noncomm"); // header
+
+   int written = 0;
+   for(int k = 0; k < ArraySize(search_keys); k += 2)
+     {
+      string search  = search_keys[k];
+      string curr    = search_keys[k+1];
+
+      int line_start = StringFind(raw, search);
+      if(line_start < 0) continue;
+
+      // Find the end of this line
+      int line_end = StringFind(raw, "\n", line_start);
+      if(line_end < 0) line_end = StringLen(raw);
+      string line = StringSubstr(raw, line_start, line_end - line_start);
+
+      // COT f_disagg.txt column layout (comma-delimited):
+      // 0: Market_and_Exchange_Names
+      // 1: As_of_Date_In_Form_YYMMDD
+      // 2: Report_Date_as_YYYY-MM-DD
+      // 3: CFTC_Contract_Market_Code
+      // 4: Market_and_Exchange_Names (short)
+      // 5: CFTC_Market_Code
+      // 6: CFTC_Region_Code
+      // 7: CFTC_Commodity_Code
+      // 8: Open_Interest_All
+      // 9: NonComm_Positions_Long_All   <-- we want this
+      // 10: NonComm_Positions_Short_All <-- and this
+      // Net = col9 - col10
+
+      string parts[];
+      int n_parts = StringSplit(line, ',', parts);
+      if(n_parts < 11) continue;
+
+      string s_long  = parts[9];  string s_short = parts[10];
+      StringTrimLeft(s_long);  StringTrimRight(s_long);
+      StringTrimLeft(s_short); StringTrimRight(s_short);
+      double nc_long  = StringToDouble(s_long);
+      double nc_short = StringToDouble(s_short);
+      double net      = nc_long - nc_short;
+
+      FileWrite(wh, curr, DoubleToString(net, 0));
+      Print("[GEMINI] COT: ",curr," net_noncomm=",DoubleToString(net,0)," (L=",nc_long," S=",nc_short,")");
+      written++;
+     }
+   FileClose(wh);
+   Print("[GEMINI] CFTC COT report downloaded: ",written," currencies saved to ",GInpCOTCsvFile);
+   GeminiLoadCOTData(); // Reload into memory immediately
+   return written > 0;
+  }
+
+// Tracking for periodic re-downloads
+datetime g_gemini_last_news_dl = 0;
+datetime g_gemini_last_cot_dl  = 0;
+
+void GeminiRefreshDownloads()
+  {
+   datetime now = TimeCurrent();
+   // Re-download news calendar every 24h
+   if(GInpEnableNewsPrepos && (now - g_gemini_last_news_dl) > 86400)
+     {
+      if(GeminiDownloadForexFactoryNews()) g_gemini_last_news_dl = now;
+     }
+   // Re-download COT every 7 days (CFTC releases weekly on Fridays)
+   if(GInpEnableCOTFilter && (now - g_gemini_last_cot_dl) > 604800)
+     {
+      if(GeminiDownloadCOTReport()) g_gemini_last_cot_dl = now;
+     }
   }
 
 bool GeminiCOTAllows(string symbol, ENUM_ORDER_TYPE order_type)
@@ -702,12 +882,17 @@ void GeminiROIInit()
   {
    GeminiInitKelly();
    GeminiLoadWFState();
+   // Download fresh data on startup
+   GeminiDownloadForexFactoryNews();
+   GeminiDownloadCOTReport();
    GeminiLoadCOTData();
    g_gemini_week_bal     = AccountInfoDouble(ACCOUNT_BALANCE);
    g_gemini_week_key     = 0;
    g_gemini_week_reduced = false;
    g_pair_count          = 0;
-   Print("[GEMINI] ROI Module v3.0 initialized — 18 improvements active");
+   g_gemini_last_news_dl = TimeCurrent();
+   g_gemini_last_cot_dl  = TimeCurrent();
+   Print("[GEMINI] ROI Module v3.1 initialized — 18 improvements + auto-downloaders active");
   }
 
 // All-in-one gate check: call this BEFORE opening any new trade
@@ -738,6 +923,7 @@ double GeminiRiskMultiplier(string symbol)
 void GeminiROITick(ulong magic)
   {
    GeminiCheckWeeklyReset();
+   GeminiRefreshDownloads();
    GeminiRunBreakeven(magic);
    GeminiRunTrailingStops(magic);
    GeminiH1StructureExit(magic);
