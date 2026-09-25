@@ -692,7 +692,17 @@ bool GeminiDownloadForexFactoryNews()
    int    res = WebRequest("GET", url, NULL, NULL, 10000, post, 0, result, headers);
    if(res == -1)
      {
-      Print("[GEMINI] ForexFactory download FAILED. Add ",url," to Tools->Options->Expert Advisors->Allow WebRequest. Error=",GetLastError());
+      Print("=======================================================");
+      Print("[GEMINI] ERROR: ForexFactory news calendar download FAILED.");
+      Print("[GEMINI] To fix this, follow these steps in MetaTrader 5:");
+      Print("[GEMINI]   1. Click 'Tools' in the top menu");
+      Print("[GEMINI]   2. Click 'Options'");
+      Print("[GEMINI]   3. Click the 'Expert Advisors' tab");
+      Print("[GEMINI]   4. Check the box: 'Allow WebRequest for listed URL'");
+      Print("[GEMINI]   5. Click the green '+' button and add: https://nfs.faireconomy.media");
+      Print("[GEMINI]   6. Click OK, then re-attach the EA to the chart");
+      Print("[GEMINI] Error code: ",GetLastError());
+      Print("=======================================================");
       return false;
      }
 
@@ -770,7 +780,17 @@ bool GeminiDownloadCOTReport()
    int    res = WebRequest("GET", url, NULL, NULL, 30000, post, 0, result, headers);
    if(res == -1)
      {
-      Print("[GEMINI] CFTC COT download FAILED. Add https://www.cftc.gov to MT5 allowed URLs. Error=",GetLastError());
+      Print("=======================================================");
+      Print("[GEMINI] ERROR: CFTC COT report download FAILED.");
+      Print("[GEMINI] To fix this, follow these steps in MetaTrader 5:");
+      Print("[GEMINI]   1. Click 'Tools' in the top menu");
+      Print("[GEMINI]   2. Click 'Options'");
+      Print("[GEMINI]   3. Click the 'Expert Advisors' tab");
+      Print("[GEMINI]   4. Check the box: 'Allow WebRequest for listed URL'");
+      Print("[GEMINI]   5. Click the green '+' button and add: https://www.cftc.gov");
+      Print("[GEMINI]   6. Click OK, then re-attach the EA to the chart");
+      Print("[GEMINI] Error code: ",GetLastError());
+      Print("=======================================================");
       return false;
      }
 
