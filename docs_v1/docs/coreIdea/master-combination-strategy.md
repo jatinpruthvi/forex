@@ -62,6 +62,9 @@ D8  micro-live-falsification-protocol.md  validation protocol (the OS)
 | **D6** | Cross-asset leader lattice (gold→AUD, oil→CAD) | Cheap version first: yield-diff gate already adopted; leader lattice after MFP-00x |
 | **D7** | Avellaneda-Stoikov market-making | Personal capital >$50k + dedicated liquidity data; zero dependency on other layers |
 | **D3** | Convex pyramiding (risk-free-add gate) | Adopted immediately ONLY as D2's C2b pyramid rules (already in combination); AAM's version is the same idea — keep D2's |
+| **R4B** | **Personal risk ratchet** — C1 0.75% → 1.0% → 1.25% | E1 has ≥30 live trades with `E > 0.25R` **and** `E₅₀ > 0.35R`. Hard ceiling **2.2%** (Kelly `r*/6`). Never applies to eval/funded |
+| **R2B** | **Grade-tier sizing** (A=2.5%, B=1.0%) | Personal sleeve only, wrapper still caps; eval/funded keep grade-as-filter (wrapper governs) |
+| **R4B** | **6th funded account** | 2 consecutive evals passed, then only inside a promo window |
 
 ### ❌ DROP (rejected by this combination, and why)
 
@@ -72,8 +75,47 @@ D8  micro-live-falsification-protocol.md  validation protocol (the OS)
 | **D7** | Poisson-jitter "dealer evasion", account disguising | Void-payout risk = negative ROI. Only the benign hygiene subset retained (limit orders, natural sizing). |
 | **D6** | Full joint multi-account portfolio optimization | Overkill until >4 funded accounts exist; D6's simple stagger rule is enough. |
 | **D1** | A/B/C tiers at 2.0–2.5% for A-grade | Conflicts with track wrappers — the track wrapper's cap governs (see §5). |
+| **Tri-Pillar Review** | 0.7R Stop & 3% Heat Cap | Re-proposed but rejected. 0.7R crashes expectancy via BE scratches; 3% exceeds 40% rule of a 5% daily limit. |
 | **All** | Treating any single doc's dollar projections as forecast | D8's Evidence Ledger governs; only D1's "honest haircut" table used for planning. |
 
+
+---
+
+## 1b. Where the ROI actually comes from (layer hierarchy)
+
+ACM's audited attribution — the reason this strategy is ordered the way it is:
+
+| Layer | What it is | Share of final ROI |
+|---|---|---|
+| **1 — Signal alpha** | better entries (E1–E3) | **~15%** |
+| **2 — Allocation alpha** | which engine, what size (grading, heat, throttle) | **~30%** |
+| **3 — Structural alpha** | evals, firms, fees, cost (procurement, hygiene) | **~35%** |
+| **4 — Income alpha** | uncorrelated sleeves (E4) | **~20%** |
+
+**Layers 2 + 3 = 65% of final ROI** and cost ~$0. That is why Stage 0 exists and why
+it precedes any entry logic. Reaching for another signal engine is the cheapest thing
+to build and the smallest prize. *(ACM's stated attribution — our own ledger has not
+yet measured it; that measurement is the new telemetry hook below.)*
+
+Full lever ranking, dimension scores, evidence sources and gated triggers live in
+**`roi-lever-scorecard.md`** — 15 levers scored on 6 weighted dimensions with a
+Return-vs-Ruin tension plot. It produced four upgrades to this strategy:
+
+1. **Heat redistribution.** Capping heat was only half the job. Hold the heat budget
+   constant and *give it back* to uncorrelated trades: `r_i = H / √(1ᵀρ1)` —
+   3 correlated USD legs → 1.0% each; 3 uncorrelated → 1.7% each, same 3% budget.
+   **+20–25% compound growth with zero signal change** (R4B §A, "the free 25%").
+2. **Log the signals you decline.** The Shadow ML logger must record skipped/C-grade
+   signals, not only taken ones. Meta-labeling (+4R/mo) needs ~500 signals; every
+   logged-today signal moves that unlock ~3 months earlier (R4B §B).
+3. **A personal risk ratchet with an evidence gate.** C1 escalates 0.75% → 1.25%
+   *only* after E1 proves itself, hard-capped at the 2.2% geometric ceiling
+   (`r*/6`). Eval/funded never ratchet — their wrappers stay fixed.
+4. **Per-layer ROI telemetry.** The Evidence Ledger gains a Layer 1/2/3/4 row each
+   month so we can see which layer actually carried the return.
+
+**Standing ordering rule:** a week spent on Layer 3 is worth ~2.3× the same week on
+Layer 1 (35% vs 15%, ACM). Only drop to Layer 1 when Layers 2 and 3 have no open gate.
 
 ---
 
@@ -89,14 +131,14 @@ four engines, one validation protocol, and five de-risked quant enhancements.**
 |  [D8 VALIDATION OS & SHADOW ML ENGINE — runs underneath everything]                                |
 |   - Cost-Reality Audit (c/R <= 5% mandatory hurdle)                                                |
 |   - Pre-registration & unalterable Evidence Ledger                                                 |
-|   - ML Shadow Mode: logs 20 features per setup + XGBoost prediction (active veto after 100 fills)   |
+|   - ML Shadow Mode: 20-feature snapshot + XGBoost prediction on EVERY signal incl. skipped ones    |
 |                                                                                                    |
 |  [SIGNAL LAYER — 4 engines, all D1-core + D3/D4 gates + native MT5 macro proxies]                  |
 |   E1  SMC core: H4 bias → sweep → M15 CHoCH → OB     (+ DXY SMT validity gate)                     |
 |   E2  Asian-range raid (07–10 server)                (+ DXY SMT validity gate)                     |
 |   E3  FVG imbalance re-engagement                    (volume-confirm gate)                         |
 |   E4  Dispersion rank book (8 majors, daily)         (the chop-month insurance)                    |
-|   Grading: 0–10 score → A(8+)/B(5–7)/C(3–4)/skip(<3)                                              |
+|   Grading: 0–10 score → A(8+)/B(5–7)/C(3–4)/skip(<3)                                               |
 |                                                                                                    |
 |  [FILTER LAYER — Daily HMM state + free macro gates]                                               |
 |   - Daily Rollover HMM (23:55 GMT): classifies market state (Trending / Mean-Reverting / Shock)    |
@@ -108,13 +150,16 @@ four engines, one validation protocol, and five de-risked quant enhancements.**
 |   - 1.0R hard stop (distance >= 25 pips on M15)                                                    |
 |   - Staged Exit: 25% @ 1.5R (move SL to BE+0.3R) → 25% @ 3R → 25% @ pool → runner                  |
 |   - Dead-money time exit: age > 1.5× median AND < +0.5R → close at market                          |
-|   - Execution hygiene: resting limits only, VPS co-located (<5ms), hold time >= 180s              |
+|   - Execution hygiene: resting limits only, VPS co-located (<5ms), hold time >= 180s               |
 |                                                                                                    |
-|  [RISK GOVERNOR & CLUSTER FIREWALL — Coded BEFORE any entry logic]                                |
-|   - Anti-breach circuit breaker: Daily realized loss <= -2.2% -> CLOSE ALL, disable 24h           |
+|  [RISK GOVERNOR & CLUSTER FIREWALL — Coded BEFORE any entry logic]                                 |
+|   - Anti-breach circuit breaker: Daily realized loss <= -2.2% -> CLOSE ALL, disable 24h            |
 |   - Trailing DD breaker: >= 4% peak-to-trough -> 48h freeze                                        |
 |   - Deterministic Cluster Firewalls: Trend <= 2.5%, Reversals <= 2.0%, Dispersion <= 1.0%          |
-|   - Net single-currency cap: <= 3% personal, <= 1.5% funded (no hidden USD triple-leverage)       |
+|   - Net single-currency cap: <= 3% personal, <= 1.5% funded (no hidden USD triple-leverage)        |
+|   - Heat REDISTRIBUTION: r_i = H / sqrt(1^T rho 1) — heat is a budget, not just a cap              |
+|   - 3 correlated USD legs -> 1.0% each; 3 uncorrelated -> 1.7% each (same 3% budget)               |
+|   - Effect: +20-25% compound growth, zero signal change (R4B — "the free 25%")                     |
 |   - Rolling E50 throttle: E50 < 0.15R -> halve risk; E50 < 0 -> halt EA                            |
 |                                                                                                    |
 |  [CAPITAL WRAPPERS — D2 3-Track Allocation]                                                        |
@@ -164,6 +209,10 @@ Where docs disagreed, the winner and why:
 | ML Meta-Labeling | **Shadow Mode Logging (first 100 trades)** | Active ML live trade veto Day 1 | Prevents overfitting on synthetic data; builds verified broker dataset |
 | Macro Radar | **Native MT5 DXY & USOIL CFD feeds** | External bond yield APIs | Eliminates network dropouts, rate limits, and latency disconnects |
 | Heat caps | 4% personal / 2% funded; clusters 2.5/2.0/1.5%; currency net 3%/1.5% | — | Deterministic cluster firewall replaces noisy dynamic HRP matrix |
+| Heat allocation | **Redistribute unused headroom by ρ:** `r_i = H_rem / √(1ᵀρ1)` — use the budget, never exceed a cap | cap-only (cut, never reallocate) | R4B §A: holding heat constant and returning it to uncorrelated trades = **+20–25% compound, zero signal change** |
+| Shadow ML logging | **Every signal incl. skipped/C-grade** | taken signals only | Meta-labeling needs ~500 signals; logging skips only pulls the unlock forward ~3 months (R4B §B) |
+| Personal risk (gated) | 0.75% now → **1.25% after proof**, hard ceiling 2.2% | permanent 0.75% / or ratchet now | Kelly `r*/6` = 2.2% ceiling; ratchet gated on E1 ≥30 trades, `E>0.25R` |
+| Grade sizing | **Eligibility only on eval/funded; tiered on personal** | 2.5% A-grade everywhere | R2B: +40–70% on that sleeve, but wrapper must still cap (D2) |
 | Daily halt | **−2.2% close-all** | −2.5% | D3 guard sits ahead of D2 breaker for margin of safety |
 | E₅₀ throttle | 0.35R/0.15R bands (D1 exact numbers) | — | Consensus |
 | Allocation | **Equal weights, static in Phase 1** | bandit / LinUCB / PPO | D8: no evidence yet; D4 bandit only after 2 engines × 30 trades |
@@ -181,11 +230,17 @@ Where docs disagreed, the winner and why:
 ━━━━ STAGE 0 (Days 1–7): TRUTH + PROTECTION FIRST  [D8 + D2 + D4]
   ☐ D8 Cost-Reality Audit: 100 fills, real spread/slip, c ≤ 2–5% of R gate
   ☐ Pre-register MFP-001 (E1 hypothesis, n=350, kill rules signed)
-  ☐ Anti-breach breaker + heat caps + netting + E₅₀ coded (NO entries yet)
+  ☐ Anti-breach breaker + heat caps + heat REDISTRIBUTION + netting + E₅₀ (NO entries yet)
   ☐ Deploy Daily HMM state script (runs at 23:55 GMT, generates regime flag)
-  ☐ Set up Shadow ML Logger: record 20-feature snapshot on every setup trigger
-  ☐ Procurement: raw ECN + VPS <5ms; read chosen firm's full ToS; promo calendar
-  ☐ Evidence Ledger created with all 12 claims marked UNTESTED
+  ☐ Set up Shadow ML Logger: 20-feature snapshot on EVERY signal — including
+    skipped/C-grade ones you did not take (meta-labeling needs ~500 signals; every
+    signal logged today is +4R/mo available ~3 months earlier) — R4B §B
+  ☐ Procurement (LAYER 3 — highest-certainty ROI in the whole corpus):
+      raw ECN + VPS <2ms · chosen firm's FULL ToS · promo calendar ·
+      EV-per-eval table. Target: save >= 0.05R/trade = +1.9R/mo (R4B §E)
+  ☐ Evidence Ledger created with all 12 claims marked UNTESTED, PLUS a
+    PER-LAYER ROI row (L1 signal / L2 allocation / L3 structural / L4 income)
+    — we cannot optimise a layer we do not attribute
      GATE 0: cost audit passes. If c > 5% of R → fix broker/stops, do not proceed.
 
 ━━━━ STAGE 1 (Days 8–25): ONE EDGE, MEASURED  [D1 core + D8 + Safe Hybrids]
@@ -241,6 +296,7 @@ Using D1's honest-haircut model (40% WR, 0.60R avg, 15R/month at 1.5% base):
 | Track A eval | 0.5% | pass target 8%, ~60% pass rate **hypothesis (E-ledger)** | exam-capped | Needs validation on first 5 evals |
 | Track B funded | 0.4–0.5% | 4–6% = $4–6k/acct gross, $3.2–4.8k net | ~8%, breaker at −2.2%/day | D1/D2 consensus estimate |
 | 5 funded accounts | 0.5% | **$16–24k/month net** (steady state, month 6+) | compartmentalized | The factory goal |
+| 6th account (upside) | 0.5% | up to **~$31k/month** at 13R/mo × $100k × 80% split | compartmentalized | **GATE:** 2 consecutive evals passed (R4B §F) |
 | E4 dispersion | 0.25%/leg | +1.5–2.5%/slice | ~4% slice | Small; insurance value > return |
 | Eval spend | ≤2% net worth | capped loss = fees | — | Fees are the only true downside |
 

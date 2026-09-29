@@ -21,6 +21,9 @@ This repository contains the complete quantitative research, algorithmic design,
 ### 3. Falsification Protocol & Operating Consensus
 - **`micro-live-falsification-protocol.md` (MFP)**: The empirical "Operating System." Reality audit of all 12 theoretical claims, cost-as-%-of-R friction formulas, pre-registration protocol, and statistical sample-size hurdles.
 - **`master-combination-strategy.md`**: **The definitive operating manual (v1.1 Safe-Hybrid).** Cross-evaluates all 8 blueprints with explicit **ADOPT**, **LATER**, and **DROP** decisions, and incorporates all 5 quantitative frontiers (Dual-Bracket limits, Daily HMM, Shadow ML, Native Macro feeds, and Cluster Risk Firewalls) in a robust, prop-compliant framework.
+- **`roi-lever-scorecard.md`**: **The ROI ranking artifact.** Scores 15 candidate levers on 6 weighted dimensions with evidence-anchored 1–5 rubrics and a Return-vs-Ruin tension plot, ordered by *R/month per week of work*. Records ACM's 4-layer ROI hierarchy (Signal 15% / Allocation 30% / Structural 35% / Income 20%) and the four upgrades it produced.
+- **`recommendations-and-next-steps.md`**: **The execution queue.** The 6 do-now $0 levers with their first actions, the gated levers with triggers, the 5 externally-proposed claims rejected with reasons (0.7R stop, 3% heat, trade copier, "uncorrelated pillars", $25k base case), and the full Risk Governor specification with acceptance tests.
+- **`tri-pillar-review.md`**: **External proposal review.** Line-by-line verdict on the third-party "Tri-Pillar Prop-Scaler" — mapping it to our existing E1/E2/E4, what it got right, and its 6 defects ranked by damage.
 
 ---
 
