@@ -1,38 +1,64 @@
-# scripts/history-data - vendored history-data tooling.
-# Only the tooling source is versioned. Dependency trees, build output and
-# market-data artifacts are large and regenerable, so they stay out of git.
+# scripts/history-data - ONLY SOURCE CODE IS VERSIONED HERE.
+# This folder is a local working area built on two upstream checkouts; git
+# tracks just the source files (*.js, *.py) and this ignore file.
 
-# Preserved upstream clone metadata (restore steps in README.md)
+# --- Not code: documentation, manifests, tooling config, images -------------
+# (these files stay on disk; they belong to the upstream checkouts)
+*.md
+*.png
+LICENSE
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+tsconfig.json
+eslint.config.mjs
+.npmrc
+.npmignore
+.eslintignore
+.eslintrc.jsonold
+.prettierignore
+.prettierrc.json
+dukascopy-node/.gitignore
+FXCM-Forex-Data-Downloader/.gitignore
+
+# --- Not code: preserved upstream clone metadata ----------------------------
+# Restore with: Rename-Item <folder>\.git-upstream.bak .git
 .git-upstream.bak/
 
-# Dependency trees / build output
+# --- Not code: dependency trees and build output ----------------------------
 node_modules/
 .pnpm/
 dist/
 lib/
 coverage/
+build/
 *.tsbuildinfo
 
-# Python bytecode
+# --- Not code: Python artefacts ---------------------------------------------
 __pycache__/
 *.py[cod]
+.venv/
+venv/
+*.egg-info/
 
-# Downloaded / generated market data (large, regenerable)
+# --- Not code: downloaded / generated market data (large, regenerable) ------
 *.gz
 *.bin
 *.bi5
 fsb-raw/
 bi5-cache/
+.cache/
+.dukascopy-cache/
 download/
 downloads/
 m1-data/
 m5-data/
 legacy-bi5/
 
-# Run logs
+# --- Not code: run logs -----------------------------------------------------
 *.log
 
-# Vendored upstream source trees (available from the upstream repositories)
+# --- Not code: vendored upstream source trees and examples ------------------
 dukascopy-node/src/
 dukascopy-node/examples/
 dukascopy-node/.github/
