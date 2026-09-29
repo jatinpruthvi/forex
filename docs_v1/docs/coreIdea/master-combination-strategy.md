@@ -143,7 +143,10 @@ four engines, one validation protocol, and five de-risked quant enhancements.**
 |  [FILTER LAYER — Daily HMM state + free macro gates]                                               |
 |   - Daily Rollover HMM (23:55 GMT): classifies market state (Trending / Mean-Reverting / Shock)    |
 |   - Native Macro Feeds: DXY SMT divergence + USOIL CAD lead-lag + 5-day yield differential gate    |
-|   - Killzones only (07–10, 13–16)  ·  no-news ±30min  ·  no-Friday-after-15:00                     |
+|   - Killzones only (07–10, 13–16) · no entries ±30min of Tier-1 news · FLAT ≥15min before Tier-1   |
+|   - WEEKEND: no positions carried over the weekend on eval/funded (firm rules vary, flat fits all) |
+|   - TIMEBASE: windows declared in UTC via broker server_utc_offset; unknown offset => NO ENTRIES   |
+|   - PROXY FIDELITY: broker DXY vs 8-major composite, 30D corr >= 0.95, else SMT gate NEUTRAL       |
 |                                                                                                    |
 |  [EXECUTION & EXIT LAYER — Dual-Bracket Slicing + D1 Corrected Ladder]                             |
 |   - Dual-Limit Entry: 50% risk @ OB front edge, 50% risk @ 50% equilibrium. Cancel #2 if +1.0R hit |
@@ -161,6 +164,9 @@ four engines, one validation protocol, and five de-risked quant enhancements.**
 |   - 3 correlated USD legs -> 1.0% each; 3 uncorrelated -> 1.7% each (same 3% budget)               |
 |   - Effect: +20-25% compound growth, zero signal change (R4B — "the free 25%")                     |
 |   - Rolling E50 throttle: E50 < 0.15R -> halve risk; E50 < 0 -> halt EA                            |
+|   - BROKER-SIDE INVARIANT: every fill carries a hard SL at the broker — EA/VPS death caps at stop  |
+|   - PRE-TRADE ASSERTIONS, refuse order if: lot>cap · heat>cluster cap · net-ccy>cap · margin<floor |
+|   - KILL-SWITCH DRILL (Sun, demo): force -2.2% -> assert flat + disabled 24h; FAIL = BLOCK go-live |
 |                                                                                                    |
 |  [CAPITAL WRAPPERS — D2 3-Track Allocation]                                                        |
 |   A  Eval        0.5% base   4-zone barrier sizing (D5)   target 8% pass, nothing else             |
@@ -170,6 +176,7 @@ four engines, one validation protocol, and five de-risked quant enhancements.**
 |                                                                                                    |
 |  [STRUCTURE & PROCUREMENT LAYER — D4+D6+D7]                                                        |
 |   - Promo-window eval buying (20-30% off) · firm-rule matrix (prefer static/EOD DD)                |
+|   - FIRM CAPABILITY MATRIX: 12 rules, every row known+compatible or DO NOT BUY — consistency rule  |
 |   - Account staggering (never push all evals aggressively at once)                                 |
 |   - Payout-first withdrawal: 50% personal wealth, 25% eval fuel, 25% cash buffer                   |
 +----------------------------------------------------------------------------------------------------+
@@ -213,6 +220,14 @@ Where docs disagreed, the winner and why:
 | Shadow ML logging | **Every signal incl. skipped/C-grade** | taken signals only | Meta-labeling needs ~500 signals; logging skips only pulls the unlock forward ~3 months (R4B §B) |
 | Personal risk (gated) | 0.75% now → **1.25% after proof**, hard ceiling 2.2% | permanent 0.75% / or ratchet now | Kelly `r*/6` = 2.2% ceiling; ratchet gated on E1 ≥30 trades, `E>0.25R` |
 | Grade sizing | **Eligibility only on eval/funded; tiered on personal** | 2.5% A-grade everywhere | R2B: +40–70% on that sleeve, but wrapper must still cap (D2) |
+| News / weekend exposure | **FLAT ≥15 min pre-Tier-1; flat over weekend (eval/funded)** | entry-blackout only | Gap math: 2% heat × 2.5 gap = 5% = firm daily limit exactly, **headroom 0** |
+| Stop placement | **Hard SL order at the broker on every fill** | EA-side logical stop only | If VPS/EA dies, an EA-only stop gives an unbounded loss; broker-side caps it |
+| Pre-trade assertions | **Refuse: lot>cap · heat>cap · net-ccy>cap · margin<floor** | trust the sizing code | A lot bug is a 10× risk event; arithmetic refusal, no judgement |
+| Kill-switch evidence | **Weekly forced drill, PASS logged, FAIL blocks go-live** | "it passed last week" | delivery-gate: machine-verifiable facts, never self-reported status |
+| Timebase | **All session windows in UTC**; convert via broker `server_utc_offset` | "server time" (undeclared) | 0 corpus mentions of offset/DST — same EA on 2 brokers = 2 strategies (preflight P2) |
+| Proxy fidelity | **30D corr(USD-proxy, 8-major composite) ≥ 0.95, else gate NEUTRAL** | assume proxy is valid | bad data is worse than no data — a WR lever fed noise *subtracts* expectancy (P3) |
+| Firm rules | **12-row capability matrix; `unknown` blocks purchase** | read ToS at purchase time | one voided payout = **−100%** of that account's EV (P1, biggest single risk found) |
+| Overrides | **Log timestamp · reason · R; unlogged override invalidates MFP-001** | implicit "no discretion" | a pre-registration with unrecorded judgement is a story, not evidence (P4) |
 | Daily halt | **−2.2% close-all** | −2.5% | D3 guard sits ahead of D2 breaker for margin of safety |
 | E₅₀ throttle | 0.35R/0.15R bands (D1 exact numbers) | — | Consensus |
 | Allocation | **Equal weights, static in Phase 1** | bandit / LinUCB / PPO | D8: no evidence yet; D4 bandit only after 2 engines × 30 trades |
@@ -228,20 +243,30 @@ Where docs disagreed, the winner and why:
 
 ```
 ━━━━ STAGE 0 (Days 1–7): TRUTH + PROTECTION FIRST  [D8 + D2 + D4]
-  ☐ D8 Cost-Reality Audit: 100 fills, real spread/slip, c ≤ 2–5% of R gate
-  ☐ Pre-register MFP-001 (E1 hypothesis, n=350, kill rules signed)
+  ☐ D8 Cost-Reality Audit: 100 fills, spread/slip recorded AT FILL (not quote), c ≤ 5% of R
+  ☐ Pre-register MFP-001 (E1 hypothesis, n=350, kill rules signed) + M4 override log active
   ☐ Anti-breach breaker + heat caps + heat REDISTRIBUTION + netting + E₅₀ (NO entries yet)
   ☐ Deploy Daily HMM state script (runs at 23:55 GMT, generates regime flag)
   ☐ Set up Shadow ML Logger: 20-feature snapshot on EVERY signal — including
     skipped/C-grade ones you did not take (meta-labeling needs ~500 signals; every
     signal logged today is +4R/mo available ~3 months earlier) — R4B §B
+  ☐ RUIN-PROOFING — 5 controls, all deterministic (ruin-proofing-survival-budget.md):
+      broker-side SL on every fill · 4 pre-trade assertions (lot/heat/net-ccy/margin)
+      · FLAT >=15min before Tier-1 news · flat over weekend on eval/funded
+      · weekly forced kill-switch drill (demo: force -2.2% -> assert flat + disabled)
+  ☐ PREFLIGHT — 4 FAILs, all $0 to fix (preflight-risk-review.md):
+      M1 Firm Capability Matrix (12 rows, unknown => DO NOT BUY)  ·  M2 timebase in
+      UTC via server_utc_offset  ·  M3 proxy fidelity >= 0.95 or gate NEUTRAL
+      ·  M4 override log  ·  M6 spread-at-fill  ·  M5 no creds in logs, logger read-only
   ☐ Procurement (LAYER 3 — highest-certainty ROI in the whole corpus):
       raw ECN + VPS <2ms · chosen firm's FULL ToS · promo calendar ·
       EV-per-eval table. Target: save >= 0.05R/trade = +1.9R/mo (R4B §E)
   ☐ Evidence Ledger created with all 12 claims marked UNTESTED, PLUS a
     PER-LAYER ROI row (L1 signal / L2 allocation / L3 structural / L4 income)
     — we cannot optimise a layer we do not attribute
-     GATE 0: cost audit passes. If c > 5% of R → fix broker/stops, do not proceed.
+     GATE 0 (three conditions, ALL deterministic — any fails => fix, do not proceed):
+       (a) cost audit c <= 5% of R   (b) kill-switch drill PASS
+       (c) Firm Capability Matrix complete, every row known AND compatible
 
 ━━━━ STAGE 1 (Days 8–25): ONE EDGE, MEASURED  [D1 core + D8 + Safe Hybrids]
   ☐ E1 SMC core: Dual-bracket limit entry (50/50 split), grading + exit ladder + dead-money exit
