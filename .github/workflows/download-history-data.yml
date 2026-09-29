@@ -53,12 +53,12 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependency for the histdata gap fill
-        run: python -m pip install --require-hashes -r requirements-histdata.txt || python -m pip install -r requirements-histdata.txt
+        run: python -m pip install -r requirements-histdata.txt
 
       - name: Restore downloaded histdata zips (resumable cache)
         uses: actions/cache/restore@v4
         with:
-          path: scripts/history-data/dukascopy-node/histdata-cache
+          path: scripts/history-data/histdata-cache
           key: histdata-zips-ubuntu
           restore-keys: |
             histdata-zips-
@@ -75,7 +75,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: scripts/history-data/dukascopy-node/histdata-cache
+          path: scripts/history-data/histdata-cache
           key: histdata-zips-ubuntu-${{ github.run_id }}
 
       # ---- Step 3: assemble + trim -------------------------------------------
@@ -94,11 +94,11 @@ jobs:
         run: |
           echo "## M5 history data download" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          ls -la m5-data/*.csv 2>/dev/null || echo "no CSVs produced" >> "$GITHUB_STEP_SUMMARY"
+          ls -la ../m5-data/*.csv 2>/dev/null || echo "no CSVs produced" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f m5-data/validation-report.txt ]; then
+          if [ -f ../m5-data/validation-report.txt ]; then
             echo "### Validation report" >> "$GITHUB_STEP_SUMMARY"
-            tail -40 m5-data/validation-report.txt >> "$GITHUB_STEP_SUMMARY"
+            tail -40 ../m5-data/validation-report.txt >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload completed CSVs as artifact
@@ -107,7 +107,7 @@ jobs:
         with:
           name: m5-history-${{ github.run_id }}
           path: |
-            scripts/history-data/dukascopy-node/m5-data/*.csv
-            scripts/history-data/dukascopy-node/m5-data/validation-report.txt
+            scripts/history-data/m5-data/*.csv
+            scripts/history-data/m5-data/validation-report.txt
           if-no-files-found: error
           retention-days: 14
