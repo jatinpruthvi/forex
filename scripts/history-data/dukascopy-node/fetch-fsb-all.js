@@ -44,6 +44,7 @@ const OUT_DIR = path.join(__dirname, '..', 'm5-data');
 const SEG_DIR = path.join(OUT_DIR, 'intermediates'); // per-segment files (mirror segment only)
 const RAW_DIR = path.join(__dirname, 'fsb-raw');
 fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.mkdirSync(SEG_DIR, { recursive: true });
 fs.mkdirSync(RAW_DIR, { recursive: true });
 
 function decode(buf, precision) {
