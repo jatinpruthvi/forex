@@ -1,5 +1,5 @@
 /* Downloads 5 years of m5 bid candles as CSV for the instrument given via argv[2] */
-const { getHistoricalRates } = require('./dist/index.js');
+const { getHistoricalRates } = require('dukascopy-node');
 const fs = require('fs');
 const path = require('path');
 

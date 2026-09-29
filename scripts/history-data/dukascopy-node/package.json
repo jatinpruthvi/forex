@@ -1,0 +1,12 @@
+{
+  "name": "forex-history-data-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproducible dependencies for the repository's Dukascopy history-data scripts.",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dukascopy-node": "1.50.0"
+  }
+}

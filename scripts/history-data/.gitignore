@@ -55,6 +55,10 @@ m1-data/
 m5-data/
 legacy-bi5/
 
+# Keep the standalone dependency manifest and lockfile needed by these scripts.
+!dukascopy-node/package.json
+!dukascopy-node/package-lock.json
+
 # --- Not code: run logs -----------------------------------------------------
 *.log
 

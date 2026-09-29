@@ -66,15 +66,26 @@ function decode(buf, precision) {
 
 async function fetchPair(sym) {
   const url = `https://data.forexsb.com/datafeed/data/dukascopy/${sym.toUpperCase()}5.lb.gz`;
-  const res = await fetch(url, {
-    headers: {
-      Referer: 'https://data.forexsb.com/data-app',
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+  const headers = {
+    Referer: 'https://data.forexsb.com/data-app',
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36'
+  };
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+      const data = Buffer.from(await res.arrayBuffer());
+      if (data.length === 0) throw new Error('empty response body');
+      return data;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      const pauseMs = 1000 * 2 ** (attempt - 1);
+      console.warn(`[${new Date().toISOString()}] retry ${sym} ${attempt}/3 after ${pauseMs}ms: ${err.message}`);
+      await new Promise(resolve => setTimeout(resolve, pauseMs));
     }
-  });
-  if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+  }
 }
 
 /* Node fetch auto-decompresses gzip; decompress only if body is still raw gzip (magic 1f 8b) */
@@ -86,19 +97,22 @@ function maybeGunzip(buf) {
 }
 
 (async () => {
+  const failures = [];
   console.log(`[${new Date().toISOString()}] fetching ${PAIRS.length} pairs from ForexSB mirror`);
   for (const pair of PAIRS) {
     const outFile = path.join(SEG_DIR, `${pair}-m5-fsb.csv`);
     try {
       const gz = await fetchPair(pair);
-      fs.writeFileSync(path.join(RAW_DIR, `${pair}5.lb.gz`), gz);
-
       const buf = maybeGunzip(gz);
       const lines = decode(buf, PRECISION[pair]);
+      if (lines.length === 0) throw new Error('response decoded to zero candles');
 
       const firstTs = +lines[0].split(',')[0];
       const lastTs = +lines[lines.length - 1].split(',')[0];
-      fs.writeFileSync(outFile, HEADERS + '\n' + lines.join('\n') + '\n', 'utf8');
+      fs.writeFileSync(path.join(RAW_DIR, `${pair}5.lb.gz`), gz);
+      const tempFile = `${outFile}.part`;
+      fs.writeFileSync(tempFile, HEADERS + '\n' + lines.join('\n') + '\n', 'utf8');
+      fs.renameSync(tempFile, outFile);
 
       console.log(
         `[${new Date().toISOString()}] OK ${pair}: ${lines.length} bars, ${new Date(
@@ -106,8 +120,14 @@ function maybeGunzip(buf) {
         ).toISOString()} -> ${new Date(lastTs).toISOString()} -> ${outFile}`
       );
     } catch (e) {
+      failures.push(pair);
       console.error(`[${new Date().toISOString()}] FAIL ${pair}: ${e.message}`);
     }
   }
-  console.log(`[${new Date().toISOString()}] ALL_DONE`);
+  if (failures.length > 0) {
+    console.error(`[${new Date().toISOString()}] FAILED_PAIRS: ${failures.join(', ')}`);
+    process.exitCode = 1;
+  } else {
+    console.log(`[${new Date().toISOString()}] ALL_DONE`);
+  }
 })();
