@@ -1,0 +1,158 @@
+# Validation report - generated 2026-09-29T12:44:33.230Z
+# Files: m5-data/<pair>-m5-2022-09-11_2026-09-11.csv
+
+## EURUSD
+bars: 292900 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:23022  2023:64833  2024:74899  2025:74674  2026:55472
+close range: 0.9539 .. 1.2056 | gaps: 5m=291925, 10-60m=77, 1-6h=681, 6-42h=5, weekend=211
+flat bars: 445 (longest run 9) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4145min (2023-04-06T23:55:00.000Z) | 3065min (2023-05-26T18:55:00.000Z) | 3065min (2023-06-16T19:55:00.000Z) | 3065min (2023-07-07T17:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-05-17T19:45:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.0841 H 1.08414 L 1.08404 C 1.08412
+  EXACT     2022-11-21T22:55:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.02423 H 1.02423 L 1.02408 C 1.02412
+  EXACT     2025-06-02T18:25:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.14229 H 1.14265 L 1.14224 C 1.14265
+issues: NONE
+warnings: none
+verdict: PASS
+
+## USDJPY
+bars: 292868 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:23012  2023:64743  2024:74962  2025:74682  2026:55469
+close range: 127.253 .. 163.972 | gaps: 5m=291907, 10-60m=61, 1-6h=683, 6-42h=5, weekend=211
+flat bars: 166 (longest run 4) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4265min (2023-04-06T23:55:00.000Z) | 3065min (2023-03-17T18:55:00.000Z) | 3065min (2023-03-24T18:55:00.000Z) | 3065min (2023-03-31T19:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-05-19T04:35:00.000Z | max deviation 0 | ours O 138.475 H 138.477 L 138.433 C 138.449
+  EXACT     2023-10-04T00:35:00.000Z | max deviation 0 | ours O 149.171 H 149.171 L 149.114 C 149.125
+  EXACT     2026-02-10T09:00:00.000Z | max deviation 2.842170943040401e-14 | ours O 155.552 H 155.554 L 155.45 C 155.451
+issues: NONE
+warnings: 1 bars with |return| > 2% (verify vs news)
+verdict: PASS (with review notes)
+
+## GBPUSD
+bars: 292720 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22988  2023:64678  2024:74935  2025:74661  2026:55458
+close range: 1.04 .. 1.38536 | gaps: 5m=291755, 10-60m=72, 1-6h=676, 6-42h=5, weekend=211
+flat bars: 229 (longest run 4) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3065min (2023-05-26T19:55:00.000Z) | 3065min (2023-06-30T18:55:00.000Z) | 3065min (2023-07-07T18:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-10-17T05:50:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.2194 H 1.21969 L 1.2194 C 1.21961
+  EXACT     2023-12-14T17:40:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.27911 H 1.27935 L 1.27878 C 1.27878
+  EXACT     2024-05-31T13:35:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.27494 H 1.27543 L 1.27482 C 1.27491
+issues: NONE
+warnings: 1 bars with |return| > 2% (verify vs news)
+verdict: PASS (with review notes)
+
+## XAUUSD
+bars: 278278 | coverage: 2022-09-11T22:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:21734  2023:61793  2024:71191  2025:70893  2026:52667
+close range: 1615.728 .. 5587.628 | gaps: 5m=276676, 10-60m=10, 1-6h=1375, 6-42h=5, weekend=211
+flat bars: 2 (longest run 1) | parse errors: 0
+largest gaps: 4445min (2023-04-06T20:55:00.000Z) | 4390min (2023-12-29T21:50:00.000Z) | 4385min (2022-12-23T21:55:00.000Z) | 4385min (2022-12-30T21:55:00.000Z) | 4385min (2023-12-22T21:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-04-21T00:40:00.000Z | max deviation 0 | ours O 2003.724 H 2003.824 L 2003.288 C 2003.325
+  EXACT     2023-02-02T15:25:00.000Z | max deviation 0 | ours O 1926.615 H 1926.645 L 1924.115 C 1924.765
+  EXACT     2025-09-09T16:35:00.000Z | max deviation 4.547473508864641e-13 | ours O 3647.345 H 3647.615 L 3645.215 C 3646.305
+issues: NONE
+warnings: 2 bars with |return| > 2% (verify vs news)
+verdict: PASS (with review notes)
+
+## EURGBP
+bars: 292918 | coverage: 2022-09-11T21:05:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:23004  2023:64802  2024:74958  2025:74685  2026:55469
+close range: 0.82231 .. 0.92089 | gaps: 5m=291960, 10-60m=67, 1-6h=674, 6-42h=5, weekend=211
+flat bars: 192 (longest run 3) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3070min (2023-07-21T17:55:00.000Z) | 3065min (2023-03-17T18:55:00.000Z) | 3065min (2023-04-14T18:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-10-17T08:55:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.86688 H 0.86689 L 0.86668 C 0.86669
+  EXACT     2023-12-14T21:10:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.86085 H 0.86091 L 0.86082 C 0.8609
+  EXACT     2024-05-31T16:55:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.85192 H 0.85219 L 0.85192 C 0.85209
+issues: NONE
+warnings: none
+verdict: PASS
+
+## EURJPY
+bars: 292500 | coverage: 2022-09-11T21:05:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22965  2023:64773  2024:74706  2025:74616  2026:55440
+close range: 137.476 .. 187.93 | gaps: 5m=291357, 10-60m=255, 1-6h=670, 6-42h=6, weekend=211
+flat bars: 220 (longest run 4) | parse errors: 0
+largest gaps: 4330min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3065min (2023-03-24T18:55:00.000Z) | 3065min (2023-03-31T19:55:00.000Z) | 3010min (2023-11-03T19:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-05-18T18:15:00.000Z | max deviation 0 | ours O 149.254 H 149.272 L 149.247 C 149.254
+  EXACT     2023-10-03T08:30:00.000Z | max deviation 2.842170943040401e-14 | ours O 157.085 H 157.094 L 157.015 C 157.059
+  EXACT     2026-02-10T04:10:00.000Z | max deviation 2.842170943040401e-14 | ours O 185.021 H 185.022 L 184.921 C 184.937
+issues: NONE
+warnings: none
+verdict: PASS
+
+## AUDUSD
+bars: 292836 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22989  2023:64798  2024:74903  2025:74674  2026:55472
+close range: 0.59219 .. 0.72765 | gaps: 5m=291863, 10-60m=92, 1-6h=664, 6-42h=5, weekend=211
+flat bars: 199 (longest run 5) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3125min (2023-03-31T18:55:00.000Z) | 3125min (2023-06-23T18:55:00.000Z) | 3005min (2022-11-04T19:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-05-23T17:20:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.66167 H 0.66184 L 0.66166 C 0.66183
+  EXACT     2023-12-21T15:55:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.67811 H 0.67856 L 0.67811 C 0.67851
+  EXACT     2026-04-24T01:25:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.71318 H 0.71332 L 0.71315 C 0.7132
+issues: NONE
+warnings: none
+verdict: PASS
+
+## USDCAD
+bars: 292822 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22980  2023:64763  2024:74929  2025:74678  2026:55472
+close range: 1.29542 .. 1.47894 | gaps: 5m=291839, 10-60m=108, 1-6h=658, 6-42h=5, weekend=211
+flat bars: 241 (longest run 10) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3125min (2023-03-17T16:55:00.000Z) | 3065min (2023-06-30T18:55:00.000Z) | 3005min (2022-11-04T19:55:00.000Z)
+spot checks vs official Dukascopy API:
+  UNVERIFIED 2023-05-10T20:05:00.000Z (API unavailable for that bar)
+  EXACT     2023-11-22T13:40:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.37336 H 1.37371 L 1.3729 C 1.37321
+  EXACT     2025-09-11T13:40:00.000Z | max deviation 2.220446049250313e-16 | ours O 1.38625 H 1.38631 L 1.38568 C 1.3858
+issues: NONE
+warnings: none
+verdict: PASS
+
+## NZDUSD
+bars: 292613 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22943  2023:64664  2024:74917  2025:74624  2026:55465
+close range: 0.5492 .. 0.65344 | gaps: 5m=291599, 10-60m=130, 1-6h=667, 6-42h=5, weekend=211
+flat bars: 230 (longest run 6) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3125min (2023-03-24T19:55:00.000Z) | 3105min (2023-12-22T21:55:00.000Z) | 3065min (2023-05-05T18:55:00.000Z)
+spot checks vs official Dukascopy API:
+  UNVERIFIED 2023-05-17T15:40:00.000Z (API unavailable for that bar)
+  EXACT     2022-11-21T21:45:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.60976 H 0.60976 L 0.60969 C 0.60972
+  EXACT     2024-10-04T15:55:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.6158 H 0.61593 L 0.61541 C 0.61552
+issues: NONE
+warnings: none
+verdict: PASS
+
+## USDCHF
+bars: 292607 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22927  2023:64638  2024:74910  2025:74671  2026:55461
+close range: 0.76056 .. 1.01453 | gaps: 5m=291587, 10-60m=135, 1-6h=668, 6-42h=5, weekend=211
+flat bars: 380 (longest run 7) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4265min (2023-04-06T22:55:00.000Z) | 3125min (2023-03-17T17:55:00.000Z) | 3065min (2023-04-21T18:55:00.000Z) | 3065min (2023-04-28T19:55:00.000Z)
+spot checks vs official Dukascopy API:
+  UNVERIFIED 2023-05-12T12:15:00.000Z (API unavailable for that bar)
+  EXACT     2023-08-23T01:50:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.87997 H 0.87998 L 0.8798 C 0.8798
+  EXACT     2026-02-16T20:20:00.000Z | max deviation 1.1102230246251565e-16 | ours O 0.7692 H 0.76924 L 0.7692 C 0.76922
+issues: NONE
+warnings: none
+verdict: PASS
+
+## GBPJPY
+bars: 292441 | coverage: 2022-09-11T21:00:00.000Z -> 2026-09-29T11:55:00.000Z
+per-year: 2022:22972  2023:64603  2024:74902  2025:74562  2026:55402
+close range: 149.54 .. 219.591 | gaps: 5m=291328, 10-60m=225, 1-6h=671, 6-42h=5, weekend=211
+flat bars: 223 (longest run 3) | parse errors: 0
+largest gaps: 4325min (2023-12-29T21:55:00.000Z) | 4205min (2023-04-06T23:55:00.000Z) | 3125min (2023-03-31T18:55:00.000Z) | 3065min (2023-03-24T18:55:00.000Z) | 3065min (2023-04-28T18:55:00.000Z)
+spot checks vs official Dukascopy API:
+  EXACT     2023-05-15T02:35:00.000Z | max deviation 2.842170943040401e-14 | ours O 169.298 H 169.341 L 169.289 C 169.328
+  EXACT     2022-10-03T21:15:00.000Z | max deviation 0 | ours O 163.553 H 163.554 L 163.49 C 163.553
+  EXACT     2024-03-25T23:25:00.000Z | max deviation 0 | ours O 191.309 H 191.315 L 191.291 C 191.291
+issues: NONE
+warnings: 1 bars with |return| > 2% (verify vs news)
+verdict: PASS (with review notes)
+
+# SUMMARY: files=11, fail=0, pass-with-notes=4
