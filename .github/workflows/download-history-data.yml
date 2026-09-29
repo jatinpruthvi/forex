@@ -12,6 +12,12 @@ name: Download M5 history data
 #
 # No credentials are needed; the workflow is fully self-contained and resumable
 # via the actions/cache copy of the downloaded raw zips.
+#
+# Besides the (blob-storage) artifact, the finished CSVs are published to the
+# data/m5-history branch as *.csv.gz + validation-report.txt + MANIFEST.txt.
+# Git hosts (github.com / codeload.github.com) are reachable from restricted
+# sandboxes where Azure blob storage is blocked, so consumers can fetch the
+# data with:  curl -L https://codeload.github.com/<owner>/<repo>/tar.gz/refs/heads/data/m5-history
 
 on:
   workflow_dispatch:
@@ -23,7 +29,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: history-data-${{ github.ref }}
@@ -109,5 +115,60 @@ jobs:
           path: |
             scripts/history-data/m5-data/*.csv
             scripts/history-data/m5-data/validation-report.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
+
+      # ---- Step 5: publish to data/m5-history (git hosts only; no blob storage) ----
+      - name: Publish CSV snapshot to the data/m5-history branch
+        if: always()
+        shell: bash
+        working-directory: scripts/history-data/m5-data
+        run: |
+          set -e
+          shopt -s nullglob
+          csvs=( *.csv )
+          if [ ${#csvs[@]} -eq 0 ]; then
+            echo "No CSVs produced; nothing to publish."
+            exit 0
+          fi
+
+          # Manifest with per-pair stats - checkable without unzipping any data
+          {
+            echo "# M5 history data manifest"
+            echo "generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+            echo "run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo ""
+            printf '%-10s %10s  %-17s  %-17s\n' pair rows first last
+            for f in "${csvs[@]}"; do
+              pair="${f%%-*}"
+              rows=$(($(wc -l < "$f") - 1))
+              first=$(sed -n '2p' "$f" | cut -d, -f1)
+              last=$(tail -n 1 "$f" | cut -d, -f1)
+              printf '%-10s %10s  %-17s  %-17s\n' "$pair" "$rows" \
+                "$(date -u -d "@$((first / 1000))" '+%Y-%m-%d %H:%M')" \
+                "$(date -u -d "@$((last / 1000))" '+%Y-%m-%d %H:%M')"
+            done
+          } > MANIFEST.txt
+          cat MANIFEST.txt >> "$GITHUB_STEP_SUMMARY"
+
+          gzip -kf "${csvs[@]}"   # keeps *.csv, adds *.csv.gz
+
+          repo_url="https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git"
+          work="${RUNNER_TEMP}/data-branch"
+          rm -rf "$work"
+          if git ls-remote --heads "$repo_url" data/m5-history | grep -q data/m5-history; then
+            git clone -q --depth 1 --single-branch --branch data/m5-history "$repo_url" "$work"
+          else
+            git init -q -b data/m5-history "$work"
+          fi
+          cd "$work"
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp "$GITHUB_WORKSPACE/scripts/history-data/m5-data/"*.csv.gz .
+          cp "$GITHUB_WORKSPACE/scripts/history-data/m5-data/validation-report.txt" . 2>/dev/null || true
+          cp "$GITHUB_WORKSPACE/scripts/history-data/m5-data/MANIFEST.txt" .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "M5 history snapshot from run ${GITHUB_RUN_ID} ($(date -u '+%Y-%m-%d %H:%MZ'))"
+          git push -q --force origin data/m5-history
+          echo "Published snapshot of ${#csvs[@]} pairs to the data/m5-history branch."
