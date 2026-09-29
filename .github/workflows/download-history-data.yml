@@ -2,6 +2,25 @@ name: Download M5 history data
 
 on:
   workflow_dispatch:
+    inputs:
+      provider:
+        description: FXCM needs the FXCM_API_TOKEN secret and provides recent M5 history; Dukascopy covers the five-year range
+        type: choice
+        required: true
+        default: dukascopy
+        options:
+          - dukascopy
+          - fxcm
+      from_date:
+        description: Optional UTC start date (leave blank for the provider default)
+        type: string
+        required: false
+        default: ''
+      to_date:
+        description: Optional UTC end date (leave blank for today)
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -14,31 +33,86 @@ jobs:
   download:
     name: Download and archive M5 CSVs
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
       - name: Set up Node.js
+        if: ${{ inputs.provider == 'dukascopy' }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: scripts/history-data/dukascopy-node/package-lock.json
 
-      - name: Install pinned downloader dependency
+      - name: Install pinned Dukascopy downloader dependency
+        if: ${{ inputs.provider == 'dukascopy' }}
         working-directory: scripts/history-data/dukascopy-node
         run: npm ci
 
-      - name: Download five years of M5 candles through today (UTC)
-        working-directory: scripts/history-data/dukascopy-node
-        run: node run-all-m5.js
+      - name: Verify the FXCM Actions secret is configured
+        if: ${{ inputs.provider == 'fxcm' }}
+        env:
+          FXCM_API_TOKEN: ${{ secrets.FXCM_API_TOKEN }}
+        run: |
+          if [ -z "$FXCM_API_TOKEN" ]; then
+            echo "::error::Add FXCM_API_TOKEN as a repository Actions secret before selecting FXCM."
+            exit 1
+          fi
 
-      - name: Upload CSVs as a workflow artifact
+      - name: Set up Python for FXCM
+        if: ${{ inputs.provider == 'fxcm' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install FXCM downloader dependencies
+        if: ${{ inputs.provider == 'fxcm' }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r scripts/history-data/FXCM-Forex-Data-Downloader/requirements-actions.txt
+          python -m pip install --no-deps 'git+https://github.com/zansibal/fxcmpy.git@97962be485c6b398fe8e4200ce4065493bae9461'
+
+      - name: Restore previously downloaded chunks
+        uses: actions/cache/restore@v4
+        with:
+          path: scripts/history-data/dukascopy-node/m5-chunks
+          key: m5-history-${{ inputs.provider }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            m5-history-${{ inputs.provider }}-${{ github.ref_name }}-
+
+      - name: Download recent M5 candles with FXCM
+        if: ${{ inputs.provider == 'fxcm' }}
+        working-directory: scripts/history-data/FXCM-Forex-Data-Downloader
+        env:
+          FXCM_API_TOKEN: ${{ secrets.FXCM_API_TOKEN }}
+          HISTORY_FROM: ${{ inputs.from_date }}
+          HISTORY_TO: ${{ inputs.to_date }}
+        run: python main.py
+
+      - name: Download five years of M5 candles with Dukascopy
+        if: ${{ inputs.provider == 'dukascopy' }}
+        working-directory: scripts/history-data/dukascopy-node
+        env:
+          HISTORY_FROM: ${{ inputs.from_date || '2021-09-11' }}
+          HISTORY_TO: ${{ inputs.to_date }}
+        run: node run-chunked-m5.js
+
+      - name: Save chunks for a resumable rerun
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: scripts/history-data/dukascopy-node/m5-chunks
+          key: m5-history-${{ inputs.provider }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload completed CSVs and resumable chunks
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: m5-history-${{ github.run_id }}
-          path: scripts/history-data/dukascopy-node/m5-data/*.csv
+          name: m5-history-${{ inputs.provider }}-${{ github.run_id }}
+          path: |
+            scripts/history-data/dukascopy-node/m5-data/*.csv
+            scripts/history-data/dukascopy-node/m5-chunks/*.csv
           if-no-files-found: warn
           retention-days: 14

@@ -53,6 +53,7 @@ download/
 downloads/
 m1-data/
 m5-data/
+m5-chunks/
 legacy-bi5/
 
 # Keep the standalone dependency manifest and lockfile needed by these scripts.
