@@ -1,6 +1,10 @@
-/* Fill the gap 2022-09-11 -> per-pair mirror start using histdata.com m1 ASCII zips.
-   - Downloads 2022/2023/2024 M1 zips per pair (cached)
-   - histdata timestamps are EST (UTC-5, fixed) -> convert to UTC (+5h)
+/* Fill the gap 2016-09-11 -> per-pair mirror start using histdata.com m1 ASCII zips.
+   - Downloads 2016..2025 M1 zips per pair (cached)
+   - histdata stamps switch to/from summer time on the EU DST calendar (last Sun Mar /
+     last Sun Oct), NOT the US calendar - empirically verified against the official
+     Dukascopy feed (see fill-gap-histdata-m1.js): UTC = stamp +4h in EU-summer, +5h otherwise
+   - Sunday bars before the 17:00 NY open are dropped (histdata opens ~1h early on
+     EU DST-change Sundays; phantom bars absent from the official feed)
    - Aggregate m1 -> m5, format identical to mirror CSVs (volume=0 in this segment)
    - Writes {pair}-m5-legacy.csv per pair for later concatenation with the mirror file. */
 const fs = require('fs');
@@ -15,12 +19,12 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.mkdirSync(SEG_DIR, { recursive: true });
 fs.mkdirSync(CACHE_DIR, { recursive: true });
 
-const FILL_START = Date.UTC(2022, 8, 11);
+const FILL_START = Date.UTC(2016, 8, 11); // 2016-09-11 00:00 UTC -> 10-year window
 const PREC = {
   eurusd: 5, usdjpy: 3, gbpusd: 5, xauusd: 3, eurgbp: 5, eurjpy: 3,
   audusd: 5, usdcad: 5, nzdusd: 5, usdchf: 5, gbpjpy: 3
 };
-const YEARS = ['2022', '2023', '2024'];
+const YEARS = ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025'];
 
 function runPython(args) {
   execFileSync('python', [path.join(__dirname, 'histdata-dl.py'), ...args], { stdio: 'inherit' });
@@ -36,16 +40,15 @@ function parseAndAggregate(zipPath, mirrorStart, prec) {
   const text = fs.readFileSync(csvPath, 'utf8');
   const buckets = new Map();
 
-  // histdata stamps are New York local time WITH DST (empirically verified vs Dukascopy):
-  // UTC = NY local + 4h during EDT, + 5h during EST.
-  // US DST (2022-2024): EDT from 2nd Sunday of March to 1st Sunday of November.
   function isEDT(y, mo, d) {
-    const secondSunMar = new Date(Date.UTC(y, 2, 1));
-    secondSunMar.setUTCDate(secondSunMar.getUTCDate() + ((7 - secondSunMar.getUTCDay()) % 7) + 7);
-    const firstSunNov = new Date(Date.UTC(y, 10, 1));
-    firstSunNov.setUTCDate(firstSunNov.getUTCDate() + ((7 - firstSunNov.getUTCDay()) % 7));
-    const cur = new Date(Date.UTC(y, mo - 1, d));
-    return cur >= secondSunMar && cur < firstSunNov;
+    const lastSun = m => {
+      const d0 = new Date(Date.UTC(y, m + 1, 0)); // last day of month m (0-based)
+      return d0.getUTCDate() - d0.getUTCDay();
+    };
+    const cur = new Date(Date.UTC(y, mo - 1, d)).getUTCDate();
+    if (mo === 3) return cur >= lastSun(2);
+    if (mo === 10) return cur < lastSun(9);
+    return mo > 3 && mo < 10;
   }
 
   for (const line of text.split('\n')) {
@@ -57,6 +60,11 @@ function parseAndAggregate(zipPath, mirrorStart, prec) {
     const offsetH = isEDT(y, mo, d) ? 4 : 5;
     const tsUtc = Date.UTC(y, mo - 1, d, h + offsetH, mi, s);
     if (tsUtc < FILL_START || tsUtc >= mirrorStart) continue;
+
+    // Drop Sunday bars before the NY open (17:00 NY local): histdata's clock
+    // opens ~1h early on EU DST-change Sundays (phantom bars absent from the
+    // official feed). Stamps are NY local, so the check is on the raw hour.
+    if (new Date(Date.UTC(y, mo - 1, d)).getUTCDay() === 0 && h < 17) continue;
 
     const o = +fields[1], hh = +fields[2], l = +fields[3], c = +fields[4];
     const b = Math.floor(tsUtc / 300000) * 300000;
@@ -90,7 +98,8 @@ function parseAndAggregate(zipPath, mirrorStart, prec) {
         if (!fs.existsSync(zipPath)) {
           runPython([year, pair.toUpperCase(), zipPath]);
         }
-        allLines.push(...parseAndAggregate(zipPath, mirrorStart, PREC[pair]));
+        // loop-push: spread-push of ~100k lines overflows the call stack
+        for (const l of parseAndAggregate(zipPath, mirrorStart, PREC[pair])) allLines.push(l);
       }
 
       const outFile = path.join(SEG_DIR, `${pair}-m5-legacy.csv`);

@@ -20,16 +20,16 @@ const JETTA = 'https://jetta.dukascopy.com/v1/candles/minute';
 
 const PAIRS = {
   eurusd: { code: 'EUR-USD', prec: 5, range: [0.9, 1.4] },
-  usdjpy: { code: 'USD-JPY', prec: 3, range: [120, 180] },
+  usdjpy: { code: 'USD-JPY', prec: 3, range: [95, 180] },
   gbpusd: { code: 'GBP-USD', prec: 5, range: [1.0, 1.45] },
-  xauusd: { code: 'XAU-USD', prec: 3, range: [1500, 6000] },
+  xauusd: { code: 'XAU-USD', prec: 3, range: [1000, 6000] },
   eurgbp: { code: 'EUR-GBP', prec: 5, range: [0.8, 1.0] },
-  eurjpy: { code: 'EUR-JPY', prec: 3, range: [130, 210] },
+  eurjpy: { code: 'EUR-JPY', prec: 3, range: [110, 210] },
   audusd: { code: 'AUD-USD', prec: 5, range: [0.5, 0.85] },
   usdcad: { code: 'USD-CAD', prec: 5, range: [1.1, 1.6] },
   nzdusd: { code: 'NZD-USD', prec: 5, range: [0.5, 0.75] },
   usdchf: { code: 'USD-CHF', prec: 5, range: [0.7, 1.1] },
-  gbpjpy: { code: 'GBP-JPY', prec: 3, range: [140, 230] }
+  gbpjpy: { code: 'GBP-JPY', prec: 3, range: [120, 230] }
 };
 
 const TICK = p => Math.pow(10, -p);
@@ -61,7 +61,7 @@ function isWeekendBar(ts) {
 }
 
 function analyzeFile(pair, cfg, mirrorStartTs) {
-  const file = path.join(OUT_DIR, `${pair}-m5-2022-09-11_2026-09-11.csv`);
+  const file = path.join(OUT_DIR, `${pair}-m5-2016-09-11_${new Date().toISOString().slice(0, 10)}.csv`);
   const text = fs.readFileSync(file, 'utf8');
   const lines = text.split('\n');
   const res = { file, issues: [], warns: [] };
@@ -288,7 +288,7 @@ async function spotCheck(pair, cfg, bars, mirrorStartTs) {
 /* ---------- main ---------- */
 (async () => {
   log(`# Validation report - generated ${new Date().toISOString()}`);
-  log(`# Files: m5-data/<pair>-m5-2022-09-11_2026-09-11.csv`);
+  log(`# Files: m5-data/<pair>-m5-2016-09-11_<today>.csv`);
   let overallFail = 0, overallWarn = 0;
   const persist = () => fs.writeFileSync(path.join(OUT_DIR, 'validation-report.txt'), report.join('\n'), 'utf8');
 

@@ -1,9 +1,10 @@
-/* Assemble final 4-year m5 CSVs: legacy (2022-09-11 -> mirror start) + mirror (-> live). */
+/* Assemble final 10-year m5 CSVs: legacy (2016-09-11 -> mirror start) + mirror (-> live). */
 const fs = require('fs');
 const path = require('path');
 
 const BASE = path.join(__dirname, '..');
 const OUT_DIR = path.join(BASE, 'm5-data');
+const WINDOW_LABEL = `2016-09-11_${new Date().toISOString().slice(0, 10)}`;
 const SEG_DIR = path.join(OUT_DIR, 'intermediates');
 const PAIRS = [
   'eurusd', 'usdjpy', 'gbpusd', 'xauusd', 'eurgbp', 'eurjpy',
@@ -27,7 +28,7 @@ const PAIRS = [
     const seamGapMin = (firstMirrorTs - lastLegacyTs) / 60000;
 
     const combined = [...legacyLines, ...mirrorLines];
-    const outFile = path.join(OUT_DIR, `${pair}-m5-2022-09-11_2026-09-11.csv`);
+    const outFile = path.join(OUT_DIR, `${pair}-m5-${WINDOW_LABEL}.csv`);
     fs.writeFileSync(outFile, 'timestamp,open,high,low,close,volume\n' + combined.join('\n') + '\n');
 
     console.log(
