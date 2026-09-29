@@ -1,26 +1,26 @@
 name: Download M5 history data
 
+# Downloads 4 years of M5 OHLCV for 11 FX pairs and uploads the CSVs as an artifact.
+#
+# The official Dukascopy datafeed rate-limits GitHub-hosted runners (HTTP 429 for
+# every request from Azure datacenter IPs), so this workflow uses the same sources
+# as the proven local pipeline:
+#   1. ForexSB Dukascopy mirror  -> latest ~200k M5 bars per pair (recent segment)
+#   2. histdata.com M1 ASCII zips -> 2022-09-11 up to the mirror start (gap segment)
+#   3. Aggregate M1 -> M5, assemble both segments, trim DST-transition artifacts
+#   4. Validate the final CSVs (structural + spot checks vs official API)
+#
+# No credentials are needed; the workflow is fully self-contained and resumable
+# via the actions/cache copy of the downloaded raw zips.
+
 on:
   workflow_dispatch:
     inputs:
-      provider:
-        description: FXCM needs the FXCM_API_TOKEN secret and provides recent M5 history; Dukascopy covers the five-year range
-        type: choice
-        required: true
-        default: dukascopy
-        options:
-          - dukascopy
-          - fxcm
-      from_date:
-        description: Optional UTC start date (leave blank for the provider default)
-        type: string
+      skip_validation:
+        description: Skip the validation step (spot checks hit the Dukascopy JSON API)
+        type: boolean
         required: false
-        default: ''
-      to_date:
-        description: Optional UTC end date (leave blank for today)
-        type: string
-        required: false
-        default: ''
+        default: false
 
 permissions:
   contents: read
@@ -31,88 +31,83 @@ concurrency:
 
 jobs:
   download:
-    name: Download and archive M5 CSVs
+    name: Download, assemble and validate M5 CSVs
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: scripts/history-data/dukascopy-node
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        if: ${{ inputs.provider == 'dukascopy' }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: scripts/history-data/dukascopy-node/package-lock.json
 
-      - name: Install pinned Dukascopy downloader dependency
-        if: ${{ inputs.provider == 'dukascopy' }}
-        working-directory: scripts/history-data/dukascopy-node
-        run: npm ci
-
-      - name: Verify the FXCM Actions secret is configured
-        if: ${{ inputs.provider == 'fxcm' }}
-        env:
-          FXCM_API_TOKEN: ${{ secrets.FXCM_API_TOKEN }}
-        run: |
-          if [ -z "$FXCM_API_TOKEN" ]; then
-            echo "::error::Add FXCM_API_TOKEN as a repository Actions secret before selecting FXCM."
-            exit 1
-          fi
-
-      - name: Set up Python for FXCM
-        if: ${{ inputs.provider == 'fxcm' }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install FXCM downloader dependencies
-        if: ${{ inputs.provider == 'fxcm' }}
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r scripts/history-data/FXCM-Forex-Data-Downloader/requirements-actions.txt
-          python -m pip install --no-deps 'git+https://github.com/zansibal/fxcmpy.git@97962be485c6b398fe8e4200ce4065493bae9461'
+      - name: Install Python dependency for the histdata gap fill
+        run: python -m pip install -r requirements-histdata.txt
 
-      - name: Restore previously downloaded chunks
+      - name: Restore downloaded histdata zips (resumable cache)
         uses: actions/cache/restore@v4
         with:
-          path: scripts/history-data/dukascopy-node/m5-chunks
-          key: m5-history-${{ inputs.provider }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scripts/history-data/histdata-cache
+          key: histdata-zips-ubuntu
           restore-keys: |
-            m5-history-${{ inputs.provider }}-${{ github.ref_name }}-
+            histdata-zips-
 
-      - name: Download recent M5 candles with FXCM
-        if: ${{ inputs.provider == 'fxcm' }}
-        working-directory: scripts/history-data/FXCM-Forex-Data-Downloader
-        env:
-          FXCM_API_TOKEN: ${{ secrets.FXCM_API_TOKEN }}
-          HISTORY_FROM: ${{ inputs.from_date }}
-          HISTORY_TO: ${{ inputs.to_date }}
-        run: python main.py
+      # ---- Step 1: recent segment from the ForexSB Dukascopy mirror ----------
+      - name: Fetch mirror segment (latest 200k M5 bars per pair)
+        run: node fetch-fsb-all.js
 
-      - name: Download five years of M5 candles with Dukascopy
-        if: ${{ inputs.provider == 'dukascopy' }}
-        working-directory: scripts/history-data/dukascopy-node
-        env:
-          HISTORY_FROM: ${{ inputs.from_date || '2021-09-11' }}
-          HISTORY_TO: ${{ inputs.to_date }}
-        run: node run-chunked-m5.js
+      # ---- Step 2: gap segment from histdata.com (yearly M1 zips) ------------
+      - name: Fill gap segment from histdata.com
+        run: node fill-gap-histdata.js
 
-      - name: Save chunks for a resumable rerun
+      - name: Save histdata zips to cache
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: scripts/history-data/dukascopy-node/m5-chunks
-          key: m5-history-${{ inputs.provider }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scripts/history-data/histdata-cache
+          key: histdata-zips-ubuntu-${{ github.run_id }}
 
-      - name: Upload completed CSVs and resumable chunks
+      # ---- Step 3: assemble + trim -------------------------------------------
+      - name: Assemble final CSVs and trim DST-transition artifacts
+        run: |
+          node assemble-4y.js
+          node trim-dst-hours.js
+
+      # ---- Step 4: validate ---------------------------------------------------
+      - name: Validate final CSVs
+        if: ${{ inputs.skip_validation != true }}
+        run: node validate-m5.js
+
+      - name: Summarize output
+        if: always()
+        run: |
+          echo "## M5 history data download" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -la ../m5-data/*.csv 2>/dev/null || echo "no CSVs produced" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f ../m5-data/validation-report.txt ]; then
+            echo "### Validation report" >> "$GITHUB_STEP_SUMMARY"
+            tail -40 ../m5-data/validation-report.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload completed CSVs as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: m5-history-${{ inputs.provider }}-${{ github.run_id }}
+          name: m5-history-${{ github.run_id }}
           path: |
-            scripts/history-data/dukascopy-node/m5-data/*.csv
-            scripts/history-data/dukascopy-node/m5-chunks/*.csv
-          if-no-files-found: warn
+            scripts/history-data/m5-data/*.csv
+            scripts/history-data/m5-data/validation-report.txt
+          if-no-files-found: error
           retention-days: 14

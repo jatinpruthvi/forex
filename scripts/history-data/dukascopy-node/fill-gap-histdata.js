@@ -12,6 +12,7 @@ const OUT_DIR = path.join(BASE, 'm5-data');
 const SEG_DIR = path.join(OUT_DIR, 'intermediates'); // per-segment files
 const CACHE_DIR = path.join(BASE, 'histdata-cache');
 fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.mkdirSync(SEG_DIR, { recursive: true });
 fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 const FILL_START = Date.UTC(2022, 8, 11);

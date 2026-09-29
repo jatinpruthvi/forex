@@ -167,7 +167,10 @@ function analyzeFile(pair, cfg, mirrorStartTs) {
   if (seamIdx > 0) {
     const gapMin = (bars[seamIdx][0] - bars[seamIdx - 1][0]) / 60000;
     const diff = Math.abs(bars[seamIdx][1] - bars[seamIdx - 1][4]);
-    const allowed = Math.max(2 * TICK(cfg.prec), bars[seamIdx - 1][4] * 1e-5);
+    // Volatility-aware tolerance: normal 5-min moves across the segment boundary
+    // (e.g. gold ~1.5bp, GBPJPY ~2.4bp) must not flag; true scaling corruption
+    // (x10/x0.1 price errors) still exceeds any price-relative tolerance.
+    const allowed = Math.max(5 * TICK(cfg.prec), bars[seamIdx - 1][4] * 5e-5);
     res.seam = { gapMin, diff };
     if (gapMin !== 5) res.warns.push(`seam gap ${gapMin} min (expected 5)`);
     if (diff > allowed) res.issues.push(`seam price jump ${diff}`);
