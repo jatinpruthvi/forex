@@ -1,0 +1,39 @@
+# scripts/history-data - vendored history-data tooling.
+# Only the tooling source is versioned. Dependency trees, build output and
+# market-data artifacts are large and regenerable, so they stay out of git.
+
+# Preserved upstream clone metadata (restore steps in README.md)
+.git-upstream.bak/
+
+# Dependency trees / build output
+node_modules/
+.pnpm/
+dist/
+lib/
+coverage/
+*.tsbuildinfo
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Downloaded / generated market data (large, regenerable)
+*.gz
+*.bin
+*.bi5
+fsb-raw/
+bi5-cache/
+download/
+downloads/
+m1-data/
+m5-data/
+legacy-bi5/
+
+# Run logs
+*.log
+
+# Vendored upstream source trees (available from the upstream repositories)
+dukascopy-node/src/
+dukascopy-node/examples/
+dukascopy-node/.github/
+dukascopy-node/.vscode/
