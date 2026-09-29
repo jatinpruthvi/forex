@@ -1,6 +1,6 @@
 /* Fill the 2022-09-11 -> mirror-start gap using Dukascopy's legacy .bi5 m1 candle feed.
    Validated: O/H/L/C exact match vs mirror, volumes sum correctly (345.06 ~ 345).
-   Output: one {pair}-m5-legacy.csv per pair in m5-data/, ready to prepend to the mirror CSV.
+   Output: one {pair}-m5-legacy.csv per pair in m5-data/intermediates/, ready to prepend to the mirror CSV.
    Format: >iiiiif records, prices x pip scale, LZMA (FORMAT_ALONE), month is zero-based. */
 const fs = require('fs');
 const path = require('path');
@@ -9,7 +9,9 @@ const zlib = require('zlib');
 
 const BASE = path.join(__dirname, '..');
 const OUT_DIR = path.join(BASE, 'm5-data');
+const SEG_DIR = path.join(OUT_DIR, 'intermediates');
 const CACHE_DIR = path.join(__dirname, 'bi5-cache');
+const PYTHON = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 const FILL_START = Date.UTC(2022, 8, 11); // 2022-09-11 00:00 UTC
 const HTTP = 'https://datafeed.dukascopy.com/datafeed';
 
@@ -28,11 +30,12 @@ const PAIRS = {
 };
 
 fs.mkdirSync(CACHE_DIR, { recursive: true });
+fs.mkdirSync(SEG_DIR, { recursive: true });
 
 function pyLzmaDecompress(srcB64) {
   const script =
     "import sys,lzma;d=sys.stdin.buffer.read();sys.stdout.buffer.write(lzma.LZMADecompressor(format=lzma.FORMAT_ALONE).decompress(d))";
-  return execFileSync('python', ['-c', script], { input: srcB64, maxBuffer: 64 * 1024 * 1024 });
+  return execFileSync(PYTHON, ['-c', script], { input: srcB64, maxBuffer: 64 * 1024 * 1024 });
 }
 
 async function fetchUrl(url) {
@@ -81,8 +84,10 @@ function aggregateM5(m1) {
 }
 
 async function processPair(pair, cfg) {
-  const mirrorFile = path.join(OUT_DIR, `${pair}-m5-fsb.csv`);
+  const mirrorFile = path.join(SEG_DIR, `${pair}-m5-fsb.csv`);
+  if (!fs.existsSync(mirrorFile)) throw new Error(`missing mirror file: ${mirrorFile}`);
   const firstLine = fs.readFileSync(mirrorFile, 'utf8').split('\n')[1];
+  if (!firstLine) throw new Error(`mirror file has no candle rows: ${mirrorFile}`);
   const mirrorStart = +firstLine.split(',')[0];
 
   const endDate = process.env.SMOKE
@@ -122,10 +127,11 @@ async function processPair(pair, cfg) {
   }
 
   const agg = aggregateM5(m1);
+  if (agg.length === 0) throw new Error('no legacy candles downloaded; refusing to write an empty segment');
   const lines = agg.map(
     ([b, o, h, l, c, v]) => `${b},${o.toFixed(cfg.prec)},${h.toFixed(cfg.prec)},${l.toFixed(cfg.prec)},${c.toFixed(cfg.prec)},${Math.round(v)}`
   );
-  const outFile = path.join(OUT_DIR, `${pair}-m5-legacy.csv`);
+  const outFile = path.join(SEG_DIR, `${pair}-m5-legacy.csv`);
   fs.writeFileSync(outFile, 'timestamp,open,high,low,close,volume\n' + lines.join('\n') + '\n');
   return { bars: agg.length, fetched, skipped404, first: agg[0]?.[0], last: agg[agg.length - 1]?.[0], outFile };
 }

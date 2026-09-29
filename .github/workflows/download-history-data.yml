@@ -1,0 +1,44 @@
+name: Download M5 history data
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: history-data-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  download:
+    name: Download and archive M5 CSVs
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/history-data/dukascopy-node/package-lock.json
+
+      - name: Install pinned downloader dependency
+        working-directory: scripts/history-data/dukascopy-node
+        run: npm ci
+
+      - name: Download five years of M5 candles through today (UTC)
+        working-directory: scripts/history-data/dukascopy-node
+        run: node run-all-m5.js
+
+      - name: Upload CSVs as a workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-history-${{ github.run_id }}
+          path: scripts/history-data/dukascopy-node/m5-data/*.csv
+          if-no-files-found: warn
+          retention-days: 14
