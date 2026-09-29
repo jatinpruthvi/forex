@@ -46,3 +46,89 @@ Also reported for the record: cumulative trials across all rounds (docs_v1 38 + 
 If no finalist passes, the verdict is NOT VALIDATED and nothing is called live-ready.
 
 Code: `tools/edge_search_lab.py`, `tools/challenge_sim.py`; tests `tests/test_edge_search_lab.py`, `tests/test_challenge_sim.py` (stop/gap/target mechanics, mirror, window entry time, phase/floor/daily-limit logic).
+
+---
+
+# Results (appended 2026-09-29; sections 1-3 were committed before any P&L)
+
+## 4. Verdict: NOT VALIDATED. TEST (2022-2026) was not opened.
+
+116 of 116 trials on TRAIN (2016-09-11 to 2020-09-11), net of costs, strict bound:
+
+| Family | Configs | Mean net exp | Mean gross | Mean cost | Best net exp | Candidates |
+|---|---|---|---|---|---|---|
+| SESS session drift | 88 | -0.046R | +0.003R | 0.049R | +0.008R (GBPUSD 12-16 long) | 0 |
+| FADE geometry, long only | 12 | -0.044R | +0.145R | 0.190R | +0.002R | 0 |
+| FADE geometry, long + short | 12 | -0.102R | +0.080R | 0.181R | -0.056R | 0 |
+| GAP weekend fade | 4 | +0.159R | n/a | n/a | +0.220R | **4** |
+
+- **Session drift**: gross expectancy averages zero. Only 2 of 88 cells have positive net expectancy and both are below +0.01R. No intraday time-of-day drift on these instruments survives costs on 2016-2020.
+- **Fade geometry**: gross edge +0.15R is again about the size of the cost (0.19R) whatever the stop or target. Short-fading up-spikes is worse than long-fading down-spikes, so the edge is one-sided. Re-choosing the geometry does not fix the fade.
+- **Weekend-gap fade** passed the pre-registered TRAIN and VALID rules (n=1011, +0.22R, PF 1.68, lower bound +0.08 to +0.15, all four years positive; VALID +0.375R, PF 2.36), which made three finalists (g=0.10/s=1, g=0.25/s=1, g=0.10/s=2, essentially the same trades).
+
+## 5. The weekend-gap edge is an execution artefact (checked on 2016-2022 only, before touching TEST)
+
+The rule enters at the open of the first M5 bar after the weekend hole and fades the gap back to Friday's close. Diagnostics on 2016-2022 (TRAIN + VALID, g=0.10, s=1.0):
+
+| Entry | n | net exp | PF |
+|---|---|---|---|
+| first-bar open (pre-registered rule) | 1441 | +0.266R | 1.81 |
+| +5 min | 1408 | +0.115R | 1.32 |
+| +10 min | 1384 | +0.020R | 1.05 |
+| +15 min | 1373 | +0.019R | 1.05 |
+| +30 min | 1340 | -0.018R | 0.95 |
+| +60 min | 1221 | -0.074R | 0.82 |
+
+| Spread at the weekend open | net exp | PF |
+|---|---|---|
+| x1 (repo model) | +0.266R | 1.81 |
+| x3 | +0.154R | 1.42 |
+| x5 | +0.041R | 1.10 |
+| x10 | -0.241R | 0.52 |
+
+The gross edge (+0.38R) is the first minutes of the week, when a thin market prints a first tick away from the fair price and then reverts. It is gone 10 minutes later. A retail account cannot fill at the exact first-bar open, and spreads at the Sunday reopen are commonly many times normal for the first minutes. So this is a measurement of the data's first print and not a tradable edge. The other two finalists behave the same way: at +15 min they give +0.026R (g=0.25/s=1) and +0.003R (g=0.10/s=2).
+
+**Addendum (committed with this section, added after the TRAIN/VALID look and before any TEST look; it can only tighten the gates):** T8, a finalist must keep net expectancy >= +0.03R on 2016-2022 with entry delayed 15 minutes; T9, net expectancy > 0 with the spread at x5 on the entry. All three finalists fail T8 (+0.019R, +0.026R, +0.003R). Therefore **NOT VALIDATED without opening TEST**, which stays sealed for any future, properly executable version of this idea (it would need tick or M1 data at the Sunday open and real Sunday spreads, which this repo does not have). The gates T1-T7 alone would not have caught it. That is a hole in the original pre-registration, now closed for later rounds: any strategy with entries at a session or week boundary needs a delayed-entry gate.
+
+Code note: `gap_trades` gained `delay` and `spread_mult` arguments after the pre-registration commit. Defaults reproduce the registered rule, and the 4 tests still pass.
+
+## 6. What would a strategy have to look like to pass both phases in 90 days?
+
+`tools/challenge_sim.py` on synthetic trade streams (1:1 payoff, costs already inside, independent trades, up to 3 slots, the same rules as section 1; 40 simulated 400-day histories per cell):
+
+| trades / day | net expectancy (R) | 0.5% risk | 1.0% | 1.5% | 2.0% |
+|---|---|---|---|---|---|
+| 1 | 0.00 (no edge) | 0% | 7% | 16% | 25% |
+| 1 | +0.10 | 0% | 22% | 34% | 46% |
+| 1 | +0.20 | 2% | 46% | 68% | 70% |
+| 3 | 0.00 (no edge) | 4% | 23% | 10% | 20% |
+| 3 | +0.10 | 25% | 70% | 31% | 43% |
+| 3 | +0.20 | 84% | 93% | 52% | 64% |
+
+- To reach about 70% probability of both phases in three months, a strategy needs roughly **+0.10R net per trade at 3 independent trades a day, or +0.20R at 1 trade a day**, sustained out of sample.
+- The best out-of-sample net expectancy found across 168 trials is +0.012R (the fade, 2016-2022). That is one to two orders of magnitude short.
+- Zero-edge strategies pass 7-25% of the time at high risk. A pass rate in that range is not evidence of an edge, and pushing risk up to buy it is gambling with the challenge fee, not a validated strategy. I do not recommend it and did not test anything built on it.
+
+## 7. Cumulative record
+
+| Round | Trials | Outcome |
+|---|---|---|
+| docs_v1 (all strategies in `docs_v1/`) | 38 | none survives TRAIN |
+| Champion and fade on 2016-2022 | 2 | both fail out of sample |
+| Daily families (trend, pullback, cross-sectional) | 12 | no TRAIN candidate |
+| This round (session, gap, fade geometry) | 116 | only a data-first-print artefact |
+| **Total** | **168** | **no strategy validates** |
+
+## 8. Ledger
+
+| # | Step | Outcome |
+|---|---|---|
+| 1 | Open PR #14 for rounds 1-3 | done |
+| 2 | Wrote `challenge_sim.py` (6 tests). Applied it to the fade and a zero-edge null | fade completes both phases in 90 d: 40% in-sample, 21-27% out of sample; null 10-17% |
+| 3 | Pre-registered 116 configs (`35d3cfb`), then ran TRAIN | 4 GAP candidates, all others none |
+| 4 | VALID | 3 finalists (all GAP) |
+| 5 | Executability diagnostics on 2016-2022 (delayed entry, spread stress, per-pair, hold time) | artefact; T8 added; verdict NOT VALIDATED |
+| 6 | TEST | not opened |
+| 7 | Sandbox `/tmp` was wiped twice between turns: the earlier local commits were lost and re-created from the surviving files. Data re-downloaded, fingerprint `2133f59930b9` verified | - |
+
+Known unrelated baseline failure: `tests/test_source_contract.py::test_canonical_and_runtime_files_exist`.

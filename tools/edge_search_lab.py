@@ -96,7 +96,7 @@ def sess_trades(sym, d, win, dirs=(1, -1)):
 
 
 # ---------------------------------------------------------------- weekend gap fade
-def gap_trades(sym, d, dd, g, s):
+def gap_trades(sym, d, dd, g, s, delay=0, spread_mult=1.0, min_prior_touch=False):
     ts, o, h, l, c = d["ts"], d["o"], d["h"], d["l"], d["c"]
     pip, pv, spp = spec(sym)
     gi = np.flatnonzero(np.diff(ts) >= 36 * 3_600_000) + 1
@@ -111,9 +111,13 @@ def gap_trades(sym, d, dd, g, s):
             continue
         dr = -1 if gap > 0 else 1
         dist = s * abs(gap)
+        i0 = i
+        i = i + delay                                   # diagnostic only: delayed entry (delay=0 is the pre-registered rule)
         entry = o[i]
+        if delay and (c[i0 - 1] - entry) * dr <= 0:
+            continue                                    # target already reached before the delayed entry
         stop = entry - dr * dist
-        tgt = c[i - 1]
+        tgt = c[i0 - 1]
         j_end = i + 288
         lo, hi = l[i:j_end], h[i:j_end]
         sh = np.flatnonzero(lo <= stop if dr > 0 else hi >= stop)
@@ -123,13 +127,13 @@ def gap_trades(sym, d, dd, g, s):
         if js <= jt and js < 10 ** 9:
             jj = i + js
             fill = stop if js == 0 else (min(stop, o[jj]) if dr > 0 else max(stop, o[jj]))
-            out.append(mk(sym, pip, pv, spp, dr, entry, dist, (fill - entry) * dr / dist, -1.0, ts[i], ts[jj], ts[i]))
+            out.append(mk(sym, pip, pv, spp * spread_mult, dr, entry, dist, (fill - entry) * dr / dist, -1.0, ts[i], ts[jj], ts[i]))
         elif jt < 10 ** 9:
-            r = abs(gap) / dist
-            out.append(mk(sym, pip, pv, spp, dr, entry, dist, r, r, ts[i], ts[i + jt], ts[i]))
+            r = abs(tgt - entry) / dist
+            out.append(mk(sym, pip, pv, spp * spread_mult, dr, entry, dist, r, r, ts[i], ts[i + jt], ts[i]))
         else:
             r = (o[j_end] - entry) * dr / dist
-            out.append(mk(sym, pip, pv, spp, dr, entry, dist, r, r, ts[i], ts[j_end], ts[i]))
+            out.append(mk(sym, pip, pv, spp * spread_mult, dr, entry, dist, r, r, ts[i], ts[j_end], ts[i]))
     return out
 
 
