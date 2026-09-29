@@ -1,0 +1,5 @@
+# Python dependencies for the histdata.com gap-fill step (fill-gap-histdata.js
+# calls histdata-dl.py, which uses the histdata PyPI package).
+# Version pinned to match the environment where the pipeline was validated.
+histdata==1.1
+requests==2.31.0
