@@ -132,3 +132,21 @@ Code note: `gap_trades` gained `delay` and `spread_mult` arguments after the pre
 | 7 | Sandbox `/tmp` was wiped twice between turns: the earlier local commits were lost and re-created from the surviving files. Data re-downloaded, fingerprint `2133f59930b9` verified | - |
 
 Known unrelated baseline failure: `tests/test_source_contract.py::test_canonical_and_runtime_files_exist`.
+
+## 9. Follow-up: how much does the M5 fade depend on the cost model? (diagnostic, not a gate)
+
+Net result if every trade's cost were scaled by a multiple (gross R unchanged; strict bound; both-phase pass rate in 90 days from weekly starts, one slot; `tools/challenge_sim.py`). The repo's own cost model is x1.0.
+
+| Window | cost x | net exp | PF | 90% lower bound | both-phase pass at 0.5% / 1% risk |
+|---|---|---|---|---|---|
+| 2016-22 (clean) | 1.0 | +0.012R | 1.01 | -0.063 | 21% / 19% |
+| 2016-22 (clean) | 0.75 | +0.067R | 1.07 | -0.008 | 22% / 22% |
+| 2016-22 (clean) | 0.5 | +0.121R | 1.12 | +0.046 | 26% / 29% |
+| 2016-22 (clean) | 0.25 | +0.175R | 1.19 | +0.100 | 30% / 33% |
+| 2022-26 (tuned) | 1.0 | +0.348R | 1.35 | +0.259 | 40% / 35% |
+| 2022-26 (tuned) | 0.5 | +0.448R | 1.49 | +0.358 | 46% / 38% |
+
+- Break-even cost multiple on the clean window is 1.06 (gross +0.230R against 0.217R cost). The fade only clears the O2 gate (+0.10R, lower bound > 0) if real costs are about half the repo model or less, which I cannot check without the user's real broker terms. It clears O3 (PF >= 1.20) only at about a quarter of the model.
+- Even at half cost, the clean-window both-phase pass rate is 26-29%, far from 70%. The limit is trade volume under the one-slot rule and the 4.5% daily-loss buffer, not only the edge.
+- Reading: a real broker with much cheaper execution would turn the M5 fade from a zero into a modest edge. That is a hypothesis about costs, not a validation. The way to test it is a live or demo forward run that records real fills on the exact signals, which needs a human decision.
+- Sandbox note: `/tmp` and the local git state were reset again between turns; the local branch was re-synced to the pushed commit `37bf990` (`git reset` mixed, no file changes).
