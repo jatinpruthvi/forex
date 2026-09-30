@@ -1,0 +1,39 @@
+ok   FRED FEDFUNDS 3226 bytes  USD fed funds (monthly)
+ok   FRED IRSTCI01EZM156N 5918 bytes  EUR immediate rate (monthly)
+ok   FRED IRSTCI01GBM156N 3633 bytes  GBP (monthly)
+ok   FRED IRSTCI01JPM156N 3929 bytes  JPY (monthly)
+ok   FRED IRSTCI01AUM156N 5633 bytes  AUD (monthly)
+ok   FRED IRSTCI01NZM156N 2913 bytes  NZD (monthly)
+ok   FRED IRSTCI01CAM156N 5833 bytes  CAD (monthly)
+ok   FRED IRSTCI01CHM156N 5454 bytes  CHF (monthly)
+ok   FRED ECBDFR 100848 bytes  ECB deposit facility rate (daily)
+ok   FRED DFF 97861 bytes  US effective fed funds (daily)
+ok   FRED DTWEXBGS 84522 bytes  Broad trade-weighted USD index (daily)
+ok   FRED VIXCLS 73567 bytes  VIX (daily)
+ok   FRED DGS2 69162 bytes  US 2y (daily)
+ok   FRED DGS10 69163 bytes  US 10y (daily)
+FAIL FRED GOLDPMGBD228NLBM  LBMA gold PM (daily, may be discontinued)
+ok   COT fut_fin_txt 2015 355771 bytes
+ok   COT com_disagg_txt 2015 1800682 bytes
+ok   COT fut_fin_txt 2016 365403 bytes
+ok   COT com_disagg_txt 2016 1926290 bytes
+ok   COT fut_fin_txt 2017 395830 bytes
+ok   COT com_disagg_txt 2017 1794263 bytes
+ok   COT fut_fin_txt 2018 458570 bytes
+ok   COT com_disagg_txt 2018 2047343 bytes
+ok   COT fut_fin_txt 2019 454803 bytes
+ok   COT com_disagg_txt 2019 2056717 bytes
+ok   COT fut_fin_txt 2020 430721 bytes
+ok   COT com_disagg_txt 2020 2005733 bytes
+ok   COT fut_fin_txt 2021 466549 bytes
+ok   COT com_disagg_txt 2021 2013057 bytes
+ok   COT fut_fin_txt 2022 494559 bytes
+ok   COT com_disagg_txt 2022 2105261 bytes
+ok   COT fut_fin_txt 2023 506931 bytes
+ok   COT com_disagg_txt 2023 2257219 bytes
+ok   COT fut_fin_txt 2024 563591 bytes
+ok   COT com_disagg_txt 2024 2445082 bytes
+ok   COT fut_fin_txt 2025 627068 bytes
+ok   COT com_disagg_txt 2025 2498864 bytes
+ok   COT fut_fin_txt 2026 534294 bytes
+ok   COT com_disagg_txt 2026 1902127 bytes
