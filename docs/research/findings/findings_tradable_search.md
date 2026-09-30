@@ -36,3 +36,53 @@ Why these: London-open breakouts, hourly mean reversion and intraday momentum ar
 If no finalist passes, the verdict is NOT VALIDATED. Nothing is called live-ready either way.
 
 Code: `tools/tradable_search_lab.py`. Tests: `tests/test_tradable_search_lab.py` (blackout in summer and winter, weekend-gap block, stop/gap/target, widened-blackout stop, ORB directions and signal-before-entry, truncation invariance on real data for ORB, CM, H1MR and H4T).
+
+---
+
+# Results (appended 2026-09-30; sections 1-3 were committed before any P&L)
+
+## 4. Verdict: NOT VALIDATED. No TRAIN candidate in any of the 28 configs; TEST (2022-2026) was not opened.
+
+TRAIN 2016-09-11 to 2020-09-11, The5ers costs at x2 typical spread, rollover blackout on, strict bound, all 11 pairs pooled:
+
+| Family | Configs | n per config | Mean gross | Mean cost | Mean net | Positive configs |
+|---|---|---|---|---|---|---|
+| ORB London-open breakout | 8 | 9,082 | +0.002R | 0.092R | **-0.089R** | 0 / 8 |
+| H4T 4-hour trend | 6 | 987-2,498 | +0.004R | 0.021R | **-0.017R** | 0 / 6 |
+| H1MR hourly mean reversion | 4 | 7,589-15,088 | -0.005R | 0.046R | **-0.051R** | 0 / 4 |
+| CM conditional momentum | 10 | 6,242-6,584 | +0.005R | 0.042R | **-0.037R** | 0 / 10 |
+
+- **All 28 configs are negative net, and every gross expectancy is within ±0.03R of zero.** The best single config is H4T N20 k3.0 at -0.001R (lower bound -0.052). The worst are the tight-stop ORB variants, where cost is 0.12R per trade.
+- Breakout and fade of the Asian range are equally flat (gross +0.002R vs +0.004R), so there is no directional information either way. The same holds for continuation vs reversal in CM.
+- The sample sizes are large (thousands of trades per config), so the zeros are tight: a true gross edge of even +0.05R would show up.
+- `valid` printed "TRAIN candidates: NONE" and `test --confirm` refused with "no finalists: nothing to test".
+
+## 5. Cumulative record across all rounds
+
+| Round | Trials | Outcome |
+|---|---|---|
+| docs_v1 (every strategy in `docs_v1/`) | 38 | none survives TRAIN |
+| Champion and M5 fade on 2016-2022 | 2 | both fail; the fade's profit is the rollover artefact |
+| Daily families (trend, pullback, cross-sectional) | 12 | no TRAIN candidate |
+| Session drift, weekend gap, fade geometry | 116 | only the first-print artefact |
+| **Tradable-only (this round)** | **28** | **nothing** |
+| **Total** | **196** | **no strategy validates** |
+
+Every "edge" that ever looked real in this repo's data turned out to be a quote-formation artefact (first print of the week, 17:00 NY rollover). Once those are excluded, gross expectancy across 10 years, 11 pairs and 5 strategy families is indistinguishable from zero, and costs make the net negative. That is what an efficient market at these frequencies looks like, and it is the prior the pre-registrations started from.
+
+## 6. What this means for "Phase 1 + Phase 2 inside three months"
+
+From `findings_edge_search.md` section 6, a strategy needs about +0.10R net per trade at three independent trades a day (or +0.20R at one a day) to pass both phases in 90 days about 70% of the time. Nothing found comes close to a positive net. With these data and this search the honest expectation of a systematic challenge pass is the zero-edge lottery rate (roughly 7-25%, rising with risk and falling with the daily-loss buffer), which is not a strategy.
+
+What could still change the answer, none of it available here: tick data with real quotes (to price entries and the spread at news and rollover), order-flow or positioning data, swap/carry and macro data, an economic calendar, or live fills. Until one of those exists, further searches on M5 bars are data-mining with a low prior.
+
+## 7. Ledger
+
+| # | Step | Outcome |
+|---|---|---|
+| 1 | Wrote lab and 7 tests; all pass, including truncation invariance on real data | ok |
+| 2 | Pre-registered 28 configs (`e7d3f65`), then ran TRAIN | 0 candidates |
+| 3 | VALID, TEST | no candidates, no finalists, TEST unopened |
+| 4 | Sandbox `/tmp` and local git state were reset again; re-synced to the pushed branch | no file changes |
+
+Known unrelated baseline failure: `tests/test_source_contract.py::test_canonical_and_runtime_files_exist`.
