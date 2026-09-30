@@ -1,5 +1,7 @@
 # Structural ROI without a market edge: expected value of prop challenges (2026-09-30)
 
+> **Superseded (2026-09-30):** this coin-flip model is optimistic; see `findings_challenge_real.md` (real price paths, firm risk limits): the idea is not validated.
+
 No strategy validated in 210 trials (see the other findings). This note asks a different question: with **no edge at all** (a fair random walk, only a cost drag), what do the challenge rules themselves imply? `tools/challenge_ev.py` simulates one bracket trade a day, no time limit, win probability set so expectancy = -c R.
 
 Idea: a fair game reaches +10% before -10% about half the time whatever the bet size, few large bets avoid cost drag, and a funded account pays only on profits while the firm absorbs losses (the payout is truncated below at zero).
