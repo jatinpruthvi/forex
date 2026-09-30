@@ -28,3 +28,39 @@ Paths start on a random historical day; TRAIN starts 2016-10-01..2021-09-01, CON
 - Tests: `tests/test_challenge_real_lab.py` (rule mechanics on synthetic paths, zero-edge pool on real data).
 
 # Results
+
+*(appended 2026-09-30; sections 1-3 above were committed first)*
+
+## 4. Round 1 result: the idea survives real price paths, at a risk size the firm does not allow
+
+TRAIN starts 2016-10..2021-09 (3,000 paths per config; all paths finished, none "open"):
+
+| Config (risk, R, cost mult) | P(Phase 1) | P(both) | P(first payout) | mean payout | EV per attempt | x 0.6 % fee |
+|---|---|---|---|---|---|---|
+| 2.5 %, 1, x2 | 0.38 | 0.21 | 0.12 | 1.29 % | +0.69 % | +1.1 |
+| 2.5 %, 1, x6 | 0.24 | 0.10 | 0.04 | 0.38 % | -0.22 % | -0.4 |
+| 2.5 %, 2, x2 | 0.40 | 0.22 | 0.12 | 1.29 % | +0.69 % | +1.2 |
+| 2.5 %, 2, x6 | 0.31 | 0.14 | 0.06 | 0.62 % | +0.02 % | 0.0 |
+| 4 %, 1, x2 | 0.43 | 0.23 | 0.14 | 1.76 % | +1.16 % | +1.9 |
+| 4 %, 1, x6 | 0.33 | 0.16 | 0.08 | 0.80 % | +0.20 % | +0.3 |
+| **4 %, 2, x2** | 0.44 | 0.24 | 0.14 | 1.81 % | **+1.21 %** | **+2.0** |
+| 4 %, 2, x6 | 0.35 | 0.15 | 0.08 | 0.89 % | +0.29 % | +0.5 |
+
+Best at the declared cost: `r4_R2_m2`. **CONFIRM (starts 2021-09..2024-09, 6,000 paths, one look):** at x2 P(both) 0.23, first payout 0.13, EV +1.03 % of the account = **+1.7x** a 0.6 % fee (se 0.07 %); at x6 P(both) 0.18, EV +0.47 % = **+0.8x**. By the section-3 rule the **claim is validated on the model** (x2 >= +0.5x with the 90 % interval above zero, x6 > 0). Fee sensitivity at x2: 0.3 % fee +4.4x, 0.6 % +1.7x, 1.0 % +0.6x; at x6: +2.6x, +0.8x, +0.1x.
+
+Limits of this reading: paths from nearby start days overlap, so the standard errors are too small (the honest uncertainty is larger); the EV is essentially all in the payouts (P of a first payout is 13 %); and the model assumed rules that turned out to be too permissive, see section 5.
+
+## 5. The rules check (web, 2026-09) invalidates the 4 % risk size
+
+Reading The5ers' published rules after round 1 (sources: propfirmmatch rules page, tradetanto, the5ers FAQ pages, tradersunion, dealpropfirm, quantvps; some are third-party and they disagree in places):
+- **High Stakes prohibits** "allocating a substantial or majority portion of the allowable daily loss or available margin to a single trade idea" (risk-management rule), plus one-sided betting, martingale, and "position sizing inconsistency". The Bootcamp caps any position at 2 % risk. 4 % risk is 80 % of a 5 % daily limit: not allowed. Even 2.5 % is 50 %.
+- **Payout cap per request on bigger High Stakes accounts**: $3,000 on $50K, $4,000 on $100K (minimum P&L for payout $300 and $500 respectively); minimum withdrawal $150; withdrawal fee 2-3.5 %.
+- **Fee refund is partial**, not cash at once: 10 % and 20 % of the fee become non-withdrawable Hub Credits after Phases 1 and 2; about 70 % of the fee can be added to funded equity and withdrawn with the first payout (quantvps/traderssecondbrain read of the policy); other sources say "full refund". I counted **no refund** (conservative).
+- Some pages give 4 % daily / 8 % static loss for the "New" route; others 5 % / 10 %. News: no new order within 2 minutes of high-impact news (my random entries avoid +-4 minutes of 08:30, 10:00, 14:00 New York).
+- Entry fees: $22 for $2.5K, $39 for $5K, $78 for $10K, $165 for $20K-$25K, $329 for $60K, $545 for $100K (0.55 %-0.9 % of the account).
+
+## 6. Round 2 (PRE-REGISTERED, committed before any round-2 result): compliance-constrained
+
+Changes (all fixed now): risk per trade {1.0 %, 1.5 %, 2.0 %} (2 % is 40 % of a 5 % daily limit and equals the Bootcamp cap; I treat 2 % as the highest defensible and recommend less), R {1, 2}, cost multiple {2, 6} = 12 configs; payouts net of a **3.5 %** withdrawal fee; fee primary **0.8 %** of the account ($39 on $5K); the day cap raised to 1,500 trading days; no fee refund counted; same TRAIN and CONFIRM start windows and the same decision rule (confirm at x2 >= +0.5x the fee with the 90 % interval above zero, and x6 > 0). Additional fixed sensitivity on CONFIRM only: daily 4 % / max loss 8 % (the stricter rule reported by some pages). Payout caps do not bind on accounts of $25K or smaller and are ignored; the result is stated per unit of account size.
+
+# Round 2 results

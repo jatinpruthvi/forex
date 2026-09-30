@@ -32,8 +32,14 @@ EXIT_MIN = 1200                              # flat by London 20:00
 STOP_ATR = 0.5                               # stop = 0.5 x daily ATR20
 NEWS_NY = [(508, 515), (598, 605), (838, 845)]   # 08:28-08:35, 09:58-10:05, 13:58-14:05 New York (+-2 min of typical releases, widened)
 RULES = dict(t1=0.10, t2=0.05, daily=0.05, floor=0.10, min_days=3, day_profit=0.005, fund_w=0.05, split=0.80, rounds=5, pay_gap_days=14, cap_days=700)
+RULES2 = dict(RULES, cap_days=1500, withdraw_fee=0.035)      # round 2: compliance-constrained (see findings_challenge_real.md section 6)
 
 CONFIGS = {}
+CONFIGS2 = {}
+for risk in (0.01, 0.015, 0.02):
+    for R in (1.0, 2.0):
+        for m in (2.0, 6.0):
+            CONFIGS2[f"c_r{risk*100:g}_R{R:g}_m{m:g}"] = dict(risk=risk, R=R, mult=m)
 for risk in (0.025, 0.04):
     for R in (1.0, 2.0):
         for m in (2.0, 6.0):
@@ -100,7 +106,7 @@ def run_path(world: World, start_idx: int, cfg: dict, rng: np.random.Generator, 
         if stage == 3 and eq >= rules["fund_w"]:                 # target reached: stop risking it, wait for the payout window
             n_days += 1; i += 1
             if day - last_pay_day >= rules["pay_gap_days"]:
-                res["payouts"].append(rules["split"] * eq)
+                res["payouts"].append(rules["split"] * eq * (1 - rules.get("withdraw_fee", 0.0)))
                 eq, last_pay_day = 0.0, day
                 if len(res["payouts"]) >= rules["rounds"]:
                     res["end"] = "max_rounds"; break
@@ -190,13 +196,41 @@ def cmd_confirm(confirm):
             print(f"   fee {fee*100:.1f}%: EV {(r['mean_payout_pct']/100 - fee)*100:+.2f}% = {(r['mean_payout_pct']/100 - fee)/fee:+.1f}x fee")
 
 
+def cmd_train2():
+    res = {}
+    for name, cfg in CONFIGS2.items():
+        res[name] = evaluate(world(cfg["R"]), cfg, "2016-10-01", "2021-09-01", fee=0.008, rules=RULES2)
+        r = res[name]
+        print(f"{name:16s} P1={r['p1']:.2f} both={r['both']:.2f} first payout={r['first_payout']:.2f} meanpay={r['mean_payout_pct']:.2f}% EV={r['ev_pct']:+.2f}% ({r['ev_x_fee']:+.1f}x fee, se {r['se_pct']:.2f}%) unfinished={r['unfinished']:.2f} days={r['mean_days']:.0f}", flush=True)
+    json.dump(res, (OUT / "train2.json").open("w"))
+    best = max(res, key=lambda k: res[k]["ev_pct"] if CONFIGS2[k]["mult"] == 2.0 else -9)
+    json.dump(best, (OUT / "best2.json").open("w"))
+    print("best at declared cost (m=2) on TRAIN starts:", best)
+
+
+def cmd_confirm2(confirm):
+    lock = OUT / "confirm2.lock"
+    if not confirm or lock.exists():
+        sys.exit("refusing: CONFIRM2 is one look (needs --confirm; lock exists=%s)" % lock.exists())
+    best = json.load((OUT / "best2.json").open())
+    lock.write_text(best)
+    base = CONFIGS2[best]
+    for label, rules in (("daily 5% / max 10%", RULES2), ("daily 4% / max 8% (stricter)", dict(RULES2, daily=0.04, floor=0.08))):
+        for m in (2.0, 6.0):
+            cfg = dict(base, mult=m)
+            r = evaluate(world(cfg["R"]), cfg, "2021-09-01", "2024-09-01", n_paths=6000, seed=11, fee=0.008, rules=rules)
+            print(f"{best} [{label}] cost x{m:g}: P1={r['p1']:.2f} both={r['both']:.2f} first payout={r['first_payout']:.2f} mean payout={r['mean_payout_pct']:.2f}% "
+                  f"EV={r['ev_pct']:+.2f}% ({r['ev_x_fee']:+.1f}x a 0.8% fee, se {r['se_pct']:.2f}%) unfinished={r['unfinished']:.2f} days={r['mean_days']:.0f}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("train"); sub.add_parser("diag")
+    sub.add_parser("train"); sub.add_parser("diag"); sub.add_parser("train2")
     c = sub.add_parser("confirm"); c.add_argument("--confirm", action="store_true")
+    c2 = sub.add_parser("confirm2"); c2.add_argument("--confirm", action="store_true")
     a = ap.parse_args()
-    {"train": cmd_train, "diag": diag}.get(a.cmd, lambda: cmd_confirm(a.confirm))()
+    {"train": cmd_train, "diag": diag, "train2": cmd_train2}.get(a.cmd, lambda: cmd_confirm2(a.confirm) if a.cmd == "confirm2" else cmd_confirm(a.confirm))()
 
 
 if __name__ == "__main__":
