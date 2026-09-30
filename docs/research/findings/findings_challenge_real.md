@@ -64,3 +64,36 @@ Reading The5ers' published rules after round 1 (sources: propfirmmatch rules pag
 Changes (all fixed now): risk per trade {1.0 %, 1.5 %, 2.0 %} (2 % is 40 % of a 5 % daily limit and equals the Bootcamp cap; I treat 2 % as the highest defensible and recommend less), R {1, 2}, cost multiple {2, 6} = 12 configs; payouts net of a **3.5 %** withdrawal fee; fee primary **0.8 %** of the account ($39 on $5K); the day cap raised to 1,500 trading days; no fee refund counted; same TRAIN and CONFIRM start windows and the same decision rule (confirm at x2 >= +0.5x the fee with the 90 % interval above zero, and x6 > 0). Additional fixed sensitivity on CONFIRM only: daily 4 % / max loss 8 % (the stricter rule reported by some pages). Payout caps do not bind on accounts of $25K or smaller and are ignored; the result is stated per unit of account size.
 
 # Round 2 results
+
+*(appended 2026-09-30; section 6 was committed before any of this was run)*
+
+## 7. Round 2 result: NOT VALIDATED. With the firm's risk limit respected, the structural play is cost-fragile and roughly zero-EV.
+
+**TRAIN starts 2016-10..2021-09** (12 configs, fee 0.8 %, payouts net of 3.5 % withdrawal fee; all paths finished):
+
+| Risk | R | x2 cost: P(both) | x2 EV (x fee) | x6 cost: P(both) | x6 EV (x fee) |
+|---|---|---|---|---|---|
+| 1.0 % | 1 | 0.12 | -0.33 % (-0.4) | 0.02 | -0.78 % (-1.0) |
+| 1.0 % | 2 | 0.15 | -0.10 % (-0.1) | 0.05 | -0.70 % (-0.9) |
+| 1.5 % | 1 | 0.16 | -0.16 % (-0.2) | 0.06 | -0.63 % (-0.8) |
+| 1.5 % | 2 | 0.20 | +0.22 % (+0.3) | 0.10 | -0.46 % (-0.6) |
+| 2.0 % | 1 | 0.21 | +0.37 % (+0.5) | 0.09 | -0.52 % (-0.6) |
+| **2.0 %** | **2** | 0.22 | **+0.44 % (+0.5)** | 0.12 | -0.26 % (-0.3) |
+
+Best at the declared cost: `c_r2_R2_m2` (2 % risk, R = 2). **CONFIRM (starts 2021-09..2024-09, 6,000 paths, one look):**
+
+| Rule set | Cost | P(Phase 1) | P(both) | P(first payout) | EV per attempt | x 0.8 % fee |
+|---|---|---|---|---|---|---|
+| daily 5 % / max 10 % | x2 | 0.42 | 0.24 | 0.14 | +0.61 % (se 0.05) | **+0.8** |
+| daily 5 % / max 10 % | x6 | 0.30 | 0.14 | 0.07 | -0.19 % | **-0.2** |
+| daily 4 % / max 8 % | x2 | 0.36 | 0.19 | 0.10 | +0.14 % | +0.2 |
+| daily 4 % / max 8 % | x6 | 0.27 | 0.12 | 0.05 | -0.33 % | -0.4 |
+
+- Decision rule: x2 passes (+0.8x >= +0.5x, interval above zero) but **x6 fails** (EV < 0). So the claim is **not validated**. The no-edge structural play is only positive if all-in costs are about my x2 (EURUSD about 0.6 pip all-in incl. commission) or lower, and turns negative if costs triple; under the stricter 4 %/8 % rules it is about zero even at x2.
+- Risk below about 1.5 % per trade loses money at any cost (too slow: many days, costs bleed, few reach the targets); the coin-flip model of `findings_challenge_ev.md` badly overstated the low-risk end because real trades mostly end at the time exit near zero R, not at +-R.
+- The 4 % / R=2 result of round 1 (+1.7x, then +0.8x at x6) is what the model gives at a size the firm prohibits; it should not be acted on.
+- Honest limits: overlapping start days make the standard errors optimistic; firm discretion, payout caps above $25K and payout delays are not modelled; the cost multiple is an assumption that a demo-account spread log would resolve; roughly 86 % of attempts still end without a payout.
+
+## 8. Ledger
+
+Files: `tools/challenge_real_lab.py` (`train`, `confirm`, `train2`, `confirm2`; CONFIRM locks used), `tests/test_challenge_real_lab.py`, `tools/challenge_ev.py` (coin-flip model, now known to be optimistic). Not a market-edge search, so the trial count of 210 stands; this is 8 + 12 = 20 configs of a structural test, with their own pre-registration and lock files.
