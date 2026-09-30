@@ -38,3 +38,54 @@ Why these: carry and positioning are the two classic sources of FX return that d
 - Tests: `tests/test_macro_lab.py` (rate lag and staleness, causal percentile, carry-side sign, COT timing after publication, truncation invariance of all three carry modes on real data).
 
 # Results
+
+*(appended 2026-09-30; sections 1-3 above were committed first as `d025d6e`)*
+
+## 4. Verdict: NOT VALIDATED. No TRAIN candidate in any of the 14 configs; TEST (2022-2026) was not opened.
+
+`python tools/macro_lab.py train` (18 s), then `valid` ("TRAIN candidates: NONE", "FINALISTS: NONE"), then `test --confirm` refused with "no finalists: nothing to test".
+
+**TRAIN 2016-09-11 to 2020-09-11** (R per trade, 1R = 3 x daily ATR, The5ers costs; "carry/trade" is the carry accrual net of the 0.5 % mark-up already inside exp; "ex-carry" is what a swap-free account would see):
+
+| Config | n | exp | PF | gross | carry/trade | ex-carry | lb5 | TRAIN years |
+|---|---|---|---|---|---|---|---|---|
+| CARRY_sign_th0 | 329 | -0.003 | 0.99 | +0.003 | +0.025 | -0.028 | -0.102 | -0.27 +0.11 +0.18 -0.05 |
+| CARRY_xs_th0 | 145 | -0.061 | 0.86 | -0.055 | +0.040 | -0.101 | -0.190 | -0.23 +0.15 +0.09 -0.15 |
+| CARRY_signtr_th0 | 164 | -0.014 | 0.96 | -0.008 | +0.028 | -0.042 | -0.157 | -0.25 +0.09 +0.01 -0.08 |
+| CARRY_sign_th1 | 141 | -0.056 | 0.86 | -0.050 | +0.057 | -0.113 | -0.201 | -0.44 +0.15 +0.09 -0.28 |
+| CARRY_xs_th1 | 88 | -0.110 | 0.73 | -0.104 | +0.065 | -0.175 | -0.285 | -0.49 +0.18 +0.09 -0.27 |
+| CARRY_signtr_th1 | 71 | -0.076 | 0.79 | -0.071 | +0.065 | -0.141 | -0.257 | -0.87 +0.09 -0.03 -0.42 |
+| COT_lev_contra_80 | 474 | +0.017 | 1.09 | +0.023 | -0.003 | +0.020 | -0.027 | +0.01 +0.04 +0.04 -0.04 |
+| COT_lev_contra_90 | 245 | +0.023 | 1.12 | +0.028 | -0.003 | +0.025 | -0.038 | -0.08 +0.08 +0.14 -0.03 |
+| COT_lev_follow_80 | 474 | -0.029 | 0.86 | -0.024 | -0.003 | -0.026 | -0.077 | -0.03 -0.06 -0.06 +0.06 |
+| COT_lev_follow_90 | 245 | -0.030 | 0.86 | -0.025 | -0.003 | -0.027 | -0.091 | +0.06 -0.10 -0.16 +0.07 |
+| COT_am_contra_80 | 749 | +0.014 | 1.07 | +0.019 | -0.003 | +0.017 | -0.016 | +0.04 0.00 +0.05 -0.02 |
+| COT_am_contra_90 | 519 | +0.014 | 1.07 | +0.019 | -0.003 | +0.017 | -0.023 | +0.01 +0.01 +0.06 -0.01 |
+| COT_am_follow_80 | 749 | -0.030 | 0.86 | -0.024 | -0.003 | -0.027 | -0.059 | -0.08 -0.01 -0.07 +0.01 |
+| COT_am_follow_90 | 519 | -0.035 | 0.84 | -0.029 | -0.003 | -0.032 | -0.070 | -0.05 -0.03 -0.08 0.00 |
+
+- **CARRY: 0 of 6 positive** (mean net -0.053R). In 2016-20 the high-yielders lost as much in price as they paid in carry: the accrual is real (+0.025 to +0.065R per monthly trade) but the price leg is -0.05R to -0.10R. The worst TRAIN year for every mode is the first one (Sep 2016 - Sep 2017) and Sep 2019 - Sep 2020 (the COVID risk-off). A 4-year window is a short time for a carry factor, whose known failure mode is exactly such crashes; TRAIN being negative is not a finding about carry in general, only that this rule had no edge in this sample.
+- **COT: contrarian is weakly positive, follow is its mirror image** (contra configs +0.014 to +0.023R net, every follow config negative by about the same amount). The contrarian sign is consistent across both participant groups and both thresholds (these four are one idea seen four times, not four independent results), but the size is +0.02R and the lower bounds are all negative (-0.016 to -0.038R). At +0.02R per trade and about 100 trades a year it could not be told apart from zero even after 10 years, and is a fifth of the +0.10R the challenge needs at 3 trades a day.
+- Gross edge of every COT config is within +-0.03R, the same noise band as every price-bar family so far.
+- **Power note (why low-frequency families cannot be judged here):** 6 CARRY trades a month across seven pairs are heavily correlated (all are USD legs). The day-block bootstrap lower bounds of -0.10R to -0.29R show the width: detecting a +0.05R edge would need an order of magnitude more independent trades than 4 years provide.
+
+## 5. Cumulative record: 210 trials, none validates
+
+| Round | Trials |
+|---|---|
+| docs_v1 strategies | 38 |
+| champion and fade OOS | 2 |
+| daily families | 12 |
+| session / gap / fade geometry | 116 (only a first-print artefact) |
+| tradable-only price-bar families | 28 |
+| **macro and positioning (this round)** | **14** |
+| **Total** | **210** |
+
+## 6. What this round settles, and what it does not
+
+- Carry and CFTC positioning, implemented on the data now available, give no edge that clears even the TRAIN gate, and the only positive pattern (contrarian COT, +0.02R) is about a tenth of what a two-phase challenge needs.
+- Not settled: a proper carry test needs broker swap rates (the OECD rate is a proxy), CHF and NZD rates that run to 2026 (the OECD series stopped in 2024), and a longer history than 10 years of FX price data (the 2008-2015 carry crash and rebound are outside the window). The CFTC history reaches back to 2006 and the FRED rates to 2010, so a longer price series (histdata M1 to 2000) would be the next data to fetch if anyone wants to pursue it. I have not, because any such test would be about a *monthly* strategy whose trade count cannot complete a 90-day challenge whatever its edge.
+
+## 7. Ledger
+
+Files: `tools/macro_lab.py`, `tests/test_macro_lab.py`, `scripts/research-data/fetch_macro.py` and the `.github/workflows/fetch-research-data.yml` workflow (data branch `data/research-inputs`, `macro/`). Pre-registration commit `d025d6e`. The FRED gold series `GOLDPMGBD228NLBM` no longer exists (download failed, unused).
