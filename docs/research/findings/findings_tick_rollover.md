@@ -47,6 +47,7 @@ Median per-minute mean spread, pips, real quotes Sep 2025 to Aug 2026 (`tools/ti
 | 16:55-18:10, 99th pct of the minute's widest spread | 9.7 | 22.7 | 22.4 | 14.2 |
 | first 5 minutes after the weekend gap | 5.24 | 12.95 | 9.20 | 7.15 |
 
+- The same table explains the weekend "first print" artefact of the second search (`findings_edge_search.md`: +0.27R at delay 0, gone by 10-15 minutes): a 5 to 13 pip spread in the first five minutes after the open makes an order at that print untradable.
 - The rollover spread is **10 to 30 times** the normal spread and the weekend-open spread about 15 to 30 times, which is the mechanism the artefact finding guessed at, now observed.
 - **Caveat on the cost assumptions:** this feed's ordinary spread (EURUSD 0.3, GBPUSD 0.7, USDJPY 0.4, AUDUSD 0.9) is 2 to 3 times my `TYPICAL_RAW`. That is a retail-quote feed (spread includes a markup); a raw-spread account with a separate commission, which is what The5ers and Fusion Zero offer, would be tighter, so the raw numbers are not wrong, but nothing here verifies them. If the real accounts look more like this feed than like raw, every cost in the earlier rounds was too low and the verdicts only get worse.
 

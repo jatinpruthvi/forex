@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Download histdata.com tick quotes (bid and ask) for some pair-months and reduce them to 1-minute bid/ask OHLC + spread statistics.
-Needs: pip install histdata==1.1 pandas. Output: ./out/ticks/<pair>-<yyyy>-<mm>-1min.csv.gz.
-The timestamps are the feed's local clock as printed by histdata (naive); the research code calibrates the offset from the daily rollover spread spike.
+Needs: pip install histdata==1.1 pandas. Output: ./out/ticks/<pair>-<yyyy>-<mm>-1min.csv.gz, column `min` = epoch SECONDS of the feed clock.
+The timestamps are the feed's own clock as printed by histdata (naive): UTC-5 in winter / UTC-4 in summer, switching on the EUROPEAN DST dates (see tools/tick_lab.py feed_to_utc_ms).
 Usage: fetch_ticks.py --pairs eurusd,gbpusd --months 2025-09,2025-10"""
 import argparse
 import glob
@@ -41,7 +41,8 @@ for pair in a.pairs.split(","):
                 z.extract(name, tmp)
             df = pd.read_csv(os.path.join(tmp, name), header=None, names=["t", "bid", "ask", "v"], usecols=[0, 1, 2], dtype={"t": str})
             t = pd.to_datetime(df["t"], format="%Y%m%d %H%M%S%f")
-            df["min"] = t.dt.floor("min").astype("int64") // 10 ** 6
+            # epoch SECONDS of the feed clock (naive). Explicit unit: pandas 3 would otherwise give us microseconds and the old // 10**6 was seconds by accident.
+            df["min"] = t.dt.floor("min").astype("datetime64[s]").astype("int64")
             df["spr"] = df["ask"] - df["bid"]
             g = df.groupby("min", sort=True)
             res = pd.DataFrame({"bid_o": g["bid"].first(), "bid_h": g["bid"].max(), "bid_l": g["bid"].min(), "bid_c": g["bid"].last(),
