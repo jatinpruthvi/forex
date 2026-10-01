@@ -34,6 +34,7 @@ D8  micro-live-falsification-protocol.md  validation protocol (the OS)
 | **D4** | **Procurement layer**: promo-window eval buying, firm-rule matrix (prefer static/EOD-DD firms), EV-per-eval table; free gates: 5-day yield-differential bias + weekly COT sizing gate; M5 Risk Governor + M7 Cost Ledger module split | +15–25pp pass-rate hypothesis at zero trading cost; free leading filters; clear module ownership. |
 | **D7** | Payout-first withdrawal, firm solvency score, execution hygiene (limit orders, natural sizing variation, ≥180s holds) | Real counterparty risk; hygiene costs nothing and protects payouts. |
 | **D6** | Account stagger rule: never push all evals aggressively at once; alternate engine mixes across accounts | Cheap, prevents correlated whole-farm death days. |
+| **MQL5 Backport** | **Equity Curve Evasion**, **Dynamic TP (ATR)**, **H1 Structure Bailout**, **Native MT5 News Ingestion** | Tactical risk-mitigation features discovered in the v4 MQL5 codebase. Act as early-warning bailouts and target adaptations before global breakers hit. |
 
 ### 🚀 PHASE 1 SAFE HYBRID ADOPTIONS (The 5 Quant Advancements, De-risked for Day 1)
 
@@ -152,12 +153,14 @@ four engines, one validation protocol, and five de-risked quant enhancements.**
 |   - Dual-Limit Entry: 50% risk @ OB front edge, 50% risk @ 50% equilibrium. Cancel #2 if +1.0R hit |
 |   - 1.0R hard stop (distance >= 25 pips on M15)                                                    |
 |   - Staged Exit: 25% @ 1.5R (move SL to BE+0.3R) → 25% @ 3R → 25% @ pool → runner                  |
-|   - Dead-money time exit: age > 1.5× median AND < +0.5R → close at market                          |
+|   - Dynamic TP (MQL5-backport): Shrink TP if Daily ATR is >75% exhausted                           |
+|   - Bailouts: Dead-money time exit AND H1 Structure Bailout (exit if H1 engulfs against us)        |
 |   - Execution hygiene: resting limits only, VPS co-located (<5ms), hold time >= 180s               |
 |                                                                                                    |
 |  [RISK GOVERNOR & CLUSTER FIREWALL — Coded BEFORE any entry logic]                                 |
 |   - Anti-breach circuit breaker: Daily realized loss <= -2.2% -> CLOSE ALL, disable 24h            |
 |   - Trailing DD breaker: >= 4% peak-to-trough -> 48h freeze                                        |
+|   - Equity Curve Evasion: Throttle engine risk if its trailing P&L falls below its MA              |
 |   - Deterministic Cluster Firewalls: Trend <= 2.5%, Reversals <= 2.0%, Dispersion <= 1.0%          |
 |   - Net single-currency cap: <= 3% personal, <= 1.5% funded (no hidden USD triple-leverage)        |
 |   - Heat REDISTRIBUTION: r_i = H / sqrt(1^T rho 1) — heat is a budget, not just a cap              |
@@ -220,7 +223,7 @@ Where docs disagreed, the winner and why:
 | Shadow ML logging | **Every signal incl. skipped/C-grade** | taken signals only | Meta-labeling needs ~500 signals; logging skips only pulls the unlock forward ~3 months (R4B §B) |
 | Personal risk (gated) | 0.75% now → **1.25% after proof**, hard ceiling 2.2% | permanent 0.75% / or ratchet now | Kelly `r*/6` = 2.2% ceiling; ratchet gated on E1 ≥30 trades, `E>0.25R` |
 | Grade sizing | **Eligibility only on eval/funded; tiered on personal** | 2.5% A-grade everywhere | R2B: +40–70% on that sleeve, but wrapper must still cap (D2) |
-| News / weekend exposure | **FLAT ≥15 min pre-Tier-1; flat over weekend (eval/funded)** | entry-blackout only | Gap math: 2% heat × 2.5 gap = 5% = firm daily limit exactly, **headroom 0** |
+| News / weekend exposure | **Native MT5 Ingestion: FLAT ≥15 min pre-Tier-1; flat over weekend** | Python backend / blackout only | MQL5 native WebRequest parses ForexFactory XML, executing block flawlessly without external API risk |
 | Stop placement | **Hard SL order at the broker on every fill** | EA-side logical stop only | If VPS/EA dies, an EA-only stop gives an unbounded loss; broker-side caps it |
 | Pre-trade assertions | **Refuse: lot>cap · heat>cap · net-ccy>cap · margin<floor** | trust the sizing code | A lot bug is a 10× risk event; arithmetic refusal, no judgement |
 | Kill-switch evidence | **Weekly forced drill, PASS logged, FAIL blocks go-live** | "it passed last week" | delivery-gate: machine-verifiable facts, never self-reported status |
@@ -356,9 +359,9 @@ path produces more wealth by month 12.
 ```
 1. Run D8 Cost-Reality Audit (1 day, log 100 fills on micro-live feed)    [D8 §3]
 2. Pre-register MFP-001 (SMC Core E1 + Shadow ML logger)                  [D8 §2]
-3. Code Risk Governor (-2.2% breaker, cluster limits, netting)            [D2 §3]
+3. Code Risk Governor (-2.2% breaker, cluster limits, netting, eq-curve)  [D2 §3 + MQL5]
 4. Implement Daily HMM State script (23:55 GMT rollover flag)             [§1 Hybrid]
-5. Build Dual-Bracket Limit order manager (50/50 split)                   [§1 Hybrid]
+5. Build Dual-Bracket Limit order manager + Bailouts                      [§1 Hybrid + MQL5]
 ```
 
 Everything else in this folder — AAM, ACM, AEM, OAF, SAM — is now correctly
