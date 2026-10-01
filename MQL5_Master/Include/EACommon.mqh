@@ -1,0 +1,410 @@
+//+------------------------------------------------------------------+
+//|                                                     EACommon.mqh |
+//|                                  Copyright 2026, Master Strategy |
+//|                                                                  |
+//| The engine every additionalEA plugs into.                        |
+//|                                                                  |
+//| An EA file is then only:                                         |
+//|   1. #include "..\Include\EACommon.mqh"                          |
+//|   2. an input block                                             |
+//|   3. a class derived from CEAStrategy (Configure + BuildPlan)    |
+//|   4. OnInit / OnTick / OnDeinit that call EA_Init / EA_Tick /    |
+//|      EA_Deinit.                                                  |
+//|                                                                  |
+//| Signal -> risk gate -> sizing -> execution -> management is      |
+//| identical for all 79 EAs, so a fix in one place fixes all of     |
+//| them. Strategies only encode the edge.                           |
+//+------------------------------------------------------------------+
+#ifndef EA_COMMON_MQH
+#define EA_COMMON_MQH
+
+#include "EACore.mqh"
+#include "EASignals.mqh"
+#include "EATrade.mqh"
+
+//+------------------------------------------------------------------+
+//| Strategy interface                                               |
+//+------------------------------------------------------------------+
+class CEAStrategy
+{
+public:
+   virtual              ~CEAStrategy() {}
+
+   //--- called once with a reset SEASettings block: fill in the EA's defaults
+   virtual void         Configure(SEASettings &cfg) {}
+
+   //--- called after handles/risk/execution are ready
+   virtual void         OnInitStrategy() {}
+   virtual void         OnDeinitStrategy() {}
+
+   //--- the edge: fill `plan` (dir != 0 means "trade this")
+   virtual bool         BuildPlan(SEAContext &ctx, SSignalPlan &plan) { return false; }
+
+   //--- optional portfolio hook: rank this symbol's setup (collision ranking)
+   virtual double       RankSetup(SEAContext &ctx, const SSignalPlan &plan) { return plan.score; }
+
+   //--- per-tick management hook (runs for every symbol, every tick)
+   virtual void         Manage(SEAContext &ctx) {}
+
+   //--- extra admissibility gate (news windows, HTF filters, ...)
+   virtual bool         AllowTrading(SEAContext &ctx) { return true; }
+
+   //--- optional lot scaler (half-size variants, multi-account farms)
+   virtual double       LotsMultiplier(SEAContext &ctx) { return 1.0; }
+
+   //--- optional: allow several positions on the same symbol (grid/basket EAs)
+   virtual bool         AllowMultipleOnSymbol() { return false; }
+};
+
+CEAStrategy  *g_eaStrategy   = NULL;
+string        g_eaSymbols[EA_MAX_SYMBOLS];
+int           g_eaSymbolCount = 0;
+datetime      g_eaLastSignalBar = 0;
+bool          g_eaInitialised = false;
+
+//+------------------------------------------------------------------+
+//| Symbol list parsing                                             |
+//+------------------------------------------------------------------+
+int EA_ParseSymbols(const string csv)
+{
+   string parts[];
+   int n = StringSplit(csv, ',', parts);
+   int used = 0;
+   for(int i = 0; i < n && used < EA_MAX_SYMBOLS; i++)
+   {
+      string s = parts[i];
+      StringTrimLeft(s);
+      StringTrimRight(s);
+      if(StringLen(s) == 0) continue;
+      if(!SymbolSelect(s, true))
+      {
+         EA_Log(EA_LOG_ERRORS, StringFormat("symbol '%s' not available at this broker", s));
+         continue;
+      }
+      //--- normalise to the broker's exact name (suffix handling)
+      string brokerName = s;
+      if(SymbolInfoDouble(brokerName, SYMBOL_BID) <= 0.0)
+      {
+         EA_Log(EA_LOG_ERRORS, StringFormat("symbol '%s' has no quotes - skipped", s));
+         continue;
+      }
+      g_eaSymbols[used++] = brokerName;
+   }
+   g_eaSymbolCount = used;
+   return used;
+}
+
+//+------------------------------------------------------------------+
+//| Context construction                                             |
+//+------------------------------------------------------------------+
+bool EA_BuildContext(SEAContext &ctx, const string sym, const int idx)
+{
+   EA_ContextReset(ctx);
+   ctx.symbol = sym;
+   ctx.index  = idx;
+
+   ctx.nowServer = TimeTradeServer();
+   ctx.nowClock  = EA_ClockNow();
+   MqlDateTime dt;
+   if(!TimeToStruct(ctx.nowClock, dt)) return false;
+   ctx.dayOfWeek    = dt.day_of_week;
+   ctx.clockMinutes = dt.hour * 60 + dt.min;
+
+   ctx.inSession = true;
+   if(g_eaCfg.sessionStartHour >= 0 && g_eaCfg.sessionEndHour >= 0)
+      ctx.inSession = EA_InWindow(ctx.nowClock, g_eaCfg.sessionStartHour, g_eaCfg.sessionStartMin,
+                                  g_eaCfg.sessionEndHour, g_eaCfg.sessionEndMin);
+
+   ctx.pastNoTradeHour = false;
+   if(g_eaCfg.noTradeAfterHour >= 0)
+      ctx.pastNoTradeHour = !EA_InWindow(ctx.nowClock, 0, 0, g_eaCfg.noTradeAfterHour, g_eaCfg.noTradeAfterMin);
+
+   ctx.fridayCloseZone = false;
+   if(g_eaCfg.fridayFlat && ctx.dayOfWeek == 5)
+      ctx.fridayCloseZone = !EA_InWindow(ctx.nowClock, 0, 0, g_eaCfg.fridayFlatHour, g_eaCfg.fridayFlatMin);
+
+   ctx.bid = SymbolInfoDouble(sym, SYMBOL_BID);
+   ctx.ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   if(ctx.bid <= 0.0 || ctx.ask <= 0.0) return false;
+   ctx.mid = (ctx.bid + ctx.ask) / 2.0;
+   ctx.point = EA_Point(sym);
+   ctx.pip   = EA_PipSize(sym);
+   ctx.spreadPoints = EA_SpreadPoints(sym);
+   if(!EA_SymbolReady(sym)) return false;
+
+   if(idx < 0 || idx >= g_eaIndCount) return false;
+   SIndSet ind = g_eaInd[idx];
+   if(!ind.valid) return false;
+   EA_Buf(ind.hAtr,    0, 1, ctx.atr);
+   EA_Buf(ind.hAtrD1,  0, 1, ctx.atrD1);
+   EA_Buf(ind.hEma20,  0, 1, ctx.ema20);
+   EA_Buf(ind.hEma50,  0, 1, ctx.ema50);
+   EA_Buf(ind.hEma200, 0, 1, ctx.ema200);
+   EA_Buf(ind.hEmaH1_50,  0, 1, ctx.emaH1_50);
+   EA_Buf(ind.hEmaH1_200, 0, 1, ctx.emaH1_200);
+   EA_Buf(ind.hEmaD1_200, 0, 1, ctx.emaD1_200);
+   EA_Buf(ind.hRsi14, 0, 1, ctx.rsi14);
+   EA_Buf(ind.hAdx14, 0, 1, ctx.adx14);
+
+   ctx.equity         = AccountInfoDouble(ACCOUNT_EQUITY);
+   ctx.balance        = AccountInfoDouble(ACCOUNT_BALANCE);
+   ctx.dayStartEquity = g_eaRisk.DayStartEquity();
+   ctx.riskPct        = g_eaRisk.EffectiveRiskPct();
+   ctx.riskHalted     = g_eaRisk.Halted();
+   ctx.riskHaltReason = g_eaRisk.HaltReason();
+   ctx.newsBlocked    = EA_NewsBlocked();
+   ctx.openPositions  = EA_CountPositions(sym, true);
+   ctx.openPositionsAll = EA_CountPositions("", false);
+   ctx.floatingPl     = EA_FloatingPl(sym, true);
+   ctx.tradesToday    = g_eaRisk.TradesToday();
+   ctx.dayRealizedPl  = g_eaRisk.DayPl();
+   ctx.terminalReady  = (bool)MQLInfoInteger(MQL_TRADE_ALLOWED) &&
+                        (bool)TerminalInfoInteger(TERMINAL_TRADE_ALLOWED);
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Init / Deinit                                                    |
+//+------------------------------------------------------------------+
+int EA_Init(CEAStrategy *strategy)
+{
+   ResetLastError();
+   g_eaStrategy = strategy;
+   if(g_eaStrategy == NULL)
+   {
+      Print("EA_Init: no strategy object supplied");
+      return INIT_FAILED;
+   }
+
+   SEASettings cfg;
+   cfg.Reset();
+   g_eaStrategy.Configure(cfg);
+   g_eaCfg = cfg;
+
+   if(g_eaCfg.magic == 0)
+   {
+      Print("EA_Init: magic number must be set (0 = refuse to trade)");
+      return INIT_FAILED;
+   }
+   if(StringLen(g_eaCfg.symbols) == 0)
+   {
+      Print("EA_Init: no symbols configured");
+      return INIT_FAILED;
+   }
+
+   g_eaIndTf = g_eaCfg.signalTimeframe;
+   if(EA_ParseSymbols(g_eaCfg.symbols) <= 0)
+   {
+      Print("EA_Init: none of the configured symbols are tradable here");
+      return INIT_FAILED;
+   }
+
+   //--- indicator handles (created once - never inside OnTick)
+   for(int i = 0; i < g_eaSymbolCount; i++)
+   {
+      if(EA_IndCreate(g_eaSymbols[i], g_eaCfg.signalTimeframe) < 0)
+         return INIT_FAILED;
+   }
+
+   g_eaRisk.Init();
+   g_eaExec.Init();
+   g_eaStrategy.OnInitStrategy();
+
+   g_eaInitialised = true;
+   EA_Log(EA_LOG_EVENTS, StringFormat("================================================="));
+   EA_Log(EA_LOG_EVENTS, StringFormat("%s initialised (magic %s)", g_eaCfg.strategyName, EA_PrettyMagic(g_eaCfg.magic)));
+   if(StringLen(g_eaCfg.sourceDoc) > 0) EA_Log(EA_LOG_EVENTS, "source: " + g_eaCfg.sourceDoc);
+   EA_Log(EA_LOG_EVENTS, StringFormat("symbols: %s | tf: %s | build: %s",
+          g_eaCfg.symbols, EnumToString(g_eaCfg.signalTimeframe), EA_CORE_BUILD_ID));
+   EA_Log(EA_LOG_EVENTS, StringFormat("risk/trade: %.3f%% | max positions: %d | max trades/day: %d",
+          g_eaCfg.riskPct, g_eaCfg.maxOpenPositions, g_eaCfg.maxTradesPerDay));
+   EA_Log(EA_LOG_EVENTS, StringFormat("================================================="));
+   return INIT_SUCCEEDED;
+}
+
+void EA_Deinit(const int reason)
+{
+   if(g_eaStrategy != NULL) g_eaStrategy.OnDeinitStrategy();
+   EA_IndReleaseAll();
+   g_eaInitialised = false;
+   EA_Log(EA_LOG_EVENTS, StringFormat("deinitialised (reason %d)", reason));
+}
+
+//+------------------------------------------------------------------+
+//| Exit management for every symbol (runs on every tick)            |
+//+------------------------------------------------------------------+
+void EA_ManageAll()
+{
+   for(int i = 0; i < g_eaSymbolCount; i++)
+   {
+      SEAContext ctx;
+      if(!EA_BuildContext(ctx, g_eaSymbols[i], i)) continue;
+      g_eaStrategy.Manage(ctx);
+      EA_ManagePositions(ctx);
+      EA_CalendarFlats(ctx);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Signal phase - only on a new bar of the signal timeframe         |
+//+------------------------------------------------------------------+
+bool EA_IsNewSignalBar()
+{
+   if(g_eaSymbolCount <= 0) return false;
+   datetime t = iTime(g_eaSymbols[0], g_eaCfg.signalTimeframe, 0);
+   if(t == 0) return false;
+   if(t == g_eaLastSignalBar) return false;
+   g_eaLastSignalBar = t;
+   return true;
+}
+
+//--- choose the highest-ranked admissible plan across the universe
+bool EA_SelectPlan(SSignalPlan &best, SEAContext &bestCtx)
+{
+   bool found = false;
+   best.Reset();
+
+   for(int i = 0; i < g_eaSymbolCount; i++)
+   {
+      SEAContext ctx;
+      if(!EA_BuildContext(ctx, g_eaSymbols[i], i)) continue;
+      if(!g_eaStrategy.AllowTrading(ctx)) continue;
+      if(g_eaCfg.newsFilter && EA_NewsBlocked())
+      {
+         EA_Log(EA_LOG_EVENTS, "news blackout active - no new risk", true);
+         continue;
+      }
+      if(!g_eaRisk.CanOpen(ctx)) continue;
+      if(!g_eaStrategy.AllowMultipleOnSymbol())
+      {
+         if(ctx.openPositions > 0) continue;                              // already positioned
+         if(g_eaExec.HasPending(ctx.symbol, +1) || g_eaExec.HasPending(ctx.symbol, -1)) continue;
+      }
+
+      SSignalPlan plan;
+      if(!g_eaStrategy.BuildPlan(ctx, plan)) continue;
+      if(plan.dir == 0) continue;
+      if(plan.riskDist <= 0.0) continue;
+      if(plan.entry <= 0.0) continue;
+      if(plan.dir > 0 && plan.stop >= plan.entry) continue;
+      if(plan.dir < 0 && plan.stop <= plan.entry) continue;
+      plan.score = g_eaStrategy.RankSetup(ctx, plan);
+      if(!found || plan.score > best.score)
+      {
+         best     = plan;
+         bestCtx  = ctx;
+         found    = true;
+      }
+   }
+   return found;
+}
+
+//--- size and execute a plan
+void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
+{
+   if(plan.dir == 0) return;
+   double riskPct = MathMin(ctx.riskPct, 5.0);                 // hard safety clamp
+   if(riskPct <= 0.0) return;
+   riskPct *= g_eaStrategy.LotsMultiplier(ctx);
+   if(riskPct <= 0.0) return;
+
+   //--- all-in cost gate: spread + commission expressed in R
+   if(g_eaCfg.maxCostR > 0.0)
+   {
+      double costR = EA_CostInR(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
+      if(costR > g_eaCfg.maxCostR)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s all-in cost %.3fR > %.3fR budget - skip",
+                ctx.symbol, costR, g_eaCfg.maxCostR), true);
+         return;
+      }
+   }
+
+   double riskMoney = AccountInfoDouble(ACCOUNT_EQUITY) * riskPct / 100.0;
+   double lots      = EA_LotsForRisk(ctx.symbol, riskMoney, plan.riskDist);
+   //--- re-check with commission included so the all-in loss stays inside the budget
+   if(lots > 0.0 && g_eaCfg.commissionPerLotRT > 0.0)
+   {
+      double allIn = EA_LossPerLotAllIn(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
+      if(allIn > 0.0)
+      {
+         double lotsAllIn = EA_NormalizeVolume(ctx.symbol, riskMoney / allIn);
+         if(lotsAllIn > 0.0) lots = MathMin(lots, lotsAllIn);
+      }
+   }
+   if(lots <= 0.0)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s lot sizing produced 0 (risk=%.2f dist=%.5f)",
+             ctx.symbol, riskMoney, plan.riskDist), true);
+      return;
+   }
+
+   double sl = eaRoundSafe(ctx.symbol, plan.stop);
+   double tp = eaRoundSafe(ctx.symbol, plan.target);
+   string note = plan.reason;
+
+   if(plan.isLimit && plan.entry > 0.0)
+   {
+      double px = eaRoundSafe(ctx.symbol, plan.entry);
+      if(g_eaExec.HasPending(ctx.symbol, plan.dir)) return;
+      g_eaExec.OpenLimit(ctx.symbol, plan.dir, px, lots, sl, tp,
+                         (plan.expiry > 0 ? g_eaCfg.pendingExpiryMinutes : 0), note);
+   }
+   else
+   {
+      if(g_eaExec.OpenMarket(ctx.symbol, plan.dir, lots, sl, tp, note))
+      {
+         ulong t = EA_FindPosition(ctx.symbol, plan.dir);
+         if(t > 0) EA_TrackSetRisk(t, plan.riskDist);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Main tick                                                        |
+//+------------------------------------------------------------------+
+void EA_Tick()
+{
+   if(!g_eaInitialised || g_eaStrategy == NULL) return;
+   g_eaRisk.OnTick();
+   EA_ManageAll();
+
+   if(g_eaCfg.signalOnNewBarOnly && !EA_IsNewSignalBar()) return;
+   if(!g_eaCfg.signalOnNewBarOnly) g_eaLastSignalBar = iTime(g_eaSymbols[0], g_eaCfg.signalTimeframe, 0);
+
+   SSignalPlan best;
+   SEAContext  bestCtx;
+   if(!EA_SelectPlan(best, bestCtx)) return;
+   EA_ExecutePlan(bestCtx, best);
+   EA_Log(EA_LOG_EVENTS, StringFormat("signal %s %s @ %.5f sl %.5f tp %.5f (%.0f)",
+          bestCtx.symbol, best.dir > 0 ? "BUY" : "SELL", best.entry, best.stop, best.target, best.score));
+}
+
+//+------------------------------------------------------------------+
+//| Optional helpers used by individual EAs                          |
+//+------------------------------------------------------------------+
+
+//--- close everything for this EA (kill switch)
+void EA_FlattenAll(const string reason)
+{
+   g_eaExec.CancelPending("", reason);
+   g_eaExec.CloseAll(reason);
+}
+
+//--- count our pending orders
+int EA_CountPendings(const string sym)
+{
+   int n = 0;
+   for(int o = OrdersTotal() - 1; o >= 0; o--)
+   {
+      ulong t = OrderGetTicket(o);
+      if(t == 0) continue;
+      if((ulong)OrderGetInteger(ORDER_MAGIC) != g_eaCfg.magic) continue;
+      if(sym != "" && OrderGetString(ORDER_SYMBOL) != sym) continue;
+      n++;
+   }
+   return n;
+}
+
+#endif // EA_COMMON_MQH
+//+------------------------------------------------------------------+
