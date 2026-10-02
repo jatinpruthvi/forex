@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF,DAX,US30";      // Comma separated universe
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2040; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -61,6 +61,7 @@ public:
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
       cfg.timeStopMinutes       = 240;
       cfg.logLevel              = InpLogLevel;
@@ -134,8 +135,10 @@ public:
 
    bool IsSleeveBSymbol(const string sym)
    {
-      //--- doc sleeve B: XAUUSD, DAX, US30 (the two indices are outside this broker universe)
-      return (StringFind(sym, "XAUUSD") >= 0);
+      //--- doc sleeve B: XAUUSD, DAX, US30 (the indices resolve only if the broker lists them;
+      //--- the engine skips any configured symbol the broker does not offer)
+      return (StringFind(sym, "XAUUSD") >= 0 || StringFind(sym, "DAX") >= 0 ||
+              StringFind(sym, "US30") >= 0);
    }
 
    bool IsSleeveCSymbol(const string sym)

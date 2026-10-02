@@ -87,6 +87,7 @@ public:
       //--- 07:00-10:00 London open: sweep + break-retest (never a grid here)
       if(ctx.clockMinutes < 10 * 60)
       {
+         if(!IsLondonPair(ctx.symbol)) return false;              // doc sleeve 1 instruments
          SBreakRetestParams br;
          br.Reset();
          br.rangeFromMin = 0; br.rangeToMin = 7 * 60;
@@ -112,6 +113,7 @@ public:
       //--- 13:30-16:00 NY overlap: continuation or failed-London reversal
       if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60)
       {
+         if(!IsNySleevePair(ctx.symbol)) return false;            // doc NY sleeve instruments
          if(!SigEmaPullback(ctx, PullbackParams(), plan)) return false;
          plan.reason = "R4B-NYPULLBACK " + plan.reason;
          return true;
@@ -155,10 +157,20 @@ public:
               StringFind(sym, "USDCHF") >= 0);
    }
 
+   //--- doc sleeve 1 (London-open sweep + range-break retest): GBPUSD, EURUSD, XAUUSD.
+   //--- GBPJPY is the document's momentum-break pair ("no retest wait"): that trigger
+   //--- is not implemented, so the pair is excluded rather than traded with the wrong one.
    bool IsLondonPair(const string sym)
    {
       return (StringFind(sym, "GBPUSD") >= 0 || StringFind(sym, "EURUSD") >= 0 ||
-              StringFind(sym, "GBPJPY") >= 0 || StringFind(sym, "XAUUSD") >= 0);
+              StringFind(sym, "XAUUSD") >= 0);
+   }
+
+   //--- doc 13:30-16:00 NY sleeve: XAUUSD (EMA pullback), USDJPY (continuation).
+   //--- USDCAD's oil-divergence fade is not implemented, so it is excluded.
+   bool IsNySleevePair(const string sym)
+   {
+      return (StringFind(sym, "XAUUSD") >= 0 || StringFind(sym, "USDJPY") >= 0);
    }
 
    double AsiaRangePips(SEAContext &ctx)

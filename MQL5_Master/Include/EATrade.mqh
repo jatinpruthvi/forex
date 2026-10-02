@@ -1231,7 +1231,9 @@ void EA_ManagePositions(const SEAContext &ctx)
          {
             //--- doc policy: only a COMPLETED bar beyond +1R confirms the move
             MqlRates br[];
-            if(EA_Rates(sym, g_eaCfg.signalTimeframe, 0, 2, br) >= 2)   // br[1] = last closed bar
+            ENUM_TIMEFRAMES beTf = (g_eaCfg.beConfirmTf == PERIOD_CURRENT)
+                                   ? g_eaCfg.signalTimeframe : g_eaCfg.beConfirmTf;
+            if(EA_Rates(sym, beTf, 0, 2, br) >= 2)   // br[1] = last closed bar of the doc's timeframe
             {
                double closedMove = (dir > 0) ? (br[1].close - entry) : (entry - br[1].close);
                beTrigger = (closedMove >= g_eaCfg.breakEvenAtR * risk);

@@ -647,7 +647,7 @@ input int    InpQualifyingDayCount  = 3;      // Qualifying days required per ph
          if(g_eaTrack[t].beMoved) continue;
          MqlRates m[];
          if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 2, m) < 2) continue;
-         double d = (g_eaTrack[t].dir > 0) ? (m[1].close - g_eaTrack[t].entry) : (g_eaTrack[t].entry - m[1].close);
+         double d = (g_eaTrack[t].dir > 0) ? (m[0].close - g_eaTrack[t].entry) : (g_eaTrack[t].entry - m[0].close);
          if(d >= g_eaTrack[t].riskDist)
          {
             g_eaTrack[t].beMoved = true;
@@ -2477,9 +2477,13 @@ input bool   InpSleeveCEnabled     = true;''',
             }
          }
 
-         //--- ladder: +1R closes 40% (60% for XAUUSD) and moves the stop to entry
+         //--- doc 2.2: the +1R rung must be confirmed by an M5 candle CLOSE (not a wick)
+         double rClose = rMult;
+         MqlRates cbr[];
+         if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 1, cbr) >= 1)
+            rClose = ((dir > 0) ? (cbr[0].close - entry) : (entry - cbr[0].close)) / risk;
          bool isXau = (ctx.symbol == "XAUUSD");
-         if(rMult >= 1.0 && !g_eaTrack[t].p1Done)
+         if(rClose >= 1.0 && !g_eaTrack[t].p1Done)
          {
             if(g_eaExec.ClosePartial(g_eaTrack[t].ticket, isXau ? 60.0 : 40.0))
                g_eaTrack[t].p1Done = true;
@@ -4016,6 +4020,7 @@ input int    InpRolloverStopMin   = 21 * 60;  // No new risk from 21:00 (rollove
    //--- 07:00-10:00 London open: sweep + break-retest (never a grid here)
    if(ctx.clockMinutes < 10 * 60)
    {
+      if(!IsLondonPair(ctx.symbol)) return false;              // doc sleeve 1 instruments
       SBreakRetestParams br;
       br.Reset();
       br.rangeFromMin = 0; br.rangeToMin = 7 * 60;
@@ -4041,6 +4046,7 @@ input int    InpRolloverStopMin   = 21 * 60;  // No new risk from 21:00 (rollove
    //--- 13:30-16:00 NY overlap: continuation or failed-London reversal
    if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60)
    {
+      if(!IsNySleevePair(ctx.symbol)) return false;            // doc NY sleeve instruments
       if(!SigEmaPullback(ctx, PullbackParams(), plan)) return false;
       plan.reason = "R4B-NYPULLBACK " + plan.reason;
       return true;
@@ -4082,10 +4088,20 @@ input int    InpRolloverStopMin   = 21 * 60;  // No new risk from 21:00 (rollove
               StringFind(sym, "USDCHF") >= 0);
    }
 
+   //--- doc sleeve 1 (London-open sweep + range-break retest): GBPUSD, EURUSD, XAUUSD.
+   //--- GBPJPY is the document's momentum-break pair ("no retest wait"): that trigger
+   //--- is not implemented, so the pair is excluded rather than traded with the wrong one.
    bool IsLondonPair(const string sym)
    {
       return (StringFind(sym, "GBPUSD") >= 0 || StringFind(sym, "EURUSD") >= 0 ||
-              StringFind(sym, "GBPJPY") >= 0 || StringFind(sym, "XAUUSD") >= 0);
+              StringFind(sym, "XAUUSD") >= 0);
+   }
+
+   //--- doc 13:30-16:00 NY sleeve: XAUUSD (EMA pullback), USDJPY (continuation).
+   //--- USDCAD's oil-divergence fade is not implemented, so it is excluded.
+   bool IsNySleevePair(const string sym)
+   {
+      return (StringFind(sym, "XAUUSD") >= 0 || StringFind(sym, "USDJPY") >= 0);
    }
 
    double AsiaRangePips(SEAContext &ctx)
@@ -4421,6 +4437,7 @@ input double InpSpreadDivergenceX  = 2.00;  // Spread > 2x median = divergence s
    plan = base;
    plan.score  = quality * 10.0;
    plan.reason = StringFormat("R4C2-OBQUALITY(%.0f/12) %s", quality, plan.reason);
+   if(EndOfMonthWindow()) plan.score += 5.0;   // Lever 3: end-of-month liquidity-harvest bias (rank only)
    ApplyRegime(plan);
    return true;''',
     extra='''   double m_regimeRisk;
@@ -4640,6 +4657,7 @@ input int    InpNyToMin           = 11 * 60;       // NY continuation end''',
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 25.0;
    cfg.breakEvenAtR          = 2.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 0.75;
    cfg.timeStopMinutes       = 240;
    cfg.useLimitEntry         = true;
@@ -6917,6 +6935,7 @@ input int    InpFlatMin           = 21 * 60;  // Flat by 21:00 UK''',
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 0.0;   // doc: the mechanical chandelier in Manage() is the runner trail
    cfg.trailDistanceR        = 1.00;
    cfg.timeStopMinutes       = 0;
@@ -7425,8 +7444,11 @@ input int    InpHardCloseMin      = 20 * 60;  // Absolute closing time''',
    cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 0;  cfg.fridayFlatMin = 0;  // skip Friday
    cfg.signalOnNewBarOnly    = true;
-   cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
+   cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;   // doc: 40% at +1R
+   cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;   // doc: 30% at +2R
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
+   cfg.beConfirmTf            = PERIOD_M15;   // doc: M15 close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 0.75;
    cfg.timeStopMinutes       = 0;
    cfg.useLimitEntry         = true;
@@ -7659,13 +7681,14 @@ add(
     cls="Round10Opus",
     title="Round 10 Opus - LSR-A cost-gated micro-swing state machine with correlation cap",
     doc="docs/research/study_arena/studyarena-round10-claude-opus-5-high-reasoning.md",
-    common={"symbols": "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,USDJPY", "risk": "1.0", "spread": "0",
+    common={"symbols": "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,GER40,USDJPY,US100", "risk": "1.0", "spread": "0",
             "daily": "0", "totaldd": "0", "target": "20", "maxday": "4"},
     inputs='''input double InpAtrBandLow        = 0.70;  // ATR(14) >= 0.7x its 20-day median
 input double InpAtrBandHigh       = 1.80;  // ATR(14) <= 1.8x its 20-day median
 input double InpSpreadMedianX     = 1.50;  // Live spread <= 1.5x the median
 input double InpMinCostMultiple   = 10.0;  // Stop must be >= 10x round-trip cost
-input double InpCorrelationCap    = 0.70;  // |rho_60d| cap between open symbols''',
+input double InpCorrelationCap    = 0.70;  // |rho_60d| cap between open symbols
+input double InpMaxOpenRiskPct    = 1.50;  // Doc: max open risk at any instant''',
     configure='''cfg.strategyName          = "R10OPUS_LSRA";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round10-claude-opus-5-high-reasoning.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -7677,7 +7700,7 @@ input double InpCorrelationCap    = 0.70;  // |rho_60d| cap between open symbols
    cfg.maxTradesPerDay       = InpMaxTradesPerDay;
    cfg.maxOpenPositions      = 2;
    cfg.minSecondsBetweenTrades = 600;
-   cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
+   cfg.sessionStartHour      = 0;   cfg.sessionStartMin = 0;   // doc: Asian window opens 00:00
    cfg.sessionEndHour        = 20;  cfg.sessionEndMin   = 0;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
@@ -7685,17 +7708,48 @@ input double InpCorrelationCap    = 0.70;  // |rho_60d| cap between open symbols
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
+   cfg.beConfirmTf            = PERIOD_M5;    // doc: M5 close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.timeStopMinutes       = 240;
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(!VolatilityRegimeOk(ctx)) return false;
    if(!SpreadOk(ctx)) return false;
    if(!CorrelationOk(ctx)) return false;
+   if(!CorrelationOk(ctx)) return false;
+
+   //--- doc session x symbol matrix (UK): 00:00-03:00 AUDNZD/EURGBP/AUDUSD,
+   //--- 07:00-10:30 EURUSD/GBPUSD/XAUUSD/GER40, 13:30-16:00 XAUUSD/USDJPY/US100
+   int rangeFrom = 0, rangeTo = 0, sessFrom = 0, sessTo = 0;
+   if(ctx.clockMinutes < 3 * 60)
+   {
+      if(!(StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0 ||
+           StringFind(ctx.symbol, "AUDUSD") >= 0)) return false;
+      rangeFrom = 21 * 60; rangeTo = 24 * 60; sessFrom = 0; sessTo = 3 * 60;
+   }
+   else if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 10 * 60 + 30)
+   {
+      if(!(StringFind(ctx.symbol, "EURUSD") >= 0 || StringFind(ctx.symbol, "GBPUSD") >= 0 ||
+           StringFind(ctx.symbol, "XAUUSD") >= 0 || StringFind(ctx.symbol, "GER40") >= 0)) return false;
+      rangeFrom = 0; rangeTo = 7 * 60; sessFrom = 7 * 60; sessTo = 10 * 60 + 30;
+   }
+   else if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60)
+   {
+      if(!(StringFind(ctx.symbol, "XAUUSD") >= 0 || StringFind(ctx.symbol, "USDJPY") >= 0 ||
+           StringFind(ctx.symbol, "US100") >= 0)) return false;
+      rangeFrom = 7 * 60; rangeTo = 13 * 60 + 30; sessFrom = 13 * 60 + 30; sessTo = 16 * 60;
+   }
+   else return false;         // the document has no window outside these three
+
+   //--- doc caps: max 3 concurrent, max 2 entries per session, max 1.5% open risk
+   if(EA_CountPositions("", false) >= 3) return false;
+   if(EA_OpenRiskPct() >= InpMaxOpenRiskPct) return false;
+   if(SessionEntries(ctx, sessFrom, sessTo) >= 2) return false;
 
    SSweepParams p;
    p.Reset();
-   p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
-   p.sessionFromMin = 7 * 60; p.sessionToMin = 16 * 60;
+   p.rangeFromMin = rangeFrom; p.rangeToMin = rangeTo;
+   p.sessionFromMin = sessFrom; p.sessionToMin = sessTo;
    p.sweepMinAtr = 0.05; p.sweepMaxAtr = 0.60;
    p.reclaimWindowBars = 3;
    p.wickRatio = 0.55; p.bodyRatio = 0.60;
@@ -7708,7 +7762,28 @@ input double InpCorrelationCap    = 0.70;  // |rho_60d| cap between open symbols
    if(cost > 0.0 && plan.riskDist < InpMinCostMultiple * cost) return false;
    plan.reason = "R10OPUS-LSRA " + plan.reason;
    return true;''',
-    extra='''   bool VolatilityRegimeOk(SEAContext &ctx)
+    extra='''   //--- doc: max 2 entries per session; counted from the deal history
+   int SessionEntries(SEAContext &ctx, const int sessFrom, const int sessTo)
+   {
+      MqlDateTime dt;
+      if(!TimeToStruct(ctx.nowClock, dt)) return 0;
+      dt.hour = sessFrom / 60; dt.min = sessFrom % 60; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
+      datetime to   = from + (datetime)((sessTo - sessFrom) * 60);
+      if(!HistorySelect(from, to)) return 0;
+      int n = 0;
+      for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+      {
+         ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+         if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != InpMagicNumber) continue;
+         if(HistoryDealGetInteger(t, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+         n++;
+      }
+      return n;
+   }
+
+   bool VolatilityRegimeOk(SEAContext &ctx)
    {
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtr, 0, 1, 2880, av) < 100) return true;   // ~20 days of M15
@@ -7837,10 +7912,11 @@ input double InpMaxSpreadPips     = 0.80;  // Spread gate (doc: < 0.8 pips; rais
    cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
-   cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
-   cfg.breakEvenAtR          = 1.00;
+   cfg.partial1AtR           = 1.50;  cfg.partial1Pct = 60.0;   // doc TP1: 60% at +1.5R
+   cfg.breakEvenAtR          = 1.50;   // doc: BE at TP1 (+1.5R)
    cfg.trailAtR              = 1.50;  cfg.trailDistanceR = 0.50;
-   cfg.timeStopMinutes       = 10;
+   cfg.timeStopMinutes       = 12;     // doc: 12 minutes (12 M1 candles)
+   cfg.timeStopUnlessR       = 1.00;   // doc: only while the trade is below +1R
    cfg.logLevel              = InpLogLevel;''',
     plan='''MqlRates r[];
    //--- doc: the instrument list requires spreads below 0.8 pips
@@ -7929,6 +8005,7 @@ input double InpSweepMinPierceAtr  = 0.15;  // Wick must exceed the range by 0.1
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.timeStopMinutes       = 180;
    cfg.logLevel              = InpLogLevel;''',
@@ -8003,7 +8080,7 @@ add(
     cls="Round10Qwen",
     title="Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing",
     doc="docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md",
-    common={"symbols": "AUDNZD,EURGBP,EURUSD,GBPUSD,AUDUSD,XAUUSD,GBPJPY,USDJPY", "risk": "0.75",
+    common={"symbols": "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,GBPJPY,USDJPY,DAX,US30,NAS100", "risk": "0.75",
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "8"},
     inputs='''input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
@@ -8031,6 +8108,7 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.timeStopMinutes       = InpKillMinutes;
    cfg.logLevel              = InpLogLevel;''',
@@ -8043,11 +8121,12 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
       return false;
    }
 
+   //--- doc windows (UK): Asian 00:00-06:30, London 07:00-16:30, NY 13:30-20:30
    int fromMin = 21 * 60, toMin = 24 * 60, sessFrom = 0, sessTo = 6 * 60 + 30;
-   if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 13 * 60)
-   { fromMin = 0; toMin = 7 * 60; sessFrom = 7 * 60; sessTo = 12 * 60; }
-   else if(ctx.clockMinutes >= 13 * 60)
-   { fromMin = 7 * 60; toMin = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 21 * 60; }
+   if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 13 * 60 + 30)
+   { fromMin = 0; toMin = 7 * 60; sessFrom = 7 * 60; sessTo = 13 * 60 + 30; }
+   else if(ctx.clockMinutes >= 13 * 60 + 30)
+   { fromMin = 7 * 60; toMin = 13 * 60 + 30; sessFrom = 13 * 60 + 30; sessTo = 20 * 60 + 30; }
 
    double hi = 0.0, lo = 0.0;
    if(!RangeBetween(ctx.symbol, fromMin, toMin, hi, lo)) return false;
@@ -8058,6 +8137,7 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
 
    int tier = SessionTier(ctx);
    if(tier == 0) return false;
+   if(CurrencyGroupCount(ctx.symbol) >= 2) return false;   // doc: max 2 per currency group
 
    SSweepParams p;
    p.Reset();
@@ -8075,7 +8155,36 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
    m_tier = tier;
    plan.reason = StringFormat("R10QWEN-SOS3(tier %d) %s", tier, plan.reason);
    return true;''',
-    extra='''   int m_tier;
+    extra='''   //--- doc: max 2 concurrent positions per currency group (max 4 total overall;
+   //--- the EA keeps the stricter maxOpenPositions = 3)
+   int CurrencyGroupCount(const string sym)
+   {
+      if(StringLen(sym) < 6) return 0;
+      bool idxSym = (StringFind(sym, "US30") >= 0 || StringFind(sym, "NAS") >= 0 ||
+                     StringFind(sym, "DAX") >= 0 || StringFind(sym, "GER") >= 0);
+      string b1 = StringSubstr(sym, 0, 3), q1 = StringSubstr(sym, 3, 3);
+      int n = 0;
+      for(int p = PositionsTotal() - 1; p >= 0; p--)
+      {
+         ulong t = PositionGetTicket(p);
+         if(t == 0) continue;
+         if((ulong)PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+         string s = PositionGetString(POSITION_SYMBOL);
+         if(StringLen(s) < 6) continue;
+         bool idxOther = (StringFind(s, "US30") >= 0 || StringFind(s, "NAS") >= 0 ||
+                          StringFind(s, "DAX") >= 0 || StringFind(s, "GER") >= 0);
+         if(idxSym || idxOther)
+         {
+            if(idxSym && idxOther) n++;     // indices count as one exposure group
+            continue;
+         }
+         string b2 = StringSubstr(s, 0, 3), q2 = StringSubstr(s, 3, 3);
+         if(b1 == b2 || b1 == q2 || q1 == b2 || q1 == q2) n++;
+      }
+      return n;
+   }
+
+   int m_tier;
 
    bool IsAsianPair(const string sym)
    {
@@ -8162,7 +8271,8 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
       {
          if(StringFind(ctx.symbol, "EURUSD") >= 0 || StringFind(ctx.symbol, "GBPUSD") >= 0 ||
             StringFind(ctx.symbol, "XAU") >= 0) return 1;
-         if(StringFind(ctx.symbol, "GBPJPY") >= 0 || StringFind(ctx.symbol, "GER") >= 0) return 2;
+         if(StringFind(ctx.symbol, "GBPJPY") >= 0 || StringFind(ctx.symbol, "GER") >= 0 ||
+            StringFind(ctx.symbol, "DAX") >= 0) return 2;
          return 0;
       }
       if(StringFind(ctx.symbol, "XAU") >= 0 || StringFind(ctx.symbol, "USDJPY") >= 0) return 1;
@@ -8193,7 +8303,9 @@ add(
 input int    InpMaxTradesSession   = 3;     // Max completed trades per session
 input double InpMaxSpreadMedianX   = 2.00;  // Spread vs its 20-session median
 input double InpMaxAdrTravelPct    = 80.0;  // Already-travelled daily ATR ceiling
-input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_H1)''',
+input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_H1)
+input double InpCommissionPerLotRT = 7.0;   // Round-turn commission per lot (broker figure)
+input double InpMaxCostR           = 0.10;  // Doc: reject when spread + commission exceeds 0.10R''',
     configure='''cfg.strategyName          = "R11A_ADAPTIVE_SWEEP";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round11-contestant-a.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -8203,6 +8315,8 @@ input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_
    cfg.clock                 = EA_CLOCK_LONDON;
    cfg.serverWinterGmtOffset = InpServerGmtOffset;
    cfg.totalDdPct            = InpTotalDdPct;
+   cfg.commissionPerLotRT    = InpCommissionPerLotRT;   // doc: cost gate uses commission
+   cfg.maxCostR              = InpMaxCostR;
    cfg.maxTradesPerDay       = InpMaxTradesSession;
    cfg.maxOpenPositions      = 1;
    cfg.minSecondsBetweenTrades = 600;
@@ -8213,6 +8327,8 @@ input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
+   cfg.beConfirmTf            = PERIOD_M1;    // doc: M1 close
    cfg.trailAtR              = 1.50;  cfg.trailDistanceR = 0.75;
    cfg.timeStopMinutes       = 240;
    cfg.logLevel              = InpLogLevel;''',
@@ -8778,7 +8894,7 @@ add(
     cls="Round11F",
     title="Round 11F - TRIAD: one edge, three decorrelated expressions at 0.24% per sleeve",
     doc="docs/research/study_arena/studyarena-round11-contestant-f.md",
-    common={"symbols": "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF", "risk": "0.24",
+    common={"symbols": "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF,DAX,US30", "risk": "0.24",
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "6"},
     inputs='''input double InpPerSleeveRiskPct  = 0.24;  // ~1/20th Kelly per sleeve
 input double InpMaxOpenRiskPct    = 1.00;  // Total open risk ceiling
@@ -8806,6 +8922,7 @@ input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage ea
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.timeStopMinutes       = 240;
    cfg.logLevel              = InpLogLevel;''',
@@ -8873,8 +8990,10 @@ input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage ea
 
    bool IsSleeveBSymbol(const string sym)
    {
-      //--- doc sleeve B: XAUUSD, DAX, US30 (the two indices are outside this broker universe)
-      return (StringFind(sym, "XAUUSD") >= 0);
+      //--- doc sleeve B: XAUUSD, DAX, US30 (the indices resolve only if the broker lists them;
+      //--- the engine skips any configured symbol the broker does not offer)
+      return (StringFind(sym, "XAUUSD") >= 0 || StringFind(sym, "DAX") >= 0 ||
+              StringFind(sym, "US30") >= 0);
    }
 
    bool IsSleeveCSymbol(const string sym)
@@ -8974,6 +9093,7 @@ input int    InpThinHourTo        = 23 * 60 + 30;''',
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.pendingExpiryMinutes  = 15;    // cancel the limit if unfilled in 15 minutes
    cfg.useLimitEntry         = true;
@@ -9141,6 +9261,7 @@ input double InpRunnerTrailAtrH1  = 2.50;  // 30% runner trail (2.5 x H1 ATR)'''
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.useLimitEntry         = true;
    cfg.pendingExpiryMinutes  = 15;
@@ -9336,7 +9457,7 @@ input double InpWickRatio         = 0.60;  // Sweep-candle wick >= 60% of the ca
    cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
-   cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
+   cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;   // doc TP1: 50% at +1R
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
@@ -9372,36 +9493,6 @@ input double InpWickRatio         = 0.60;  // Sweep-candle wick >= 60% of the ca
          (StringFind(ctx.symbol, "USDJPY") >= 0 || StringFind(ctx.symbol, "US30") >= 0))
       { fromMin = 7 * 60; toMin = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 20 * 60 + 30; return true; }
       return false;
-   }
-
-   bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
-   {
-      MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
-      bool wrap = (fromMin > toMin);
-      int i = 0;
-      for(; i < 400; i++)
-      {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
-         bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
-         if(inWin) break;
-      }
-      if(i >= 400) return false;
-      hi = 0.0; lo = 0.0;
-      bool found = false;
-      for(; i < 400; i++)
-      {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
-         bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
-         if(!inWin) break;
-         if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
-         else { hi = MathMax(hi, r[i].high); lo = MathMin(lo, r[i].low); }
-      }
-      return found;
    }
 
    bool BiasAgrees(SEAContext &ctx, const int dir)
@@ -9465,7 +9556,9 @@ input double InpVolHighPct        = 85.0;  // Above the 85th percentile: unstabl
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
+   cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;   // doc +2R: close 30%
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 1.50;  cfg.trailDistanceR = 0.75;
    cfg.timeStopMinutes       = 60;
    cfg.logLevel              = InpLogLevel;''',
@@ -9583,6 +9676,7 @@ input double InpWickRatio         = 0.60;  // Sweep wick >= 60% of the candle'''
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.useLimitEntry         = true;
    cfg.pendingExpiryMinutes  = 15;
@@ -9752,6 +9846,7 @@ input double InpSpreadAvgX        = 1.50;  // Step 6 gate: spread <= this x the 
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
    cfg.useLimitEntry         = true;
    cfg.pendingExpiryMinutes  = 15;

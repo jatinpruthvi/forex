@@ -56,10 +56,11 @@ public:
       cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
-      cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
-      cfg.breakEvenAtR          = 1.00;
+      cfg.partial1AtR           = 1.50;  cfg.partial1Pct = 60.0;   // doc TP1: 60% at +1.5R
+      cfg.breakEvenAtR          = 1.50;   // doc: BE at TP1 (+1.5R)
       cfg.trailAtR              = 1.50;  cfg.trailDistanceR = 0.50;
-      cfg.timeStopMinutes       = 10;
+      cfg.timeStopMinutes       = 12;     // doc: 12 minutes (12 M1 candles)
+      cfg.timeStopUnlessR       = 1.00;   // doc: only while the trade is below +1R
       cfg.logLevel              = InpLogLevel;
    }
 

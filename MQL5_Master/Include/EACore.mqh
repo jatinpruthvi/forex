@@ -123,6 +123,7 @@ struct SEASettings
    int                  maxRetries;
    //--- exits (engine level, applied in addition to strategy Manage())
    bool                 breakEvenOnBarClose;     // require a completed bar beyond +1R
+   ENUM_TIMEFRAMES      beConfirmTf;            // bar used for that confirmation (PERIOD_CURRENT = signal TF)
    double               breakEvenAtR;          // 0 = disabled
    double               beOffsetR;             // stop lands at BE + xR instead of exactly entry
    double               partial1AtR;           // 0 = disabled
@@ -202,6 +203,7 @@ struct SEASettings
       deviationPoints        = 20;
       maxRetries             = 3;
       breakEvenOnBarClose    = false;
+      beConfirmTf            = PERIOD_CURRENT;
       breakEvenAtR           = 0.0;
       beOffsetR              = 0.0;
       partial1AtR            = 0.0;  partial1Pct = 50.0;

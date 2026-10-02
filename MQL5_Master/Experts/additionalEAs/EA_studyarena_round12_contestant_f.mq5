@@ -59,6 +59,7 @@ public:
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
       cfg.useLimitEntry         = true;
       cfg.pendingExpiryMinutes  = 15;

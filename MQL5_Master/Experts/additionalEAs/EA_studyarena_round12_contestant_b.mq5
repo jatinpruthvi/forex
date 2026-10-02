@@ -57,7 +57,7 @@ public:
       cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
-      cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
+      cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;   // doc TP1: 50% at +1R
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
       cfg.breakEvenAtR          = 1.00;
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
@@ -99,36 +99,6 @@ public:
          (StringFind(ctx.symbol, "USDJPY") >= 0 || StringFind(ctx.symbol, "US30") >= 0))
       { fromMin = 7 * 60; toMin = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 20 * 60 + 30; return true; }
       return false;
-   }
-
-   bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
-   {
-      MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
-      bool wrap = (fromMin > toMin);
-      int i = 0;
-      for(; i < 400; i++)
-      {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
-         bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
-         if(inWin) break;
-      }
-      if(i >= 400) return false;
-      hi = 0.0; lo = 0.0;
-      bool found = false;
-      for(; i < 400; i++)
-      {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
-         bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
-         if(!inWin) break;
-         if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
-         else { hi = MathMax(hi, r[i].high); lo = MathMin(lo, r[i].low); }
-      }
-      return found;
    }
 
    bool BiasAgrees(SEAContext &ctx, const int dir)

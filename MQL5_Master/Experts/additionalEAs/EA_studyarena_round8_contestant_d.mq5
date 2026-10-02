@@ -58,8 +58,11 @@ public:
       cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 0;  cfg.fridayFlatMin = 0;  // skip Friday
       cfg.signalOnNewBarOnly    = true;
-      cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
+      cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;   // doc: 40% at +1R
+      cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;   // doc: 30% at +2R
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
+      cfg.beConfirmTf            = PERIOD_M15;   // doc: M15 close
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 0.75;
       cfg.timeStopMinutes       = 0;
       cfg.useLimitEntry         = true;

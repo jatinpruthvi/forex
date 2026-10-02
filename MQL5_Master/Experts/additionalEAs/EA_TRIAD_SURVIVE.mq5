@@ -490,9 +490,13 @@ public:
             }
          }
 
-         //--- ladder: +1R closes 40% (60% for XAUUSD) and moves the stop to entry
+         //--- doc 2.2: the +1R rung must be confirmed by an M5 candle CLOSE (not a wick)
+         double rClose = rMult;
+         MqlRates cbr[];
+         if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 1, cbr) >= 1)
+            rClose = ((dir > 0) ? (cbr[0].close - entry) : (entry - cbr[0].close)) / risk;
          bool isXau = (ctx.symbol == "XAUUSD");
-         if(rMult >= 1.0 && !g_eaTrack[t].p1Done)
+         if(rClose >= 1.0 && !g_eaTrack[t].p1Done)
          {
             if(g_eaExec.ClosePartial(g_eaTrack[t].ticket, isXau ? 60.0 : 40.0))
                g_eaTrack[t].p1Done = true;

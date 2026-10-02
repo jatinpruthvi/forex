@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,USDJPY";      // Comma separated universe
+input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,GER40,USDJPY,US100";      // Comma separated universe
 input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
 input int             InpMaxTradesPerDay  = 4;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
@@ -32,6 +32,7 @@ input double InpAtrBandHigh       = 1.80;  // ATR(14) <= 1.8x its 20-day median
 input double InpSpreadMedianX     = 1.50;  // Live spread <= 1.5x the median
 input double InpMinCostMultiple   = 10.0;  // Stop must be >= 10x round-trip cost
 input double InpCorrelationCap    = 0.70;  // |rho_60d| cap between open symbols
+input double InpMaxOpenRiskPct    = 1.50;  // Doc: max open risk at any instant
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 10 Opus - LSR-A cost-gated micro-swing state machine with correlation cap
@@ -52,7 +53,7 @@ public:
       cfg.maxTradesPerDay       = InpMaxTradesPerDay;
       cfg.maxOpenPositions      = 2;
       cfg.minSecondsBetweenTrades = 600;
-      cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
+      cfg.sessionStartHour      = 0;   cfg.sessionStartMin = 0;   // doc: Asian window opens 00:00
       cfg.sessionEndHour        = 20;  cfg.sessionEndMin   = 0;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
@@ -60,6 +61,8 @@ public:
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
+      cfg.beConfirmTf            = PERIOD_M5;    // doc: M5 close
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
       cfg.timeStopMinutes       = 240;
       cfg.logLevel              = InpLogLevel;
@@ -70,11 +73,40 @@ public:
       if(!VolatilityRegimeOk(ctx)) return false;
       if(!SpreadOk(ctx)) return false;
       if(!CorrelationOk(ctx)) return false;
+      if(!CorrelationOk(ctx)) return false;
+
+      //--- doc session x symbol matrix (UK): 00:00-03:00 AUDNZD/EURGBP/AUDUSD,
+      //--- 07:00-10:30 EURUSD/GBPUSD/XAUUSD/GER40, 13:30-16:00 XAUUSD/USDJPY/US100
+      int rangeFrom = 0, rangeTo = 0, sessFrom = 0, sessTo = 0;
+      if(ctx.clockMinutes < 3 * 60)
+      {
+         if(!(StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0 ||
+              StringFind(ctx.symbol, "AUDUSD") >= 0)) return false;
+         rangeFrom = 21 * 60; rangeTo = 24 * 60; sessFrom = 0; sessTo = 3 * 60;
+      }
+      else if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 10 * 60 + 30)
+      {
+         if(!(StringFind(ctx.symbol, "EURUSD") >= 0 || StringFind(ctx.symbol, "GBPUSD") >= 0 ||
+              StringFind(ctx.symbol, "XAUUSD") >= 0 || StringFind(ctx.symbol, "GER40") >= 0)) return false;
+         rangeFrom = 0; rangeTo = 7 * 60; sessFrom = 7 * 60; sessTo = 10 * 60 + 30;
+      }
+      else if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60)
+      {
+         if(!(StringFind(ctx.symbol, "XAUUSD") >= 0 || StringFind(ctx.symbol, "USDJPY") >= 0 ||
+              StringFind(ctx.symbol, "US100") >= 0)) return false;
+         rangeFrom = 7 * 60; rangeTo = 13 * 60 + 30; sessFrom = 13 * 60 + 30; sessTo = 16 * 60;
+      }
+      else return false;         // the document has no window outside these three
+
+      //--- doc caps: max 3 concurrent, max 2 entries per session, max 1.5% open risk
+      if(EA_CountPositions("", false) >= 3) return false;
+      if(EA_OpenRiskPct() >= InpMaxOpenRiskPct) return false;
+      if(SessionEntries(ctx, sessFrom, sessTo) >= 2) return false;
 
       SSweepParams p;
       p.Reset();
-      p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
-      p.sessionFromMin = 7 * 60; p.sessionToMin = 16 * 60;
+      p.rangeFromMin = rangeFrom; p.rangeToMin = rangeTo;
+      p.sessionFromMin = sessFrom; p.sessionToMin = sessTo;
       p.sweepMinAtr = 0.05; p.sweepMaxAtr = 0.60;
       p.reclaimWindowBars = 3;
       p.wickRatio = 0.55; p.bodyRatio = 0.60;
@@ -87,6 +119,27 @@ public:
       if(cost > 0.0 && plan.riskDist < InpMinCostMultiple * cost) return false;
       plan.reason = "R10OPUS-LSRA " + plan.reason;
       return true;
+   }
+
+   //--- doc: max 2 entries per session; counted from the deal history
+   int SessionEntries(SEAContext &ctx, const int sessFrom, const int sessTo)
+   {
+      MqlDateTime dt;
+      if(!TimeToStruct(ctx.nowClock, dt)) return 0;
+      dt.hour = sessFrom / 60; dt.min = sessFrom % 60; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
+      datetime to   = from + (datetime)((sessTo - sessFrom) * 60);
+      if(!HistorySelect(from, to)) return 0;
+      int n = 0;
+      for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+      {
+         ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+         if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != InpMagicNumber) continue;
+         if(HistoryDealGetInteger(t, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+         n++;
+      }
+      return n;
    }
 
    bool VolatilityRegimeOk(SEAContext &ctx)

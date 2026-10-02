@@ -85,6 +85,7 @@ public:
       plan = base;
       plan.score  = quality * 10.0;
       plan.reason = StringFormat("R4C2-OBQUALITY(%.0f/12) %s", quality, plan.reason);
+      if(EndOfMonthWindow()) plan.score += 5.0;   // Lever 3: end-of-month liquidity-harvest bias (rank only)
       ApplyRegime(plan);
       return true;
    }

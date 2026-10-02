@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,AUDUSD,XAUUSD,GBPJPY,USDJPY";      // Comma separated universe
+input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,GBPJPY,USDJPY,DAX,US30,NAS100";      // Comma separated universe
 input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
@@ -61,6 +61,7 @@ public:
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
       cfg.timeStopMinutes       = InpKillMinutes;
       cfg.logLevel              = InpLogLevel;
@@ -77,11 +78,12 @@ public:
          return false;
       }
 
+      //--- doc windows (UK): Asian 00:00-06:30, London 07:00-16:30, NY 13:30-20:30
       int fromMin = 21 * 60, toMin = 24 * 60, sessFrom = 0, sessTo = 6 * 60 + 30;
-      if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 13 * 60)
-      { fromMin = 0; toMin = 7 * 60; sessFrom = 7 * 60; sessTo = 12 * 60; }
-      else if(ctx.clockMinutes >= 13 * 60)
-      { fromMin = 7 * 60; toMin = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 21 * 60; }
+      if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 13 * 60 + 30)
+      { fromMin = 0; toMin = 7 * 60; sessFrom = 7 * 60; sessTo = 13 * 60 + 30; }
+      else if(ctx.clockMinutes >= 13 * 60 + 30)
+      { fromMin = 7 * 60; toMin = 13 * 60 + 30; sessFrom = 13 * 60 + 30; sessTo = 20 * 60 + 30; }
 
       double hi = 0.0, lo = 0.0;
       if(!RangeBetween(ctx.symbol, fromMin, toMin, hi, lo)) return false;
@@ -92,6 +94,7 @@ public:
 
       int tier = SessionTier(ctx);
       if(tier == 0) return false;
+      if(CurrencyGroupCount(ctx.symbol) >= 2) return false;   // doc: max 2 per currency group
 
       SSweepParams p;
       p.Reset();
@@ -109,6 +112,35 @@ public:
       m_tier = tier;
       plan.reason = StringFormat("R10QWEN-SOS3(tier %d) %s", tier, plan.reason);
       return true;
+   }
+
+   //--- doc: max 2 concurrent positions per currency group (max 4 total overall;
+   //--- the EA keeps the stricter maxOpenPositions = 3)
+   int CurrencyGroupCount(const string sym)
+   {
+      if(StringLen(sym) < 6) return 0;
+      bool idxSym = (StringFind(sym, "US30") >= 0 || StringFind(sym, "NAS") >= 0 ||
+                     StringFind(sym, "DAX") >= 0 || StringFind(sym, "GER") >= 0);
+      string b1 = StringSubstr(sym, 0, 3), q1 = StringSubstr(sym, 3, 3);
+      int n = 0;
+      for(int p = PositionsTotal() - 1; p >= 0; p--)
+      {
+         ulong t = PositionGetTicket(p);
+         if(t == 0) continue;
+         if((ulong)PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+         string s = PositionGetString(POSITION_SYMBOL);
+         if(StringLen(s) < 6) continue;
+         bool idxOther = (StringFind(s, "US30") >= 0 || StringFind(s, "NAS") >= 0 ||
+                          StringFind(s, "DAX") >= 0 || StringFind(s, "GER") >= 0);
+         if(idxSym || idxOther)
+         {
+            if(idxSym && idxOther) n++;     // indices count as one exposure group
+            continue;
+         }
+         string b2 = StringSubstr(s, 0, 3), q2 = StringSubstr(s, 3, 3);
+         if(b1 == b2 || b1 == q2 || q1 == b2 || q1 == q2) n++;
+      }
+      return n;
    }
 
    int m_tier;
@@ -198,7 +230,8 @@ public:
       {
          if(StringFind(ctx.symbol, "EURUSD") >= 0 || StringFind(ctx.symbol, "GBPUSD") >= 0 ||
             StringFind(ctx.symbol, "XAU") >= 0) return 1;
-         if(StringFind(ctx.symbol, "GBPJPY") >= 0 || StringFind(ctx.symbol, "GER") >= 0) return 2;
+         if(StringFind(ctx.symbol, "GBPJPY") >= 0 || StringFind(ctx.symbol, "GER") >= 0 ||
+            StringFind(ctx.symbol, "DAX") >= 0) return 2;
          return 0;
       }
       if(StringFind(ctx.symbol, "XAU") >= 0 || StringFind(ctx.symbol, "USDJPY") >= 0) return 1;

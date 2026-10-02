@@ -55,7 +55,9 @@ public:
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
+      cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;   // doc +2R: close 30%
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
       cfg.trailAtR              = 1.50;  cfg.trailDistanceR = 0.75;
       cfg.timeStopMinutes       = 60;
       cfg.logLevel              = InpLogLevel;

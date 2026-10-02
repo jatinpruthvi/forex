@@ -213,7 +213,7 @@ public:
          if(g_eaTrack[t].beMoved) continue;
          MqlRates m[];
          if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 2, m) < 2) continue;
-         double d = (g_eaTrack[t].dir > 0) ? (m[1].close - g_eaTrack[t].entry) : (g_eaTrack[t].entry - m[1].close);
+         double d = (g_eaTrack[t].dir > 0) ? (m[0].close - g_eaTrack[t].entry) : (g_eaTrack[t].entry - m[0].close);
          if(d >= g_eaTrack[t].riskDist)
          {
             g_eaTrack[t].beMoved = true;

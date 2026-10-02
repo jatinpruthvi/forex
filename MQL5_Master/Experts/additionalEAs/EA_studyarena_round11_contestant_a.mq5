@@ -32,6 +32,8 @@ input int    InpMaxTradesSession   = 3;     // Max completed trades per session
 input double InpMaxSpreadMedianX   = 2.00;  // Spread vs its 20-session median
 input double InpMaxAdrTravelPct    = 80.0;  // Already-travelled daily ATR ceiling
 input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_H1)
+input double InpCommissionPerLotRT = 7.0;   // Round-turn commission per lot (broker figure)
+input double InpMaxCostR           = 0.10;  // Doc: reject when spread + commission exceeds 0.10R
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 11A - adaptive session sweep-reclaim with session caps and cost governors
@@ -50,6 +52,8 @@ public:
       cfg.clock                 = EA_CLOCK_LONDON;
       cfg.serverWinterGmtOffset = InpServerGmtOffset;
       cfg.totalDdPct            = InpTotalDdPct;
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;   // doc: cost gate uses commission
+      cfg.maxCostR              = InpMaxCostR;
       cfg.maxTradesPerDay       = InpMaxTradesSession;
       cfg.maxOpenPositions      = 1;
       cfg.minSecondsBetweenTrades = 600;
@@ -60,6 +64,8 @@ public:
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
+      cfg.beConfirmTf            = PERIOD_M1;    // doc: M1 close
       cfg.trailAtR              = 1.50;  cfg.trailDistanceR = 0.75;
       cfg.timeStopMinutes       = 240;
       cfg.logLevel              = InpLogLevel;

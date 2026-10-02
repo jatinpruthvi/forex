@@ -61,6 +61,7 @@ public:
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a completed bar close
       cfg.trailAtR              = 0.0;   // doc: the mechanical chandelier in Manage() is the runner trail
       cfg.trailDistanceR        = 1.00;
       cfg.timeStopMinutes       = 0;
