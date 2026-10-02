@@ -70,6 +70,7 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
+      if(TradedOtherPairToday(ctx, ctx.symbol)) return false;         // doc: never both pairs on the same day
       //--- immediate entry on the reclaim close (no waiting for the retest)
       SSweepParams p;
       p.Reset();
@@ -92,6 +93,27 @@ public:
       if(plan.riskDist <= 0.0) return false;
       plan.reason = "R8C-RECLAIM " + plan.reason;
       return true;
+   }
+
+   //--- doc: "trade only the one with the cleanest setup; never both on the same day"
+   bool TradedOtherPairToday(SEAContext &ctx, const string sym)
+   {
+      MqlDateTime dt;
+      if(!TimeToStruct(ctx.nowClock, dt)) return false;
+      dt.hour = 0; dt.min = 0; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
+      if(!HistorySelect(from, TimeCurrent())) return false;
+      for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+      {
+         ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+         if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != InpMagicNumber) continue;
+         if(HistoryDealGetInteger(t, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+         string s = HistoryDealGetString(t, DEAL_SYMBOL);
+         if(StringFind(s, "EURUSD") >= 0 && StringFind(sym, "GBPUSD") >= 0) return true;
+         if(StringFind(s, "GBPUSD") >= 0 && StringFind(sym, "EURUSD") >= 0) return true;
+      }
+      return false;
    }
 
    int LosingStreak()

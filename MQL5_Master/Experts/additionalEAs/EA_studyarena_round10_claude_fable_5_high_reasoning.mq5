@@ -29,6 +29,7 @@ input ulong           InpMagicNumber      = 2030; // UNIQUE MAGIC NUMBER FOR THI
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpReclaimBars       = 3;     // Reclaim close within 3 x M1 candles
 input int    InpScalpTimeStopMin  = 30;    // If not +1R in 30 minutes, close at market
+input double InpTimeStopUnlessR    = 1.00;  // the 30-min exit is skipped at/above this R
 input double InpSpreadStopPct     = 15.0;  // Skip if spread > 15% of stop distance
 input double InpSpreadAvgMult     = 2.00;  // Skip if spread > 2x its rolling average
 
@@ -57,9 +58,12 @@ public:
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 60.0;   // 60% off at +1R
+      cfg.partial2AtR           = 2.50;  cfg.partial2Pct = 40.0;   // doc: 40% at +2.5R, then an M5-swing trail
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;   // doc: BE only after an M1 close beyond +1R
       cfg.trailAtR              = 2.50;  cfg.trailDistanceR = 1.00;
       cfg.timeStopMinutes       = InpScalpTimeStopMin;   // the biggest EV upgrade
+      cfg.timeStopUnlessR       = InpTimeStopUnlessR;    // doc: only fires while the trade is below +1R
       cfg.logLevel              = InpLogLevel;
    }
 

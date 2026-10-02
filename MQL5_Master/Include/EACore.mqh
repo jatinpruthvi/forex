@@ -132,6 +132,7 @@ struct SEASettings
    double               trailAtR;              // trail after this R (0 = disabled)
    double               trailDistanceR;        // trail distance in R units
    int                  timeStopMinutes;       // 0 = disabled
+   double               timeStopUnlessR;      // 0 = unconditional; else skip the time stop at/above this R
    //--- safety
    bool                 newsFilter;
    bool                 newsFailClosed;        // no usable calendar -> refuse new entries
@@ -207,6 +208,7 @@ struct SEASettings
       partial2AtR            = 0.0;  partial2Pct = 30.0;
       trailAtR               = 0.0;  trailDistanceR = 0.5;
       timeStopMinutes        = 0;
+      timeStopUnlessR        = 0.0;
       newsFilter             = false;
       newsFailClosed         = false;
       newsFile               = "";

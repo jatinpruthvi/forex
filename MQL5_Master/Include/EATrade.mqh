@@ -1195,7 +1195,8 @@ void EA_ManagePositions(const SEAContext &ctx)
       double point = EA_Point(sym);
 
       //--- time stop first (premise dead)
-      if(g_eaCfg.timeStopMinutes > 0)
+      if(g_eaCfg.timeStopMinutes > 0 &&
+         !(g_eaCfg.timeStopUnlessR > 0.0 && rMult >= g_eaCfg.timeStopUnlessR))
       {
          datetime opened = (datetime)PositionGetInteger(POSITION_TIME);
          if(TimeTradeServer() - opened >= (datetime)(g_eaCfg.timeStopMinutes * 60))

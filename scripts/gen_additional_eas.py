@@ -5755,6 +5755,7 @@ input int    InpChandelierBars    = 20;    // Highest high lookback for the trai
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;   // 50% off at 1R
+   cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 25.0;   // doc: 25% at 2R or the prior-day extreme
    cfg.breakEvenAtR          = 1.00;
    cfg.trailAtR              = 0.0;   // doc: the 1H-swing chandelier in Manage() is the runner trail
    cfg.trailDistanceR        = 1.00;
@@ -7283,6 +7284,7 @@ input double InpChandelierMult    = 2.50;  // 30% runner trail on the chandelier
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
+   if(TradedOtherPairToday(ctx, ctx.symbol)) return false;         // doc: never both pairs on the same day
    //--- immediate entry on the reclaim close (no waiting for the retest)
    SSweepParams p;
    p.Reset();
@@ -7305,7 +7307,28 @@ input double InpChandelierMult    = 2.50;  // 30% runner trail on the chandelier
    if(plan.riskDist <= 0.0) return false;
    plan.reason = "R8C-RECLAIM " + plan.reason;
    return true;''',
-    extra='''   int LosingStreak()
+    extra='''   //--- doc: "trade only the one with the cleanest setup; never both on the same day"
+   bool TradedOtherPairToday(SEAContext &ctx, const string sym)
+   {
+      MqlDateTime dt;
+      if(!TimeToStruct(ctx.nowClock, dt)) return false;
+      dt.hour = 0; dt.min = 0; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
+      if(!HistorySelect(from, TimeCurrent())) return false;
+      for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+      {
+         ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+         if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != InpMagicNumber) continue;
+         if(HistoryDealGetInteger(t, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+         string s = HistoryDealGetString(t, DEAL_SYMBOL);
+         if(StringFind(s, "EURUSD") >= 0 && StringFind(sym, "GBPUSD") >= 0) return true;
+         if(StringFind(s, "GBPUSD") >= 0 && StringFind(sym, "EURUSD") >= 0) return true;
+      }
+      return false;
+   }
+
+   int LosingStreak()
    {
       if(!HistorySelect(TimeCurrent() - 14 * 24 * 3600, TimeCurrent())) return 0;
       int streak = 0;
@@ -7538,6 +7561,7 @@ add(
             "totaldd": "0", "target": "20", "maxday": "6"},
     inputs='''input int    InpReclaimBars       = 3;     // Reclaim close within 3 x M1 candles
 input int    InpScalpTimeStopMin  = 30;    // If not +1R in 30 minutes, close at market
+input double InpTimeStopUnlessR    = 1.00;  // the 30-min exit is skipped at/above this R
 input double InpSpreadStopPct     = 15.0;  // Skip if spread > 15% of stop distance
 input double InpSpreadAvgMult     = 2.00;  // Skip if spread > 2x its rolling average''',
     configure='''cfg.strategyName          = "R10FABLE_SWEEP_SCALPER";
@@ -7557,9 +7581,12 @@ input double InpSpreadAvgMult     = 2.00;  // Skip if spread > 2x its rolling av
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 60.0;   // 60% off at +1R
+   cfg.partial2AtR           = 2.50;  cfg.partial2Pct = 40.0;   // doc: 40% at +2.5R, then an M5-swing trail
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;   // doc: BE only after an M1 close beyond +1R
    cfg.trailAtR              = 2.50;  cfg.trailDistanceR = 1.00;
    cfg.timeStopMinutes       = InpScalpTimeStopMin;   // the biggest EV upgrade
+   cfg.timeStopUnlessR       = InpTimeStopUnlessR;    // doc: only fires while the trade is below +1R
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(!SpreadGuard(ctx)) return false;
 

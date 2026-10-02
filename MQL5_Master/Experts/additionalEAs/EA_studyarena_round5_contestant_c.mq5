@@ -58,6 +58,7 @@ public:
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;   // 50% off at 1R
+      cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 25.0;   // doc: 25% at 2R or the prior-day extreme
       cfg.breakEvenAtR          = 1.00;
       cfg.trailAtR              = 0.0;   // doc: the 1H-swing chandelier in Manage() is the runner trail
       cfg.trailDistanceR        = 1.00;
