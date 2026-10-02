@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD";      // Comma separated universe
 input double          InpRiskPct          = 0.50;   // Base risk per trade (% of equity)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)

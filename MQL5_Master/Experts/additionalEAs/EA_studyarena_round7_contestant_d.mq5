@@ -54,12 +54,14 @@ public:
       cfg.maxOpenPositions      = 1;
       cfg.minSecondsBetweenTrades = 600;
       cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
-      cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+      cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 30;   // doc: close the runner by 16:30 London
+      cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
-      cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 40.0;
+      cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;   // doc: 40% / 30% / 30% runner
       cfg.breakEvenAtR          = 1.00;
+      cfg.breakEvenOnBarClose   = true;    // doc: BE only after a close beyond +1R
       cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 0.75;
       cfg.timeStopMinutes       = 240;
       cfg.useLimitEntry         = true;

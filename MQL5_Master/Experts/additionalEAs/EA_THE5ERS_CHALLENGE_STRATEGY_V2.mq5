@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY";      // Comma separated universe
 input double          InpRiskPct          = 0.5;   // Base risk per trade (% of equity)
 input double          InpMaxSpreadPoints  = 1.5;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 1.0;   // Halt for the day at -x% (0 = off)

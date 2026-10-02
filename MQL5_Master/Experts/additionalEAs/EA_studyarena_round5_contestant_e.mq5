@@ -242,6 +242,16 @@ public:
       if(EA_CountPositions(ctx.symbol, true) == 0) return;
       if(ctx.floatingPl < -InpBasketCapPct / 100.0 * ctx.equity)
          g_eaExec.CloseAll("0.5% basket cap");
+      //--- doc: flat by 07:00, no exceptions - never hold the grid into London
+      if(ctx.clockMinutes >= 7 * 60)
+      {
+         for(int t = g_eaTrackCount - 1; t >= 0; t--)
+         {
+            if(g_eaTrack[t].symbol != ctx.symbol) continue;
+            if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+            g_eaExec.Close(g_eaTrack[t].ticket, "grid flat 07:00");
+         }
+      }
    }
    //--- doc gate: spread < 15% of the 0.30 x D1-ATR grid spacing
    bool SpreadWithinGridSpacing(SEAContext &ctx)

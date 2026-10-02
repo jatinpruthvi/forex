@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,GBPJPY,XAUUSD,AUDNZD,USDJPY";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD,AUDNZD,EURCHF,GBPJPY,USDJPY";      // Comma separated universe
 input double          InpDailyLossPct     = 5.0;   // Halt for the day at -x% (0 = off)
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
@@ -134,6 +134,19 @@ public:
       ep.emaPeriod = 20; ep.maxDistanceAtr = 1.50;
       ep.requireTrend = true; ep.targetR = InpPullbackRr;
       return ep;
+   }
+
+   //--- doc: flat by 07:00 UK - London volume destroys grids
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.clockMinutes < 7 * 60) return;
+      if(!IsGridPair(ctx.symbol)) return;
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         g_eaExec.Close(g_eaTrack[t].ticket, "grid flat 07:00");
+      }
    }
 
    bool IsGridPair(const string sym)

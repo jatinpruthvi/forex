@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD";      // Comma separated universe
 input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
 input int             InpMaxTradesPerDay  = 2;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
@@ -52,24 +52,27 @@ public:
       cfg.maxOpenPositions      = 1;
       cfg.minSecondsBetweenTrades = 900;
       cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
-      cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+      cfg.sessionEndHour        = 21;  cfg.sessionEndMin   = 0;   // doc: hard flat by 21:00 UK
+      cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
       cfg.breakEvenAtR          = 1.00;
-      cfg.trailAtR              = 1.00;  cfg.trailDistanceR = 1.00;
+      cfg.trailAtR              = 0.0;   // doc: the hourly chandelier in Manage() is the runner trail
+      cfg.trailDistanceR        = 1.00;
       cfg.timeStopMinutes       = 0;
       cfg.logLevel              = InpLogLevel;
    }
 
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
+      if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
       if(!FuelAvailable(ctx)) return false;
 
       SSweepParams p;
       p.Reset();
       p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
-      p.sessionFromMin = 7 * 60; p.sessionToMin = 12 * 60;
+      p.sessionFromMin = 7 * 60; p.sessionToMin = 10 * 60 + 30;   // doc: 07:00-10:30 UK
       p.sweepMinAtr = 0.05; p.sweepMaxAtr = 0.55;
       p.reclaimWindowBars = 3; p.wickRatio = 0.55; p.bodyRatio = 0.55;
       p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.80;
@@ -96,6 +99,7 @@ public:
       if(pip <= 0.0) return false;
       double pips = (hi - lo) / pip;
       if(StringFind(ctx.symbol, "GBPUSD") >= 0) return (pips <= InpGbpFuelPips);
+      if(StringFind(ctx.symbol, "XAUUSD") >= 0) return true;   // doc caps only EURUSD/GBPUSD; the 35-75% ADR ratio governs gold
       return (pips <= InpEurFuelPips);
    }
 
@@ -131,7 +135,8 @@ public:
    {
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
-      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;   // fallback: ~H1 ATR from the daily ATR
    }
 };
 

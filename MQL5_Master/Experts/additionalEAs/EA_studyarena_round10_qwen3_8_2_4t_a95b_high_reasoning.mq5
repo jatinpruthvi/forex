@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,GBPJPY,USDJPY";      // Comma separated universe
+input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,AUDUSD,XAUUSD,GBPJPY,USDJPY";      // Comma separated universe
 input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
@@ -56,6 +56,8 @@ public:
       cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
+      cfg.useLimitEntry         = true;   // doc Step 4: limit at the 50% retracement of the displacement body
+      cfg.pendingExpiryMinutes  = 15;     // doc Step 4: cancel if unfilled after 3 x M5 candles
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
       cfg.breakEvenAtR          = 1.00;
@@ -100,6 +102,7 @@ public:
       p.wickRatio = 0.60; p.bodyRatio = 0.60;
       p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
       p.entryRetrace = 0.50; p.targetR = 2.0;
+      p.requireMidpointBreak = true;   // doc Step 4: displacement closes beyond the prior candle's midpoint
       if(!SigSweepReclaim(ctx, p, plan)) return false;
       if(!BiasAgrees(ctx, plan.dir)) return false;                // doc Step 2 (waived for Asian MR pairs)
       if(!VolumeConfirms(ctx, plan.sweepBarsAgo)) return false;   // doc Step 6: sweep participation
@@ -121,7 +124,8 @@ public:
    {
       if(IsAsianPair(ctx.symbol) && ctx.clockMinutes < 7 * 60 && ctx.adxH1 < 16.0) return true;
       if(ctx.emaH1_50 <= 0.0) return false;
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return false;
       double slope = ctx.emaH1_50 - ctx.emaH1_200;
       if(dir > 0) return (ctx.mid > ctx.emaH1_50 && slope >= -0.05 * h1Atr);

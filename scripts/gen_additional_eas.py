@@ -476,7 +476,7 @@ add(
     cls="The5ersV2",
     title="The5ers Challenge V2 - M1 momentum reversion + daily state machine",
     doc="docs/prop_firm/THE5ERS-CHALLENGE-STRATEGY-V2.md",
-    common={"symbols": "EURUSD", "risk": "0.5", "spread": "1.5",
+    common={"symbols": "EURUSD,GBPUSD,USDJPY", "risk": "0.5", "spread": "1.5",
             "daily": "1.0", "totaldd": "5.0", "target": "10", "maxday": "2"},
     inputs='''
 input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
@@ -2027,7 +2027,7 @@ add(
     cls="TriadSurvive",
     title="TRIAD-SURVIVE - three-sleeve portfolio with scored entries and risk caps",
     doc="docs/strategy/TRIAD-SURVIVE.md",
-    common={"symbols": "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF",
+    common={"symbols": "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF",
             "risk": "0.24", "spread": "4.0", "daily": "1.0", "totaldd": "10",
             "target": "0", "maxday": "4"},
     inputs='''input double InpFullTierRiskPct    = 0.24;  // 8/8 or 5/5 score: full tier risk
@@ -3965,7 +3965,7 @@ add(
     cls="Round4B",
     title="Round 4B - session map portfolio with grid, sweep, pullback and VWAP engines",
     doc="docs/research/study_arena/studyarena-round4-contestant-b.md",
-    common={"symbols": "EURUSD,GBPUSD,GBPJPY,XAUUSD,AUDNZD,USDJPY", "risk": "1.5",
+    common={"symbols": "EURUSD,GBPUSD,XAUUSD,AUDNZD,EURCHF,GBPJPY,USDJPY", "risk": "1.5",
             "spread": "0", "daily": "5.0", "totaldd": "0", "target": "20", "maxday": "6"},
     inputs='''input double InpDecideRiskPct      = 1.50;  // Risk/trade for the 23.3%/mo decomposition
 input double InpPullbackRr        = 2.00;  // London-mid / NY 20-EMA pullback target
@@ -4061,6 +4061,19 @@ input int    InpRolloverStopMin   = 21 * 60;  // No new risk from 21:00 (rollove
       ep.emaPeriod = 20; ep.maxDistanceAtr = 1.50;
       ep.requireTrend = true; ep.targetR = InpPullbackRr;
       return ep;
+   }
+
+   //--- doc: flat by 07:00 UK - London volume destroys grids
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.clockMinutes < 7 * 60) return;
+      if(!IsGridPair(ctx.symbol)) return;
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         g_eaExec.Close(g_eaTrack[t].ticket, "grid flat 07:00");
+      }
    }
 
    bool IsGridPair(const string sym)
@@ -5521,7 +5534,7 @@ add(
     cls="Round5B2",
     title="Round 5B-2048 - Contestant E's executable core: 3 equal legs, 0.5% basket, RSI(2) entry",
     doc="docs/research/study_arena/studyarena-round5-contestant-b.md",
-    common={"symbols": "EURGBP,AUDNZD,EURUSD,GBPUSD,USDJPY", "risk": "1.0", "spread": "0",
+    common={"symbols": "EURGBP,AUDNZD,EURUSD,GBPUSD,USDJPY,XAUUSD", "risk": "1.0", "spread": "0",
             "daily": "2.0", "totaldd": "0", "target": "20", "maxday": "6"},
     inputs='''input double InpBasketCapPct      = 0.50;  // Hard basket cap (E's 0.5%)
 input double InpLegSpacingAtr     = 0.30;  // 3 legs spaced by 30% of daily ATR
@@ -5584,8 +5597,9 @@ input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of
       return true;
    }
 
-   //--- NY pullback sleeve
-   if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60)
+   //--- NY pullback sleeve - doc: USDJPY, XAUUSD only
+   if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60 &&
+      (StringFind(ctx.symbol, "USDJPY") >= 0 || StringFind(ctx.symbol, "XAUUSD") >= 0))
    {
       if(!SigEmaPullback(ctx, PullbackParams(), plan)) return false;
       plan.reason = "R5B2-NYPULLBACK " + plan.reason;
@@ -5737,11 +5751,13 @@ input int    InpChandelierBars    = 20;    // Highest high lookback for the trai
    cfg.minSecondsBetweenTrades = 600;
    cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
    cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+   cfg.sessionEndFlat        = true;   // doc: hard flat 16:00 (the >2R runner exemption is not implemented)
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;   // 50% off at 1R
    cfg.breakEvenAtR          = 1.00;
-   cfg.trailAtR              = 1.00;  cfg.trailDistanceR = 1.00;  // chandelier tightens this
+   cfg.trailAtR              = 0.0;   // doc: the 1H-swing chandelier in Manage() is the runner trail
+   cfg.trailDistanceR        = 1.00;
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(!RangeHasFuel(ctx)) return false;
@@ -5813,7 +5829,8 @@ input int    InpChandelierBars    = 20;    // Highest high lookback for the trai
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
       double d1 = av[0];
-      return (d1 > 0.0) ? d1 / 6.0 : 0.0;       // ~H1 ATR from the daily ATR
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (d1 > 0.0) ? d1 / 6.0 : 0.0;       // fallback: ~H1 ATR from the daily ATR
    }''',
 )
 
@@ -6184,6 +6201,16 @@ input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of
       if(EA_CountPositions(ctx.symbol, true) == 0) return;
       if(ctx.floatingPl < -InpBasketCapPct / 100.0 * ctx.equity)
          g_eaExec.CloseAll("0.5% basket cap");
+      //--- doc: flat by 07:00, no exceptions - never hold the grid into London
+      if(ctx.clockMinutes >= 7 * 60)
+      {
+         for(int t = g_eaTrackCount - 1; t >= 0; t--)
+         {
+            if(g_eaTrack[t].symbol != ctx.symbol) continue;
+            if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+            g_eaExec.Close(g_eaTrack[t].ticket, "grid flat 07:00");
+         }
+      }
    }
    //--- doc gate: spread < 15% of the 0.30 x D1-ATR grid spacing
    bool SpreadWithinGridSpacing(SEAContext &ctx)
@@ -6581,7 +6608,20 @@ input int    InpRollingTrades     = 10;    // Equity-curve throttle window''',
       return true;
    }
    return false;''',
-    extra='''   int m_sleeve;
+    extra='''   //--- doc sleeve C: flat by 07:00 UK - London volume destroys grids
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.clockMinutes < 7 * 60) return;
+      if(StringFind(ctx.symbol, "EURGBP") < 0 && StringFind(ctx.symbol, "AUDNZD") < 0) return;
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         g_eaExec.Close(g_eaTrack[t].ticket, "grid flat 07:00");
+      }
+   }
+
+   int m_sleeve;
 
    SEmaPullbackParams NyParams()
    {
@@ -6644,7 +6684,7 @@ add(
     cls="Round7C",
     title="Round 7C - 5% single strategy: 1.5x M15 ATR stop with an hourly chandelier runner",
     doc="docs/research/study_arena/studyarena-round7-contestant-c.md",
-    common={"symbols": "EURUSD,GBPUSD", "risk": "0.75", "spread": "0", "daily": "0",
+    common={"symbols": "EURUSD,GBPUSD,XAUUSD", "risk": "0.75", "spread": "0", "daily": "0",
             "totaldd": "0", "target": "20", "maxday": "2"},
     inputs='''input double InpEurFuelPips       = 35;    // Skip if the Asian range already expanded (EURUSD)
 input double InpGbpFuelPips       = 45;    // GBPUSD expansion filter
@@ -6663,20 +6703,23 @@ input bool   InpCarryHarvest      = true;  // Positive-carry overlay sleeve''',
    cfg.maxOpenPositions      = 1;
    cfg.minSecondsBetweenTrades = 900;
    cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
-   cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+   cfg.sessionEndHour        = 21;  cfg.sessionEndMin   = 0;   // doc: hard flat by 21:00 UK
+   cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
    cfg.breakEvenAtR          = 1.00;
-   cfg.trailAtR              = 1.00;  cfg.trailDistanceR = 1.00;
+   cfg.trailAtR              = 0.0;   // doc: the hourly chandelier in Manage() is the runner trail
+   cfg.trailDistanceR        = 1.00;
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
-    plan='''if(!FuelAvailable(ctx)) return false;
+    plan='''if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
+   if(!FuelAvailable(ctx)) return false;
 
    SSweepParams p;
    p.Reset();
    p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
-   p.sessionFromMin = 7 * 60; p.sessionToMin = 12 * 60;
+   p.sessionFromMin = 7 * 60; p.sessionToMin = 10 * 60 + 30;   // doc: 07:00-10:30 UK
    p.sweepMinAtr = 0.05; p.sweepMaxAtr = 0.55;
    p.reclaimWindowBars = 3; p.wickRatio = 0.55; p.bodyRatio = 0.55;
    p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.80;
@@ -6701,6 +6744,7 @@ input bool   InpCarryHarvest      = true;  // Positive-carry overlay sleeve''',
       if(pip <= 0.0) return false;
       double pips = (hi - lo) / pip;
       if(StringFind(ctx.symbol, "GBPUSD") >= 0) return (pips <= InpGbpFuelPips);
+      if(StringFind(ctx.symbol, "XAUUSD") >= 0) return true;   // doc caps only EURUSD/GBPUSD; the 35-75% ADR ratio governs gold
       return (pips <= InpEurFuelPips);
    }
 
@@ -6736,7 +6780,8 @@ input bool   InpCarryHarvest      = true;  // Positive-carry overlay sleeve''',
    {
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
-      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;   // fallback: ~H1 ATR from the daily ATR
    }''',
 )
 
@@ -6768,12 +6813,14 @@ input double InpStopMaxAtr        = 1.50;''',
    cfg.maxOpenPositions      = 1;
    cfg.minSecondsBetweenTrades = 600;
    cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
-   cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+   cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 30;   // doc: close the runner by 16:30 London
+   cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
-   cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 40.0;
+   cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;   // doc: 40% / 30% / 30% runner
    cfg.breakEvenAtR          = 1.00;
+   cfg.breakEvenOnBarClose   = true;    // doc: BE only after a close beyond +1R
    cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 0.75;
    cfg.timeStopMinutes       = 240;
    cfg.useLimitEntry         = true;
@@ -6842,7 +6889,7 @@ add(
     cls="Round8A",
     title="Round 8A - London sweep-and-reclaim on borrowed capital with a 6% monthly stop",
     doc="docs/research/study_arena/studyarena-round8-contestant-a.md",
-    common={"symbols": "EURUSD,GBPUSD", "risk": "0.75", "spread": "0", "daily": "0",
+    common={"symbols": "EURUSD,GBPUSD,XAUUSD", "risk": "0.75", "spread": "0", "daily": "0",
             "totaldd": "6.0", "target": "20", "maxday": "2"},
     inputs='''input double InpRangeLowPct       = 35.0;  // Asian range floor (% of 20-day median)
 input double InpRangeHighPct      = 75.0;  // Asian range ceiling
@@ -6869,17 +6916,19 @@ input int    InpFlatMin           = 21 * 60;  // Flat by 21:00 UK''',
    cfg.signalOnNewBarOnly    = true;
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
    cfg.breakEvenAtR          = 1.00;
-   cfg.trailAtR              = 1.00;  cfg.trailDistanceR = 1.00;
+   cfg.trailAtR              = 0.0;   // doc: the mechanical chandelier in Manage() is the runner trail
+   cfg.trailDistanceR        = 1.00;
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
-    plan='''if(!RangeQualifies(ctx)) return false;
+    plan='''if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
+   if(!RangeQualifies(ctx)) return false;
    if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
    if(!H1BiasAgrees(ctx)) return false;
 
    SSweepParams p;
    p.Reset();
    p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
-   p.sessionFromMin = 7 * 60; p.sessionToMin = 12 * 60;
+   p.sessionFromMin = 7 * 60; p.sessionToMin = 10 * 60 + 30;   // doc: 07:00-10:30 UK
    p.sweepMinAtr = 0.05; p.sweepMaxAtr = 0.60;
    p.reclaimWindowBars = 3;
    p.wickRatio = 0.60; p.bodyRatio = 0.60;
@@ -6900,6 +6949,7 @@ input int    InpFlatMin           = 21 * 60;  // Flat by 21:00 UK''',
       if(pip <= 0.0) return false;
       double pips = (hi - lo) / pip;
       if(StringFind(ctx.symbol, "GBPUSD") >= 0) return (pips <= 45.0);
+      if(StringFind(ctx.symbol, "XAUUSD") >= 0) return true;   // doc caps only EURUSD/GBPUSD; the 35-75% ADR ratio governs gold
       return (pips <= 35.0);                             // fuel already burned above this
    }
 
@@ -6954,7 +7004,8 @@ input int    InpFlatMin           = 21 * 60;  // Flat by 21:00 UK''',
    {
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
-      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;   // fallback: ~H1 ATR from the daily ATR
    }''',
 )
 
@@ -6970,7 +7021,7 @@ add(
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "4"},
     inputs='''input double InpBaseRiskPct       = 0.75;  // Base engine risk
 input double InpAplusBoostPct     = 0.50;  // A+ setup adds 0.5% free-roll risk
-input double InpAplusScore        = 90.0;  // Score threshold for the A+ booster
+\1input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
 input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)''',
     configure='''cfg.strategyName          = "R8B_SOS3_FREEROLL";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round8-contestant-b.md";
@@ -6992,14 +7043,22 @@ input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
-   cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
+   cfg.breakEvenOnBarClose   = true;   // doc: BE only after an M5 close beyond +1R
+   cfg.trailAtR              = 0.0;    // doc: the 30% runner trails on the chandelier in Manage()
+   cfg.trailDistanceR        = 1.00;
    cfg.timeStopMinutes       = 180;
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- the identical SOS-3 setup at all three sessions
    int rangeFrom = 0, rangeTo = 0, sessFrom = 0, sessTo = 0;
-   if(ctx.clockMinutes < 7 * 60)            { rangeFrom = 21 * 60; rangeTo = 24 * 60; sessFrom = 0;   sessTo = 7 * 60; }
-   else if(ctx.clockMinutes < 13 * 60 + 30) { rangeFrom = 0;  rangeTo = 7 * 60;  sessFrom = 7 * 60;    sessTo = 12 * 60; }
-   else                                     { rangeFrom = 7 * 60; rangeTo = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 21 * 60; }
+   if(ctx.clockMinutes < 7 * 60)            { rangeFrom = 21 * 60; rangeTo = 24 * 60; sessFrom = 0;   sessTo = 3 * 60; }           // doc: Asian entries 00:00-03:00
+   else if(ctx.clockMinutes < 13 * 60 + 30) { rangeFrom = 0;  rangeTo = 7 * 60;  sessFrom = 7 * 60;    sessTo = 10 * 60; }          // doc: London entries 07:00-10:00
+   else                                     { rangeFrom = 7 * 60; rangeTo = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 15 * 60 + 30; }  // doc: NY entries 13:30-15:30
+   if(ctx.clockMinutes >= sessTo) return false;   // doc: no entries outside the session's entry window
+
+   //--- doc risk block: one position per currency group, max 2 trades/session, max 1.5% open risk
+   if(GroupBlocked(ctx.symbol)) return false;
+   if(SessionEntries(ctx, sessFrom, sessTo) >= 2) return false;
+   if(EA_OpenRiskPct() >= InpMaxOpenRiskPct) return false;
 
    if(!RangeQualifies(ctx, rangeFrom, rangeTo)) return false;
    //--- Asian mean reversion pairs need no directional bias; others need the H1 trend
@@ -7100,6 +7159,87 @@ input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
       if(ctx.riskPct <= 0.0) return 0.0;
       double risk = InpBaseRiskPct + ((m_setupScore >= InpAplusScore) ? InpAplusBoostPct : 0.0);
       return MathMax(0.0, risk / ctx.riskPct);
+   }
+
+   int CurrencyGroupId(const string sym)
+   {
+      //--- doc: one position per currency group; the USD block includes gold,
+      //--- USDJPY is counted as the JPY bet, AUDNZD and EURGBP stand alone
+      if(StringFind(sym, "JPY") >= 0) return 2;
+      if(StringFind(sym, "USD") >= 0 || StringFind(sym, "XAU") >= 0) return 1;
+      if(StringFind(sym, "AUDNZD") >= 0) return 3;
+      if(StringFind(sym, "EURGBP") >= 0) return 4;
+      return 5;
+   }
+
+   bool GroupBlocked(const string sym)
+   {
+      int g = CurrencyGroupId(sym);
+      for(int p = PositionsTotal() - 1; p >= 0; p--)
+      {
+         ulong t = PositionGetTicket(p);
+         if(t == 0) continue;
+         if((ulong)PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+         if(CurrencyGroupId(PositionGetString(POSITION_SYMBOL)) == g) return true;
+      }
+      return false;
+   }
+
+   //--- doc: max 2 trades per session; entries are counted from the deal history
+   int SessionEntries(SEAContext &ctx, const int sessFrom, const int sessTo)
+   {
+      MqlDateTime dt;
+      if(!TimeToStruct(ctx.nowClock, dt)) return 0;
+      dt.hour = sessFrom / 60; dt.min = sessFrom % 60; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
+      datetime to   = from + (datetime)((sessTo - sessFrom) * 60);
+      if(!HistorySelect(from, to)) return 0;
+      int n = 0;
+      for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+      {
+         ulong t = HistoryDealGetTicket(i);
+         if(t == 0) continue;
+         if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != InpMagicNumber) continue;
+         if(HistoryDealGetInteger(t, DEAL_ENTRY) != DEAL_ENTRY_IN) continue;
+         n++;
+      }
+      return n;
+   }
+
+   //--- doc: the 30% runner trails at High - 2.5 x H1 ATR, hourly, no TP
+   void Manage(SEAContext &ctx)
+   {
+      for(int t = 0; t < g_eaTrackCount; t++)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+         double cur   = PositionGetDouble(POSITION_PRICE_CURRENT);
+         double risk  = g_eaTrack[t].riskDist;
+         if(risk <= 0.0) continue;
+         double rMult = (g_eaTrack[t].dir > 0) ? (cur - entry) / risk : (entry - cur) / risk;
+         if(rMult < 1.0) continue;
+         double h1Atr = H1Atr(ctx);
+         if(h1Atr <= 0.0) continue;
+         MqlRates r[];
+         if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 20, r) < 5) continue;
+         double hh = r[0].high, ll = r[0].low;
+         for(int i = 1; i < 20; i++) { hh = MathMax(hh, r[i].high); ll = MathMin(ll, r[i].low); }
+         double newSl = (g_eaTrack[t].dir > 0) ? hh - InpChandelierMult * h1Atr
+                                               : ll + InpChandelierMult * h1Atr;
+         double oldSl = PositionGetDouble(POSITION_SL);
+         if(g_eaTrack[t].dir > 0 && newSl > oldSl) g_eaExec.Modify(g_eaTrack[t].ticket, newSl, 0.0);
+         if(g_eaTrack[t].dir < 0 && (oldSl == 0.0 || newSl < oldSl))
+            g_eaExec.Modify(g_eaTrack[t].ticket, newSl, 0.0);
+      }
+   }
+
+   double H1Atr(SEAContext &ctx)
+   {
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      double av[];
+      if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
+      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;   // fallback: ~H1 ATR from the daily ATR
    }''',
 )
 
@@ -7130,7 +7270,7 @@ input double InpChandelierMult    = 2.50;  // 30% runner trail on the chandelier
    cfg.maxOpenPositions      = 1;
    cfg.minSecondsBetweenTrades = 900;
    cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
-   cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+   cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 30;   // doc: hard time stop 16:30 UK
    cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
@@ -7138,10 +7278,12 @@ input double InpChandelierMult    = 2.50;  // 30% runner trail on the chandelier
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 20.0;
    cfg.breakEvenAtR          = 1.00;
-   cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
+   cfg.trailAtR              = 0.0;   // doc: the 30% runner trails on the 2.5 x H1-ATR chandelier in Manage()
+   cfg.trailDistanceR        = 1.00;
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
-    plan='''//--- immediate entry on the reclaim close (no waiting for the retest)
+    plan='''if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
+   //--- immediate entry on the reclaim close (no waiting for the retest)
    SSweepParams p;
    p.Reset();
    p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
@@ -7222,7 +7364,8 @@ input double InpChandelierMult    = 2.50;  // 30% runner trail on the chandelier
    {
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
-      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;   // fallback: ~H1 ATR from the daily ATR
    }''',
 )
 
@@ -7489,7 +7632,7 @@ add(
     cls="Round10Opus",
     title="Round 10 Opus - LSR-A cost-gated micro-swing state machine with correlation cap",
     doc="docs/research/study_arena/studyarena-round10-claude-opus-5-high-reasoning.md",
-    common={"symbols": "EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD", "risk": "1.0", "spread": "0",
+    common={"symbols": "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,USDJPY", "risk": "1.0", "spread": "0",
             "daily": "0", "totaldd": "0", "target": "20", "maxday": "4"},
     inputs='''input double InpAtrBandLow        = 0.70;  // ATR(14) >= 0.7x its 20-day median
 input double InpAtrBandHigh       = 1.80;  // ATR(14) <= 1.8x its 20-day median
@@ -7644,7 +7787,7 @@ add(
     cls="Round10Gemini",
     title="Round 10 Gemini - M1 delta-sweep scalper with volume divergence and tick acceleration",
     doc="docs/research/study_arena/studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md",
-    common={"symbols": "EURUSD,GBPUSD,XAUUSD", "risk": "0.50", "spread": "0",
+    common={"symbols": "EURUSD,GBPUSD,USDJPY,XAUUSD", "risk": "0.50", "spread": "0",
             "daily": "0", "totaldd": "0", "target": "20", "maxday": "8"},
     inputs='''input int    InpSwingBars         = 240;   // 4-hour local extreme window (M1 bars)
 input double InpMinPierceAtr      = 0.05;  // Piercing depth minimum
@@ -7733,7 +7876,7 @@ add(
     cls="Round10Kimi",
     title="Round 10 Kimi - SWEEP-1 multi-session engine with a score gate and drawdown throttle",
     doc="docs/research/study_arena/studyarena-round10-kimi-k3-high-reasoning.md",
-    common={"symbols": "EURUSD,GBPUSD,XAUUSD,USDJPY,GBPJPY,AUDNZD,EURGBP", "risk": "0.60",
+    common={"symbols": "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,GBPJPY,AUDNZD,EURGBP", "risk": "0.60",
             "spread": "0", "daily": "3.0", "totaldd": "0", "target": "20", "maxday": "8"},
     inputs='''input double InpBaseRiskPct       = 0.60;  // SWEEP-1 risk per trade
 input int    InpMinScore           = 7;     // Only trade setups scoring >= 7/10
@@ -7833,7 +7976,7 @@ add(
     cls="Round10Qwen",
     title="Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing",
     doc="docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md",
-    common={"symbols": "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,GBPJPY,USDJPY", "risk": "0.75",
+    common={"symbols": "AUDNZD,EURGBP,EURUSD,GBPUSD,AUDUSD,XAUUSD,GBPJPY,USDJPY", "risk": "0.75",
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "8"},
     inputs='''input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
@@ -7856,6 +7999,8 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
    cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
+   cfg.useLimitEntry         = true;   // doc Step 4: limit at the 50% retracement of the displacement body
+   cfg.pendingExpiryMinutes  = 15;     // doc Step 4: cancel if unfilled after 3 x M5 candles
    cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 40.0;
    cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 30.0;
    cfg.breakEvenAtR          = 1.00;
@@ -7896,6 +8041,7 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
    p.wickRatio = 0.60; p.bodyRatio = 0.60;
    p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
    p.entryRetrace = 0.50; p.targetR = 2.0;
+   p.requireMidpointBreak = true;   // doc Step 4: displacement closes beyond the prior candle's midpoint
    if(!SigSweepReclaim(ctx, p, plan)) return false;
    if(!BiasAgrees(ctx, plan.dir)) return false;                // doc Step 2 (waived for Asian MR pairs)
    if(!VolumeConfirms(ctx, plan.sweepBarsAgo)) return false;   // doc Step 6: sweep participation
@@ -7915,7 +8061,8 @@ input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20
    {
       if(IsAsianPair(ctx.symbol) && ctx.clockMinutes < 7 * 60 && ctx.adxH1 < 16.0) return true;
       if(ctx.emaH1_50 <= 0.0) return false;
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return false;
       double slope = ctx.emaH1_50 - ctx.emaH1_200;
       if(dir > 0) return (ctx.mid > ctx.emaH1_50 && slope >= -0.05 * h1Atr);
@@ -8119,7 +8266,8 @@ input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_
    //--- distance is direction-agnostic; the direction test lives in EmaSlopeAgrees
    bool EmaDistanceOk(SEAContext &ctx)
    {
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return true;
       return (MathAbs(ctx.mid - ctx.emaH1_50) <= InpMaxEmaDistAtr * h1Atr);
    }
@@ -8366,7 +8514,7 @@ add(
     cls="Round11D",
     title="Round 11D - veteran spec: 0.4-0.5% cap, -2% throttle steps and three decorrelated sleeves",
     doc="docs/research/study_arena/studyarena-round11-contestant-d.md",
-    common={"symbols": "EURUSD,GBPUSD,XAUUSD,USDJPY,EURGBP", "risk": "0.50", "spread": "0",
+    common={"symbols": "EURUSD,GBPUSD,XAUUSD,USDJPY,EURGBP,AUDNZD", "risk": "0.50", "spread": "0",
             "daily": "0", "totaldd": "0", "target": "20", "maxday": "4"},
     inputs='''input double InpVeteranRiskPct    = 0.50;  // Hard per-trade cap (veteran version)
 input double InpThrottleStepPct   = 2.00;  // Halve risk every -2% from the equity high
@@ -8603,7 +8751,7 @@ add(
     cls="Round11F",
     title="Round 11F - TRIAD: one edge, three decorrelated expressions at 0.24% per sleeve",
     doc="docs/research/study_arena/studyarena-round11-contestant-f.md",
-    common={"symbols": "EURUSD,GBPUSD,USDJPY,XAUUSD,EURGBP,AUDNZD", "risk": "0.24",
+    common={"symbols": "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF", "risk": "0.24",
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "6"},
     inputs='''input double InpPerSleeveRiskPct  = 0.24;  // ~1/20th Kelly per sleeve
 input double InpMaxOpenRiskPct    = 1.00;  // Total open risk ceiling
@@ -8651,8 +8799,8 @@ input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage ea
    }
    if(TotalOpen() >= InpMaxTotal) return false;
 
-   //--- Sleeve A: session-open sweep & reclaim (the core, M5)
-   if(TotalForSleeve(1) < InpMaxPerSleeve)
+   //--- Sleeve A: session-open sweep & reclaim (the core, M5) - doc: EURUSD, GBPUSD, USDJPY, AUDUSD
+   if(TotalForSleeve(1) < InpMaxPerSleeve && IsSleeveASymbol(ctx.symbol))
    {
       SSweepParams p;
       p.Reset();
@@ -8668,15 +8816,15 @@ input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage ea
    }
 
    //--- Sleeve B: volatility-expansion continuation (deliberately opposite regime)
-   if(TotalForSleeve(2) < InpMaxPerSleeve && ctx.adx14 > 25.0)
+   if(TotalForSleeve(2) < InpMaxPerSleeve && ctx.adx14 > 25.0 && IsSleeveBSymbol(ctx.symbol))
    {
       if(SigEmaPullback(ctx, PullbackParams(), plan))
       { m_sleeve = 2; plan.reason = "R11F-B-EXPANSION " + plan.reason; return CostOk(ctx, plan); }
    }
 
    //--- Sleeve C: Asian-session mean reversion (low beta, high hit-rate)
-   if(TotalForSleeve(3) < InpMaxPerSleeve && ctx.clockMinutes < 7 * 60 &&
-      (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
+   if(TotalForSleeve(3) < InpMaxPerSleeve && ctx.clockMinutes < 6 * 60 + 30 &&   // doc sleeve C: 00:00-06:30 only
+      IsSleeveCSymbol(ctx.symbol))
    {
       SRangeFadeParams rf;
       if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(H1) < 16 only for this sleeve
@@ -8689,7 +8837,40 @@ input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage ea
       { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return CostOk(ctx, plan); }
    }
    return false;''',
-    extra='''   int m_sleeve;
+    extra='''   bool IsSleeveASymbol(const string sym)
+   {
+      //--- doc sleeve A: EURUSD, GBPUSD, USDJPY, AUDUSD
+      return (StringFind(sym, "EURUSD") >= 0 || StringFind(sym, "GBPUSD") >= 0 ||
+              StringFind(sym, "USDJPY") >= 0 || StringFind(sym, "AUDUSD") >= 0);
+   }
+
+   bool IsSleeveBSymbol(const string sym)
+   {
+      //--- doc sleeve B: XAUUSD, DAX, US30 (the two indices are outside this broker universe)
+      return (StringFind(sym, "XAUUSD") >= 0);
+   }
+
+   bool IsSleeveCSymbol(const string sym)
+   {
+      //--- doc sleeve C: AUDNZD, EURGBP, EURCHF
+      return (StringFind(sym, "AUDNZD") >= 0 || StringFind(sym, "EURGBP") >= 0 ||
+              StringFind(sym, "EURCHF") >= 0);
+   }
+
+   //--- doc sleeve C: hard flat at 06:30 UK (sleeve-C symbols only)
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.clockMinutes < 6 * 60 + 30 || ctx.clockMinutes >= 7 * 60) return;
+      if(!IsSleeveCSymbol(ctx.symbol)) return;
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         g_eaExec.Close(g_eaTrack[t].ticket, "sleeve C flat 06:30");
+      }
+   }
+
+   int m_sleeve;
 
    SEmaPullbackParams PullbackParams()
    {
@@ -9310,7 +9491,8 @@ input double InpVolHighPct        = 85.0;  // Above the 85th percentile: unstabl
    {
       if(ctx.emaH1_50 <= 0.0) return false;
       //--- slope over the previous five completed H1 candles (D1 ATR/6 ~ H1 ATR proxy)
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return true;
       return (MathAbs(ctx.mid - ctx.emaH1_50) > 0.05 * h1Atr);
    }
@@ -9646,7 +9828,8 @@ input double InpSpreadAvgX        = 1.50;  // Step 6 gate: spread <= this x the 
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
       if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return false;
       //--- slope measured over the last five H1 candles (approx: 5 x 1/6 of the daily ATR)
       double slope = ctx.emaH1_50 - ctx.emaH1_200;

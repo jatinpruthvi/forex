@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD,USDJPY,GBPJPY,AUDNZD,EURGBP";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,GBPJPY,AUDNZD,EURGBP";      // Comma separated universe
 input double          InpDailyLossPct     = 3.0;   // Halt for the day at -x% (0 = off)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)

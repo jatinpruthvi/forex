@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD";      // Comma separated universe
+input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,USDJPY";      // Comma separated universe
 input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
 input int             InpMaxTradesPerDay  = 4;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)

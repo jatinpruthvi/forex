@@ -54,11 +54,13 @@ public:
       cfg.minSecondsBetweenTrades = 600;
       cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
       cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+      cfg.sessionEndFlat        = true;   // doc: hard flat 16:00 (the >2R runner exemption is not implemented)
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;   // 50% off at 1R
       cfg.breakEvenAtR          = 1.00;
-      cfg.trailAtR              = 1.00;  cfg.trailDistanceR = 1.00;  // chandelier tightens this
+      cfg.trailAtR              = 0.0;   // doc: the 1H-swing chandelier in Manage() is the runner trail
+      cfg.trailDistanceR        = 1.00;
       cfg.timeStopMinutes       = 0;
       cfg.logLevel              = InpLogLevel;
    }
@@ -136,7 +138,8 @@ public:
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
       double d1 = av[0];
-      return (d1 > 0.0) ? d1 / 6.0 : 0.0;       // ~H1 ATR from the daily ATR
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (d1 > 0.0) ? d1 / 6.0 : 0.0;       // fallback: ~H1 ATR from the daily ATR
    }
 };
 

@@ -320,6 +320,7 @@ struct SSweepParams
    double   targetR;           // take-profit in R
    double   entryRetrace;      // 0 = market at close, 0.5 = limit at 50% body
    bool     requireDisplacement;
+   bool     requireMidpointBreak;   // displacement must close beyond the reclaim candle's midpoint
    bool     tradeBothWays;
    double   scoreBase;
 
@@ -331,6 +332,7 @@ struct SSweepParams
       reclaimWindowBars = 3; wickRatio = 0.60; bodyRatio = 0.60;
       stopBufferAtr = 0.10; minStopAtr = 0.20; maxStopAtr = 2.5;
       targetR = 1.5; entryRetrace = 0.0; requireDisplacement = true;
+      requireMidpointBreak = false;
       tradeBothWays = true; scoreBase = 60.0;
    }
 };
@@ -380,7 +382,9 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
 
          //--- bullish sequence: sweep of the range low, reclaim, bullish displacement
          bool sweptLow = (sw.low < rLo - p.sweepMinAtr * ctx.atr) && ((rLo - sw.low) <= sweepMax);
-         if(sweptLow && EA_WickRatio(sw, +1) >= p.wickRatio && recl.close > rLo && (!p.requireDisplacement || dispUp))
+         bool midUp = (!p.requireMidpointBreak) || (disp.close > 0.5 * (recl.high + recl.low));
+         if(sweptLow && EA_WickRatio(sw, +1) >= p.wickRatio && recl.close > rLo &&
+            (!p.requireDisplacement || dispUp) && midUp)
          {
             double stop = sw.low - p.stopBufferAtr * ctx.atr;
             double entry;
@@ -416,7 +420,9 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
          if(!p.tradeBothWays) continue;
          //--- bearish sequence: sweep of the range high, reclaim, bearish displacement
          bool sweptHigh = (sw.high > rHi + p.sweepMinAtr * ctx.atr) && ((sw.high - rHi) <= sweepMax);
-         if(sweptHigh && EA_WickRatio(sw, -1) >= p.wickRatio && recl.close < rHi && (!p.requireDisplacement || dispDn))
+         bool midDn = (!p.requireMidpointBreak) || (disp.close < 0.5 * (recl.high + recl.low));
+         if(sweptHigh && EA_WickRatio(sw, -1) >= p.wickRatio && recl.close < rHi &&
+            (!p.requireDisplacement || dispDn) && midDn)
          {
             double stop = sw.high + p.stopBufferAtr * ctx.atr;
             double entry;

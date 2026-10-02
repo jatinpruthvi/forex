@@ -170,7 +170,8 @@ public:
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
       if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return false;
       //--- slope measured over the last five H1 candles (approx: 5 x 1/6 of the daily ATR)
       double slope = ctx.emaH1_50 - ctx.emaH1_200;

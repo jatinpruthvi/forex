@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD,EURGBP,AUDNZD";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF";      // Comma separated universe
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2040; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -85,8 +85,8 @@ public:
       }
       if(TotalOpen() >= InpMaxTotal) return false;
 
-      //--- Sleeve A: session-open sweep & reclaim (the core, M5)
-      if(TotalForSleeve(1) < InpMaxPerSleeve)
+      //--- Sleeve A: session-open sweep & reclaim (the core, M5) - doc: EURUSD, GBPUSD, USDJPY, AUDUSD
+      if(TotalForSleeve(1) < InpMaxPerSleeve && IsSleeveASymbol(ctx.symbol))
       {
          SSweepParams p;
          p.Reset();
@@ -102,15 +102,15 @@ public:
       }
 
       //--- Sleeve B: volatility-expansion continuation (deliberately opposite regime)
-      if(TotalForSleeve(2) < InpMaxPerSleeve && ctx.adx14 > 25.0)
+      if(TotalForSleeve(2) < InpMaxPerSleeve && ctx.adx14 > 25.0 && IsSleeveBSymbol(ctx.symbol))
       {
          if(SigEmaPullback(ctx, PullbackParams(), plan))
          { m_sleeve = 2; plan.reason = "R11F-B-EXPANSION " + plan.reason; return CostOk(ctx, plan); }
       }
 
       //--- Sleeve C: Asian-session mean reversion (low beta, high hit-rate)
-      if(TotalForSleeve(3) < InpMaxPerSleeve && ctx.clockMinutes < 7 * 60 &&
-         (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
+      if(TotalForSleeve(3) < InpMaxPerSleeve && ctx.clockMinutes < 6 * 60 + 30 &&   // doc sleeve C: 00:00-06:30 only
+         IsSleeveCSymbol(ctx.symbol))
       {
          SRangeFadeParams rf;
          if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(H1) < 16 only for this sleeve
@@ -123,6 +123,39 @@ public:
          { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return CostOk(ctx, plan); }
       }
       return false;
+   }
+
+   bool IsSleeveASymbol(const string sym)
+   {
+      //--- doc sleeve A: EURUSD, GBPUSD, USDJPY, AUDUSD
+      return (StringFind(sym, "EURUSD") >= 0 || StringFind(sym, "GBPUSD") >= 0 ||
+              StringFind(sym, "USDJPY") >= 0 || StringFind(sym, "AUDUSD") >= 0);
+   }
+
+   bool IsSleeveBSymbol(const string sym)
+   {
+      //--- doc sleeve B: XAUUSD, DAX, US30 (the two indices are outside this broker universe)
+      return (StringFind(sym, "XAUUSD") >= 0);
+   }
+
+   bool IsSleeveCSymbol(const string sym)
+   {
+      //--- doc sleeve C: AUDNZD, EURGBP, EURCHF
+      return (StringFind(sym, "AUDNZD") >= 0 || StringFind(sym, "EURGBP") >= 0 ||
+              StringFind(sym, "EURCHF") >= 0);
+   }
+
+   //--- doc sleeve C: hard flat at 06:30 UK (sleeve-C symbols only)
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.clockMinutes < 6 * 60 + 30 || ctx.clockMinutes >= 7 * 60) return;
+      if(!IsSleeveCSymbol(ctx.symbol)) return;
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         g_eaExec.Close(g_eaTrack[t].ticket, "sleeve C flat 06:30");
+      }
    }
 
    int m_sleeve;

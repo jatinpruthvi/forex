@@ -43,22 +43,22 @@ The 65 former scaffolds in `MQL5_Master/Experts/additionalEAs/` now carry the st
 | # | EA File Name | Source Document | Assigned Magic | Status |
 |---|---|---|---|---|
 | 15 | `EA_FINAL_OPTIMUM_STRATEGY.mq5` | `docs/strategy/FINAL_OPTIMUM_STRATEGY.md` | `3101` | **IMPLEMENTED** (2026-10-01) |
-| 16 | `EA_THE5ERS_CHALLENGE_STRATEGY_V2.mq5` | `docs/strategy/THE5ERS_CHALLENGE_STRATEGY_V2.md` | `3102` | **IMPLEMENTED** (2026-10-01) |
-| 17 | `EA_THE5ERS_CHALLENGE_OPTIMIZATION.mq5` | `docs/prop_firm/THE5ERS_CHALLENGE_OPTIMIZATION.md` | `3103` | **IMPLEMENTED** (2026-10-01) |
-| 18 | `EA_THE5ERS_2_5K_CHALLENGE_PLAN.mq5` | `docs/prop_firm/THE5ERS_2_5K_CHALLENGE_PLAN.md` | `3104` | **IMPLEMENTED** (2026-10-01) |
-| 19 | `EA_THE5ERS_CHALLENGE_V2_REVALIDATION.mq5` | `docs/prop_firm/THE5ERS_CHALLENGE_V2_REVALIDATION.md` | `3105` | **IMPLEMENTED** (2026-10-01) |
-| 20 | `EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST.mq5` | `docs/prop_firm/THE5ERS_END_TO_END_PRECODE_CHECKLIST.md` | `3106` | **IMPLEMENTED** (2026-10-01) |
-| 21 | `EA_THE5ERS_HIGH_STAKES_RESEARCH.mq5` | `docs/prop_firm/THE5ERS_HIGH_STAKES_RESEARCH.md` | `3107` | **IMPLEMENTED** (2026-10-01) |
-| 22 | `EA_THE5ERS_PROPOSAL_REVIEW.mq5` | `docs/prop_firm/THE5ERS_PROPOSAL_REVIEW.md` | `3108` | **IMPLEMENTED** (2026-10-01) |
-| 23 | `EA_THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW.mq5` | `docs/prop_firm/THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW.md` | `3109` | **IMPLEMENTED** (2026-10-01) |
-| 24 | `EA_TRIAD_R_HS_CODE_REVIEW.mq5` | `docs/prop_firm/TRIAD_R_HS_CODE_REVIEW.md` | `3110` | **IMPLEMENTED** (2026-10-01) |
-| 25 | `EA_TRIAD_SURVIVE.mq5` | `docs/prop_firm/TRIAD_SURVIVE.md` | `3111` | **IMPLEMENTED** (2026-10-01) |
-| 26 | `EA_Pr10_Roi_Improvements.mq5` | `docs/strategy/Pr10_Roi_Improvements.md` | `3112` | **IMPLEMENTED** (2026-10-01) |
+| 16 | `EA_THE5ERS_CHALLENGE_STRATEGY_V2.mq5` | `docs/prop_firm/THE5ERS-CHALLENGE-STRATEGY-V2.md` | `3102` | **IMPLEMENTED** (2026-10-01) |
+| 17 | `EA_THE5ERS_CHALLENGE_OPTIMIZATION.mq5` | `docs/prop_firm/THE5ERS-CHALLENGE-OPTIMIZATION.md` | `3103` | **IMPLEMENTED** (2026-10-01) |
+| 18 | `EA_THE5ERS_2_5K_CHALLENGE_PLAN.mq5` | `docs/prop_firm/THE5ERS-2.5K-CHALLENGE-PLAN.md` | `3104` | **IMPLEMENTED** (2026-10-01) |
+| 19 | `EA_THE5ERS_CHALLENGE_V2_REVALIDATION.mq5` | `docs/prop_firm/THE5ERS-CHALLENGE-V2-REVALIDATION.md` | `3105` | **IMPLEMENTED** (2026-10-01) |
+| 20 | `EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST.mq5` | `docs/prop_firm/THE5ERS-END-TO-END-PRECODE-CHECKLIST.md` | `3106` | **IMPLEMENTED** (2026-10-01) |
+| 21 | `EA_THE5ERS_HIGH_STAKES_RESEARCH.mq5` | `docs/prop_firm/THE5ERS-HIGH-STAKES-RESEARCH.md` | `3107` | **IMPLEMENTED** (2026-10-01) |
+| 22 | `EA_THE5ERS_PROPOSAL_REVIEW.mq5` | `docs/prop_firm/THE5ERS-PROPOSAL-REVIEW.md` | `3108` | **IMPLEMENTED** (2026-10-01) |
+| 23 | `EA_THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW.mq5` | `docs/prop_firm/THE5ERS-STRATEGY-IMPROVEMENT-SUGGESTION-REVIEW.md` | `3109` | **IMPLEMENTED** (2026-10-01) |
+| 24 | `EA_TRIAD_R_HS_CODE_REVIEW.mq5` | `docs/strategy/TRIAD_R_HS-CODE-REVIEW.md` | `3110` | **IMPLEMENTED** (2026-10-01) |
+| 25 | `EA_TRIAD_SURVIVE.mq5` | `docs/strategy/TRIAD-SURVIVE.md` | `3111` | **IMPLEMENTED** (2026-10-01) |
+| 26 | `EA_Pr10_Roi_Improvements.mq5` | `docs/strategy/Pr10 Roi Improvements.md` | `3112` | **IMPLEMENTED** (2026-10-01) |
 | 27 | `EA_progress.mq5` | `docs/strategy/progress.md` | `3113` | **IMPLEMENTED** (2026-10-01) |
-| 28 | `EA_prop_fund_challenge_improvement_plan.mq5` | `docs/strategy/prop_fund_challenge_improvement_plan.md` | `3114` | **IMPLEMENTED** (2026-10-01) |
-| 29 | `EA_strategy_improvements_plan.mq5` | `docs/strategy/strategy_improvements_plan.md` | `3115` | **IMPLEMENTED** (2026-10-01) |
-| 30 | `EA_STRATEGY_PORTFOLIO_AUDIT.mq5` | `docs/strategy/STRATEGY_PORTFOLIO_AUDIT.md` | `3116` | **IMPLEMENTED** (2026-10-01) |
-| 31 | `EA_STRATEGY_ROADMAP.mq5` | `docs/strategy/STRATEGY_ROADMAP.md` | `3117` | **IMPLEMENTED** (2026-10-01) |
+| 28 | `EA_prop_fund_challenge_improvement_plan.mq5` | `docs/prop_firm/prop-fund-challenge-improvement-plan.md` | `3114` | **IMPLEMENTED** (2026-10-01) |
+| 29 | `EA_strategy_improvements_plan.mq5` | `docs/strategy/strategy-improvements-plan.md` | `3115` | **IMPLEMENTED** (2026-10-01) |
+| 30 | `EA_STRATEGY_PORTFOLIO_AUDIT.mq5` | `docs/strategy/STRATEGY-PORTFOLIO-AUDIT.md` | `3116` | **IMPLEMENTED** (2026-10-01) |
+| 31 | `EA_STRATEGY_ROADMAP.mq5` | `docs/strategy/STRATEGY-ROADMAP.md` | `3117` | **IMPLEMENTED** (2026-10-01) |
 
 ### B. Study Arena AI Contestant Documents (`docs/research/study_arena/` & `docs_v1/docs/coreIdea/`)
 
@@ -72,46 +72,46 @@ The 65 former scaffolds in `MQL5_Master/Experts/additionalEAs/` now carry the st
 | 37 | `EA_studyarena_round3_contestant_a__1_.mq5` | `studyarena-round3-contestant-a.md` | `2006` | **IMPLEMENTED** (2026-10-01) |
 | 38 | `EA_studyarena_round3_contestant_b__1_.mq5` | `studyarena-round3-contestant-b.md` | `2007` | **IMPLEMENTED** (2026-10-01) |
 | 39 | `EA_studyarena_round4_contestant_a__1_.mq5` | `studyarena-round4-contestant-a.md` | `2008` | **IMPLEMENTED** (2026-10-01) |
-| 40 | `EA_studyarena_round4_contestant_b.mq5` | `studyarena-round4-contestant-b.md` | `2009` | **IMPLEMENTED** (2026-10-01) |
+| 40 | `EA_studyarena_round4_contestant_b.mq5` | `docs/research/study_arena/studyarena-round4-contestant-b.md` | `2009` | **IMPLEMENTED** (2026-10-01) |
 | 41 | `EA_studyarena_round4_contestant_b__1_.mq5` | `studyarena-round4-contestant-b (1).md` | `2010` | **IMPLEMENTED** (2026-10-01) |
-| 42 | `EA_studyarena_round4_contestant_c.mq5` | `studyarena-round4-contestant-c.md` | `2011` | **IMPLEMENTED** (2026-10-01) |
+| 42 | `EA_studyarena_round4_contestant_c.mq5` | `docs/research/study_arena/studyarena-round4-contestant-c.md` | `2011` | **IMPLEMENTED** (2026-10-01) |
 | 43 | `EA_studyarena_round4_contestant_c__1_.mq5` | `studyarena-round4-contestant-c (1).md` | `2012` | **IMPLEMENTED** (2026-10-01) |
-| 44 | `EA_studyarena_round4_contestant_d.mq5` | `studyarena-round4-contestant-d.md` | `2013` | **IMPLEMENTED** (2026-10-01) |
-| 45 | `EA_studyarena_round4_contestant_e.mq5` | `studyarena-round4-contestant-e.md` | `2014` | **IMPLEMENTED** (2026-10-01) |
-| 46 | `EA_studyarena_round4_contestant_f.mq5` | `studyarena-round4-contestant-f.md` | `2015` | **IMPLEMENTED** (2026-10-01) |
-| 47 | `EA_studyarena_round5_contestant_a.mq5` | `studyarena-round5-contestant-a.md` | `2016` | **IMPLEMENTED** (2026-10-01) |
-| 48 | `EA_studyarena_round5_contestant_a_2047.mq5` | `studyarena-round5-contestant-a.md` | `2047` | **IMPLEMENTED** (2026-10-01) |
-| 49 | `EA_studyarena_round5_contestant_b.mq5` | `studyarena-round5-contestant-b.md` | `2017` | **IMPLEMENTED** (2026-10-01) |
-| 50 | `EA_studyarena_round5_contestant_b_2048.mq5` | `studyarena-round5-contestant-b.md` | `2048` | **IMPLEMENTED** (2026-10-01) |
-| 51 | `EA_studyarena_round5_contestant_c.mq5` | `studyarena-round5-contestant-c.md` | `2018` | **IMPLEMENTED** (2026-10-01) |
-| 52 | `EA_studyarena_round5_contestant_d.mq5` | `studyarena-round5-contestant-d.md` | `2019` | **IMPLEMENTED** (2026-10-01) |
-| 53 | `EA_studyarena_round5_contestant_e.mq5` | `studyarena-round5-contestant-e.md` | `2020` | **IMPLEMENTED** (2026-10-01) |
-| 54 | `EA_studyarena_round5_contestant_f.mq5` | `studyarena-round5-contestant-f.md` | `2021` | **IMPLEMENTED** (2026-10-01) |
-| 55 | `EA_studyarena_round7_contestant_a.mq5` | `studyarena-round7-contestant-a.md` | `2022` | **IMPLEMENTED** (2026-10-01) |
-| 56 | `EA_studyarena_round7_contestant_b.mq5` | `studyarena-round7-contestant-b.md` | `2023` | **IMPLEMENTED** (2026-10-01) |
-| 57 | `EA_studyarena_round7_contestant_c.mq5` | `studyarena-round7-contestant-c.md` | `2024` | **IMPLEMENTED** (2026-10-01) |
-| 58 | `EA_studyarena_round7_contestant_d.mq5` | `studyarena-round7-contestant-d.md` | `2025` | **IMPLEMENTED** (2026-10-01) |
-| 59 | `EA_studyarena_round8_contestant_a.mq5` | `studyarena-round8-contestant-a.md` | `2026` | **IMPLEMENTED** (2026-10-01) |
-| 60 | `EA_studyarena_round8_contestant_b.mq5` | `studyarena-round8-contestant-b.md` | `2027` | **IMPLEMENTED** (2026-10-01) |
-| 61 | `EA_studyarena_round8_contestant_c.mq5` | `studyarena-round8-contestant-c.md` | `2028` | **IMPLEMENTED** (2026-10-01) |
-| 62 | `EA_studyarena_round8_contestant_d.mq5` | `studyarena-round8-contestant-d.md` | `2029` | **IMPLEMENTED** (2026-10-01) |
-| 63 | `EA_studyarena_round10_claude_fable_5_high_reasoning.mq5` | `studyarena-round10-claude-fable-5-high-reasoning.md` | `2030` | **IMPLEMENTED** (2026-10-01) |
-| 64 | `EA_studyarena_round10_claude_opus_5_high_reasoning.mq5` | `studyarena-round10-claude-opus-5-high-reasoning.md` | `2031` | **IMPLEMENTED** (2026-10-01) |
-| 65 | `EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning.mq5` | `studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md` | `2032` | **IMPLEMENTED** (2026-10-01) |
-| 66 | `EA_studyarena_round10_kimi_k3_high_reasoning.mq5` | `studyarena-round10-kimi-k3-high-reasoning.md` | `2033` | **IMPLEMENTED** (2026-10-01) |
-| 67 | `EA_studyarena_round10_qwen3_8_2_4t_a95b_high_reasoning.mq5` | `studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md` | `2034` | **IMPLEMENTED** (2026-10-01) |
-| 68 | `EA_studyarena_round11_contestant_a.mq5` | `studyarena-round11-contestant-a.md` | `2035` | **IMPLEMENTED** (2026-10-01) |
-| 69 | `EA_studyarena_round11_contestant_b.mq5` | `studyarena-round11-contestant-b.md` | `2036` | **IMPLEMENTED** (2026-10-01) |
-| 70 | `EA_studyarena_round11_contestant_c.mq5` | `studyarena-round11-contestant-c.md` | `2037` | **IMPLEMENTED** (2026-10-01) |
-| 71 | `EA_studyarena_round11_contestant_d.mq5` | `studyarena-round11-contestant-d.md` | `2038` | **IMPLEMENTED** (2026-10-01) |
-| 72 | `EA_studyarena_round11_contestant_e.mq5` | `studyarena-round11-contestant-e.md` | `2039` | **IMPLEMENTED** (2026-10-01) |
-| 73 | `EA_studyarena_round11_contestant_f.mq5` | `studyarena-round11-contestant-f.md` | `2040` | **IMPLEMENTED** (2026-10-01) |
-| 74 | `EA_studyarena_round12_claude_fable_5_high_reasoning.mq5` | `studyarena-round12-claude-fable-5-high-reasoning.md` | `2041` | **IMPLEMENTED** (2026-10-01) |
-| 75 | `EA_studyarena_round12_contestant_a.mq5` | `studyarena-round12-contestant-a.md` | `2042` | **IMPLEMENTED** (2026-10-01) |
-| 76 | `EA_studyarena_round12_contestant_b.mq5` | `studyarena-round12-contestant-b.md` | `2043` | **IMPLEMENTED** (2026-10-01) |
-| 77 | `EA_studyarena_round12_contestant_c.mq5` | `studyarena-round12-contestant-c.md` | `2044` | **IMPLEMENTED** (2026-10-01) |
-| 78 | `EA_studyarena_round12_contestant_f.mq5` | `studyarena-round12-contestant-f.md` | `2045` | **IMPLEMENTED** (2026-10-01) |
-| 79 | `EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning.mq5` | `studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md` | `2046` | **IMPLEMENTED** (2026-10-01) |
+| 44 | `EA_studyarena_round4_contestant_d.mq5` | `docs/research/study_arena/studyarena-round4-contestant-d.md` | `2013` | **IMPLEMENTED** (2026-10-01) |
+| 45 | `EA_studyarena_round4_contestant_e.mq5` | `docs/research/study_arena/studyarena-round4-contestant-e.md` | `2014` | **IMPLEMENTED** (2026-10-01) |
+| 46 | `EA_studyarena_round4_contestant_f.mq5` | `docs/research/study_arena/studyarena-round4-contestant-f.md` | `2015` | **IMPLEMENTED** (2026-10-01) |
+| 47 | `EA_studyarena_round5_contestant_a.mq5` | `docs/research/study_arena/studyarena-round5-contestant-a.md` | `2016` | **IMPLEMENTED** (2026-10-01) |
+| 48 | `EA_studyarena_round5_contestant_a_2047.mq5` | `docs/research/study_arena/studyarena-round5-contestant-a.md` | `2047` | **IMPLEMENTED** (2026-10-01) |
+| 49 | `EA_studyarena_round5_contestant_b.mq5` | `docs/research/study_arena/studyarena-round5-contestant-b.md` | `2017` | **IMPLEMENTED** (2026-10-01) |
+| 50 | `EA_studyarena_round5_contestant_b_2048.mq5` | `docs/research/study_arena/studyarena-round5-contestant-b.md` | `2048` | **IMPLEMENTED** (2026-10-01) |
+| 51 | `EA_studyarena_round5_contestant_c.mq5` | `docs/research/study_arena/studyarena-round5-contestant-c.md` | `2018` | **IMPLEMENTED** (2026-10-01) |
+| 52 | `EA_studyarena_round5_contestant_d.mq5` | `docs/research/study_arena/studyarena-round5-contestant-d.md` | `2019` | **IMPLEMENTED** (2026-10-01) |
+| 53 | `EA_studyarena_round5_contestant_e.mq5` | `docs/research/study_arena/studyarena-round5-contestant-e.md` | `2020` | **IMPLEMENTED** (2026-10-01) |
+| 54 | `EA_studyarena_round5_contestant_f.mq5` | `docs/research/study_arena/studyarena-round5-contestant-f.md` | `2021` | **IMPLEMENTED** (2026-10-01) |
+| 55 | `EA_studyarena_round7_contestant_a.mq5` | `docs/research/study_arena/studyarena-round7-contestant-a.md` | `2022` | **IMPLEMENTED** (2026-10-01) |
+| 56 | `EA_studyarena_round7_contestant_b.mq5` | `docs/research/study_arena/studyarena-round7-contestant-b.md` | `2023` | **IMPLEMENTED** (2026-10-01) |
+| 57 | `EA_studyarena_round7_contestant_c.mq5` | `docs/research/study_arena/studyarena-round7-contestant-c.md` | `2024` | **IMPLEMENTED** (2026-10-01) |
+| 58 | `EA_studyarena_round7_contestant_d.mq5` | `docs/research/study_arena/studyarena-round7-contestant-d.md` | `2025` | **IMPLEMENTED** (2026-10-01) |
+| 59 | `EA_studyarena_round8_contestant_a.mq5` | `docs/research/study_arena/studyarena-round8-contestant-a.md` | `2026` | **IMPLEMENTED** (2026-10-01) |
+| 60 | `EA_studyarena_round8_contestant_b.mq5` | `docs/research/study_arena/studyarena-round8-contestant-b.md` | `2027` | **IMPLEMENTED** (2026-10-01) |
+| 61 | `EA_studyarena_round8_contestant_c.mq5` | `docs/research/study_arena/studyarena-round8-contestant-c.md` | `2028` | **IMPLEMENTED** (2026-10-01) |
+| 62 | `EA_studyarena_round8_contestant_d.mq5` | `docs/research/study_arena/studyarena-round8-contestant-d.md` | `2029` | **IMPLEMENTED** (2026-10-01) |
+| 63 | `EA_studyarena_round10_claude_fable_5_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round10-claude-fable-5-high-reasoning.md` | `2030` | **IMPLEMENTED** (2026-10-01) |
+| 64 | `EA_studyarena_round10_claude_opus_5_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round10-claude-opus-5-high-reasoning.md` | `2031` | **IMPLEMENTED** (2026-10-01) |
+| 65 | `EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md` | `2032` | **IMPLEMENTED** (2026-10-01) |
+| 66 | `EA_studyarena_round10_kimi_k3_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round10-kimi-k3-high-reasoning.md` | `2033` | **IMPLEMENTED** (2026-10-01) |
+| 67 | `EA_studyarena_round10_qwen3_8_2_4t_a95b_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md` | `2034` | **IMPLEMENTED** (2026-10-01) |
+| 68 | `EA_studyarena_round11_contestant_a.mq5` | `docs/research/study_arena/studyarena-round11-contestant-a.md` | `2035` | **IMPLEMENTED** (2026-10-01) |
+| 69 | `EA_studyarena_round11_contestant_b.mq5` | `docs/research/study_arena/studyarena-round11-contestant-b.md` | `2036` | **IMPLEMENTED** (2026-10-01) |
+| 70 | `EA_studyarena_round11_contestant_c.mq5` | `docs/research/study_arena/studyarena-round11-contestant-c.md` | `2037` | **IMPLEMENTED** (2026-10-01) |
+| 71 | `EA_studyarena_round11_contestant_d.mq5` | `docs/research/study_arena/studyarena-round11-contestant-d.md` | `2038` | **IMPLEMENTED** (2026-10-01) |
+| 72 | `EA_studyarena_round11_contestant_e.mq5` | `docs/research/study_arena/studyarena-round11-contestant-e.md` | `2039` | **IMPLEMENTED** (2026-10-01) |
+| 73 | `EA_studyarena_round11_contestant_f.mq5` | `docs/research/study_arena/studyarena-round11-contestant-f.md` | `2040` | **IMPLEMENTED** (2026-10-01) |
+| 74 | `EA_studyarena_round12_claude_fable_5_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round12-claude-fable-5-high-reasoning.md` | `2041` | **IMPLEMENTED** (2026-10-01) |
+| 75 | `EA_studyarena_round12_contestant_a.mq5` | `docs/research/study_arena/studyarena-round12-contestant-a.md` | `2042` | **IMPLEMENTED** (2026-10-01) |
+| 76 | `EA_studyarena_round12_contestant_b.mq5` | `docs/research/study_arena/studyarena-round12-contestant-b.md` | `2043` | **IMPLEMENTED** (2026-10-01) |
+| 77 | `EA_studyarena_round12_contestant_c.mq5` | `docs/research/study_arena/studyarena-round12-contestant-c.md` | `2044` | **IMPLEMENTED** (2026-10-01) |
+| 78 | `EA_studyarena_round12_contestant_f.mq5` | `docs/research/study_arena/studyarena-round12-contestant-f.md` | `2045` | **IMPLEMENTED** (2026-10-01) |
+| 79 | `EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning.mq5` | `docs/research/study_arena/studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md` | `2046` | **IMPLEMENTED** (2026-10-01) |
 
 ### Implementation notes (one line per EA)
 
@@ -218,7 +218,7 @@ forex/
 
 ---
 
-## 5. Verification Performed (2026-10-01, extended 2026-10-02, fourth audit pass)
+## 5. Verification Performed (2026-10-01, extended 2026-10-02, fifth audit pass)
 
 * **Static contract validation** - `python3 scripts/check_mql5_source.py MQL5_Master/Experts/additionalEAs/<file>.mq5` on all 65 new EAs: **0 findings** (no MQL4 patterns, event handlers delegate to the engine, no bare `return;` in typed functions, no per-tick alerts, risk checks present).
 * **Whole-tree scan** - 92 findings remain in the repository, all of them pre-existing: the 12 untracked legacy helper EAs, `EA_studyarena_round1_contestant_a.mq5` (§1, finished), `Master_Triad_V1.mq5` and the three legacy `#property strict` includes (`E1_SMC_Core.mqh`, `ExecutionManager.mqh`, `NewsManager.mqh`). None of the 65 implemented EAs contributes a finding.
@@ -227,6 +227,8 @@ forex/
 * **Deep bug audit (2026-10-02)** - full static audit of the engine and the 65 generated EAs plus a review of the entry/sizing/exit/rollover paths: **15 defects found and fixed** (unresolvable `#include` path in all 65, four input declarations swallowed by a comment, a duplicate input, an unknown `cfg.beOffsetR` field, a wrong-arity `SpreadGuard` call, a missing minimum-lot risk guard, floating P&L leaking into `ctx.dayRealizedPl`, double-counted qualifying days, London-clock day anchors for the server-day firm rollover, a request cap that halted/flattened instead of blocking, restart-unsafe `riskDist`, swallowed partial-close failures, MQL4 `Symbol()` in four legacy EAs, and the engine/generator/checker not being tracked in git). See `docs/EA_BUG_AUDIT.md` for the evidence table. **Re-audited in depth the same day (second request): 3 further defects fixed** - a shared-engine rate-array indexing convention error that made 11 signal functions evaluate their trigger bar one bar late in every generated EA, an unsatisfiable liquidity-sweep comparison that left `EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning` unable to trade at all, and 237 declared-but-inert `input`s across 60 EAs (dead config). Five automated candidate reports were dismissed with reasons rather than "fixed".
 * **Deep bug audit, third pass (2026-10-02)** - six further defects fixed at the source of truth (partial-close percentages re-based on the entry volume plus a sub-min remainder guard, break-even-on-bar-close reading a stale bar, `EA_FindPosition` newest-by-time, the `SigPrevSessionRange` compile-arity error, per-leg loss counting, `DEAL_ENTRY_INOUT` entries). See `docs/EA_BUG_AUDIT.md` "Third pass".
 * **Deep bug audit, fourth pass (2026-10-02)** - **ten further defects fixed**, nine of them in the shared engine and one dead parameter, plus a fidelity sweep of every ADX/ATR gate against the timeframe its source document quotes: marketable-limit entries could never fill in 12 of the 13 `useLimitEntry` EAs (#25), `SigRangeForDay` starved multi-day lookbacks (#26), `EA_TRIAD_SURVIVE` scored every sleeve against the Asian window (#27), the pre-trade risk gate could re-open risk on a breached weekly/monthly floor after the day rollover (#28), `SigSweepReclaim` silently dropped every retracement setup whose level was already offered (#29), weekly/monthly risk anchors were not restart-safe (#30), 20 ADX/ATR gates in 15 EAs read the signal timeframe while their documents quote H1/H4/daily (#31), three EAs missed explicit document rules (bias + sweep-volume gates, the Asian-sleeve universe, the daily-ATR risk halving) (#32), `plan.expiry` (a timestamp) was passed to the executor's minutes parameter (#33), and one unused filter parameter (#34). Engine additions: `ctx.adxH1`, `ctx.adxH4`, `ctx.atrH1`, `SSignalPlan.sweepBarsAgo`, `EA_BookFill()`. All 65 EAs regenerated; see `docs/EA_BUG_AUDIT.md` "Fourth pass".
+* **Deep bug audit, fifth pass (2026-10-02)** - the pass walked **every source document** and checked its declared instrument universe, session/instrument matrix, exit ladder, flat times and day-of-week rules against the generated strategy: **14 further defect classes fixed across 21 EAs plus one shared-engine addition** (#35-#48 in `docs/EA_BUG_AUDIT.md` "Fifth pass"). The headline fixes: nine EAs shipped universes that could never deliver an instrument their document declares (gold missing from the two London-sweep EAs - whose fuel filter would then have rejected every gold setup with the EURUSD 35-pip cap - `AUDUSD`/`EURCHF`/`AUDNZD` dead sleeves, the The5ers EA running one of its three documented instrument/session combinations, `round10_claude_opus_5` trading USDCAD instead of its document's Asian and gold sleeves); `round8_contestant_b` was missing the chandelier runner that its document calls the ROI and took entries up to four hours after every documented session window closed, and it had none of the document's three risk rules (one position per currency group, max 2 trades/session, max 1.5% open risk); four EAs let the engine's fixed-R trail truncate the documented chandelier tail; four documented hard flats (21:00/16:30/16:00) were missing and three Asian-grid EAs never closed their baskets at the 07:00 flat their documents call the rule that keeps grids alive; three EAs ignored their "Tuesday-Thursday only" rule; eight EAs scaled H1-ATR distances off a `daily ATR / 6` proxy instead of the real `ctx.atrH1`; `round10_qwen3_8`s Step 4 midpoint confirmation and 3-candle limit expiry are now implemented through a new opt-in `SSweepParams.requireMidpointBreak`; and 53 of the 65 tracker source-document links did not resolve to a file (now corrected). All 65 EAs regenerated; `--check` reports 65/65, the checker reports 0 findings on the 65, arity 0/0 over 87 files, braces 0, 187 tests pass.
+* **Documented limitations from the fifth pass (deliberate, not bugs)** - (a) index-named sleeves (`GER40`, `US30`, `DAX`, `US100`) are not shipped as universes because they are broker-dependent symbols; `EA_TRIAD_SURVIVE` implements its document's own XAUUSD+GBPJPY fallback, `round11_contestant_f` sleeve B trades XAUUSD only, and `round12_contestant_b` does ship `US30` because its document names it directly. (b) Four EAs are deliberate single-sleeve variants of larger documents and their titles say so: `round5_contestant_a_2047` (London checklist), `round5_contestant_b` (asymmetric runner), `round5_contestant_c` (London sweep; the document's grid sleeve is not part of the variant), `round12_contestant_c` (SR-10 London module; the New York module is not implemented); `round7_contestant_d` implements Strategy 1 of 3 (its NY continuation and AUDNZD/EURGBP Asian mean-reversion strategies are not implemented); `EA_STRATEGY_ROADMAP`'s F1 quiet-session family is the only shipped Track-B family without its 06:30 flat (it is not the default family and its instrument set is largely outside the universe). (c) `round10_claude_opus_5` keeps one 07:00-20:00 envelope with a single 07:00-16:00 sweep window instead of its document's three session windows and has no session-end flat, and `round10_qwen3_8`/`round10_kimi_k3` use the shared 22:00 session-end flat rather than their documents' per-session flat times. (d) `round5_contestant_c` keeps a flat 16:00 without the document's "> 2R runner" exemption, and `round7_contestant_d`'s runner uses the engine M15-swing stand-in trail rather than the document's exact M15-swing + 1.5 x ATR distance. (e) Tracker rows 32-39, 41 and 43 (the round-1/2/3 documents and the two "(1)" documents) have no source document in the repository; their code is the behaviour of record.
 * **New regression checks** - `scripts/check_mql5_source.py` now also verifies include resolution, unknown `SEASettings` fields, duplicate inputs, declarations glued onto comments and MQL4 `Symbol()`. Whole-tree result after the fixes: **92 findings**, all pre-existing structure of the 13 legacy non-engine EAs; the 65 implemented EAs remain at **0 findings**. The generator additionally refuses to emit an `input` that no strategy code reads (`DEAD INPUT` guard in `scripts/gen_additional_eas.py`).
 * **Not yet done in this environment** - MetaEditor compilation and Strategy Tester execution require Windows (see §4); the Linux sandbox cannot run `metaeditor64.exe`.
 * **Spread / slippage rules implemented (2026-10-02, third pass on owner request)** - the nine document rules that the second audit pass had disclosed as open gaps are now implemented, in the engine and in the ten affected EAs. New engine module `MQL5_Master/Include/EASpread.mqh` (included by `EACommon.mqh`) keeps three pieces of live telemetry per symbol:

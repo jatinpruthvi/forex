@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD,USDJPY,EURGBP";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD,USDJPY,EURGBP,AUDNZD";      // Comma separated universe
 input int             InpMaxTradesPerDay  = 4;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2038; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY

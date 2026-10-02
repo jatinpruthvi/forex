@@ -53,7 +53,7 @@ public:
       cfg.maxOpenPositions      = 1;
       cfg.minSecondsBetweenTrades = 900;
       cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
-      cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 0;
+      cfg.sessionEndHour        = 16;  cfg.sessionEndMin   = 30;   // doc: hard time stop 16:30 UK
       cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
@@ -61,13 +61,15 @@ public:
       cfg.partial1AtR           = 1.00;  cfg.partial1Pct = 50.0;
       cfg.partial2AtR           = 2.00;  cfg.partial2Pct = 20.0;
       cfg.breakEvenAtR          = 1.00;
-      cfg.trailAtR              = 2.00;  cfg.trailDistanceR = 1.00;
+      cfg.trailAtR              = 0.0;   // doc: the 30% runner trails on the 2.5 x H1-ATR chandelier in Manage()
+      cfg.trailDistanceR        = 1.00;
       cfg.timeStopMinutes       = 0;
       cfg.logLevel              = InpLogLevel;
    }
 
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
+      if(ctx.dayOfWeek < 2 || ctx.dayOfWeek > 4) return false;   // doc: Tuesday-Thursday only
       //--- immediate entry on the reclaim close (no waiting for the retest)
       SSweepParams p;
       p.Reset();
@@ -151,7 +153,8 @@ public:
    {
       double av[];
       if(EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 1, 20, av) < 5) return 0.0;
-      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;
+      if(ctx.atrH1 > 0.0) return ctx.atrH1;                 // real H1 ATR
+      return (av[0] > 0.0) ? av[0] / 6.0 : 0.0;   // fallback: ~H1 ATR from the daily ATR
    }
 };
 

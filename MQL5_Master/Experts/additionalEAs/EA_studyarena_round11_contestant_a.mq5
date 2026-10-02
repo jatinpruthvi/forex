@@ -146,7 +146,8 @@ public:
    //--- distance is direction-agnostic; the direction test lives in EmaSlopeAgrees
    bool EmaDistanceOk(SEAContext &ctx)
    {
-      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      double h1Atr = (ctx.atrH1 > 0.0) ? ctx.atrH1
+                                      : ((ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0);   // real H1 ATR, daily/6 as fallback
       if(h1Atr <= 0.0) return true;
       return (MathAbs(ctx.mid - ctx.emaH1_50) <= InpMaxEmaDistAtr * h1Atr);
    }

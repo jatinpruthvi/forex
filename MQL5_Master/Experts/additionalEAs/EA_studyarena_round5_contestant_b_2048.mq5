@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURGBP,AUDNZD,EURUSD,GBPUSD,USDJPY";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURGBP,AUDNZD,EURUSD,GBPUSD,USDJPY,XAUUSD";      // Comma separated universe
 input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
 input double          InpDailyLossPct     = 2.0;   // Halt for the day at -x% (0 = off)
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
@@ -102,8 +102,9 @@ public:
          return true;
       }
 
-      //--- NY pullback sleeve
-      if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60)
+      //--- NY pullback sleeve - doc: USDJPY, XAUUSD only
+      if(ctx.clockMinutes >= 13 * 60 + 30 && ctx.clockMinutes < 16 * 60 &&
+         (StringFind(ctx.symbol, "USDJPY") >= 0 || StringFind(ctx.symbol, "XAUUSD") >= 0))
       {
          if(!SigEmaPullback(ctx, PullbackParams(), plan)) return false;
          plan.reason = "R5B2-NYPULLBACK " + plan.reason;

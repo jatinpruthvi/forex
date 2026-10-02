@@ -116,6 +116,19 @@ public:
       return false;
    }
 
+   //--- doc sleeve C: flat by 07:00 UK - London volume destroys grids
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.clockMinutes < 7 * 60) return;
+      if(StringFind(ctx.symbol, "EURGBP") < 0 && StringFind(ctx.symbol, "AUDNZD") < 0) return;
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         g_eaExec.Close(g_eaTrack[t].ticket, "grid flat 07:00");
+      }
+   }
+
    int m_sleeve;
 
    SEmaPullbackParams NyParams()

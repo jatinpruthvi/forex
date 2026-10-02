@@ -21,7 +21,7 @@
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
-input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF";      // Comma separated universe
+input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF";      // Comma separated universe
 input double          InpMaxSpreadPoints  = 4.0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 1.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 10;   // Permanent floor from start balance (0 = off)
