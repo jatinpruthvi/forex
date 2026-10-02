@@ -31,6 +31,7 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpFractalCount      = 6;     // Last N swing highs/lows scanned
 input double InpSweepRr           = 2.00;  // Sweep structure reward:risk
 input bool   InpRequireChoch      = true;  // Require the high-low-high-close-high CHoCH
+input double InpMaxSpreadPts      = 35.0;  // Over-spread guard: skip this symbol above N points (doc: ~35 for XAU/JPY)
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 2C - SMC pillars: HTF bias, fractal sweep, CHoCH and OB zone
@@ -62,6 +63,13 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       //--- Pillar 1: H4/H1 higher-timeframe bias (primary directional filter)
+      //--- Step 9 safeguard: an over-spread symbol is skipped before any analysis
+      if(ctx.spreadPoints > InpMaxSpreadPts)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.1f - skip (doc Step 9 over-spread)", ctx.symbol, ctx.spreadPoints, InpMaxSpreadPts), true);
+         return false;
+      }
+
       int htfBias = 0;
       if(ctx.emaH1_200 > 0.0 && ctx.emaH1_50 > 0.0)
       {

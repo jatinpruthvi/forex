@@ -29,6 +29,8 @@ input ulong           InpMagicNumber      = 2021; // UNIQUE MAGIC NUMBER FOR THI
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpGridLevels        = 8;     // Max 8 equal-size levels
 input double InpGridSpacingAtr    = 0.60;  // Spacing = 0.6 x H1 ATR
+input double InpMaxSpreadPipsEur   = 1.00;  // Sleeve-1 spread cap, EURUSD (doc: < 1.0 pips)
+input double InpMaxSpreadPipsGbp   = 1.50;  // Sleeve-1 spread cap, GBPUSD (doc: < 1.5 pips)
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5F - stat-arb gates: ADX, band-width rank, channel check and 8-level ladder
@@ -61,6 +63,16 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       //--- grid sleeve: only under the full gate stack, and only in the Asian window
+      //--- merged doc gate: spread < 1.0 pips on EURUSD, < 1.5 on GBPUSD; other
+      //--- pairs in the universe fall back to the looser cap
+      double maxSpreadPips = InpMaxSpreadPipsGbp;
+      if(StringFind(ctx.symbol, "EURUSD") >= 0)      maxSpreadPips = InpMaxSpreadPipsEur;
+      if(EA_SpreadPips(ctx.symbol) > maxSpreadPips)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.2f pips > %.2f - skip (doc sleeve-1 gate)", ctx.symbol, EA_SpreadPips(ctx.symbol), maxSpreadPips), true);
+         return false;
+      }
+
       if(ctx.clockMinutes < 7 * 60 && IsGridPair(ctx.symbol))
       {
          if(!GateStack(ctx)) return false;

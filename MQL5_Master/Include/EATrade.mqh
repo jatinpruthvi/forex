@@ -57,13 +57,42 @@ string EA_RiskKey(const ulong ticket)
    return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_R" + IntegerToString((long)ticket);
 }
 
+//--- realized R multiple of a ticket that just left the book: the history
+//--- deals of the position carry profit + swap + commission, and the tracked
+//--- initial risk distance turns that into R. Used by the expectancy and
+//--- slippage governors (round-11 documents). Silent when unavailable.
+void EA_RecordCloseOutcome(const ulong ticket, const string sym, const double riskDist)
+{
+   if(ticket == 0 || sym == "" || riskDist <= 0.0) return;
+   if(!HistorySelectByPosition(ticket)) return;
+   double money = 0.0, volume = 0.0;
+   for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+   {
+      ulong d = HistoryDealGetTicket(i);
+      if(d == 0) continue;
+      if(HistoryDealGetInteger(d, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
+      money  += HistoryDealGetDouble(d, DEAL_PROFIT) +
+                HistoryDealGetDouble(d, DEAL_SWAP) +
+                HistoryDealGetDouble(d, DEAL_COMMISSION);
+      volume += HistoryDealGetDouble(d, DEAL_VOLUME);
+   }
+   if(volume <= 0.0) return;
+   double riskMoney = EA_LossPerLot(sym, riskDist) * volume;
+   if(riskMoney <= 0.0) return;
+   EA_OutcomeRecord(sym, money / riskMoney);
+}
+
 //--- sync the tracking table with live positions belonging to this EA
 void EA_SyncTracks()
 {
-   //--- drop closed tickets
+   //--- drop closed tickets (recording their realized R for the governors)
    for(int i = g_eaTrackCount - 1; i >= 0; i--)
    {
-      if(!PositionSelectByTicket(g_eaTrack[i].ticket)) EA_TrackRemoveAt(i);
+      if(!PositionSelectByTicket(g_eaTrack[i].ticket))
+      {
+         EA_RecordCloseOutcome(g_eaTrack[i].ticket, g_eaTrack[i].symbol, g_eaTrack[i].riskDist);
+         EA_TrackRemoveAt(i);
+      }
    }
    //--- add new tickets
    for(int p = PositionsTotal() - 1; p >= 0; p--)

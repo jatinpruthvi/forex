@@ -3466,7 +3466,8 @@ add(
     inputs='''input int    InpFractalCount      = 6;     // Last N swing highs/lows scanned
 input int    InpFractalBars       = 2;     // Bars on each side of a swing point
 input double InpSweepRr           = 2.00;  // Sweep structure reward:risk
-input bool   InpRequireChoch      = true;  // Require the high-low-high-close-high CHoCH''',
+input bool   InpRequireChoch      = true;  // Require the high-low-high-close-high CHoCH
+input double InpMaxSpreadPts      = 35.0;  // Over-spread guard: skip this symbol above N points (doc: ~35 for XAU/JPY)''',
     configure='''cfg.strategyName          = "R2C_SMC_PILLARS";
    cfg.sourceDoc             = "docs_v1/docs/coreIdea/studyarena-round2-contestant-c.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -3485,6 +3486,13 @@ input bool   InpRequireChoch      = true;  // Require the high-low-high-close-hi
    cfg.breakEvenAtR          = 1.0;
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- Pillar 1: H4/H1 higher-timeframe bias (primary directional filter)
+   //--- Step 9 safeguard: an over-spread symbol is skipped before any analysis
+   if(ctx.spreadPoints > InpMaxSpreadPts)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.1f - skip (doc Step 9 over-spread)", ctx.symbol, ctx.spreadPoints, InpMaxSpreadPts), true);
+      return false;
+   }
+
    int htfBias = 0;
    if(ctx.emaH1_200 > 0.0 && ctx.emaH1_50 > 0.0)
    {
@@ -5384,7 +5392,8 @@ input double InpT1R               = 1.20;  // T1: close 25% at 1.2R
 input double InpT2R               = 2.50;  // T2: close 25% at 2.5R
 input double InpRunnerTargetR     = 8.00;  // Runner: liquidity pool target (up to 8R)
 input double InpLiquidityLookback = 60;    // Bars scanned for the liquidity pool
-input double InpMtfLayerR         = 0.15;  // MTF conviction layer add-on''',
+input double InpMtfLayerR         = 0.15;  // MTF conviction layer add-on
+input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of the first spacing''',
     configure='''cfg.strategyName          = "R5B_ASYMMETRIC_RUNNER";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round5-contestant-b.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -5425,6 +5434,13 @@ input double InpMtfLayerR         = 0.15;  // MTF conviction layer add-on''',
    double stopDist = MathAbs(ctx.mid - structural);
    if(stopDist <= 0.0) return false;
    double tight = InpStopFactor * stopDist;
+
+   //--- spread gate: the first spacing must not be eaten by the spread (doc: < 15%)
+   if(ctx.spreadPoints * ctx.point > InpMaxSpreadSpacingPct / 100.0 * tight)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the first spacing - skip", ctx.symbol, ctx.spreadPoints, InpMaxSpreadSpacingPct), true);
+      return false;
+   }
 
    plan.Reset();
    plan.dir      = dir;
@@ -5488,7 +5504,8 @@ input double InpLegSpacingAtr     = 0.30;  // 3 legs spaced by 30% of daily ATR
 input double InpRsi2Level         = 5.0;   // RSI(2) < 5 (long) / > 95 (short)
 input double InpBbSigma           = 2.00;  // 2-sigma Bollinger entry band
 input double InpGridAdxMax        = 16.0;  // ADX(14) < 16 gate
-input double InpTrendOverrideKill = 1.00;  // Kill the grid if H1 EMA50 slope exceeds''',
+input double InpTrendOverrideKill = 1.00;  // Kill the grid if H1 EMA50 slope exceeds
+input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of the leg spacing''',
     configure='''cfg.strategyName          = "R5B2_E_CORE";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round5-contestant-b.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -5520,6 +5537,7 @@ input double InpTrendOverrideKill = 1.00;  // Kill the grid if H1 EMA50 slope ex
       int legs = EA_CountPositions(ctx.symbol, true);
       if(legs >= 3) return false;
       if(legs > 0 && !LegSpaced(ctx)) return false;
+      if(!SpreadWithinLegSpacing(ctx)) return false;                 // doc: spread < 15% of the spacing
       if(!Rsi2BollingerPlan(ctx, plan)) return false;
       plan.reason = StringFormat("R5B2-GRID(leg %d) %s", legs + 1, plan.reason);
       return true;
@@ -5653,6 +5671,17 @@ input double InpTrendOverrideKill = 1.00;  // Kill the grid if H1 EMA50 slope ex
       }
       if(TrendOverride(ctx)) g_eaExec.CloseAll("trend override kill");
       if(ctx.clockMinutes >= 7 * 60) g_eaExec.CloseAll("Asian session flat");
+   }
+   //--- doc gate: spread < 15% of the 0.3 x D1-ATR leg spacing
+   bool SpreadWithinLegSpacing(SEAContext &ctx)
+   {
+      double spacing = InpLegSpacingAtr * ctx.atrD1;
+      if(spacing <= 0.0) return false;
+      bool ok = (ctx.spreadPoints * ctx.point <= InpMaxSpreadSpacingPct / 100.0 * spacing);
+      if(!ok)
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the leg spacing - skip",
+                ctx.symbol, ctx.spreadPoints, InpMaxSpreadSpacingPct), true);
+      return ok;
    }''',
 )
 
@@ -5935,7 +5964,8 @@ add(
 input double InpBasketCapPct      = 0.50;  // Grid basket cap (3 equal legs)
 input double InpGridAdxMax        = 16.0;  // ADX gate for the grid
 input double InpRsi2Entry         = 5.0;   // RSI(2) < 5 / > 95 entry filter
-input double InpExpectancyGate    = 0.25;  // Required live expectancy (R) to keep trading''',
+input double InpExpectancyGate    = 0.25;  // Required live expectancy (R) to keep trading
+input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of the first grid spacing''',
     configure='''cfg.strategyName          = "R5E_EXECUTABLE_CORE";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round5-contestant-e.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -5998,6 +6028,7 @@ input double InpExpectancyGate    = 0.25;  // Required live expectancy (R) to ke
       int legs = EA_CountPositions(ctx.symbol, true);
       if(legs >= 3) return false;
       if(legs > 0 && !LegSpaced(ctx)) return false;
+      if(!SpreadWithinGridSpacing(ctx)) return false;                // doc: spread < 15% of the first spacing
       if(!Rsi2Plan(ctx, plan)) return false;
       plan.reason = StringFormat("R5E-GRID(leg %d) %s", legs + 1, plan.reason);
       return true;
@@ -6129,6 +6160,17 @@ input double InpExpectancyGate    = 0.25;  // Required live expectancy (R) to ke
       if(EA_CountPositions(ctx.symbol, true) == 0) return;
       if(ctx.floatingPl < -InpBasketCapPct / 100.0 * ctx.equity)
          g_eaExec.CloseAll("0.5% basket cap");
+   }
+   //--- doc gate: spread < 15% of the 0.30 x D1-ATR grid spacing
+   bool SpreadWithinGridSpacing(SEAContext &ctx)
+   {
+      double spacing = 0.30 * ctx.atrD1;
+      if(spacing <= 0.0) return false;
+      bool ok = (ctx.spreadPoints * ctx.point <= InpMaxSpreadSpacingPct / 100.0 * spacing);
+      if(!ok)
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the grid spacing - skip",
+                ctx.symbol, ctx.spreadPoints, InpMaxSpreadSpacingPct), true);
+      return ok;
    }''',
 )
 
@@ -6146,7 +6188,9 @@ add(
 input double InpGridSpacingAtr    = 0.60;  // Spacing = 0.6 x H1 ATR
 input double InpBandRankBottom    = 2.5;   // Bollinger width must sit in the bottom 2.5 deciles
 input double InpKillTripwireAtr   = 1.00;  // Close all if price closes 1 ATR beyond the channel
-input double InpCarryOverlayPct   = 0.50;  // Positive-carry overlay sizing''',
+input double InpCarryOverlayPct   = 0.50;  // Positive-carry overlay sizing
+input double InpMaxSpreadPipsEur   = 1.00;  // Sleeve-1 spread cap, EURUSD (doc: < 1.0 pips)
+input double InpMaxSpreadPipsGbp   = 1.50;  // Sleeve-1 spread cap, GBPUSD (doc: < 1.5 pips)''',
     configure='''cfg.strategyName          = "R5F_STATARB_GATES";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round5-contestant-f.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -6166,6 +6210,16 @@ input double InpCarryOverlayPct   = 0.50;  // Positive-carry overlay sizing''',
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- grid sleeve: only under the full gate stack, and only in the Asian window
+   //--- merged doc gate: spread < 1.0 pips on EURUSD, < 1.5 on GBPUSD; other
+   //--- pairs in the universe fall back to the looser cap
+   double maxSpreadPips = InpMaxSpreadPipsGbp;
+   if(StringFind(ctx.symbol, "EURUSD") >= 0)      maxSpreadPips = InpMaxSpreadPipsEur;
+   if(EA_SpreadPips(ctx.symbol) > maxSpreadPips)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.2f pips > %.2f - skip (doc sleeve-1 gate)", ctx.symbol, EA_SpreadPips(ctx.symbol), maxSpreadPips), true);
+      return false;
+   }
+
    if(ctx.clockMinutes < 7 * 60 && IsGridPair(ctx.symbol))
    {
       if(!GateStack(ctx)) return false;
@@ -7551,7 +7605,8 @@ add(
     inputs='''input int    InpSwingBars         = 240;   // 4-hour local extreme window (M1 bars)
 input double InpMinPierceAtr      = 0.05;  // Piercing depth minimum
 input double InpTickAcceleration  = 2.00;  // Tick speed must be 200% of the 5-min average
-input int    InpTimeStopBars      = 10;    // Exit if momentum stalls within N M1 bars''',
+input int    InpTimeStopBars      = 10;    // Exit if momentum stalls within N M1 bars
+input double InpMaxSpreadPips     = 0.80;  // Spread gate (doc: < 0.8 pips; raise it for 2-digit metals)''',
     configure='''cfg.strategyName          = "R10GEMINI_DELTA_SCALP";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -7574,6 +7629,12 @@ input int    InpTimeStopBars      = 10;    // Exit if momentum stalls within N M
    cfg.timeStopMinutes       = 10;
    cfg.logLevel              = InpLogLevel;''',
     plan='''MqlRates r[];
+   //--- doc: the instrument list requires spreads below 0.8 pips
+   if(EA_SpreadPips(ctx.symbol) > InpMaxSpreadPips)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.2f pips > %.2f - skip (doc < 0.8 pips)", ctx.symbol, EA_SpreadPips(ctx.symbol), InpMaxSpreadPips), true);
+      return false;
+   }
    if(EA_Rates(ctx.symbol, PERIOD_M1, 1, InpSwingBars + 6, r) < InpSwingBars + 5) return false;
 
    //--- local 4-hour extreme, EXCLUDING the sweep bar itself: seeding the
@@ -7723,7 +7784,8 @@ add(
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "8"},
     inputs='''input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
-input int    InpMaxAccounts       = 3;     // Multi-account orchestration cap''',
+input int    InpMaxAccounts       = 3;     // Multi-account orchestration cap
+input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the time-of-day baseline''',
     configure='''cfg.strategyName          = "R10QWEN_SOS3_ALGO";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -7747,6 +7809,14 @@ input int    InpMaxAccounts       = 3;     // Multi-account orchestration cap'''
    cfg.timeStopMinutes       = InpKillMinutes;
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- session-specific reference ranges
+   //--- Step 6 gate: current spread <= 1.5x the symbol's own baseline
+   double spRef = EA_SpreadBaseline(ctx.symbol, 30);
+   if(spRef > 0.0 && ctx.spreadPoints > InpSpreadAvgX * spRef)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.2fx its baseline %.1f - skip (doc row %d)", ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, spRef, 67), true);
+      return false;
+   }
+
    int fromMin = 21 * 60, toMin = 24 * 60, sessFrom = 0, sessTo = 6 * 60 + 30;
    if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 13 * 60)
    { fromMin = 0; toMin = 7 * 60; sessFrom = 7 * 60; sessTo = 12 * 60; }
@@ -8106,7 +8176,8 @@ add(
 input double InpHalfAtDdPct       = 3.00;  // Halve risk at -3% from the equity high
 input double InpQuarterAtDdPct    = 5.00;  // Quarter risk at -5%
 input double InpMonthOverDdPct    = 5.50;  // Month over at -5.5% (not -6%)
-input double InpMinExpectancyR    = 0.10;  // Rolling 30-trade expectancy pause''',
+input double InpMinExpectancyR    = 0.10;  // Rolling 30-trade expectancy pause
+input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage eats this % of expectancy''',
     configure='''cfg.strategyName          = "R11C_DECADE_THROTTLE";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round11-contestant-c.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -8130,6 +8201,13 @@ input double InpMinExpectancyR    = 0.10;  // Rolling 30-trade expectancy pause'
    cfg.timeStopMinutes       = 240;
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(!EdgeAlive()) return false;
+   //--- cost realism: a symbol whose slippage eats into expectancy is disabled
+   if(!EA_SymbolSlippageOk(ctx.symbol, InpMaxSlipPctOfExp))
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s disabled: slippage eats > %.0f%% of expectancy",
+             ctx.symbol, InpMaxSlipPctOfExp), true);
+      return false;
+   }
    SSweepParams p;
    p.Reset();
    p.rangeFromMin = 0; p.rangeToMin = 7 * 60;
@@ -8445,7 +8523,10 @@ add(
     inputs='''input double InpPerSleeveRiskPct  = 0.24;  // ~1/20th Kelly per sleeve
 input double InpMaxOpenRiskPct    = 1.00;  // Total open risk ceiling
 input int    InpMaxPerSleeve      = 2;     // Max concurrent positions per sleeve
-input int    InpMaxTotal          = 4;     // Max concurrent positions overall''',
+input int    InpMaxTotal          = 4;     // Max concurrent positions overall
+input double InpSpreadAvgX        = 2.00;  // Skip entry when spread > this x its 60-min median
+input double InpMaxSpreadStopPct  = 15.0;  // Skip entry when spread > this % of the stop distance
+input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage eats this % of expectancy''',
     configure='''cfg.strategyName          = "R11F_TRIAD_SLEEVES";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round11-contestant-f.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -8469,6 +8550,20 @@ input int    InpMaxTotal          = 4;     // Max concurrent positions overall''
    cfg.timeStopMinutes       = 240;
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(EA_OpenRiskPct() > InpMaxOpenRiskPct) return false;
+   //--- survival table: spread vs its own 60-min baseline, and slippage vs expectancy
+   double spRef = EA_SpreadMedianRecent(ctx.symbol, 60);
+   if(spRef > 0.0 && ctx.spreadPoints > InpSpreadAvgX * spRef)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.1fx its 60-min median %.1f - skip",
+             ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, spRef), true);
+      return false;
+   }
+   if(!EA_SymbolSlippageOk(ctx.symbol, InpMaxSlipPctOfExp))
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s disabled: slippage eats > %.0f%% of expectancy",
+             ctx.symbol, InpMaxSlipPctOfExp), true);
+      return false;
+   }
    if(TotalOpen() >= InpMaxTotal) return false;
 
    //--- Sleeve A: session-open sweep & reclaim (the core, M5)
@@ -8484,14 +8579,14 @@ input int    InpMaxTotal          = 4;     // Max concurrent positions overall''
       p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
       p.entryRetrace = 0.50; p.targetR = 2.0;
       if(SigSweepReclaim(ctx, p, plan))
-      { m_sleeve = 1; plan.reason = "R11F-A-SWEEP " + plan.reason; return true; }
+      { m_sleeve = 1; plan.reason = "R11F-A-SWEEP " + plan.reason; return CostOk(ctx, plan); }
    }
 
    //--- Sleeve B: volatility-expansion continuation (deliberately opposite regime)
    if(TotalForSleeve(2) < InpMaxPerSleeve && ctx.adx14 > 25.0)
    {
       if(SigEmaPullback(ctx, PullbackParams(), plan))
-      { m_sleeve = 2; plan.reason = "R11F-B-EXPANSION " + plan.reason; return true; }
+      { m_sleeve = 2; plan.reason = "R11F-B-EXPANSION " + plan.reason; return CostOk(ctx, plan); }
    }
 
    //--- Sleeve C: Asian-session mean reversion (low beta, high hit-rate)
@@ -8505,7 +8600,7 @@ input int    InpMaxTotal          = 4;     // Max concurrent positions overall''
       rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
       rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
       if(SigRangeFade(ctx, rf, plan))
-      { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return true; }
+      { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return CostOk(ctx, plan); }
    }
    return false;''',
     extra='''   int m_sleeve;
@@ -8537,6 +8632,16 @@ input int    InpMaxTotal          = 4;     // Max concurrent positions overall''
          if(StringFind(PositionGetString(POSITION_COMMENT), tag) >= 0) n++;
       }
       return n;
+   }
+   //--- doc: spread > 15% of the stop distance voids the entry
+   bool CostOk(SEAContext &ctx, SSignalPlan &p)
+   {
+      if(p.riskDist <= 0.0) return false;
+      bool ok = (ctx.spreadPoints * ctx.point <= InpMaxSpreadStopPct / 100.0 * p.riskDist);
+      if(!ok)
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the %.5f stop - entry void",
+                ctx.symbol, ctx.spreadPoints, InpMaxSpreadStopPct, p.riskDist), true);
+      return ok;
    }''',
 )
 
@@ -9326,7 +9431,8 @@ add(
 input int    InpLondonMaxConcurrent = 3;
 input int    InpNyMaxConcurrent     = 2;
 input int    InpMaxTotalOpen        = 4;     // Max four open positions overall
-input int    InpMaxSessionTrades    = 3;     // Completed trades per session''',
+input int    InpMaxSessionTrades    = 3;     // Completed trades per session
+input double InpSpreadAvgX        = 1.50;  // Step 6 gate: spread <= this x the time-of-day baseline''',
     configure='''cfg.strategyName          = "R12QWEN_SWEEP1_DEFINITIVE";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -9352,6 +9458,14 @@ input int    InpMaxSessionTrades    = 3;     // Completed trades per session''',
    cfg.timeStopMinutes       = 240;
    cfg.logLevel              = InpLogLevel;''',
     plan='''int fromMin, toMin, sessFrom, sessTo, maxConcurrent;
+
+   //--- Step 6 execution gate: spread <= 1.5x the symbol's own baseline
+   double spRef = EA_SpreadBaseline(ctx.symbol, 30);
+   if(spRef > 0.0 && ctx.spreadPoints > InpSpreadAvgX * spRef)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.2fx its baseline %.1f - skip (doc row %d)", ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, spRef, 79), true);
+      return false;
+   }
    if(!SessionMap(ctx, fromMin, toMin, sessFrom, sessTo, maxConcurrent)) return false;
    if(ConcurrentForSession(sessFrom) >= maxConcurrent) return false;
    if(TradesThisSession(sessFrom) >= InpMaxSessionTrades) return false;

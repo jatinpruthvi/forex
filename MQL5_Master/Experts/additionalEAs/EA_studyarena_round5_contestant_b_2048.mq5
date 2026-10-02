@@ -34,6 +34,7 @@ input double InpRsi2Level         = 5.0;   // RSI(2) < 5 (long) / > 95 (short)
 input double InpBbSigma           = 2.00;  // 2-sigma Bollinger entry band
 input double InpGridAdxMax        = 16.0;  // ADX(14) < 16 gate
 input double InpTrendOverrideKill = 1.00;  // Kill the grid if H1 EMA50 slope exceeds
+input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of the leg spacing
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5B-2048 - Contestant E's executable core: 3 equal legs, 0.5% basket, RSI(2) entry
@@ -78,6 +79,7 @@ public:
          int legs = EA_CountPositions(ctx.symbol, true);
          if(legs >= 3) return false;
          if(legs > 0 && !LegSpaced(ctx)) return false;
+         if(!SpreadWithinLegSpacing(ctx)) return false;                 // doc: spread < 15% of the spacing
          if(!Rsi2BollingerPlan(ctx, plan)) return false;
          plan.reason = StringFormat("R5B2-GRID(leg %d) %s", legs + 1, plan.reason);
          return true;
@@ -213,6 +215,17 @@ public:
       }
       if(TrendOverride(ctx)) g_eaExec.CloseAll("trend override kill");
       if(ctx.clockMinutes >= 7 * 60) g_eaExec.CloseAll("Asian session flat");
+   }
+   //--- doc gate: spread < 15% of the 0.3 x D1-ATR leg spacing
+   bool SpreadWithinLegSpacing(SEAContext &ctx)
+   {
+      double spacing = InpLegSpacingAtr * ctx.atrD1;
+      if(spacing <= 0.0) return false;
+      bool ok = (ctx.spreadPoints * ctx.point <= InpMaxSpreadSpacingPct / 100.0 * spacing);
+      if(!ok)
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the leg spacing - skip",
+                ctx.symbol, ctx.spreadPoints, InpMaxSpreadSpacingPct), true);
+      return ok;
    }
 };
 

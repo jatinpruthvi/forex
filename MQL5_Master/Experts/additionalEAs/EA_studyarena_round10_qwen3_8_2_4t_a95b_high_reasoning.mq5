@@ -29,6 +29,7 @@ input ulong           InpMagicNumber      = 2034; // UNIQUE MAGIC NUMBER FOR THI
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
+input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the time-of-day baseline
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing
@@ -65,6 +66,14 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       //--- session-specific reference ranges
+      //--- Step 6 gate: current spread <= 1.5x the symbol's own baseline
+      double spRef = EA_SpreadBaseline(ctx.symbol, 30);
+      if(spRef > 0.0 && ctx.spreadPoints > InpSpreadAvgX * spRef)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.2fx its baseline %.1f - skip (doc row %d)", ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, spRef, 67), true);
+         return false;
+      }
+
       int fromMin = 21 * 60, toMin = 24 * 60, sessFrom = 0, sessTo = 6 * 60 + 30;
       if(ctx.clockMinutes >= 7 * 60 && ctx.clockMinutes < 13 * 60)
       { fromMin = 0; toMin = 7 * 60; sessFrom = 7 * 60; sessTo = 12 * 60; }

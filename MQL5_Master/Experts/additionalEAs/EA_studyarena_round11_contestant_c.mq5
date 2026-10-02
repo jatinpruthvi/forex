@@ -31,6 +31,7 @@ input double InpHalfAtDdPct       = 3.00;  // Halve risk at -3% from the equity 
 input double InpQuarterAtDdPct    = 5.00;  // Quarter risk at -5%
 input double InpMonthOverDdPct    = 5.50;  // Month over at -5.5% (not -6%)
 input double InpMinExpectancyR    = 0.10;  // Rolling 30-trade expectancy pause
+input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage eats this % of expectancy
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 11C - decade-honest risk throttle: halve at -3%, quarter at -5%, month over at -5.5%
@@ -67,6 +68,13 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       if(!EdgeAlive()) return false;
+      //--- cost realism: a symbol whose slippage eats into expectancy is disabled
+      if(!EA_SymbolSlippageOk(ctx.symbol, InpMaxSlipPctOfExp))
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s disabled: slippage eats > %.0f%% of expectancy",
+                ctx.symbol, InpMaxSlipPctOfExp), true);
+         return false;
+      }
       SSweepParams p;
       p.Reset();
       p.rangeFromMin = 0; p.rangeToMin = 7 * 60;

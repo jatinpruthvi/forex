@@ -32,6 +32,7 @@ input double InpT1R               = 1.20;  // T1: close 25% at 1.2R
 input double InpT2R               = 2.50;  // T2: close 25% at 2.5R
 input double InpRunnerTargetR     = 8.00;  // Runner: liquidity pool target (up to 8R)
 input double InpLiquidityLookback = 60;    // Bars scanned for the liquidity pool
+input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of the first spacing
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5B - asymmetric runner: 25% at 1.2R, break-even +0.3R, trail the 8R tail
@@ -85,6 +86,13 @@ public:
       double stopDist = MathAbs(ctx.mid - structural);
       if(stopDist <= 0.0) return false;
       double tight = InpStopFactor * stopDist;
+
+      //--- spread gate: the first spacing must not be eaten by the spread (doc: < 15%)
+      if(ctx.spreadPoints * ctx.point > InpMaxSpreadSpacingPct / 100.0 * tight)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the first spacing - skip", ctx.symbol, ctx.spreadPoints, InpMaxSpreadSpacingPct), true);
+         return false;
+      }
 
       plan.Reset();
       plan.dir      = dir;

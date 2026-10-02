@@ -30,6 +30,9 @@ input double InpPerSleeveRiskPct  = 0.24;  // ~1/20th Kelly per sleeve
 input double InpMaxOpenRiskPct    = 1.00;  // Total open risk ceiling
 input int    InpMaxPerSleeve      = 2;     // Max concurrent positions per sleeve
 input int    InpMaxTotal          = 4;     // Max concurrent positions overall
+input double InpSpreadAvgX        = 2.00;  // Skip entry when spread > this x its 60-min median
+input double InpMaxSpreadStopPct  = 15.0;  // Skip entry when spread > this % of the stop distance
+input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage eats this % of expectancy
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 11F - TRIAD: one edge, three decorrelated expressions at 0.24% per sleeve
@@ -66,6 +69,20 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       if(EA_OpenRiskPct() > InpMaxOpenRiskPct) return false;
+      //--- survival table: spread vs its own 60-min baseline, and slippage vs expectancy
+      double spRef = EA_SpreadMedianRecent(ctx.symbol, 60);
+      if(spRef > 0.0 && ctx.spreadPoints > InpSpreadAvgX * spRef)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.1fx its 60-min median %.1f - skip",
+                ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, spRef), true);
+         return false;
+      }
+      if(!EA_SymbolSlippageOk(ctx.symbol, InpMaxSlipPctOfExp))
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s disabled: slippage eats > %.0f%% of expectancy",
+                ctx.symbol, InpMaxSlipPctOfExp), true);
+         return false;
+      }
       if(TotalOpen() >= InpMaxTotal) return false;
 
       //--- Sleeve A: session-open sweep & reclaim (the core, M5)
@@ -81,14 +98,14 @@ public:
          p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
          p.entryRetrace = 0.50; p.targetR = 2.0;
          if(SigSweepReclaim(ctx, p, plan))
-         { m_sleeve = 1; plan.reason = "R11F-A-SWEEP " + plan.reason; return true; }
+         { m_sleeve = 1; plan.reason = "R11F-A-SWEEP " + plan.reason; return CostOk(ctx, plan); }
       }
 
       //--- Sleeve B: volatility-expansion continuation (deliberately opposite regime)
       if(TotalForSleeve(2) < InpMaxPerSleeve && ctx.adx14 > 25.0)
       {
          if(SigEmaPullback(ctx, PullbackParams(), plan))
-         { m_sleeve = 2; plan.reason = "R11F-B-EXPANSION " + plan.reason; return true; }
+         { m_sleeve = 2; plan.reason = "R11F-B-EXPANSION " + plan.reason; return CostOk(ctx, plan); }
       }
 
       //--- Sleeve C: Asian-session mean reversion (low beta, high hit-rate)
@@ -102,7 +119,7 @@ public:
          rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
          rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
          if(SigRangeFade(ctx, rf, plan))
-         { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return true; }
+         { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return CostOk(ctx, plan); }
       }
       return false;
    }
@@ -136,6 +153,16 @@ public:
          if(StringFind(PositionGetString(POSITION_COMMENT), tag) >= 0) n++;
       }
       return n;
+   }
+   //--- doc: spread > 15% of the stop distance voids the entry
+   bool CostOk(SEAContext &ctx, SSignalPlan &p)
+   {
+      if(p.riskDist <= 0.0) return false;
+      bool ok = (ctx.spreadPoints * ctx.point <= InpMaxSpreadStopPct / 100.0 * p.riskDist);
+      if(!ok)
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the %.5f stop - entry void",
+                ctx.symbol, ctx.spreadPoints, InpMaxSpreadStopPct, p.riskDist), true);
+      return ok;
    }
 };
 

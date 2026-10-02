@@ -32,6 +32,7 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpBasketCapPct      = 0.50;  // Grid basket cap (3 equal legs)
 input double InpGridAdxMax        = 16.0;  // ADX gate for the grid
 input double InpRsi2Entry         = 5.0;   // RSI(2) < 5 / > 95 entry filter
+input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of the first grid spacing
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5E - executable core: 1% per group, 0.5% basket grid and three named setups
@@ -107,6 +108,7 @@ public:
          int legs = EA_CountPositions(ctx.symbol, true);
          if(legs >= 3) return false;
          if(legs > 0 && !LegSpaced(ctx)) return false;
+         if(!SpreadWithinGridSpacing(ctx)) return false;                // doc: spread < 15% of the first spacing
          if(!Rsi2Plan(ctx, plan)) return false;
          plan.reason = StringFormat("R5E-GRID(leg %d) %s", legs + 1, plan.reason);
          return true;
@@ -240,6 +242,17 @@ public:
       if(EA_CountPositions(ctx.symbol, true) == 0) return;
       if(ctx.floatingPl < -InpBasketCapPct / 100.0 * ctx.equity)
          g_eaExec.CloseAll("0.5% basket cap");
+   }
+   //--- doc gate: spread < 15% of the 0.30 x D1-ATR grid spacing
+   bool SpreadWithinGridSpacing(SEAContext &ctx)
+   {
+      double spacing = 0.30 * ctx.atrD1;
+      if(spacing <= 0.0) return false;
+      bool ok = (ctx.spreadPoints * ctx.point <= InpMaxSpreadSpacingPct / 100.0 * spacing);
+      if(!ok)
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.0f%% of the grid spacing - skip",
+                ctx.symbol, ctx.spreadPoints, InpMaxSpreadSpacingPct), true);
+      return ok;
    }
 };
 

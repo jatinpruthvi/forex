@@ -32,6 +32,7 @@ input int    InpLondonMaxConcurrent = 3;
 input int    InpNyMaxConcurrent     = 2;
 input int    InpMaxTotalOpen        = 4;     // Max four open positions overall
 input int    InpMaxSessionTrades    = 3;     // Completed trades per session
+input double InpSpreadAvgX        = 1.50;  // Step 6 gate: spread <= this x the time-of-day baseline
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 12 Qwen - SWEEP-1 definitive with session flat times and overlap discipline
@@ -70,6 +71,14 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       int fromMin, toMin, sessFrom, sessTo, maxConcurrent;
+
+      //--- Step 6 execution gate: spread <= 1.5x the symbol's own baseline
+      double spRef = EA_SpreadBaseline(ctx.symbol, 30);
+      if(spRef > 0.0 && ctx.spreadPoints > InpSpreadAvgX * spRef)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f pts > %.2fx its baseline %.1f - skip (doc row %d)", ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, spRef, 79), true);
+         return false;
+      }
       if(!SessionMap(ctx, fromMin, toMin, sessFrom, sessTo, maxConcurrent)) return false;
       if(ConcurrentForSession(sessFrom) >= maxConcurrent) return false;
       if(TradesThisSession(sessFrom) >= InpMaxSessionTrades) return false;

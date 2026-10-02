@@ -30,6 +30,7 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpSwingBars         = 240;   // 4-hour local extreme window (M1 bars)
 input double InpMinPierceAtr      = 0.05;  // Piercing depth minimum
 input double InpTickAcceleration  = 2.00;  // Tick speed must be 200% of the 5-min average
+input double InpMaxSpreadPips     = 0.80;  // Spread gate (doc: < 0.8 pips; raise it for 2-digit metals)
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 10 Gemini - M1 delta-sweep scalper with volume divergence and tick acceleration
@@ -65,6 +66,12 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       MqlRates r[];
+      //--- doc: the instrument list requires spreads below 0.8 pips
+      if(EA_SpreadPips(ctx.symbol) > InpMaxSpreadPips)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.2f pips > %.2f - skip (doc < 0.8 pips)", ctx.symbol, EA_SpreadPips(ctx.symbol), InpMaxSpreadPips), true);
+         return false;
+      }
       if(EA_Rates(ctx.symbol, PERIOD_M1, 1, InpSwingBars + 6, r) < InpSwingBars + 5) return false;
 
       //--- local 4-hour extreme, EXCLUDING the sweep bar itself: seeding the

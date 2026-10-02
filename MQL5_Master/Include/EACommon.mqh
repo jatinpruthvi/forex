@@ -20,6 +20,7 @@
 
 #include "EACore.mqh"
 #include "EASignals.mqh"
+#include "EASpread.mqh"      // spread history / fill slippage / R outcomes
 #include "EATrade.mqh"
 
 //+------------------------------------------------------------------+
@@ -241,6 +242,8 @@ void EA_ManageAll()
    {
       SEAContext ctx;
       if(!EA_BuildContext(ctx, g_eaSymbols[i], i)) continue;
+      //--- execution-cost telemetry: one spread sample per symbol per minute
+      EA_SpreadSample(ctx.symbol, ctx.spreadPoints);
       g_eaStrategy.Manage(ctx);
       EA_PendingHygiene(ctx);
       EA_ManagePositions(ctx);
@@ -390,7 +393,14 @@ void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
       if(g_eaExec.OpenMarket(ctx.symbol, plan.dir, lots, sl, tp, note))
       {
          ulong t = EA_FindPosition(ctx.symbol, plan.dir);
-         if(t > 0) EA_TrackSetRisk(t, plan.riskDist);
+         if(t > 0)
+         {
+            EA_TrackSetRisk(t, plan.riskDist);
+            //--- fill-vs-signal (documents require every fill to be logged)
+            if(PositionSelectByTicket(t))
+               EA_SlipRecord(ctx.symbol, plan.entry,
+                             PositionGetDouble(POSITION_PRICE_OPEN), plan.riskDist);
+         }
       }
    }
 }

@@ -68,34 +68,40 @@ truth and the whole 65-EA set was regenerated and re-verified.
 | `start=1` sites still present after fix #16. | **Intentional** — see the "deliberately unchanged" list in #16; they are day/session windows iterated from index 0. |
 | Dead inputs in the 13 legacy §1 EAs (27 declarations, e.g. `InpSymbolsToTrade`, `InpMagicNumber`, `InpMaxDrawdownPct`). | **Out of scope, pre-existing.** Those files predate the 65-EA delivery and are not generator output; they are recorded under "Known limitations" instead of being rewritten. |
 
-### Traceability gaps disclosed, not silently missing (no code change)
+### Traceability gaps — closed in a third pass
 
-The re-audit also re-checked every §2 source document against the generated
-code. Nine live spread/slippage **skip** rules are not implemented in their EA.
-They are recorded here (and in tracker §5) instead of being left implicit, which
-satisfies the "every rule implemented or explicitly listed" criterion; none of
-them is a regression from this pass, and the dead-input cleanup did not delete a
-working rule (the removed knobs were never read).
+The second audit pass re-checked every §2 source document against the generated
+code and found nine live spread/slippage skip rules that were not implemented.
+They were disclosed here and in tracker §5, then implemented on the owner's
+request in a third pass, at the source of truth (new engine module
+`MQL5_Master/Include/EASpread.mqh` + ten generator specs, all regenerated).
 
-| Row / EA | Document rule | Why it is a follow-up, not a one-liner |
+| Row / EA | Document rule | Implementation |
 |---|---|---|
-| #36 `EA_studyarena_round2_contestant_c` | "Stop-Loss on Over-Spread — if current spread > `InpMaxSpreadPts` (≈35 points for XAU/JPY), skip trades for that symbol" | Needs a per-symbol points/pip cap; the engine switch that can carry it (`cfg.maxSpreadPoints`) is off and is one points value for all symbols. |
-| #49/#50 `round5_contestant_b`, `…b_2048` | "Spread < 15% of first grid spacing" | Maps onto the engine's all-in cost gate `cfg.maxCostR` (currently unset), but grid legs have no stop, so the R denominator must be defined deliberately. |
-| #53 `round5_contestant_e` | "Spread < 15% of first spacing" | Same as #49. |
-| #54 `round5_contestant_f` | "spread < 1.0/1.5 pips" (EURUSD/GBPUSD) | Per-symbol pip cap. |
-| #65 `round10_gemini_3_1_pro_preview_high_reasoning` | "(Spreads must be < 0.8 pips)" | Per-symbol pip cap; a single points value would be wrong on XAUUSD, which the document also lists as an instrument. |
-| #67 `round10_qwen3_…_high_reasoning` | "Current spread must be ≤ 1.5× the 20-day average spread → SKIP" | Needs rolling spread history, which the engine does not keep. |
-| #70 `round11_contestant_c` | "enforce the spread gate … auto-disable any symbol whose slippage eats >20% of expectancy" | Needs spread gate plus per-symbol slippage/expectancy tracking. |
-| #73 `round11_contestant_f` | "Slippage > 20% of expectancy → symbol disabled"; "Spread > 15% of stop distance, or > 2× 60-min average → skip entry" | Same missing machinery as #67/#70. |
-| #79 `round12_qwen3_…_high_reasoning` | "Spread ≤ 1.5× the 20-day average spread → SKIP"; "Slippage must be < 1.5× …" | Same missing machinery as #67/#70. |
+| #36 `EA_studyarena_round2_contestant_c` | spread > `InpMaxSpreadPts` (~35 pts for XAU/JPY) → skip the symbol | `InpMaxSpreadPts` input, gate at the top of `BuildPlan` |
+| #49/#50 `round5_contestant_b`, `…b_2048` | "Spread < 15% of first grid spacing" | `InpMaxSpreadSpacingPct` (15) against the strategy's own spacing (`tight` for 5B, `0.30 × D1-ATR` for 5B-2048) |
+| #53 `round5_contestant_e` | "Spread < 15% of first spacing" | same input against the 0.30 × D1-ATR grid spacing |
+| #54 `round5_contestant_f` | "spread < 1.0/1.5 pips" (EURUSD/GBPUSD) | `InpMaxSpreadPipsEur` / `InpMaxSpreadPipsGbp` via `EA_SpreadPips` |
+| #65 `round10_gemini_…` | "(Spreads must be < 0.8 pips)" | `InpMaxSpreadPips`, gate before any analysis |
+| #67 `round10_qwen3_…` | spread ≤ 1.5 × the 20-day average → SKIP | `InpSpreadAvgX` against `EA_SpreadBaseline` (per-minute-of-day average, 20-day decay) |
+| #70 `round11_contestant_c` | "enforce the spread gate… log fill-vs-signal… disable a symbol whose slippage eats >20% of expectancy" | spread covered by the existing 0.1R all-in cost gate; fills are now logged by the engine (`EA_SlipRecord`); symbol disable via `EA_SymbolSlippageOk` |
+| #73 `round11_contestant_f` | "Spread > 15% of stop distance, or > 2× 60-min average → skip entry"; "Slippage > 20% of expectancy → symbol disabled" | `CostOk` (15% of `riskDist`), `InpSpreadAvgX` (2× the 60-min median), `EA_SymbolSlippageOk` |
+| #79 `round12_qwen3_…` | "Spread ≤ 1.5× the 20-day average → SKIP" | `InpSpreadAvgX` against `EA_SpreadBaseline` |
 
-**Documented approximations** (rule implemented with a stated proxy, not a gap):
-`round12_contestant_c` implements the "20th–85th ATR percentile band" as an
-ATR/median ratio of 0.6–1.6 (code comment says so); the implemented
-spread-vs-history gates (`round8_contestant_d`, `round12_contestant_a`,
-`round5_contestant_a_2047`) use a time-of-day median rather than the document's
-20-day average. Both are faithful in intent, not literally the document's
-statistic.
+Engine telemetry added for these gates: per-minute spread ring + per-minute-of-day
+baseline (20-day time constant), fill-vs-signal slippage in R at every market
+entry (also logged), and closed-trade outcomes in R, recorded when a tracked
+ticket leaves the book. All new gates **fail open** while their evidence is thin
+(< 8 samples, or < 2 days for a slot), telemetry is in-memory (re-learned after a
+restart), limit fills and the single hedge add-on in
+`EA_studyarena_round4_contestant_a__1_` are not slippage-measured, and the
+document's "20-day average" is realised as a live-learned per-minute-of-day
+average with a 20-day decay.
+
+**Documented approximation that remains:** `round12_contestant_c` implements its
+"20th–85th ATR percentile band" as an ATR/median ratio of 0.6–1.6, and states so
+in a code comment. Two EAs (`round8_contestant_d`, `round12_contestant_a`) keep
+their own simpler time-of-day spread medians from the first pass.
 
 ## Verification after the fixes
 
@@ -112,7 +118,7 @@ statistic.
 | Bar indexing (all `EA_Rates` sites, 65 EAs + engine) | 11 trigger-bar sites corrected; 0 remaining sites index a bar other than the one they fetch for |
 | Unsatisfiable comparisons ("extreme seeded from the bar it is compared against") | 0 |
 | Array bounds at every `EA_Rates` call site | 0 reads past `start + count − 1` |
-| Source-document rules re-checked against code (65 EAs) | 9 spread/slippage skip rules disclosed as open gaps in tracker §5; 3 rules implemented as stated proxies |
+| Source-document rules re-checked against code (65 EAs) | 9 spread/slippage skip rules found missing, then implemented (engine telemetry + 10 EA specs); 1 rule implemented as a stated approximation |
 | Test suite (stdlib runners; `test_optimizer_fill_logic.py` needs pytest, unavailable here) | 8/9 files pass; the 9th cannot run in this sandbox |
 
 ## Known limitations (unchanged, not bugs)
