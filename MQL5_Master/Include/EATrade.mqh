@@ -591,6 +591,9 @@ public:
       return losses;
    }
 
+   //--- entries opened in the clock day. DEAL_ENTRY_INOUT counts as well: on a
+   //--- netting account a reversal closes the old position and opens the new one
+   //--- in a single deal, and that new exposure is an entry like any other.
    int TradesToday()
    {
       int n = 0;
@@ -603,7 +606,8 @@ public:
             ulong t = HistoryDealGetTicket(i);
             if(t == 0) continue;
             if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != g_eaCfg.magic) continue;
-            if(HistoryDealGetInteger(t, DEAL_ENTRY) == DEAL_ENTRY_IN) n++;
+            long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+            if(entry == DEAL_ENTRY_IN || entry == DEAL_ENTRY_INOUT) n++;
          }
       }
       return n;

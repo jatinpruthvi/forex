@@ -112,7 +112,7 @@ fallback for the window before the engine has evidence.
 
 Scope widened from "does it compile / is any rule missing" to the *logic* of the
 shared engine: exit handling, risk accounting and the arithmetic that turns
-document percentages into broker volumes. Five defects were found; all were
+document percentages into broker volumes. Six defects were found; all were
 fixed at the source of truth (`EATrade.mqh`, `EASignals.mqh`, generator specs)
 and the delivery was regenerated and re-verified.
 
@@ -122,6 +122,7 @@ and the delivery was regenerated and re-verified.
 | 20 | **High (signal timing, 7 EAs)** | `EATrade.mqh`, `EA_ManagePositions` break-even-on-bar-close | Fetched `EA_Rates(sym, tf, 1, 2, br)` but read `br[1]` as the last closed bar — with `start=1`, `br[0]` is the last closed bar and `br[1]` the one before it, so a "+1R close" was confirmed a bar late (the move could have been given back). | `EA_Rates(..., 0, 2, br)`; `br[1]` is now the last closed bar, matching the convention stated above `EA_Rates`. |
 | 21 | **Medium (entries, grid EAs)** | `EATrade.mqh`, `EA_FindPosition` | Returned the *first* position matching symbol+side in terminal iteration order. Grid EAs hold several legs per symbol, so the caller could book the risk/volume of a new entry onto an older leg — order-dependent and not a contract. | Picks the newest position (`POSITION_TIME`, tie-broken by ticket). |
 | 22 | **High (compile, all 65 EAs)** | `EASignals.mqh`, `SigPrevSessionRange` | Called the 8-parameter `SigRangeForDay` with 7 arguments (the `int &barsUsed` out-parameter was missing), a hard compile error in the header every generated EA includes. | The helper passes a local `bars`; `scripts/dev/arity_check.py` (new) replays every signature in the delivery against every call site — it found this and now reports 0. |
+| 24 | **Low (netting-account edge, 1 EA hedges)** | `EATrade.mqh`, `TradesToday` | Counted only `DEAL_ENTRY_IN`. On a netting account a reversal is one `DEAL_ENTRY_INOUT` deal, so a reversed entry (or the delta-hedge leg of `round4_contestant_a__1_` on a netting account) was not counted against `maxTradesPerDay` / `dayLockAfterTrades`. | `DEAL_ENTRY_INOUT` now counts as an entry too; hedging accounts are unchanged. |
 | 23 | **Medium (risk accounting, all staging EAs)** | `EATrade.mqh`, `LosingTradesToday` / `UpdateLossStreak` | Both counted each `DEAL_ENTRY_OUT` deal as a completed trade, so one position scaled out of in three legs could register three losing trades — inflating `dayLockAfterLosses` (premature day lock) and the `lossStreakPause` circuit breaker. | New `ClosedTradeResults()` groups close deals by `DEAL_POSITION_ID`, sums profit+swap+commission per position, drops positions that are still open (their OUT legs are partial exits), and returns rows in close order; both consumers now use it. Single-lot EAs are unaffected (one leg per position). `UpdateLossStreak()` also re-checks `lossStreakPause > 0` internally, so the method is safe if ever called from elsewhere. |
 
 Verification of the third pass: `python3 scripts/gen_additional_eas.py`
@@ -169,6 +170,12 @@ score, with the old 240-sample ring kept as the warm-up fallback.
 * Parameters that depend on the broker (commission per lot, spread, swap,
   session times, stop levels) are read at runtime; the values in the inputs are
   conservative defaults, not verified broker figures.
+* One boundary of the partial-close fix: `volume0` (the entry volume) is
+  persisted per ticket when the engine first tracks the position. If a position
+  is partially closed **while the EA is not running** (terminal off, manual
+  intervention), the restored base is the volume the engine first sees, so later
+  percentages apply to that reduced figure. Percentages are always exact from
+  the EA's point of view while it manages the trade.
 * The 13 legacy §1 EAs still declare 27 inputs that nothing reads (chiefly
   `InpSymbolsToTrade`, `InpMagicNumber`, `InpMaxDrawdownPct`, `InpBaseRiskPct`).
   Fixing that means rewriting self-contained files that are outside the 65-EA
