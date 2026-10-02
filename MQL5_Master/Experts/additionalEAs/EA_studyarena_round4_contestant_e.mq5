@@ -23,10 +23,8 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,EURGBP,AUDNZD";      // Comma separated universe
 input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 2.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 5.0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 5;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2014; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -34,7 +32,6 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpEurAsiaMinPips   = 15;    // EURUSD Asian range floor (pips)
 input double InpEurAsiaMaxPips     = 35;    // EURUSD Asian range ceiling
 input double InpGbpAsiaMaxPips     = 45;    // GBPUSD Asian range ceiling
-input double InpGroupRiskPct       = 1.00;  // Max open risk per correlation group
 input double InpNyVwapTolAtr       = 0.50;  // NY continuation: distance to 30m VWAP
 
 //+------------------------------------------------------------------+

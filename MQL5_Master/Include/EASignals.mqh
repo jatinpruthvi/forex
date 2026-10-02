@@ -136,7 +136,11 @@ int EA_BufN(const int handle, const int buffer, const int start, const int count
    return got;
 }
 
-//--- closed-bar OHLC fetch, series indexed (r[0] = most recent CLOSED bar when start=1)
+//--- OHLC fetch, series indexed: r[0] = the bar at `start`, r[k] = k bars older.
+//--- CONVENTION: every signal below fetches from bar 0 so that index k == bar k,
+//--- i.e. r[0] = the forming bar and r[1] = the most recent CLOSED bar.
+//--- (Earlier revisions fetched from start=1 and then indexed r[1], which
+//--- silently evaluated every pattern one bar late.)
 int EA_Rates(const string sym, const ENUM_TIMEFRAMES tf, const int start, const int count, MqlRates &r[])
 {
    ArraySetAsSeries(r, true);
@@ -329,7 +333,7 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
 
    int need = 2 + p.reclaimWindowBars + 2;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, need, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, need, r);
    if(got < 4) return false;
 
    double sweepMax = (p.sweepMaxAtr > 0.0) ? p.sweepMaxAtr * ctx.atr : DBL_MAX;
@@ -466,7 +470,7 @@ bool SigORB(const SEAContext &ctx, const SOrbParams &p, SSignalPlan &out)
    if(p.maxRangeAtr > 0.0 && rangeSize > p.maxRangeAtr * ctx.atr) return false;
 
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, 6, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 6, r);
    if(got < 3) return false;
 
    for(int i = 1; i <= (int)MathMin(got - 1, 3); i++)
@@ -611,7 +615,7 @@ bool SigEmaPullback(const SEAContext &ctx, const SEmaPullbackParams &p, SSignalP
    }
 
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, p.maxBarsSinceTouch + 2, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, p.maxBarsSinceTouch + 2, r);
    if(got < 2) return false;
 
    for(int i = 1; i <= (int)MathMin(got - 1, p.maxBarsSinceTouch); i++)
@@ -683,7 +687,7 @@ bool SigRangeFade(const SEAContext &ctx, const SRangeFadeParams &p, SSignalPlan 
    if(p.requireRangeRegime && ctx.adx14 > 0.0 && ctx.adx14 > p.maxAdx) return false;
 
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, p.bbPeriod + 3, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, p.bbPeriod + 3, r);
    if(got < p.bbPeriod + 1) return false;
 
    //--- Bollinger computed in-line from closed bars (no indicator handle churn)
@@ -814,7 +818,7 @@ bool SigBreakRetest(const SEAContext &ctx, const SBreakRetestParams &p, SSignalP
    if(rHi <= rLo || (rHi - rLo) < p.minRangeAtr * ctx.atr) return false;
 
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, 8, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 8, r);
    if(got < 4) return false;
 
    //--- find an accepted break (close beyond range) then a retest holding the level
@@ -941,7 +945,7 @@ bool SigMomentumBurst(const SEAContext &ctx, const SMomentumParams &p, SSignalPl
    out.Reset();
    if(ctx.atr <= 0.0) return false;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, 3, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 3, r);
    if(got < 2) return false;
    MqlRates b = r[1];
    double range = b.high - b.low;
@@ -1021,7 +1025,7 @@ bool SigInsideBarBreakout(const SEAContext &ctx, const int nr4Lookback,
    out.Reset();
    if(ctx.atr <= 0.0) return false;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, nr4Lookback + 3, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, nr4Lookback + 3, r);
    if(got < nr4Lookback + 2) return false;
    MqlRates mother = r[2];
    MqlRates inside = r[1];
@@ -1118,7 +1122,7 @@ bool SigTwoBarReversal(const SEAContext &ctx, const double wickRatio,
    out.Reset();
    if(ctx.atr <= 0.0) return false;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, 3, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 3, r);
    if(got < 2) return false;
    MqlRates prev = r[2], cur = r[1];
    if(EA_WickRatio(cur, +1) >= wickRatio && cur.close > prev.high)
@@ -1212,7 +1216,7 @@ bool SigOrderBlockRetest(const SEAContext &ctx, const SOrderBlockParams &p, SSig
    out.Reset();
    if(ctx.atr <= 0.0) return false;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, p.lookbackBars + 2, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, p.lookbackBars + 2, r);
    if(got < 5) return false;
    double tol = p.touchTolAtr * ctx.atr;
 
@@ -1284,7 +1288,7 @@ bool SigFvgRetest(const SEAContext &ctx, const SFvgParams &p, SSignalPlan &out)
    out.Reset();
    if(ctx.atr <= 0.0) return false;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, 10, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 10, r);
    if(got < 4) return false;
 
    for(int i = 1; i <= 3; i++)
@@ -1339,7 +1343,7 @@ bool SigZScoreFade(const SEAContext &ctx, const int period, const double zEntry,
    out.Reset();
    if(ctx.atr <= 0.0) return false;
    MqlRates r[];
-   int got = EA_Rates(ctx.symbol, g_eaIndTf, 1, period + 3, r);
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, period + 3, r);
    if(got < period + 1) return false;
    double sum = 0.0, sum2 = 0.0;
    for(int i = 1; i <= period; i++) { sum += r[i].close; sum2 += r[i].close * r[i].close; }

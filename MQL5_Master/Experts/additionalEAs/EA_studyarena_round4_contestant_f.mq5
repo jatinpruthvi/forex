@@ -22,18 +22,12 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "GBPUSD,EURUSD,GBPJPY,EURCHF,EURGBP,AUDNZD,USDJPY,XAUUSD";      // Comma separated universe
-input double          InpRiskPct          = 1.2;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 5.0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2015; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpSleeveARisk       = 1.20;  // A: London break+retest risk
-input double InpSleeveBRisk       = 1.00;  // B: Asian filtered grid risk per basket
-input double InpSleeveCRisk       = 1.20;  // C: NY momentum risk
 input int    InpGridMaxLevels     = 8;     // Grid: max 8 levels
 input double InpGridSpacingAtr    = 0.60;  // Spacing = 0.6 x H1 ATR
 input double InpGridBasketCapPct  = 5.00;  // Hard basket stop (5-6% of account)

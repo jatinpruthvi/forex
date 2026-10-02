@@ -22,10 +22,7 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD,AUDNZD";      // Comma separated universe
-input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
 input double          InpMaxSpreadPoints  = 4.0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
 input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
@@ -35,7 +32,6 @@ input double InpScoreFullRiskPct   = 2.00;  // Score >= 8/10 -> 2.0% risk
 input double InpScoreMidRiskPct    = 1.00;  // Score 6-7/10 -> 1.0% risk
 input int    InpScoreMinToTrade    = 6;     // Below this score: no trade
 input double InpNarrowAsiaRangeAtr = 0.60;  // Session-open breakout when Asia range < x ATR20
-input double InpSwapHarvestPct     = 0.50;  // Engine 5: carry/swap harvest risk
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 2B - portfolio of five return engines with graded conviction sizing

@@ -23,19 +23,15 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,EURGBP,AUDNZD";      // Comma separated universe
 input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 2.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 5.0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 5;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2020; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
-input double InpGroupCapPct       = 1.00;  // Max risk per correlation group
 input double InpBasketCapPct      = 0.50;  // Grid basket cap (3 equal legs)
 input double InpGridAdxMax        = 16.0;  // ADX gate for the grid
 input double InpRsi2Entry         = 5.0;   // RSI(2) < 5 / > 95 entry filter
-input double InpExpectancyGate    = 0.25;  // Required live expectancy (R) to keep trading
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5E - executable core: 1% per group, 0.5% basket grid and three named setups

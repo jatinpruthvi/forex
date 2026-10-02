@@ -23,10 +23,6 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD";      // Comma separated universe
 input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 2;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2024; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -35,7 +31,6 @@ input double InpEurFuelPips       = 35;    // Skip if the Asian range already ex
 input double InpGbpFuelPips       = 45;    // GBPUSD expansion filter
 input double InpStopAtrMult       = 1.50;  // Stop = 1.5 x M15 ATR
 input double InpChandelierMult    = 2.50;  // Chandelier = high - 2.5 x H1 ATR
-input bool   InpCarryHarvest      = true;  // Positive-carry overlay sleeve
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 7C - 5% single strategy: 1.5x M15 ATR stop with an hourly chandelier runner

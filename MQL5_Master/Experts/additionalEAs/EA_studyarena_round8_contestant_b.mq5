@@ -22,11 +22,6 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD,USDJPY,AUDNZD,EURGBP";      // Comma separated universe
-input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 4;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2027; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -34,7 +29,6 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpBaseRiskPct       = 0.75;  // Base engine risk
 input double InpAplusBoostPct     = 0.50;  // A+ setup adds 0.5% free-roll risk
 input double InpAplusScore        = 90.0;  // Score threshold for the A+ booster
-input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 8B - SOS-3 session-open sweep and reclaim with an A+ free-roll booster

@@ -36,7 +36,6 @@ input double InpExtremeBodyAtr    = 2.50;  // Extreme candle body in ATR(M1,14)
 input double InpStopAtr           = 1.50;  // Stop beyond the extreme candle (ATR)
 input double InpTargetR           = 1.50;  // Fixed +1.5R target
 input int    InpTimeStopMinutes   = 45;    // Close if +1R not confirmed within x min
-input int    InpMaxTradesPerSession = 1;   // One signal event per symbol/session
 input double InpSpreadMedianMult   = 1.50;  // Spread gate: x times the same-minute/session median
 input string InpNewsFile           = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
 input int    InpNewsBeforeMin      = 30;    // No new entry x min before the event

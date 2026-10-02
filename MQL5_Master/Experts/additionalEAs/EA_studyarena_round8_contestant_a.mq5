@@ -23,10 +23,7 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD";      // Comma separated universe
 input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 6.0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 2;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2026; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -36,7 +33,6 @@ input double InpRangeHighPct      = 75.0;  // Asian range ceiling
 input double InpAdxLow            = 18.0;  // H1 ADX band
 input double InpAdxHigh           = 35.0;  // H1 ADX ceiling
 input double InpChandelierMult    = 2.50;  // Runner trail: high - 2.5 x H1 ATR
-input int    InpFlatMin           = 21 * 60;  // Flat by 21:00 UK
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 8A - London sweep-and-reclaim on borrowed capital with a 6% monthly stop

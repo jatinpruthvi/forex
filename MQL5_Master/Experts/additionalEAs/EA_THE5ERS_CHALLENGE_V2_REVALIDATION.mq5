@@ -32,7 +32,6 @@ input int             InpServerGmtOffset  = 2;      // Broker server clock minus
 input ulong           InpMagicNumber      = 3105; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance
-input double InpQualifyingDayPct     = 0.005;  // 0.5% of phase initial balance = $12.50
 input double InpDailyBoundaryPct     = 0.05;   // Firm boundary: max(balance,equity) x 0.95
 input int    InpInactivityWarnDays   = 20;     // Warn at day 20 without a trade
 input int    InpInactivityEscalateDays = 25;   // Escalate at day 25 (never fake a trade)
@@ -41,7 +40,6 @@ input string InpNewsFile           = "the5ers_red_news.csv"; // Red-folder calen
 input int    InpNewsBeforeMin      = 30;    // Mandatory 30-minute pre-event buffer
 input int    InpNewsAfterMin       = 30;    // Mandatory 30-minute post-event buffer
 input int    InpMaxRequestsPerDay  = 20;    // Non-emergency trade-request cap
-input int    InpRetryCount         = 1;     // One revalidated retry after a transient reject
 input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
 input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase
 input double InpCommissionPerLotRT   = 7.00;   // Round-turn commission per lot

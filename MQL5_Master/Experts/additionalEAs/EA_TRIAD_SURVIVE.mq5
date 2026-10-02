@@ -22,11 +22,9 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF";      // Comma separated universe
-input double          InpRiskPct          = 0.24;   // Base risk per trade (% of equity)
 input double          InpMaxSpreadPoints  = 4.0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 1.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 10;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 0;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 4;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 3111; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -36,7 +34,6 @@ input double InpHalfTierRiskPct    = 0.12;  // 7/8 or 4/5 score: half tier risk
 input double InpMaxTotalOpenRisk   = 1.00;  // Max total open risk at any moment
 input double InpMaxGroupRiskPct    = 0.24;  // Max risk per correlated group
 input int    InpMaxPositions       = 4;     // Max concurrent positions (all sleeves)
-input int    InpMaxPerSleeve       = 2;     // Max concurrent positions per sleeve
 input double InpShutdownDdPct      = 6.00;  // Shutdown from closed-equity high
 input int    InpSleeveATimeStopMin = 45;    // Sleeve A: the 45-minute plateau
 input double InpRunnerTrailAtr     = 2.5;   // Runner chandelier: 2.5 x ATR(H1,14)

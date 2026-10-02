@@ -22,8 +22,6 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY";      // Comma separated universe
-input double          InpRiskPct          = 1.5;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 5.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 5.0;   // Permanent floor from start balance (0 = off)
 input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
@@ -33,7 +31,6 @@ input ulong           InpMagicNumber      = 2002; // UNIQUE MAGIC NUMBER FOR THI
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpRiskPerTradePct   = 1.50;  // Risk per trade (% equity)
 input int    InpMaxOpenTrades     = 2;     // Max concurrent trades
-input double InpExposureCapPct    = 40.0;  // Total notional exposure cap (30-50%)
 input double InpMinSlAtr          = 1.00;  // Dynamic SL: at least 1 x ATR(14)
 input double InpMinRr             = 2.00;  // Minimum reward:risk
 input double InpAtrSpikeMult      = 1.50;  // Skip if ATR > x times its 30-bar average

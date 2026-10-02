@@ -23,15 +23,10 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDCAD";      // Comma separated universe
 input double          InpRiskPct          = 1.5;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2011; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
-input double InpGridLeg1Lots      = 0.05;  // Asian grid: leg 1 volume
 input int    InpGridSpacingPips    = 15;    // Asian grid: spacing between legs (pips)
 input double InpGridLeg3Mult       = 1.40;  // Leg 3 multiplier (1.4x, capped ladder)
 input int    InpGridTakePips       = 10;    // TP above the average entry (pips)

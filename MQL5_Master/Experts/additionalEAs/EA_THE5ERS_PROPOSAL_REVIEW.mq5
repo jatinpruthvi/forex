@@ -42,7 +42,6 @@ input double InpPhaseInitialBalance         = 2500.0;  // Phase initial balance
 input double InpPlannedRiskCash             = 10.00;   // Planned $ risk per trade (review #8)
 input double InpQualifyingDayCash           = 12.50;   // 0.5% qualifying-day amount
 input bool   InpVerifyProductName           = false;   // VERIFY item: confirm at checkout
-input int    InpRolloverHourServer          = 0;       // Server rollover hour
 input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollover
 input string InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
 input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase

@@ -23,10 +23,6 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,XAUUSD";      // Comma separated universe
 input double          InpRiskPct          = 0.50;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2032; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -34,7 +30,6 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpSwingBars         = 240;   // 4-hour local extreme window (M1 bars)
 input double InpMinPierceAtr      = 0.05;  // Piercing depth minimum
 input double InpTickAcceleration  = 2.00;  // Tick speed must be 200% of the 5-min average
-input int    InpTimeStopBars      = 10;    // Exit if momentum stalls within N M1 bars
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 10 Gemini - M1 delta-sweep scalper with volume divergence and tick acceleration
@@ -72,9 +67,10 @@ public:
       MqlRates r[];
       if(EA_Rates(ctx.symbol, PERIOD_M1, 1, InpSwingBars + 6, r) < InpSwingBars + 5) return false;
 
-      //--- local 4-hour extreme
-      double hi = r[0].high, lo = r[0].low;
-      for(int i = 1; i < InpSwingBars; i++) { hi = MathMax(hi, r[i].high); lo = MathMin(lo, r[i].low); }
+      //--- local 4-hour extreme, EXCLUDING the sweep bar itself: seeding the
+      //--- extreme from r[0] and then testing r[0] against it can never be true
+      double hi = r[1].high, lo = r[1].low;
+      for(int i = 2; i <= InpSwingBars; i++) { hi = MathMax(hi, r[i].high); lo = MathMin(lo, r[i].low); }
 
       bool sweptLow  = (r[0].low  < lo - InpMinPierceAtr * ctx.atr && r[0].close > lo);
       bool sweptHigh = (r[0].high > hi + InpMinPierceAtr * ctx.atr && r[0].close < hi);

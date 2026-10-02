@@ -22,16 +22,13 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "XAUUSD,AUDUSD,EURJPY,GBPJPY,USDJPY";      // Comma separated universe
-input double          InpRiskPct          = 1.75;   // Base risk per trade (% of equity)
 input double          InpMaxSpreadPoints  = 25;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 4.5;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 10;   // Permanent floor from start balance (0 = off)
 input double          InpProfitTargetPct  = 10;   // Stop opening at +x% (0 = off)
-input int             InpMaxTradesPerDay  = 2;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 3101; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
-input double InpGoldRiskPct       = 3.00;  // Gold Donchian leg: 3% of current balance
 input int    InpDonchianDays      = 55;    // Channel: 55 D1 bars ending the day before yesterday
 input double InpGoldStopAtr       = 2.50;  // Gold stop and chandelier k (2.5 x ATR14)
 input double InpGoldAtrPeriod     = 14;    // Gold ATR: 14 daily (high - low) bars

@@ -21,6 +21,7 @@ tests/test_additional_ea_contract.py).
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import textwrap
 from dataclasses import dataclass, field
@@ -139,6 +140,19 @@ class EA:
         inputs = COMMON_INPUTS.format(**ci)
         if self.inputs.strip():
             inputs += "\n" + self.inputs.strip("\n")
+        #--- dead-config guard: never expose a knob the strategy cannot honour.
+        #--- An input whose name appears nowhere in Configure()/BuildPlan()/extra
+        #--- (comments excluded) would be silently ignored by the EA, so drop the
+        #--- declaration instead of advertising a setting that does nothing.
+        code = "\n".join([self.configure, self.plan, self.extra])
+        code = re.sub(r"//[^\n]*", "", code)          # ignore comment-only mentions
+        kept = []
+        for line in inputs.splitlines():
+            m = re.match(r"\s*input\s+\S+\s+(\w+)\s*=", line)
+            if m and not re.search(r"\b" + m.group(1) + r"\b", code):
+                continue
+            kept.append(line)
+        inputs = "\n".join(kept)
         def ind(block: str, n: int = 3) -> str:
             """Normalise a spec block (first line flush, body indented) to n."""
             lines = block.strip("\n").splitlines()
@@ -7562,9 +7576,10 @@ input int    InpTimeStopBars      = 10;    // Exit if momentum stalls within N M
     plan='''MqlRates r[];
    if(EA_Rates(ctx.symbol, PERIOD_M1, 1, InpSwingBars + 6, r) < InpSwingBars + 5) return false;
 
-   //--- local 4-hour extreme
-   double hi = r[0].high, lo = r[0].low;
-   for(int i = 1; i < InpSwingBars; i++) { hi = MathMax(hi, r[i].high); lo = MathMin(lo, r[i].low); }
+   //--- local 4-hour extreme, EXCLUDING the sweep bar itself: seeding the
+   //--- extreme from r[0] and then testing r[0] against it can never be true
+   double hi = r[1].high, lo = r[1].low;
+   for(int i = 2; i <= InpSwingBars; i++) { hi = MathMax(hi, r[i].high); lo = MathMin(lo, r[i].low); }
 
    bool sweptLow  = (r[0].low  < lo - InpMinPierceAtr * ctx.atr && r[0].close > lo);
    bool sweptHigh = (r[0].high > hi + InpMinPierceAtr * ctx.atr && r[0].close < hi);
@@ -9503,6 +9518,15 @@ def main() -> int:
     for ea in EAS:
         target = OUT_DIR / f"{ea.name}.mq5"
         rendered = ea.render()
+        #--- positive control: the render guard above must leave no dead input
+        dead = []
+        for line in rendered.splitlines():
+            m = re.match(r"\s*input\s+\S+\s+(\w+)\s*=", line)
+            if m and len(re.findall(r"\b" + m.group(1) + r"\b", rendered)) < 2:
+                dead.append(m.group(1))
+        if dead:
+            print(f"DEAD INPUT {ea.name}: {', '.join(dead)}")
+            problems += 1
         if args.check:
             if not target.is_file():
                 print(f"MISSING {target.name}")

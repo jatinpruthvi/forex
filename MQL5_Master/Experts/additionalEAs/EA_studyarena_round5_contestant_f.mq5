@@ -23,19 +23,12 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURCHF,EURGBP,AUDNZD,EURUSD,GBPUSD,XAUUSD,USDJPY,USDCAD";      // Comma separated universe
 input double          InpRiskPct          = 1.0;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 10;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2021; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpGridLevels        = 8;     // Max 8 equal-size levels
 input double InpGridSpacingAtr    = 0.60;  // Spacing = 0.6 x H1 ATR
-input double InpBandRankBottom    = 2.5;   // Bollinger width must sit in the bottom 2.5 deciles
-input double InpKillTripwireAtr   = 1.00;  // Close all if price closes 1 ATR beyond the channel
-input double InpCarryOverlayPct   = 0.50;  // Positive-carry overlay sizing
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5F - stat-arb gates: ADX, band-width rank, channel check and 8-level ladder

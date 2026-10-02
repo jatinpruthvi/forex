@@ -23,10 +23,6 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDJPY";      // Comma separated universe
 input double          InpRiskPct          = 0.60;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2042; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -34,7 +30,6 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpMinScore           = 7;     // Must score >= 7 of 8 filters
 input double InpSpreadAvgX        = 1.50;  // Filter 6: spread vs 20-day average
 input double InpSweepVolumeX      = 1.20;  // Filter 7: sweep-candle participation
-input double InpRunnerTrailAtrH1  = 2.50;  // 30% runner trail (2.5 x H1 ATR)
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 12A - SWEEP-1 final locked with the 8-point score gate (>= 7/8)

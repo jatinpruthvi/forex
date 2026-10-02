@@ -23,10 +23,6 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD";      // Comma separated universe
 input double          InpRiskPct          = 1.5;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 4;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2017; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
@@ -36,7 +32,6 @@ input double InpT1R               = 1.20;  // T1: close 25% at 1.2R
 input double InpT2R               = 2.50;  // T2: close 25% at 2.5R
 input double InpRunnerTargetR     = 8.00;  // Runner: liquidity pool target (up to 8R)
 input double InpLiquidityLookback = 60;    // Bars scanned for the liquidity pool
-input double InpMtfLayerR         = 0.15;  // MTF conviction layer add-on
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 5B - asymmetric runner: 25% at 1.2R, break-even +0.3R, trail the 8R tail

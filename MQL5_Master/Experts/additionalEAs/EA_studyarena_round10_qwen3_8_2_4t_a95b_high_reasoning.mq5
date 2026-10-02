@@ -23,17 +23,12 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,GBPJPY,USDJPY";      // Comma separated universe
 input double          InpRiskPct          = 0.75;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 8;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2034; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
-input int    InpMaxAccounts       = 3;     // Multi-account orchestration cap
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing

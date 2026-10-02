@@ -22,7 +22,6 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY";      // Comma separated universe
-input double          InpRiskPct          = 0.4;   // Base risk per trade (% of equity)
 input double          InpMaxSpreadPoints  = 3.0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 1.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 10;   // Permanent floor from start balance (0 = off)
@@ -48,7 +47,6 @@ input ENUM_PHASE25K   InpPhase               = PHASE25K_EVALUATION_1; // Current
 input ENUM_RR_PROFILE InpProfile             = RR_A_040_15;           // Frozen risk/target pair
 input double          InpPhaseInitialBalance = 2500.0;  // Persisted phase initial balance
 input long            InpAuthorizedLogin     = 0;       // Account login (0 = skip the identity gate)
-input string          InpAuthorizedProduct   = "$2,500 New High Stakes"; // Stage 0 product check
 input bool            InpEnableTrading        = false;  // Stage 0/15 gate: refuse until verified
 input int             InpTimeStopMinutes      = 45;     // Time exit candidate (30/45/60/90)
 input bool            InpMoveBeAfter1R        = false;  // Breakeven challenger: M5 close beyond +1R

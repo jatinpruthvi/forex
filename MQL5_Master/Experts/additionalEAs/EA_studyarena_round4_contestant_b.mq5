@@ -22,19 +22,13 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,GBPJPY,XAUUSD,AUDNZD,USDJPY";      // Comma separated universe
-input double          InpRiskPct          = 1.5;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 5.0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
 input int             InpMaxTradesPerDay  = 6;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2009; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpDecideRiskPct      = 1.50;  // Risk/trade for the 23.3%/mo decomposition
 input double InpPullbackRr        = 2.00;  // London-mid / NY 20-EMA pullback target
-input double InpGridSpacingAtr    = 0.30;  // Tokyo grid spacing (30% of daily ATR)
-input double InpGridBasketCapPct  = 1.50;  // Max basket loss on one grid
 input int    InpRolloverStopMin   = 21 * 60;  // No new risk from 21:00 (rollover)
 
 //+------------------------------------------------------------------+

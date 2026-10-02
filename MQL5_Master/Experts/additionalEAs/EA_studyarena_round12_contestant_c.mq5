@@ -23,19 +23,12 @@
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY,XAUUSD";      // Comma separated universe
 input double          InpRiskPct          = 0.50;   // Base risk per trade (% of equity)
-input double          InpMaxSpreadPoints  = 0;   // Spread gate in points (0 = off)
-input double          InpDailyLossPct     = 0;   // Halt for the day at -x% (0 = off)
-input double          InpTotalDdPct       = 0;   // Permanent floor from start balance (0 = off)
-input double          InpProfitTargetPct  = 20;   // Stop opening at +x% (0 = off)
-input int             InpMaxTradesPerDay  = 3;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 2044; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpOpenRiskCapPct    = 0.70;  // Aggregate open risk ceiling
 input int    InpMaxPositions      = 2;     // Max two simultaneous positions
 input int    InpMaxTradesDay      = 3;     // Max three completed trades per day
-input double InpVolLowPct         = 20.0;  // Below the 20th percentile: no movement
-input double InpVolHighPct        = 85.0;  // Above the 85th percentile: unstable
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 12C - SR-10 survival: ban list, volatility percentile band and 0.70% open-risk cap

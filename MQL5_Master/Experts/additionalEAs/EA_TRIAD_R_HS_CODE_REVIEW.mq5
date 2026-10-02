@@ -22,7 +22,6 @@
 //| Inputs                                                           |
 //+------------------------------------------------------------------+
 input string          InpSymbolsToTrade   = "EURUSD,GBPUSD,USDJPY";      // Comma separated universe
-input double          InpRiskPct          = 0.4;   // Base risk per trade (% of equity)
 input double          InpMaxSpreadPoints  = 3.0;   // Spread gate in points (0 = off)
 input double          InpDailyLossPct     = 1.0;   // Halt for the day at -x% (0 = off)
 input double          InpTotalDdPct       = 10;   // Permanent floor from start balance (0 = off)
@@ -44,7 +43,6 @@ input int    InpEarlyLeadSeconds             = 5;    // Finding 9: fixed early e
 input int    InpLeaseMinutes                 = 10;   // Finding 3: single-instance lease
 input string InpPriorityOrder                = "EURUSD,GBPUSD,USDJPY"; // Finding 7: frozen priority
 input string InpNewsCoverageThrough          = "";   // Finding 6: explicit UTC coverage-through
-input int    InpMaxEmergencyRetries          = 2;    // Finding 10: escalation policy
 
 //+------------------------------------------------------------------+
 //| Strategy: TRIAD-R code review - hardened runtime controls from the 12 findings
