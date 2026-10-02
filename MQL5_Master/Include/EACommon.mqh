@@ -228,8 +228,69 @@ int EA_Init(CEAStrategy *strategy)
    return INIT_SUCCEEDED;
 }
 
+//+------------------------------------------------------------------+
+//| Tester-only results dump (validation harness)                    |
+//|                                                                  |
+//| Every Strategy Tester run of every EA writes ONE machine-readable |
+//| row, so a 65-EA validation sweep can be summarised without        |
+//| opening a single chart.  The file goes to the terminal's COMMON   |
+//| folder (shared across tester agents and NOT wiped with the        |
+//| per-run sandbox):                                                 |
+//|     Common\Files\EA_TestReports\<strategy>_<magic>.csv            |
+//| Read by validation/mt5_harness/parse_results.py.                  |
+//|                                                                  |
+//| Optimization passes are skipped (65 x N rows would be noise); the |
+//| harness runs single passes (Optimization=0).                      |
+//+------------------------------------------------------------------+
+void EA_TestReport()
+{
+   if(!MQLInfoInteger(MQL_TESTER)) return;
+   if(MQLInfoInteger(MQL_OPTIMIZATION)) return;
+
+   string dir = "EA_TestReports";
+   FolderCreate(dir, FILE_COMMON);                 // false if it already exists
+   string fname = dir + "/" + g_eaCfg.strategyName + "_" +
+                  IntegerToString((long)g_eaCfg.magic) + ".csv";
+   int h = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(h == INVALID_HANDLE)
+   {
+      EA_Log(EA_LOG_ERRORS, "tester report: cannot write " + fname);
+      return;
+   }
+   FileWriteString(h,
+      "strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,"
+      "trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,"
+      "profit_factor,expected_payoff,equity_dd_pct,balance_dd_pct,"
+      "recovery_factor,sharpe,min_lots,max_lots,end_time\r\n");
+   FileWriteString(h, StringFormat(
+      "%s,%I64d,%s,\"%s\",%s,%s,%.3f,"
+      "%d,%d,%d,%.2f,%.2f,%.2f,"
+      "%.3f,%.3f,%.3f,%.3f,"
+      "%.3f,%.3f,%.2f,%.2f,%s\r\n",
+      g_eaCfg.strategyName, (long)g_eaCfg.magic, MQLInfoString(MQL_PROGRAM_NAME),
+      g_eaCfg.symbols, _Symbol, EnumToString(g_eaCfg.signalTimeframe), g_eaCfg.riskPct,
+      (int)TesterStatistics(STAT_TRADES),
+      (int)TesterStatistics(STAT_PROFIT_TRADES),
+      (int)TesterStatistics(STAT_LOSS_TRADES),
+      TesterStatistics(STAT_PROFIT),
+      TesterStatistics(STAT_GROSS_PROFIT),
+      TesterStatistics(STAT_GROSS_LOSS),
+      TesterStatistics(STAT_PROFIT_FACTOR),
+      TesterStatistics(STAT_EXPECTED_PAYOFF),
+      TesterStatistics(STAT_EQUITYDD_PERCENT),
+      TesterStatistics(STAT_BALANCEDD_PERCENT),
+      TesterStatistics(STAT_RECOVERY_FACTOR),
+      TesterStatistics(STAT_SHARPE_RATIO),
+      TesterStatistics(STAT_MINLOTS_VOLUME),
+      TesterStatistics(STAT_MAXLOTS_VOLUME),
+      TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES)));
+   FileClose(h);
+   EA_Log(EA_LOG_EVENTS, "tester report written: Common\\Files\\" + fname);
+}
+
 void EA_Deinit(const int reason)
 {
+   EA_TestReport();                                // tester-only, no-op live
    if(g_eaStrategy != NULL) g_eaStrategy.OnDeinitStrategy();
    EA_IndReleaseAll();
    g_eaInitialised = false;
