@@ -185,6 +185,16 @@ on the wrong series.
   overlap or sit within a wider daily envelope; the engine's session-end flat
   still closes everything by 22:00 server. This is a deliberate calibration
   choice, not a defect.
+* Two boundaries of the governor's sampling, dismissed rather than "fixed": the
+  outcome record behind the slippage/expectancy gates (`EA_RecordCloseOutcome`)
+  reads `DEAL_ENTRY_OUT` deals only, so a position closed by an opposite
+  position (`DEAL_ENTRY_OUT_BY`, hedging accounts) or by a netting reversal
+  contributes no sample — the governor keeps *failing open* for that ticket
+  instead of mis-measuring it. And `ClosedTradeResults()` drops position ids
+  that are still open, so on a **netting** account the closed portion of a
+  reversal is not counted as a finished trade by the day counters; the 65 EAs
+  assume hedging accounts (one position per leg), where the counter is exact.
+  Both are evidence-coverage limits, not wrong arithmetic.
 
 ## Verification after the fixes
 
