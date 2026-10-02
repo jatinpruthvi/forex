@@ -135,7 +135,7 @@ public:
          }
          if(ctx.clockMinutes < p.sessionFromMin || ctx.clockMinutes >= p.sessionToMin) return false;
          if(!SigSweepReclaim(ctx, p, plan)) return false;
-         score = ScoreSleeveA(ctx, plan);
+         score = ScoreSleeveA(ctx, plan, p.rangeFromMin, p.rangeToMin);
          if(score <= 6.0) return false;                               // 6 or below: no trade
          tierRisk = (score >= 8.0) ? InpFullTierRiskPct : InpHalfTierRiskPct;
       }
@@ -238,19 +238,23 @@ public:
 
    //--- SLEEVE A eight-point score (doc 2.2): range quality, HTF bias,
    //--- geometry (implied by the signal), spread, cost, clean book
-   double ScoreSleeveA(SEAContext &ctx, const SSignalPlan &plan)
+   double ScoreSleeveA(SEAContext &ctx, const SSignalPlan &plan,
+                       const int rangeFromMin, const int rangeToMin)
    {
       double score = 3.0;      // sweep band + wick + displacement already proven
       if(!SpreadOk(ctx)) return 0.0;
       score += 1.0;
 
-      //--- 1. range width within 35-75% of the 20-day median
+      //--- 1. the REFERENCE range width within 35-75% of its 20-day median
+      //--- (doc 2.1: the Asian window for London entries, the London window for
+      //--- the New York sleeve - not always the Asian one)
       double widths[20];
       int    n = 0;
       for(int d = 0; d < 20; d++)
       {
          double h = 0.0, l = 0.0; int bars = 0;
-         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, d, h, l, bars)) widths[n++] = h - l;
+         if(SigRangeForDay(ctx.symbol, PERIOD_M5, rangeFromMin, rangeToMin, d, h, l, bars))
+            widths[n++] = h - l;
       }
       if(n >= 5)
       {
@@ -262,7 +266,7 @@ public:
          }
          double median = widths[n / 2];
          double h0 = 0.0, l0 = 0.0; int b0 = 0;
-         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, 0, h0, l0, b0))
+         if(SigRangeForDay(ctx.symbol, PERIOD_M5, rangeFromMin, rangeToMin, 0, h0, l0, b0))
          {
             double width = h0 - l0;
             if(median > 0.0 && width >= 0.35 * median && width <= 0.75 * median) score += 1.0;

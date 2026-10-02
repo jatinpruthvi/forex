@@ -160,7 +160,7 @@ public:
    bool BiasAgrees(SEAContext &ctx, const int dir)
    {
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) return true;
+      if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
       return (dir > 0) ? (ctx.mid > ctx.emaH1_50) : (ctx.mid < ctx.emaH1_50);
    }
@@ -184,7 +184,7 @@ public:
    int ScoreGate(SEAContext &ctx, SSignalPlan &plan)
    {
       int score = 4;
-      if(ctx.adx14 >= 16.0 && ctx.adx14 <= 40.0) score++;
+      if(ctx.adxH1 >= 16.0 && ctx.adxH1 <= 40.0) score++;                 // doc quotes the H1 regime
       double costR = (plan.riskDist > 0.0) ? (ctx.spreadPoints * ctx.point) / plan.riskDist : 1.0;
       if(costR <= 0.10) score++;
       if(ctx.atrD1 > 0.0 && ctx.atr > 0.35 * ctx.atrD1) score++;

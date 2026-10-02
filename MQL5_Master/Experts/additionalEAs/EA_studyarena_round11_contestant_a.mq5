@@ -84,7 +84,7 @@ public:
       p.entryRetrace = 0.50; p.targetR = 2.0;
       if(!SigSweepReclaim(ctx, p, plan)) return false;
       if(!EmaSlopeAgrees(ctx, plan.dir)) return false;
-      if(!EmaDistanceOk(ctx, plan.dir)) return false;
+      if(!EmaDistanceOk(ctx)) return false;
       plan.reason = StringFormat("R11A-%sSWEEP %s", sessFrom == 7 * 60 ? "LONDON" : "NY", plan.reason);
       return true;
    }
@@ -143,7 +143,8 @@ public:
       return (dir > 0) ? (ctx.mid >= ctx.emaH1_50) : (ctx.mid <= ctx.emaH1_50);
    }
 
-   bool EmaDistanceOk(SEAContext &ctx, const int dir)
+   //--- distance is direction-agnostic; the direction test lives in EmaSlopeAgrees
+   bool EmaDistanceOk(SEAContext &ctx)
    {
       double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
       if(h1Atr <= 0.0) return true;

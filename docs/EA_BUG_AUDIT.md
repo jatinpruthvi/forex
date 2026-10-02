@@ -136,6 +136,56 @@ pytest, unavailable in this sandbox). `EA_TRIAD_SURVIVE` now enforces its
 document's filter 6 (live spread ≤ 1.5 × the 20-day average) before the eight-point
 score, with the old 240-sample ring kept as the warm-up fallback.
 
+## Fourth pass — 2026-10-02 (fourth in-depth request)
+
+This pass started from the *sources of truth* (the shared engine and the
+generator) rather than from the generated files, and added new tree-wide
+detectors: unused function parameters, "document quotes timeframe X, code reads
+timeframe Y" for ADX/ATR, and every writer/reader pair of the plan's `expiry`
+field. Six defects had already been fixed in this pass (#25–#30, below); the
+detectors then found the timeframe-fidelity family (#31–#32) and the last two
+unit/consistency issues (#33, #34).
+
+| # | Severity | Where | Defect | Fix |
+|---|---|---|---|---|
+| 25 | **Critical (entries, 12 of 13 `useLimitEntry` EAs)** | `EACommon.mqh` `EA_ExecutePlan` + every shared signal helper | Every shared helper sets `plan.entry` to the *market* side (`ctx.ask` for buys, `ctx.bid` for sells). An EA configured with `cfg.useLimitEntry = true` therefore rested a buy limit **at the ask** (or a sell limit at the bid) — an invalid price the broker rejects, so 12 EAs could never open their first position (only `EA_FINAL_OPTIMUM_STRATEGY` sets a genuine limit price). | The engine's limit branch now classifies the planned price: **already offered** (buy `px >= ask` / sell `px <= bid`) → enters at market through `OpenMarket` + the new `EA_BookFill()` (risk tracking + slippage telemetry); **inside the broker stops level** → skipped with a throttled log; only limits genuinely behind the market rest as pendings. `EA_BookFill` is also used by the plain market branch so both paths book identically. |
+| 26 | **High (signal quality, `dayOffset` callers incl. `EA_TRIAD_SURVIVE`)** | `EASignals.mqh` `SigRangeForDay` | Fetched a fixed 400 bars regardless of the requested `dayOffset`, so a 20-day lookback on M5 (the range-quality point of the TRIAD document) silently saw only ~1.4 days of bars and returned an empty/incorrect range. | `dayBars = 86400 / PeriodSeconds(tf) + 1`; `want = max(400, (dayOffset + 2) * dayBars)` capped at 5000. All 76 `EA_Rates` call sites were audited for the same lookback-versus-fetch mismatch; this was the only one. |
+| 27 | **High (fidelity, `EA_TRIAD_SURVIVE` NY sleeve)** | generator spec → `EA_TRIAD_SURVIVE.mq5` L138/L241 | `ScoreSleeveA` hard-coded the Asian window (00:00–07:00) as the reference range for **every** sleeve, including the NY sleeve whose document reference window is London. | `ScoreSleeveA(SEAContext&, const SSignalPlan&, const int rangeFromMin, const int rangeToMin)` and the caller passes `p.rangeFromMin/p.rangeToMin`. |
+| 28 | **High (risk, 13 EAs run `weeklyLossPct`)** | `EATrade.mqh` pre-trade risk gate | The halt was tested only through the daily-loss block. The day rollover clears the daily halt *after* the weekly/monthly checks have run, so the first tick of a new day could open risk while the weekly floor was already breached (or a `lossStreakPause` was active). | The gate now re-tests `weeklyLossPct`, `monthlyLossPct` (`Halt(...)` + `return 0.0`) and `m_pauseUntil` immediately after the daily block (L697–L716). |
+| 29 | **High (dead setups, every SOS EA)** | `EASignals.mqh` `SigSweepReclaim` | Both branches discarded the setup when the retracement limit was already at/through the market. The document's SOS sequence is *defined* by a retrace after displacement, so those were valid trades silently dropped every time the market had already retraced. | Discards removed (with comments). Safe **only** because of #25: the engine now fills such a plan at market, at or better than the planned entry, so the planned risk still holds. *Do not re-add these guards.* |
+| 30 | **Medium (risk anchors, restart)** | `EATrade.mqh` `Init`/weekly/monthly rollover | The weekly and monthly equity anchors were rebuilt from the live equity at every `Init()`, so restarting the EA mid-week silently moved the firm's −2 % weekly floor to the restart point. | `KeyWeek()`/`KeyMonth()` global variables are persisted with a period stamp; `Init()` restores the anchor when the stamp matches, otherwise anchors and persists; both rollover resets write value + stamp. |
+| 31 | **High (fidelity, 20 gate sites in 15 EAs)** | engine + generator specs | The documents consistently quote regime gates on a **higher timeframe** ("H1 ADX(14) < 18", "ADX(14) < 20 on both 1H and 4H", "ADX(14) daily < 20", "spacing = 0.6 × 1H ATR", "H1 ADX < 16 waiver"), but the engine only exposed the *signal-timeframe* ADX/ATR, so every such gate was evaluated on M5/M15/M1 — a materially different filter. | Engine: added `ctx.adxH1`, `ctx.adxH4` and `ctx.atrH1` (handles created, validated, released, filled and reset with the existing fields). Specs: `round4_b` → **daily** ADX; `round4_d/e/f`, `round5_a/b_2048/d/e/f`, `round7_b/d`, `round8_a/b/d`, `round11_d/f`, `round12_a/f`, `round12_claude_fable_5`, `round12_qwen3_8` → **H1**; `round4_f`/`round5_f` test **both 1H and 4H**; `round4_f` grid spacing/tripwire now uses the **1H ATR**. Sites that the documents never tie to a timeframe (invented score bands, e.g. `round5_b` layers, `round8_b` score, `round2_b`/`round3_b__1_`/`round4_c__1_` bands) were left on the signal timeframe and are listed below. |
+| 32 | **High (missing document rules, 3 EAs)** | generator specs | Requirement-traceability gaps found while mapping #31: `round10_qwen3_8` never implemented its document's Step 2 bias filter or its Step 6 tick-volume participation filter; `round10_kimi_k3` ran its Asian sleeve on the full universe without the document's "AUDNZD/EURGBP only, ADX(H1) < 16" restriction; `round10_claude_fable_5` never implemented "daily ATR above the 90th percentile → risk halved". | `round10_qwen3_8`: `BiasAgrees()` (H1 50-EMA side + slope, waived for AUDNZD/EURGBP in the Asian session while H1 ADX < 16) and `VolumeConfirms()` on the sweep bar (≥ 1.2 × the 20-candle average, failing open on thin data); the plan now exposes `sweepBarsAgo` so the *sweep* candle (not the displacement candle) is measured. `round10_kimi_k3`: Asian branch restricted to AUDNZD/EURGBP with an H1 ADX < 16 gate. `round10_claude_fable_5`: `LotsMultiplier()` halves risk when the current daily ATR sits above its own 90th percentile over the last 100 daily bars (fails open under 60 bars). |
+| 33 | **Medium (units, all limit orders)** | `EACommon.mqh` → `EATrade.mqh` `OpenLimit` | `SSignalPlan.expiry` is an absolute server **timestamp** (0 = GTC) while `CEAExecutor::OpenLimit` takes a **minutes** lifetime; the call passed the plan's timestamp as a boolean and then the config default, so a plan that pins its own expiry was ignored (and the field's units were a standing trap). | The engine converts: `expMinutes = (plan.expiry > now) ? max(1, (plan.expiry − now)/60) : cfg.pendingExpiryMinutes`. The standard helpers (now + `pendingExpiryMinutes`) still produce exactly the configured lifetime; a custom timestamp is now honoured. |
+| 34 | **Low (dead parameter)** | generator spec → `EA_studyarena_round11_contestant_a.mq5` L87/L147 | `EmaDistanceOk(ctx, dir)` never read `dir` (the direction test lives in `EmaSlopeAgrees`), so the tree-wide unused-parameter sweep flagged it as a silent filter. | Parameter removed (single call site updated). Not a behaviour bug — recorded for completeness. |
+
+Verification of the fourth pass: `gen_additional_eas.py` regenerates all 65 and
+`--check` reports "OK - 65 generated EAs match the specs"; `check_mql5_source.py`
+reports **0 findings** on the 65 and 92 on the whole tree (unchanged legacy
+findings); `scripts/dev/arity_check.py` reports 0 arity and 0 undefined-name
+findings over 87 files; brace balance 0; the stdlib suite passes 187 tests. The
+new unused-parameter detector leaves only the two `OnDeinit(const int reason)`
+signatures in the legacy §1 EAs (MQL5 mandates that event signature — not a
+defect), and the ADX/ATR map now shows no doc-quoted timeframe being evaluated
+on the wrong series.
+
+**Documented deviations and limitations from this pass (not bugs).**
+
+* ADX/ATR sites whose documents name no timeframe were deliberately left on the
+  signal timeframe: `round2_contestant_b`, `round3_contestant_b__1_`,
+  `round4_contestant_b__1_`, `round4_contestant_c`, `round4_contestant_c__1_`,
+  `round5_contestant_b` (layers bonus), `round8_contestant_b` (score band),
+  `round10_kimi_k3` (score band), `round11_contestant_d/e` (score bands),
+  `round11_contestant_f` sleeve-B bonus.
+* `round10_claude_fable_5` keeps its `0.60 × signal-ATR` preliminary stop: the
+  document's only ATR rule is the daily-percentile risk switch, now implemented
+  in #32.
+* `round10_kimi_k3` and `round10_qwen3_8` still trade the *reference* session
+  windows rather than a per-document entry window where the two documents
+  overlap or sit within a wider daily envelope; the engine's session-end flat
+  still closes everything by 22:00 server. This is a deliberate calibration
+  choice, not a defect.
+
 ## Verification after the fixes
 
 | Check | Result |
@@ -154,6 +204,9 @@ score, with the old 240-sample ring kept as the warm-up fallback.
 | Source-document rules re-checked against code (65 EAs) | 9 spread/slippage skip rules found missing, then implemented (engine telemetry + 10 EA specs); 1 rule implemented as a stated approximation |
 | Test suite (stdlib runners; `test_optimizer_fill_logic.py` needs pytest, unavailable here) | 187 tests pass across the 8 runnable modules; the 9th cannot run in this sandbox |
 | Call arity + undefined-name sweep (`scripts/dev/arity_check.py`, Include + 65 EAs) | **0 findings** — this is the check that caught the `SigRangeForDay` compile error (#22); both detectors have positive controls |
+| Unused-parameter sweep (every function in the delivery + Include) | 2 findings, both the MQL5-mandated `OnDeinit(const int reason)` signature in legacy §1 EAs; the one real case (#34) fixed |
+| Document-timeframe map: every ADX/ATR gate compared with the timeframe its source document quotes | 20 sites in 15 EAs evaluated on the wrong series → fixed (#31); 0 remaining |
+| Limit-expiry unit contract (`plan.expiry` timestamp → `OpenLimit` minutes) | one conflation site (#33) fixed; writers and the reader now agree |
 | Brace/paren/bracket balance over all 87 delivery files | 0 imbalances |
 | Spread-vs-history gates re-pointed at the engine baseline (4 EAs) | regenerated; each gate logs its skip and fails open while evidence is thin |
 

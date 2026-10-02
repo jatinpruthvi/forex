@@ -103,7 +103,7 @@ public:
       if(median <= 0.0) return false;
       double ratio = overnight / median;
       if(ratio < InpRangeLowPct / 100.0 || ratio > InpRangeHighPct / 100.0) return false;
-      if(ctx.adx14 < InpAdxLow || ctx.adx14 > InpAdxHigh) return false;
+      if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
       if(ctx.emaH1_200 <= 0.0) return false;             // price must hold one side of the 200-EMA
       bool up = (ctx.mid > ctx.emaH1_200);
       if(ctx.emaH1_50 > 0.0)

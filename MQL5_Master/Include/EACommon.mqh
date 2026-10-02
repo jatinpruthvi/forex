@@ -146,6 +146,9 @@ bool EA_BuildContext(SEAContext &ctx, const string sym, const int idx)
    EA_Buf(ind.hEmaD1_200, 0, 1, ctx.emaD1_200);
    EA_Buf(ind.hRsi14, 0, 1, ctx.rsi14);
    EA_Buf(ind.hAdx14, 0, 1, ctx.adx14);
+   EA_Buf(ind.hAdxH1, 0, 1, ctx.adxH1);
+   EA_Buf(ind.hAdxH4, 0, 1, ctx.adxH4);
+   EA_Buf(ind.hAtrH1, 0, 1, ctx.atrH1);
 
    ctx.equity         = AccountInfoDouble(ACCOUNT_EQUITY);
    ctx.balance        = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -310,6 +313,16 @@ bool EA_SelectPlan(SSignalPlan &best, SEAContext &bestCtx)
    return found;
 }
 
+//--- record the risk distance and the fill for a position that just opened
+void EA_BookFill(const SEAContext &ctx, const SSignalPlan &plan, const ulong ticket)
+{
+   if(ticket == 0) return;
+   EA_TrackSetRisk(ticket, plan.riskDist);
+   //--- fill-vs-signal (documents require every fill to be logged)
+   if(PositionSelectByTicket(ticket))
+      EA_SlipRecord(ctx.symbol, plan.entry, PositionGetDouble(POSITION_PRICE_OPEN), plan.riskDist);
+}
+
 //--- size and execute a plan
 void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
 {
@@ -383,25 +396,47 @@ void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
 
    if((plan.isLimit || g_eaCfg.useLimitEntry) && plan.entry > 0.0)
    {
-      double px = eaRoundSafe(ctx.symbol, plan.entry);
+      double px  = eaRoundSafe(ctx.symbol, plan.entry);
+      double gap = EA_MinStopDistance(ctx.symbol);
+      //--- a resting limit must sit BEHIND the market: a buy limit at or above
+      //--- the ask (sell at or below the bid) is rejected as an invalid price,
+      //--- so a plan asking for a price the market already offers must be filled
+      //--- now - send it as a market order instead of a dead resting order
+      bool marketable = (plan.dir > 0) ? (px >= ctx.ask) : (px <= ctx.bid);
+      bool tooClose   = (plan.dir > 0) ? (px > ctx.ask - gap) : (px < ctx.bid + gap);
+      if(marketable)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s limit %.5f already offered (bid %.5f ask %.5f) - entering at market",
+                ctx.symbol, px, ctx.bid, ctx.ask), true);
+         if(g_eaExec.OpenMarket(ctx.symbol, plan.dir, lots, sl, tp, note))
+            EA_BookFill(ctx, plan, EA_FindPosition(ctx.symbol, plan.dir));
+         return;
+      }
+      if(tooClose)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s limit %.5f is inside the broker stops level - entry skipped",
+                ctx.symbol, px), true);
+         return;
+      }
       if(g_eaExec.HasPending(ctx.symbol, plan.dir)) return;
-      g_eaExec.OpenLimit(ctx.symbol, plan.dir, px, lots, sl, tp,
-                         (plan.expiry > 0 ? g_eaCfg.pendingExpiryMinutes : 0), note);
+      //--- plan.expiry is an absolute server timestamp while OpenLimit wants a
+      //--- lifetime in minutes: convert, so a plan that pins its own expiry is
+      //--- honoured and the standard helpers (now + cfg.pendingExpiryMinutes)
+      //--- still yield exactly the configured lifetime.
+      int expMinutes = 0;
+      if(plan.expiry > 0)
+      {
+         datetime srvNow = TimeTradeServer();
+         expMinutes = (plan.expiry > srvNow)
+                      ? (int)MathMax(1, (plan.expiry - srvNow) / 60)
+                      : g_eaCfg.pendingExpiryMinutes;
+      }
+      g_eaExec.OpenLimit(ctx.symbol, plan.dir, px, lots, sl, tp, expMinutes, note);
    }
    else
    {
       if(g_eaExec.OpenMarket(ctx.symbol, plan.dir, lots, sl, tp, note))
-      {
-         ulong t = EA_FindPosition(ctx.symbol, plan.dir);
-         if(t > 0)
-         {
-            EA_TrackSetRisk(t, plan.riskDist);
-            //--- fill-vs-signal (documents require every fill to be logged)
-            if(PositionSelectByTicket(t))
-               EA_SlipRecord(ctx.symbol, plan.entry,
-                             PositionGetDouble(POSITION_PRICE_OPEN), plan.riskDist);
-         }
-      }
+         EA_BookFill(ctx, plan, EA_FindPosition(ctx.symbol, plan.dir));
    }
 }
 

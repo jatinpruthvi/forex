@@ -82,6 +82,21 @@ public:
    }
 
    //--- spread guard: < 15% of stop distance and < 2x the rolling average
+   //--- doc: daily ATR above its 90th percentile -> risk halved automatically
+   double LotsMultiplier(SEAContext &ctx)
+   {
+      if(ctx.index < 0 || ctx.index >= EA_MAX_SYM) return 1.0;
+      double series[];
+      int got = EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 0, 101, series);
+      if(got < 60) return 1.0;                                   // thin history - fail open
+      double cur = series[0];
+      if(cur <= 0.0) return 1.0;
+      int above = 0;
+      for(int i = 1; i < got; i++) if(series[i] >= cur) above++;
+      double pct = 100.0 * above / (double)(got - 1);
+      return (pct < 10.0) ? 0.50 : 1.0;                          // cur above the 90th percentile
+   }
+
    bool SpreadGuard(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);

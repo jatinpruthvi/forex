@@ -69,7 +69,7 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       if(!RangeQualifies(ctx)) return false;
-      if(ctx.adx14 < InpAdxLow || ctx.adx14 > InpAdxHigh) return false;
+      if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
       if(!H1BiasAgrees(ctx)) return false;
 
       SSweepParams p;

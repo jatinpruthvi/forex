@@ -73,7 +73,7 @@ public:
       //--- grid sleeve: quiet crosses only, in the Asian session
       if(ctx.clockMinutes < 7 * 60 && IsQuietPair(ctx.symbol))
       {
-         if(ctx.adx14 >= InpGridAdxMax) return false;       // E's ADX < 16 gate
+         if(ctx.adxH1 >= InpGridAdxMax) return false;       // doc: H1 ADX(14) < 16 (dominant filter)
          if(!AtrBelow40thPct(ctx)) return false;            // ATR 40th percentile gate
          if(TrendOverride(ctx)) return false;               // trend-override kill
          int legs = EA_CountPositions(ctx.symbol, true);

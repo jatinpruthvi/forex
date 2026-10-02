@@ -103,7 +103,7 @@ public:
       //--- Setup 3: gated Asian grid (3 equal legs, ADX < 16, RSI(2) extremes)
       if(ctx.clockMinutes < 7 * 60 && IsGridPair(ctx.symbol))
       {
-         if(ctx.adx14 >= InpGridAdxMax) return false;
+         if(ctx.adxH1 >= InpGridAdxMax) return false;            // doc: H1 ADX < 16
          if(!AtrBelow40thPct(ctx)) return false;
          int legs = EA_CountPositions(ctx.symbol, true);
          if(legs >= 3) return false;

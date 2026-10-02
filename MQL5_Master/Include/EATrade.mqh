@@ -243,6 +243,8 @@ private:
    string   KeyStreak() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_LossStreak"; }
    string   KeyQual()  const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_QualDays"; }
    string   KeyQualFloor() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_QualFloor"; }
+   string   KeyWeek()  const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_WeekStart"; }
+   string   KeyMonth() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_MonthStart"; }
 
    datetime ClockDayStart() const
    {
@@ -317,11 +319,19 @@ public:
       if(GlobalVariableCheck(KeyPause()))  m_pauseUntil = (datetime)GlobalVariableGet(KeyPause());
       if(GlobalVariableCheck(KeyStreak())) m_lossStreak = (int)GlobalVariableGet(KeyStreak());
 
-      //--- monthly anchor
-      m_monthStartEquity = eq;
+      //--- monthly anchor (restart-safe: persisted with its month stamp, so a
+      //--- restart mid-month never weakens the monthly loss floor)
       MqlDateTime mdt;
       TimeToStruct(EA_ClockNow(), mdt);
       m_monthStamp = StructToTime(mdt) - (datetime)((mdt.day - 1) * 86400);
+      if(GlobalVariableCheck(KeyMonth()) && (datetime)GlobalVariableGet(KeyMonth() + "_Stamp") == m_monthStamp)
+         m_monthStartEquity = GlobalVariableGet(KeyMonth());
+      else
+      {
+         m_monthStartEquity = eq;
+         GlobalVariableSet(KeyMonth(), m_monthStartEquity);
+         GlobalVariableSet(KeyMonth() + "_Stamp", (double)m_monthStamp);
+      }
 
       //--- halted-day persistence
       if(GlobalVariableCheck(KeyHalt()) && (datetime)GlobalVariableGet(KeyHalt()) == m_dayStamp)
@@ -329,13 +339,22 @@ public:
          m_halted = true;
          m_haltReason = "daily halt carried over from a previous session";
       }
-      //--- weekly anchor (Monday 00:00 clock)
-      m_weekStartEquity = eq;
+      //--- weekly anchor (Monday 00:00 clock), restart-safe: 13 EAs run a -2%
+      //--- internal weekly stop, and re-anchoring it at the restart equity would
+      //--- silently move the firm's weekly floor
       MqlDateTime wdt;
       TimeToStruct(EA_ClockNow(), wdt);
       wdt.hour = 0; wdt.min = 0; wdt.sec = 0;
       datetime weekStart = StructToTime(wdt) - (datetime)(((wdt.day_of_week == 0 ? 7 : wdt.day_of_week) - 1) * 86400);
       m_weekStamp = weekStart;
+      if(GlobalVariableCheck(KeyWeek()) && (datetime)GlobalVariableGet(KeyWeek() + "_Stamp") == weekStart)
+         m_weekStartEquity = GlobalVariableGet(KeyWeek());
+      else
+      {
+         m_weekStartEquity = eq;
+         GlobalVariableSet(KeyWeek(), m_weekStartEquity);
+         GlobalVariableSet(KeyWeek() + "_Stamp", (double)m_weekStamp);
+      }
       EA_Log(EA_LOG_EVENTS, StringFormat("risk init: dayStart=%.2f weekStart=%.2f hwm=%.2f startBal=%.2f",
                                          m_dayStartEquity, m_weekStartEquity, m_hwm, m_startBalance));
    }
@@ -357,6 +376,8 @@ public:
       {
          m_weekStamp = wMonday;
          m_weekStartEquity = eq;
+         GlobalVariableSet(KeyWeek(), m_weekStartEquity);
+         GlobalVariableSet(KeyWeek() + "_Stamp", (double)m_weekStamp);
          EA_Log(EA_LOG_EVENTS, StringFormat("new clock week: weekly anchor reset (%.2f)", eq));
       }
       if(g_eaCfg.weeklyLossPct > 0.0 && m_weekStartEquity > 0.0)
@@ -373,6 +394,8 @@ public:
       {
          m_monthStamp = monthStart;
          m_monthStartEquity = eq;
+         GlobalVariableSet(KeyMonth(), m_monthStartEquity);
+         GlobalVariableSet(KeyMonth() + "_Stamp", (double)m_monthStamp);
          EA_Log(EA_LOG_EVENTS, StringFormat("new clock month: monthly anchor reset (%.2f)", eq));
       }
       if(g_eaCfg.monthlyLossPct > 0.0 && m_monthStartEquity > 0.0)
@@ -667,6 +690,30 @@ public:
             return 0.0;
          }
       }
+      //--- phase limits are LIVE conditions, not one-shot latches: the day
+      //--- rollover clears the halt flag after the weekly/monthly checks have
+      //--- run, so without re-testing them here that first tick of the new day
+      //--- could open risk against a breached weekly or monthly floor.
+      if(g_eaCfg.weeklyLossPct > 0.0 && m_weekStartEquity > 0.0)
+      {
+         double wkPct = (eq - m_weekStartEquity) / m_weekStartEquity * 100.0;
+         if(wkPct <= -MathAbs(g_eaCfg.weeklyLossPct))
+         {
+            Halt(StringFormat("weekly loss limit breached (%.2f%%)", wkPct));
+            return 0.0;
+         }
+      }
+      if(g_eaCfg.monthlyLossPct > 0.0 && m_monthStartEquity > 0.0)
+      {
+         double moPct = (eq - m_monthStartEquity) / m_monthStartEquity * 100.0;
+         if(moPct <= -MathAbs(g_eaCfg.monthlyLossPct))
+         {
+            Halt(StringFormat("monthly loss limit breached (%.2f%%)", moPct));
+            return 0.0;
+         }
+      }
+      //--- circuit-breaker pause: re-tested here so a rollover cannot re-open risk
+      if(m_pauseUntil > TimeTradeServer()) return 0.0;
       //--- profit target lock
       if(g_eaCfg.profitTargetPct > 0.0 && m_startBalance > 0.0)
       {

@@ -25,13 +25,14 @@ struct SSignalPlan
    double   score;      // 0..100 setup quality (used for collision ranking)
    string   reason;
    int      barsAgo;    // bar that produced the signal (1 = last closed)
+   int      sweepBarsAgo; // bar the liquidity sweep printed on (-1 = n/a, 1 = last closed)
    bool     isLimit;    // true when the EA should rest a limit order
    datetime expiry;     // limit expiry (0 = GTC)
 
    void Reset()
    {
       dir = 0; entry = 0; stop = 0; target = 0; riskDist = 0;
-      score = 0; reason = ""; barsAgo = 1; isLimit = false; expiry = 0;
+      score = 0; reason = ""; barsAgo = 1; sweepBarsAgo = -1; isLimit = false; expiry = 0;
    }
 };
 
@@ -43,6 +44,7 @@ struct SIndSet
    string            sym;
    int               hAtr;      // signal timeframe ATR
    int               hAtrD1;    // daily ATR
+   int               hAtrH1;    // H1 ATR (grid spacing / tripwires quote 1H ATR)
    int               hEma20;
    int               hEma50;
    int               hEma200;
@@ -52,6 +54,8 @@ struct SIndSet
    int               hRsi14;
    int               hAdx14;
    int               hAdxD1;   // daily ADX (grid/regime gates)
+   int               hAdxH1;   // H1 ADX (regime gates the documents quote on H1)
+   int               hAdxH4;   // H4 ADX (grid gates quote 1H+4H together)
    bool              valid;
 };
 
@@ -66,6 +70,7 @@ int EA_IndCreate(const string sym, const ENUM_TIMEFRAMES tf)
    g_eaInd[i].sym        = sym;
    g_eaInd[i].hAtr       = iATR(sym, tf, 14);
    g_eaInd[i].hAtrD1     = iATR(sym, PERIOD_D1, 14);
+   g_eaInd[i].hAtrH1     = iATR(sym, PERIOD_H1, 14);
    g_eaInd[i].hEma20     = iMA(sym, tf, 20,  0, MODE_EMA, PRICE_CLOSE);
    g_eaInd[i].hEma50     = iMA(sym, tf, 50,  0, MODE_EMA, PRICE_CLOSE);
    g_eaInd[i].hEma200    = iMA(sym, tf, 200, 0, MODE_EMA, PRICE_CLOSE);
@@ -75,9 +80,12 @@ int EA_IndCreate(const string sym, const ENUM_TIMEFRAMES tf)
    g_eaInd[i].hRsi14     = iRSI(sym, tf, 14, PRICE_CLOSE);
    g_eaInd[i].hAdx14     = iADX(sym, tf, 14);
    g_eaInd[i].hAdxD1     = iADX(sym, PERIOD_D1, 14);
+   g_eaInd[i].hAdxH1     = iADX(sym, PERIOD_H1, 14);
+   g_eaInd[i].hAdxH4     = iADX(sym, PERIOD_H4, 14);
    g_eaInd[i].valid =
       (g_eaInd[i].hAtr       != INVALID_HANDLE &&
        g_eaInd[i].hAtrD1     != INVALID_HANDLE &&
+       g_eaInd[i].hAtrH1     != INVALID_HANDLE &&
        g_eaInd[i].hEma20     != INVALID_HANDLE &&
        g_eaInd[i].hEma50     != INVALID_HANDLE &&
        g_eaInd[i].hEma200    != INVALID_HANDLE &&
@@ -86,7 +94,9 @@ int EA_IndCreate(const string sym, const ENUM_TIMEFRAMES tf)
        g_eaInd[i].hEmaD1_200 != INVALID_HANDLE &&
        g_eaInd[i].hRsi14     != INVALID_HANDLE &&
        g_eaInd[i].hAdx14     != INVALID_HANDLE &&
-       g_eaInd[i].hAdxD1     != INVALID_HANDLE);
+       g_eaInd[i].hAdxD1     != INVALID_HANDLE &&
+       g_eaInd[i].hAdxH1     != INVALID_HANDLE &&
+       g_eaInd[i].hAdxH4     != INVALID_HANDLE);
    if(!g_eaInd[i].valid)
    {
       EA_Log(EA_LOG_ERRORS, StringFormat("indicator handles failed for %s (err=%d)", sym, GetLastError()));
@@ -102,6 +112,7 @@ void EA_IndReleaseAll()
    {
       if(g_eaInd[i].hAtr       != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAtr);
       if(g_eaInd[i].hAtrD1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAtrD1);
+      if(g_eaInd[i].hAtrH1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAtrH1);
       if(g_eaInd[i].hEma20     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEma20);
       if(g_eaInd[i].hEma50     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEma50);
       if(g_eaInd[i].hEma200    != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEma200);
@@ -111,6 +122,8 @@ void EA_IndReleaseAll()
       if(g_eaInd[i].hRsi14     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hRsi14);
       if(g_eaInd[i].hAdx14     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdx14);
       if(g_eaInd[i].hAdxD1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdxD1);
+      if(g_eaInd[i].hAdxH1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdxH1);
+      if(g_eaInd[i].hAdxH4     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdxH4);
    }
    g_eaIndCount = 0;
 }
@@ -183,7 +196,18 @@ bool SigRangeForDay(const string sym, const ENUM_TIMEFRAMES tf,
    datetime dayStart = StructToTime(dt);
 
    MqlRates r[];
-   int want = 400;                       // enough M5 bars for any window
+   //--- size the fetch so the requested day is inside it: a fixed 400-bar
+   //--- window only reaches back ~1.4 days of M5 bars, which silently starved
+   //--- multi-day callers (the 20-day median range width never had 5 samples).
+   //--- Weekends carry no bars, so the calendar span covered is always wider
+   //--- than the bar span; the cap keeps the fetch bounded.
+   int tfSec = (int)PeriodSeconds(tf);
+   if(tfSec <= 0) tfSec = 300;
+   int dayBars = 86400 / tfSec + 1;
+   int want = 400;
+   int need = (dayOffset + 2) * dayBars;
+   if(need > want) want = need;
+   if(want > 5000) want = 5000;
    int got  = EA_Rates(sym, tf, 1, want, r);
    if(got < 10) return false;
 
@@ -372,7 +396,9 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
             double risk = entry - stop;
             if(risk < p.minStopAtr * ctx.atr) continue;
             if(risk > p.maxStopAtr * ctx.atr) continue;
-            if(p.entryRetrace > 0.0 && ctx.ask > 0.0 && entry >= ctx.ask) continue; // limit would be invalid
+            //--- a retracement limit at/through the market cannot rest: the engine
+            //--- fills such plans at market, which is never worse than this price
+            //--- and never risks more than `risk` (the fill is at or below entry)
             out.dir      = +1;
             out.entry    = entry;
             out.stop     = stop;
@@ -381,6 +407,7 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
             out.score    = p.scoreBase + MathMin(30.0, (rLo - sw.low) / ctx.atr * 20.0);
             out.reason   = StringFormat("SOS sweep-low reclaim (sweep %.2f ATR, reclaim bar %d)", (rLo - sw.low) / ctx.atr, d + 1);
             out.barsAgo  = d;
+            out.sweepBarsAgo = si;
             out.isLimit  = (p.entryRetrace > 0.0);
             if(out.isLimit) out.expiry = TimeTradeServer() + (datetime)(g_eaCfg.pendingExpiryMinutes * 60);
             return true;
@@ -405,7 +432,8 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
             double risk = stop - entry;
             if(risk < p.minStopAtr * ctx.atr) continue;
             if(risk > p.maxStopAtr * ctx.atr) continue;
-            if(p.entryRetrace > 0.0 && ctx.bid > 0.0 && entry <= ctx.bid) continue;
+            //--- (mirror of the buy side: the engine fills a marketable limit at
+            //--- market, at or above this price, so the planned risk still holds)
             out.dir      = -1;
             out.entry    = entry;
             out.stop     = stop;
@@ -414,6 +442,7 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
             out.score    = p.scoreBase + 5.0;
             out.reason   = StringFormat("SOS sweep-high reclaim (sweep %.2f ATR, reclaim bar %d)", (sw.high - rHi) / ctx.atr, d + 1);
             out.barsAgo  = d;
+            out.sweepBarsAgo = si;
             out.isLimit  = (p.entryRetrace > 0.0);
             if(out.isLimit) out.expiry = TimeTradeServer() + (datetime)(g_eaCfg.pendingExpiryMinutes * 60);
             return true;

@@ -194,7 +194,7 @@ public:
    bool BiasGate(SEAContext &ctx, const int dir)
    {
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) return true;
+      if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
       return (dir > 0) ? (ctx.mid > ctx.emaH1_50 && ctx.ema50 >= ctx.emaH1_50)
                        : (ctx.mid < ctx.emaH1_50 && ctx.ema50 <= ctx.emaH1_50);

@@ -168,7 +168,7 @@ public:
    bool BiasAgrees(SEAContext &ctx, const int dir)
    {
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) return true;
+      if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
       double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
       if(h1Atr <= 0.0) return false;

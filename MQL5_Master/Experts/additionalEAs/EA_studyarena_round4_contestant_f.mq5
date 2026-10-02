@@ -128,7 +128,8 @@ public:
    //--- the document's 11-point grid checklist (ADX, channel, bands, news handled by engine)
    bool GridRegimeOk(SEAContext &ctx)
    {
-      if(ctx.adx14 >= 20.0) return false;                    // ADX(14) < 20 on 1H
+      if(ctx.adxH1 >= 20.0) return false;                    // doc: ADX(14) < 20 on 1H
+      if(ctx.adxH4 >= 20.0) return false;                    // doc: ... and on 4H
       double hi = 0.0, lo = 0.0;
       if(!SigAsianRange(ctx.symbol, hi, lo)) return false;
       if(hi <= lo) return false;
@@ -138,7 +139,7 @@ public:
       if(chHi <= chLo) return false;
       if(ctx.mid > chHi || ctx.mid < chLo) return false;
       //--- kill tripwire: 1 ATR beyond the channel -> no new legs
-      if(ctx.atr > 0.0 && (ctx.mid > chHi + ctx.atr || ctx.mid < chLo - ctx.atr)) return false;
+      if(ctx.atrH1 > 0.0 && (ctx.mid > chHi + ctx.atrH1 || ctx.mid < chLo - ctx.atrH1)) return false;   // doc tripwire: 1 x 1H ATR
       return true;
    }
 
@@ -156,10 +157,10 @@ public:
          double last = GridLastEntry(ctx.symbol);
          if(last == 0.0) return false;
          double adverse = (dir > 0) ? (last - ctx.mid) : (ctx.mid - last);
-         if(adverse < InpGridSpacingAtr * ctx.atr) return false;
+         if(adverse < InpGridSpacingAtr * ctx.atrH1) return false;      // doc: spacing = 0.6 x 1H ATR
       }
       double avg = GridAverageEntry(ctx.symbol, ctx.mid);
-      double spacing = InpGridSpacingAtr * ctx.atr;
+      double spacing = InpGridSpacingAtr * ctx.atrH1;                    // doc: spacing = 0.6 x 1H ATR
       plan.Reset();
       plan.dir      = dir;
       plan.entry    = (dir > 0) ? ctx.ask : ctx.bid;

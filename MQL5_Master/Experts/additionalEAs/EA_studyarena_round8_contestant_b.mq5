@@ -80,7 +80,7 @@ public:
          bool dn = (ctx.mid < ctx.emaH1_50 && ctx.ema50 < ctx.emaH1_50);
          if(!up && !dn) return false;
       }
-      else if(ctx.adx14 >= 16.0) return false;
+      else if(ctx.adxH1 >= 16.0) return false;                    // doc: Asian waiver only while H1 ADX < 16
 
       SSweepParams p;
       p.Reset();

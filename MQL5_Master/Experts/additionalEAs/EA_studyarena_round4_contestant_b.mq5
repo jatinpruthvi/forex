@@ -72,13 +72,13 @@ public:
       if(ctx.clockMinutes < 7 * 60)
       {
          if(!IsGridPair(ctx.symbol)) return false;
-         if(ctx.adx14 >= 20.0) return false;                     // hard ADX gate
+         if(ctx.adxD1 >= 20.0) return false;                     // doc: ADX(14) daily < 20 (hard gate)
          SRangeFadeParams rf;
          rf.Reset();
          rf.bbPeriod = 20; rf.bbDeviation = 2.0;
          rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
          rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-         rf.targetR = 1.00; rf.requireRangeRegime = true; rf.maxAdx = 20.0;
+         rf.targetR = 1.00; rf.requireRangeRegime = false;       // regime gate is the daily ADX above
          if(!SigRangeFade(ctx, rf, plan)) return false;
          plan.reason = "R4B-TOKYOGRID " + plan.reason;
          return true;

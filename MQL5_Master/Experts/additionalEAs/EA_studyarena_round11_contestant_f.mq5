@@ -113,11 +113,12 @@ public:
          (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
       {
          SRangeFadeParams rf;
+         if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(H1) < 16 only for this sleeve
          rf.Reset();
          rf.bbPeriod = 20; rf.bbDeviation = 2.0;
          rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
          rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-         rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
+         rf.targetR = 0.80; rf.requireRangeRegime = false;       // the H1 gate above is the doc's
          if(SigRangeFade(ctx, rf, plan))
          { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return CostOk(ctx, plan); }
       }

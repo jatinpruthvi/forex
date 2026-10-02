@@ -121,10 +121,10 @@ public:
       if(ctx.emaH1_50 > 0.0 && ctx.emaH1_200 > 0.0)
          h4Trend = (ctx.emaH1_50 > ctx.emaH1_200 && ctx.mid > ctx.emaH1_50) ||
                    (ctx.emaH1_50 < ctx.emaH1_200 && ctx.mid < ctx.emaH1_50);
-      if(ctx.adx14 > InpTrendAdx && h4Trend) return 1;
-      if(ctx.adx14 < InpRangeAdx && !h4Trend) return 2;
+      if(ctx.adxH1 > InpTrendAdx && h4Trend) return 1;
+      if(ctx.adxH1 < InpRangeAdx && !h4Trend) return 2;
       if(ctx.atr > 0.0 && ctx.atrD1 > 0.0 && ctx.atr > 0.5 * ctx.atrD1 &&
-         ctx.inSession && ctx.adx14 > InpRangeAdx) return 3;
+         ctx.inSession && ctx.adxH1 > InpRangeAdx) return 3;
       return 0;
    }
 

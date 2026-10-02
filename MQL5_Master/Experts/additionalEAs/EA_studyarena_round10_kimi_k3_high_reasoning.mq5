@@ -74,6 +74,10 @@ public:
       else if(ctx.clockMinutes >= 13 * 60 + 30)
       { fromMin = 7 * 60; toMin = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 21 * 60; }
 
+      //--- doc universe: the Asian mean-reversion sleeve trades AUDNZD/EURGBP only,
+      //--- and only while H1 ADX(14) < 16 (the "no trend" regime)
+      if(ctx.clockMinutes < 7 * 60 && (!IsAsianMrPair(ctx.symbol) || ctx.adxH1 >= 16.0)) return false;
+
       SSweepParams p;
       p.Reset();
       p.rangeFromMin = fromMin; p.rangeToMin = toMin;
@@ -90,6 +94,11 @@ public:
       plan.score  = score * 10.0;
       plan.reason = StringFormat("R10KIMI-SWEEP1(%d/10) %s", score, plan.reason);
       return true;
+   }
+
+   bool IsAsianMrPair(const string sym)
+   {
+      return (StringFind(sym, "AUDNZD") >= 0 || StringFind(sym, "EURGBP") >= 0);
    }
 
    int ScoreSetup(SEAContext &ctx, SSignalPlan &plan)

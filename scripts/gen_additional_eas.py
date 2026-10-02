@@ -2124,7 +2124,7 @@ input bool   InpSleeveCEnabled     = true;''',
       }
       if(ctx.clockMinutes < p.sessionFromMin || ctx.clockMinutes >= p.sessionToMin) return false;
       if(!SigSweepReclaim(ctx, p, plan)) return false;
-      score = ScoreSleeveA(ctx, plan);
+      score = ScoreSleeveA(ctx, plan, p.rangeFromMin, p.rangeToMin);
       if(score <= 6.0) return false;                               // 6 or below: no trade
       tierRisk = (score >= 8.0) ? InpFullTierRiskPct : InpHalfTierRiskPct;
    }
@@ -2225,19 +2225,23 @@ input bool   InpSleeveCEnabled     = true;''',
 
    //--- SLEEVE A eight-point score (doc 2.2): range quality, HTF bias,
    //--- geometry (implied by the signal), spread, cost, clean book
-   double ScoreSleeveA(SEAContext &ctx, const SSignalPlan &plan)
+   double ScoreSleeveA(SEAContext &ctx, const SSignalPlan &plan,
+                       const int rangeFromMin, const int rangeToMin)
    {
       double score = 3.0;      // sweep band + wick + displacement already proven
       if(!SpreadOk(ctx)) return 0.0;
       score += 1.0;
 
-      //--- 1. range width within 35-75% of the 20-day median
+      //--- 1. the REFERENCE range width within 35-75% of its 20-day median
+      //--- (doc 2.1: the Asian window for London entries, the London window for
+      //--- the New York sleeve - not always the Asian one)
       double widths[20];
       int    n = 0;
       for(int d = 0; d < 20; d++)
       {
          double h = 0.0, l = 0.0; int bars = 0;
-         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, d, h, l, bars)) widths[n++] = h - l;
+         if(SigRangeForDay(ctx.symbol, PERIOD_M5, rangeFromMin, rangeToMin, d, h, l, bars))
+            widths[n++] = h - l;
       }
       if(n >= 5)
       {
@@ -2249,7 +2253,7 @@ input bool   InpSleeveCEnabled     = true;''',
          }
          double median = widths[n / 2];
          double h0 = 0.0, l0 = 0.0; int b0 = 0;
-         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, 0, h0, l0, b0))
+         if(SigRangeForDay(ctx.symbol, PERIOD_M5, rangeFromMin, rangeToMin, 0, h0, l0, b0))
          {
             double width = h0 - l0;
             if(median > 0.0 && width >= 0.35 * median && width <= 0.75 * median) score += 1.0;
@@ -3997,13 +4001,13 @@ input int    InpRolloverStopMin   = 21 * 60;  // No new risk from 21:00 (rollove
    if(ctx.clockMinutes < 7 * 60)
    {
       if(!IsGridPair(ctx.symbol)) return false;
-      if(ctx.adx14 >= 20.0) return false;                     // hard ADX gate
+      if(ctx.adxD1 >= 20.0) return false;                     // doc: ADX(14) daily < 20 (hard gate)
       SRangeFadeParams rf;
       rf.Reset();
       rf.bbPeriod = 20; rf.bbDeviation = 2.0;
       rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
       rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-      rf.targetR = 1.00; rf.requireRangeRegime = true; rf.maxAdx = 20.0;
+      rf.targetR = 1.00; rf.requireRangeRegime = false;       // regime gate is the daily ADX above
       if(!SigRangeFade(ctx, rf, plan)) return false;
       plan.reason = "R4B-TOKYOGRID " + plan.reason;
       return true;
@@ -4676,10 +4680,10 @@ input int    InpNyToMin           = 11 * 60;       // NY continuation end''',
       if(ctx.emaH1_50 > 0.0 && ctx.emaH1_200 > 0.0)
          h4Trend = (ctx.emaH1_50 > ctx.emaH1_200 && ctx.mid > ctx.emaH1_50) ||
                    (ctx.emaH1_50 < ctx.emaH1_200 && ctx.mid < ctx.emaH1_50);
-      if(ctx.adx14 > InpTrendAdx && h4Trend) return 1;
-      if(ctx.adx14 < InpRangeAdx && !h4Trend) return 2;
+      if(ctx.adxH1 > InpTrendAdx && h4Trend) return 1;
+      if(ctx.adxH1 < InpRangeAdx && !h4Trend) return 2;
       if(ctx.atr > 0.0 && ctx.atrD1 > 0.0 && ctx.atr > 0.5 * ctx.atrD1 &&
-         ctx.inSession && ctx.adx14 > InpRangeAdx) return 3;
+         ctx.inSession && ctx.adxH1 > InpRangeAdx) return 3;
       return 0;
    }
 
@@ -4839,7 +4843,7 @@ input double InpNyVwapTolAtr       = 0.50;  // NY continuation: distance to 30m 
    //--- Strategy 3: Asian range breakout (AUDUSD / USDJPY)
    if(ctx.clockMinutes < 3 * 60 && (StringFind(ctx.symbol, "AUD") >= 0 || StringFind(ctx.symbol, "JPY") >= 0))
    {
-      if(ctx.adx14 <= 20.0) return false;
+      if(ctx.adxH1 <= 20.0) return false;                     // doc: H1 ADX above 20
       if(!SigAsianBreakout(ctx, 0.10, 0.20, 2.0, plan)) return false;
       plan.reason = "R4E-ASIANBREAK " + plan.reason;
       return true;
@@ -5021,7 +5025,8 @@ input int    InpGridCloseMin      = 7 * 60 - 0;  // Close every basket before 07
    //--- the document's 11-point grid checklist (ADX, channel, bands, news handled by engine)
    bool GridRegimeOk(SEAContext &ctx)
    {
-      if(ctx.adx14 >= 20.0) return false;                    // ADX(14) < 20 on 1H
+      if(ctx.adxH1 >= 20.0) return false;                    // doc: ADX(14) < 20 on 1H
+      if(ctx.adxH4 >= 20.0) return false;                    // doc: ... and on 4H
       double hi = 0.0, lo = 0.0;
       if(!SigAsianRange(ctx.symbol, hi, lo)) return false;
       if(hi <= lo) return false;
@@ -5031,7 +5036,7 @@ input int    InpGridCloseMin      = 7 * 60 - 0;  // Close every basket before 07
       if(chHi <= chLo) return false;
       if(ctx.mid > chHi || ctx.mid < chLo) return false;
       //--- kill tripwire: 1 ATR beyond the channel -> no new legs
-      if(ctx.atr > 0.0 && (ctx.mid > chHi + ctx.atr || ctx.mid < chLo - ctx.atr)) return false;
+      if(ctx.atrH1 > 0.0 && (ctx.mid > chHi + ctx.atrH1 || ctx.mid < chLo - ctx.atrH1)) return false;   // doc tripwire: 1 x 1H ATR
       return true;
    }
 
@@ -5049,10 +5054,10 @@ input int    InpGridCloseMin      = 7 * 60 - 0;  // Close every basket before 07
          double last = GridLastEntry(ctx.symbol);
          if(last == 0.0) return false;
          double adverse = (dir > 0) ? (last - ctx.mid) : (ctx.mid - last);
-         if(adverse < InpGridSpacingAtr * ctx.atr) return false;
+         if(adverse < InpGridSpacingAtr * ctx.atrH1) return false;      // doc: spacing = 0.6 x 1H ATR
       }
       double avg = GridAverageEntry(ctx.symbol, ctx.mid);
-      double spacing = InpGridSpacingAtr * ctx.atr;
+      double spacing = InpGridSpacingAtr * ctx.atrH1;                    // doc: spacing = 0.6 x 1H ATR
       plan.Reset();
       plan.dir      = dir;
       plan.entry    = (dir > 0) ? ctx.ask : ctx.bid;
@@ -5178,13 +5183,14 @@ input double InpBaseRiskPct        = 1.00;  // Base risk unit before the allocat
    if(ctx.clockMinutes < 7 * 60 && (StringFind(ctx.symbol, "EURGBP") >= 0 ||
                                     StringFind(ctx.symbol, "AUDNZD") >= 0))
    {
-      if(ctx.adx14 >= 16.0) return false;
+      if(ctx.adxH1 >= 18.0) return false;                     // doc: H1 ADX(14) < 18
+      if(ctx.adxH4 >= 20.0) return false;                     // doc: H4 ADX(14) < 20
       SRangeFadeParams rf;
       rf.Reset();
       rf.bbPeriod = 20; rf.bbDeviation = 2.0;
       rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
       rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-      rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
+      rf.targetR = 0.80; rf.requireRangeRegime = false;       // regime ADX is the H1/H4 pair above
       if(!SigRangeFade(ctx, rf, plan)) return false;
       m_sleeve = 3;
       plan.reason = "R5A-BASKET " + plan.reason;
@@ -5549,7 +5555,7 @@ input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of
     plan='''//--- grid sleeve: quiet crosses only, in the Asian session
    if(ctx.clockMinutes < 7 * 60 && IsQuietPair(ctx.symbol))
    {
-      if(ctx.adx14 >= InpGridAdxMax) return false;       // E's ADX < 16 gate
+      if(ctx.adxH1 >= InpGridAdxMax) return false;       // doc: H1 ADX(14) < 16 (dominant filter)
       if(!AtrBelow40thPct(ctx)) return false;            // ATR 40th percentile gate
       if(TrendOverride(ctx)) return false;               // trend-override kill
       int legs = EA_CountPositions(ctx.symbol, true);
@@ -5849,7 +5855,7 @@ input int    InpGridFlatMin       = 6 * 60 + 30;  // Flat by 06:30 UK, no matter
     plan='''//--- Shift 1: Asian session grid (EURGBP / AUDNZD, ADX < 20, three equal legs)
    if(ctx.clockMinutes < InpGridFlatMin && IsQuietCross(ctx.symbol))
    {
-      if(ctx.adx14 >= 20.0) return false;
+      if(ctx.adxH1 >= 20.0) return false;                     // doc: H1 ADX(14) < 20 (E/F gate)
       if(!EqualLegPlan(ctx, plan)) return false;
       plan.reason = "R5D-ASIAGRID " + plan.reason;
       return true;
@@ -6041,7 +6047,7 @@ input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of
    //--- Setup 3: gated Asian grid (3 equal legs, ADX < 16, RSI(2) extremes)
    if(ctx.clockMinutes < 7 * 60 && IsGridPair(ctx.symbol))
    {
-      if(ctx.adx14 >= InpGridAdxMax) return false;
+      if(ctx.adxH1 >= InpGridAdxMax) return false;            // doc: H1 ADX < 16
       if(!AtrBelow40thPct(ctx)) return false;
       int legs = EA_CountPositions(ctx.symbol, true);
       if(legs >= 3) return false;
@@ -6285,7 +6291,8 @@ input double InpMaxSpreadPipsGbp   = 1.50;  // Sleeve-1 spread cap, GBPUSD (doc:
    //--- 8-filter gate stack (ADX on H1+H4, band-width rank, channel, news via engine)
    bool GateStack(SEAContext &ctx)
    {
-      if(ctx.adx14 >= 20.0) return false;
+      if(ctx.adxH1 >= 20.0) return false;                     // doc: ADX(14) < 20 on 1H
+      if(ctx.adxH4 >= 20.0) return false;                     // doc: ... and on 4H
       if(!BandWidthBottom(ctx)) return false;
       double hi = 0.0, lo = 0.0;
       if(!ChannelBounds(ctx, 50, hi, lo)) return false;
@@ -6561,13 +6568,13 @@ input int    InpRollingTrades     = 10;    // Equity-curve throttle window''',
    if(ctx.clockMinutes < 7 * 60 &&
       (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
    {
-      if(ctx.adx14 >= 16.0) return false;
+      if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(14) < 16 gate (E lineage: H1)
       SRangeFadeParams rf;
       rf.Reset();
       rf.bbPeriod = 20; rf.bbDeviation = 2.0;
       rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
       rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-      rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
+      rf.targetR = 0.80; rf.requireRangeRegime = false;       // regime ADX is the H1 gate above
       if(!SigRangeFade(ctx, rf, plan)) return false;
       m_sleeve = 3;
       plan.reason = "R7B-ASIAGRID " + plan.reason;
@@ -6804,7 +6811,7 @@ input double InpStopMaxAtr        = 1.50;''',
       if(median <= 0.0) return false;
       double ratio = overnight / median;
       if(ratio < InpRangeLowPct / 100.0 || ratio > InpRangeHighPct / 100.0) return false;
-      if(ctx.adx14 < InpAdxLow || ctx.adx14 > InpAdxHigh) return false;
+      if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
       if(ctx.emaH1_200 <= 0.0) return false;             // price must hold one side of the 200-EMA
       bool up = (ctx.mid > ctx.emaH1_200);
       if(ctx.emaH1_50 > 0.0)
@@ -6866,7 +6873,7 @@ input int    InpFlatMin           = 21 * 60;  // Flat by 21:00 UK''',
    cfg.timeStopMinutes       = 0;
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(!RangeQualifies(ctx)) return false;
-   if(ctx.adx14 < InpAdxLow || ctx.adx14 > InpAdxHigh) return false;
+   if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
    if(!H1BiasAgrees(ctx)) return false;
 
    SSweepParams p;
@@ -7003,7 +7010,7 @@ input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
       bool dn = (ctx.mid < ctx.emaH1_50 && ctx.ema50 < ctx.emaH1_50);
       if(!up && !dn) return false;
    }
-   else if(ctx.adx14 >= 16.0) return false;
+   else if(ctx.adxH1 >= 16.0) return false;                    // doc: Asian waiver only while H1 ADX < 16
 
    SSweepParams p;
    p.Reset();
@@ -7262,7 +7269,7 @@ input int    InpHardCloseMin      = 20 * 60;  // Absolute closing time''',
     plan='''if(ctx.dayOfWeek == 5) return false;                 // skip Friday entirely
    if(ctx.clockMinutes < 7 * 60 || ctx.clockMinutes >= InpNoNewAfterMin) return false;
    if(WeeklyAttemptsUsed() >= InpWeeklyAttempts) return false;
-   if(ctx.adx14 < InpAdxLow || ctx.adx14 > InpAdxHigh) return false;
+   if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
    if(!H1BiasAgrees(ctx)) return false;
    if(!SpreadNormal(ctx)) return false;
 
@@ -7426,6 +7433,21 @@ input double InpSpreadAvgMult     = 2.00;  // Skip if spread > 2x its rolling av
    plan.reason = "R10FABLE-M1SCALP " + plan.reason;
    return true;''',
     extra='''   //--- spread guard: < 15% of stop distance and < 2x the rolling average
+   //--- doc: daily ATR above its 90th percentile -> risk halved automatically
+   double LotsMultiplier(SEAContext &ctx)
+   {
+      if(ctx.index < 0 || ctx.index >= EA_MAX_SYM) return 1.0;
+      double series[];
+      int got = EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 0, 101, series);
+      if(got < 60) return 1.0;                                   // thin history - fail open
+      double cur = series[0];
+      if(cur <= 0.0) return 1.0;
+      int above = 0;
+      for(int i = 1; i < got; i++) if(series[i] >= cur) above++;
+      double pct = 100.0 * above / (double)(got - 1);
+      return (pct < 10.0) ? 0.50 : 1.0;                          // cur above the 90th percentile
+   }
+
    bool SpreadGuard(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);
@@ -7747,6 +7769,10 @@ input double InpSweepMinPierceAtr  = 0.15;  // Wick must exceed the range by 0.1
    else if(ctx.clockMinutes >= 13 * 60 + 30)
    { fromMin = 7 * 60; toMin = 13 * 60; sessFrom = 13 * 60 + 30; sessTo = 21 * 60; }
 
+   //--- doc universe: the Asian mean-reversion sleeve trades AUDNZD/EURGBP only,
+   //--- and only while H1 ADX(14) < 16 (the "no trend" regime)
+   if(ctx.clockMinutes < 7 * 60 && (!IsAsianMrPair(ctx.symbol) || ctx.adxH1 >= 16.0)) return false;
+
    SSweepParams p;
    p.Reset();
    p.rangeFromMin = fromMin; p.rangeToMin = toMin;
@@ -7763,7 +7789,12 @@ input double InpSweepMinPierceAtr  = 0.15;  // Wick must exceed the range by 0.1
    plan.score  = score * 10.0;
    plan.reason = StringFormat("R10KIMI-SWEEP1(%d/10) %s", score, plan.reason);
    return true;''',
-    extra='''   int ScoreSetup(SEAContext &ctx, SSignalPlan &plan)
+    extra='''   bool IsAsianMrPair(const string sym)
+   {
+      return (StringFind(sym, "AUDNZD") >= 0 || StringFind(sym, "EURGBP") >= 0);
+   }
+
+   int ScoreSetup(SEAContext &ctx, SSignalPlan &plan)
    {
       int score = 5;
       if(ctx.emaH1_50 > 0.0 && ((plan.dir > 0 && ctx.mid > ctx.emaH1_50) ||
@@ -7807,7 +7838,8 @@ add(
     inputs='''input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
 input int    InpMaxAccounts       = 3;     // Multi-account orchestration cap
-input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the time-of-day baseline''',
+input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the time-of-day baseline
+input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20-candle average''',
     configure='''cfg.strategyName          = "R10QWEN_SOS3_ALGO";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -7865,6 +7897,8 @@ input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the
    p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
    p.entryRetrace = 0.50; p.targetR = 2.0;
    if(!SigSweepReclaim(ctx, p, plan)) return false;
+   if(!BiasAgrees(ctx, plan.dir)) return false;                // doc Step 2 (waived for Asian MR pairs)
+   if(!VolumeConfirms(ctx, plan.sweepBarsAgo)) return false;   // doc Step 6: sweep participation
    m_tier = tier;
    plan.reason = StringFormat("R10QWEN-SOS3(tier %d) %s", tier, plan.reason);
    return true;''',
@@ -7873,6 +7907,33 @@ input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the
    bool IsAsianPair(const string sym)
    {
       return (StringFind(sym, "AUDNZD") >= 0 || StringFind(sym, "EURGBP") >= 0);
+   }
+
+   //--- doc Step 2: H1 50-EMA slope + price side; Asian mean-reversion pairs
+   //--- are exempt while H1 ADX(14) < 16 (pure mean reversion), per the document
+   bool BiasAgrees(SEAContext &ctx, const int dir)
+   {
+      if(IsAsianPair(ctx.symbol) && ctx.clockMinutes < 7 * 60 && ctx.adxH1 < 16.0) return true;
+      if(ctx.emaH1_50 <= 0.0) return false;
+      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      if(h1Atr <= 0.0) return false;
+      double slope = ctx.emaH1_50 - ctx.emaH1_200;
+      if(dir > 0) return (ctx.mid > ctx.emaH1_50 && slope >= -0.05 * h1Atr);
+      return (ctx.mid < ctx.emaH1_50 && slope <= 0.05 * h1Atr);
+   }
+
+   //--- doc Step 6: the sweep candle's tick volume must be >= 1.2x the 20-candle average
+   bool VolumeConfirms(SEAContext &ctx, const int sweepBar)
+   {
+      if(sweepBar < 1) return true;                            // no sweep bar recorded - fail open
+      MqlRates r[];
+      int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, sweepBar + 21, r);
+      if(got < sweepBar + 21) return true;                     // thin data - fail open
+      double sum = 0.0;
+      for(int i = sweepBar + 1; i <= sweepBar + 20; i++) sum += (double)r[i].tick_volume;
+      double avg = sum / 20.0;
+      if(avg <= 0.0) return true;
+      return ((double)r[sweepBar].tick_volume >= InpSweepVolumeX * avg);
    }
 
    double MedianRange(const string sym)
@@ -7998,7 +8059,7 @@ input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_
    p.entryRetrace = 0.50; p.targetR = 2.0;
    if(!SigSweepReclaim(ctx, p, plan)) return false;
    if(!EmaSlopeAgrees(ctx, plan.dir)) return false;
-   if(!EmaDistanceOk(ctx, plan.dir)) return false;
+   if(!EmaDistanceOk(ctx)) return false;
    plan.reason = StringFormat("R11A-%sSWEEP %s", sessFrom == 7 * 60 ? "LONDON" : "NY", plan.reason);
    return true;''',
     extra='''   bool SessionWindow(SEAContext &ctx, int &sessFrom, int &sessTo, int &rangeFrom, int &rangeTo)
@@ -8055,7 +8116,8 @@ input double InpMaxEmaDistAtr      = 0.75;  // Distance from the H1 50-EMA (ATR_
       return (dir > 0) ? (ctx.mid >= ctx.emaH1_50) : (ctx.mid <= ctx.emaH1_50);
    }
 
-   bool EmaDistanceOk(SEAContext &ctx, const int dir)
+   //--- distance is direction-agnostic; the direction test lives in EmaSlopeAgrees
+   bool EmaDistanceOk(SEAContext &ctx)
    {
       double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
       if(h1Atr <= 0.0) return true;
@@ -8353,11 +8415,12 @@ input double InpRetireExpectancyR = 0.05;  // Auto-retire threshold''',
    if(ctx.clockMinutes < 7 * 60 && (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
    {
       SRangeFadeParams rf;
+      if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(H1) < 16 only (E lineage)
       rf.Reset();
       rf.bbPeriod = 20; rf.bbDeviation = 2.0;
       rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
       rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-      rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
+      rf.targetR = 0.80; rf.requireRangeRegime = false;       // the H1 gate above is the doc's
       if(SigRangeFade(ctx, rf, plan)) { m_sleeve = 3; plan.reason = "R11D-ASIANMR " + plan.reason; return true; }
    }
    return false;''',
@@ -8616,11 +8679,12 @@ input double InpMaxSlipPctOfExp   = 20.0;  // Disable a symbol whose slippage ea
       (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
    {
       SRangeFadeParams rf;
+      if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(H1) < 16 only for this sleeve
       rf.Reset();
       rf.bbPeriod = 20; rf.bbDeviation = 2.0;
       rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
       rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-      rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
+      rf.targetR = 0.80; rf.requireRangeRegime = false;       // the H1 gate above is the doc's
       if(SigRangeFade(ctx, rf, plan))
       { m_sleeve = 3; plan.reason = "R11F-C-ASIANMR " + plan.reason; return CostOk(ctx, plan); }
    }
@@ -8829,7 +8893,7 @@ input int    InpThinHourTo        = 23 * 60 + 30;''',
    bool BiasGate(SEAContext &ctx, const int dir)
    {
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) return true;
+      if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
       return (dir > 0) ? (ctx.mid > ctx.emaH1_50 && ctx.ema50 >= ctx.emaH1_50)
                        : (ctx.mid < ctx.emaH1_50 && ctx.ema50 <= ctx.emaH1_50);
@@ -8889,7 +8953,7 @@ input double InpRunnerTrailAtrH1  = 2.50;  // 30% runner trail (2.5 x H1 ATR)'''
       if(ratio >= 0.35 && ratio <= 0.75) score++;                      // 1 range quality
    }
    bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-   if(asianPair && ctx.adx14 < 16.0) score++;
+   if(asianPair && ctx.adxH1 < 16.0) score++;                          // H1 ADX waiver (doc)
    else if(BiasIntact(ctx)) score++;                                   // 2 bias
    if(SpreadGate(ctx)) score++;                                        // 6 spread gate
    if(ParticipationGate(ctx)) score++;                                 // 7 participation
@@ -9405,7 +9469,7 @@ input double InpWickRatio         = 0.60;  // Sweep wick >= 60% of the candle'''
    bool BiasAgrees(SEAContext &ctx, const int dir)
    {
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) return true;
+      if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
       return (dir > 0) ? (ctx.mid > ctx.emaH1_50) : (ctx.mid < ctx.emaH1_50);
    }
@@ -9429,7 +9493,7 @@ input double InpWickRatio         = 0.60;  // Sweep wick >= 60% of the candle'''
    int ScoreGate(SEAContext &ctx, SSignalPlan &plan)
    {
       int score = 4;
-      if(ctx.adx14 >= 16.0 && ctx.adx14 <= 40.0) score++;
+      if(ctx.adxH1 >= 16.0 && ctx.adxH1 <= 40.0) score++;                 // doc quotes the H1 regime
       double costR = (plan.riskDist > 0.0) ? (ctx.spreadPoints * ctx.point) / plan.riskDist : 1.0;
       if(costR <= 0.10) score++;
       if(ctx.atrD1 > 0.0 && ctx.atr > 0.35 * ctx.atrD1) score++;
@@ -9580,7 +9644,7 @@ input double InpSpreadAvgX        = 1.50;  // Step 6 gate: spread <= this x the 
    bool BiasAgrees(SEAContext &ctx, const int dir)
    {
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) return true;
+      if(asianPair && ctx.adxH1 < 16.0) return true;                      // H1 ADX waiver (doc)
       if(ctx.emaH1_50 <= 0.0) return false;
       double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
       if(h1Atr <= 0.0) return false;

@@ -30,6 +30,7 @@ input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input int    InpKillMinutes       = 45;    // 45-minute time stop on stale trades
 input double InpStackBoostPct     = 0.25;  // Secondary (stacked) setup sizing boost
 input double InpSpreadAvgX        = 1.50;  // Spread gate: current <= this x the time-of-day baseline
+input double InpSweepVolumeX      = 1.20;  // Sweep-candle tick volume vs its 20-candle average
 
 //+------------------------------------------------------------------+
 //| Strategy: Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing
@@ -100,6 +101,8 @@ public:
       p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
       p.entryRetrace = 0.50; p.targetR = 2.0;
       if(!SigSweepReclaim(ctx, p, plan)) return false;
+      if(!BiasAgrees(ctx, plan.dir)) return false;                // doc Step 2 (waived for Asian MR pairs)
+      if(!VolumeConfirms(ctx, plan.sweepBarsAgo)) return false;   // doc Step 6: sweep participation
       m_tier = tier;
       plan.reason = StringFormat("R10QWEN-SOS3(tier %d) %s", tier, plan.reason);
       return true;
@@ -110,6 +113,33 @@ public:
    bool IsAsianPair(const string sym)
    {
       return (StringFind(sym, "AUDNZD") >= 0 || StringFind(sym, "EURGBP") >= 0);
+   }
+
+   //--- doc Step 2: H1 50-EMA slope + price side; Asian mean-reversion pairs
+   //--- are exempt while H1 ADX(14) < 16 (pure mean reversion), per the document
+   bool BiasAgrees(SEAContext &ctx, const int dir)
+   {
+      if(IsAsianPair(ctx.symbol) && ctx.clockMinutes < 7 * 60 && ctx.adxH1 < 16.0) return true;
+      if(ctx.emaH1_50 <= 0.0) return false;
+      double h1Atr = (ctx.atrD1 > 0.0) ? ctx.atrD1 / 6.0 : 0.0;
+      if(h1Atr <= 0.0) return false;
+      double slope = ctx.emaH1_50 - ctx.emaH1_200;
+      if(dir > 0) return (ctx.mid > ctx.emaH1_50 && slope >= -0.05 * h1Atr);
+      return (ctx.mid < ctx.emaH1_50 && slope <= 0.05 * h1Atr);
+   }
+
+   //--- doc Step 6: the sweep candle's tick volume must be >= 1.2x the 20-candle average
+   bool VolumeConfirms(SEAContext &ctx, const int sweepBar)
+   {
+      if(sweepBar < 1) return true;                            // no sweep bar recorded - fail open
+      MqlRates r[];
+      int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, sweepBar + 21, r);
+      if(got < sweepBar + 21) return true;                     // thin data - fail open
+      double sum = 0.0;
+      for(int i = sweepBar + 1; i <= sweepBar + 20; i++) sum += (double)r[i].tick_volume;
+      double avg = sum / 20.0;
+      if(avg <= 0.0) return true;
+      return ((double)r[sweepBar].tick_volume >= InpSweepVolumeX * avg);
    }
 
    double MedianRange(const string sym)

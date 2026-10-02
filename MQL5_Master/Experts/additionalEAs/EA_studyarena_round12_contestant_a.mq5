@@ -82,7 +82,7 @@ public:
          if(ratio >= 0.35 && ratio <= 0.75) score++;                      // 1 range quality
       }
       bool asianPair = (StringFind(ctx.symbol, "AUDNZD") >= 0 || StringFind(ctx.symbol, "EURGBP") >= 0);
-      if(asianPair && ctx.adx14 < 16.0) score++;
+      if(asianPair && ctx.adxH1 < 16.0) score++;                          // H1 ADX waiver (doc)
       else if(BiasIntact(ctx)) score++;                                   // 2 bias
       if(SpreadGate(ctx)) score++;                                        // 6 spread gate
       if(ParticipationGate(ctx)) score++;                                 // 7 participation

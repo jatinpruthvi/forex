@@ -122,7 +122,8 @@ public:
    //--- 8-filter gate stack (ADX on H1+H4, band-width rank, channel, news via engine)
    bool GateStack(SEAContext &ctx)
    {
-      if(ctx.adx14 >= 20.0) return false;
+      if(ctx.adxH1 >= 20.0) return false;                     // doc: ADX(14) < 20 on 1H
+      if(ctx.adxH4 >= 20.0) return false;                     // doc: ... and on 4H
       if(!BandWidthBottom(ctx)) return false;
       double hi = 0.0, lo = 0.0;
       if(!ChannelBounds(ctx, 50, hi, lo)) return false;

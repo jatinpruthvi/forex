@@ -72,7 +72,7 @@ public:
       if(ctx.dayOfWeek == 5) return false;                 // skip Friday entirely
       if(ctx.clockMinutes < 7 * 60 || ctx.clockMinutes >= InpNoNewAfterMin) return false;
       if(WeeklyAttemptsUsed() >= InpWeeklyAttempts) return false;
-      if(ctx.adx14 < InpAdxLow || ctx.adx14 > InpAdxHigh) return false;
+      if(ctx.adxH1 < InpAdxLow || ctx.adxH1 > InpAdxHigh) return false;   // doc: H1 ADX(14) 18-35
       if(!H1BiasAgrees(ctx)) return false;
       if(!SpreadNormal(ctx)) return false;
 

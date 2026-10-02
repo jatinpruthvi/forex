@@ -68,7 +68,7 @@ public:
       //--- Shift 1: Asian session grid (EURGBP / AUDNZD, ADX < 20, three equal legs)
       if(ctx.clockMinutes < InpGridFlatMin && IsQuietCross(ctx.symbol))
       {
-         if(ctx.adx14 >= 20.0) return false;
+         if(ctx.adxH1 >= 20.0) return false;                     // doc: H1 ADX(14) < 20 (E/F gate)
          if(!EqualLegPlan(ctx, plan)) return false;
          plan.reason = "R5D-ASIAGRID " + plan.reason;
          return true;

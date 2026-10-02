@@ -102,7 +102,7 @@ public:
       //--- Strategy 3: Asian range breakout (AUDUSD / USDJPY)
       if(ctx.clockMinutes < 3 * 60 && (StringFind(ctx.symbol, "AUD") >= 0 || StringFind(ctx.symbol, "JPY") >= 0))
       {
-         if(ctx.adx14 <= 20.0) return false;
+         if(ctx.adxH1 <= 20.0) return false;                     // doc: H1 ADX above 20
          if(!SigAsianBreakout(ctx, 0.10, 0.20, 2.0, plan)) return false;
          plan.reason = "R4E-ASIANBREAK " + plan.reason;
          return true;

@@ -101,13 +101,13 @@ public:
       if(ctx.clockMinutes < 7 * 60 &&
          (StringFind(ctx.symbol, "EURGBP") >= 0 || StringFind(ctx.symbol, "AUDNZD") >= 0))
       {
-         if(ctx.adx14 >= 16.0) return false;
+         if(ctx.adxH1 >= 16.0) return false;                     // doc: ADX(14) < 16 gate (E lineage: H1)
          SRangeFadeParams rf;
          rf.Reset();
          rf.bbPeriod = 20; rf.bbDeviation = 2.0;
          rf.rsiOversold = 5.0; rf.rsiOverbought = 95.0;
          rf.wickRatio = 0.50; rf.stopBufferAtr = 0.20;
-         rf.targetR = 0.80; rf.requireRangeRegime = true; rf.maxAdx = 16.0;
+         rf.targetR = 0.80; rf.requireRangeRegime = false;       // regime ADX is the H1 gate above
          if(!SigRangeFade(ctx, rf, plan)) return false;
          m_sleeve = 3;
          plan.reason = "R7B-ASIAGRID " + plan.reason;
