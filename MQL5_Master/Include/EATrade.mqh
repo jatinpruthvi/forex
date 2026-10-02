@@ -25,6 +25,7 @@ struct SPosTrack
    int      dir;
    double   entry;
    double   riskDist;     // initial |entry - stop|
+   double   volume0;      // volume at entry - partial percentages refer to this
    double   sl0;
    bool     beMoved;
    bool     p1Done;
@@ -47,6 +48,8 @@ void EA_TrackRemoveAt(const int idx)
    if(idx < 0 || idx >= g_eaTrackCount) return;
    string key = "EA_" + IntegerToString((long)g_eaCfg.magic) + "_R" + IntegerToString((long)g_eaTrack[idx].ticket);
    if(GlobalVariableCheck(key)) GlobalVariableDel(key);
+   string vkey = EA_VolumeKey(g_eaTrack[idx].ticket);
+   if(GlobalVariableCheck(vkey)) GlobalVariableDel(vkey);
    for(int i = idx; i < g_eaTrackCount - 1; i++) g_eaTrack[i] = g_eaTrack[i + 1];
    g_eaTrackCount--;
 }
@@ -55,6 +58,13 @@ void EA_TrackRemoveAt(const int idx)
 string EA_RiskKey(const ulong ticket)
 {
    return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_R" + IntegerToString((long)ticket);
+}
+
+//--- persisted volume at entry: partial percentages are shares of THIS volume,
+//--- so "25% at 1.2R, 25% at 2.5R" always means 25% of the original position
+string EA_VolumeKey(const ulong ticket)
+{
+   return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_V" + IntegerToString((long)ticket);
 }
 
 //--- realized R multiple of a ticket that just left the book: the history
@@ -112,6 +122,11 @@ void EA_SyncTracks()
       //--- would otherwise make every R-multiple explode after a restart
       double saved = GlobalVariableCheck(EA_RiskKey(t)) ? GlobalVariableGet(EA_RiskKey(t)) : 0.0;
       g_eaTrack[i].riskDist = (saved > 0.0) ? saved : MathAbs(g_eaTrack[i].entry - g_eaTrack[i].sl0);
+      //--- entry volume: prefer the persisted value, else the live position and persist it
+      double vol = PositionGetDouble(POSITION_VOLUME);
+      double savedV = GlobalVariableCheck(EA_VolumeKey(t)) ? GlobalVariableGet(EA_VolumeKey(t)) : 0.0;
+      g_eaTrack[i].volume0 = (savedV > 0.0) ? savedV : vol;
+      if(savedV <= 0.0 && vol > 0.0) GlobalVariableSet(EA_VolumeKey(t), vol);
       g_eaTrack[i].beMoved  = false;
       g_eaTrack[i].p1Done   = false;
       g_eaTrack[i].p2Done   = false;
@@ -127,6 +142,17 @@ void EA_TrackSetRisk(const ulong ticket, const double riskDist)
    GlobalVariableSet(EA_RiskKey(ticket), riskDist);
    int i = EA_TrackIndex(ticket);
    if(i >= 0) g_eaTrack[i].riskDist = riskDist;
+   //--- remember the volume the position started with (see ClosePartial)
+   if(PositionSelectByTicket(ticket))
+   {
+      double vol = PositionGetDouble(POSITION_VOLUME);
+      if(vol > 0.0)
+      {
+         GlobalVariableSet(EA_VolumeKey(ticket), vol);
+         int j = EA_TrackIndex(ticket);
+         if(j >= 0) g_eaTrack[j].volume0 = vol;
+      }
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -161,8 +187,14 @@ double EA_FloatingPl(const string sym, const bool forSymbol)
    return pl;
 }
 
+//--- newest (most recently opened) position of this EA on `sym` in `dir`.
+//--- Grid EAs hold several positions per symbol, so the caller that books the
+//--- entry risk/volume must never pick an older leg by accident: the terminal's
+//--- iteration order is not a contract, so compare POSITION_TIME explicitly.
 ulong EA_FindPosition(const string sym, const int dir)
 {
+   ulong  best = 0;
+   long   bestTime = 0;
    for(int p = PositionsTotal() - 1; p >= 0; p--)
    {
       ulong t = PositionGetTicket(p);
@@ -170,9 +202,11 @@ ulong EA_FindPosition(const string sym, const int dir)
       if((ulong)PositionGetInteger(POSITION_MAGIC) != g_eaCfg.magic) continue;
       if(PositionGetString(POSITION_SYMBOL) != sym) continue;
       bool isBuy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
-      if((dir > 0 && isBuy) || (dir < 0 && !isBuy)) return t;
+      if(!((dir > 0 && isBuy) || (dir < 0 && !isBuy))) continue;
+      long opened = (long)PositionGetInteger(POSITION_TIME);
+      if(opened > bestTime || (opened == bestTime && t > best)) { best = t; bestTime = opened; }
    }
-   return 0;
+   return best;
 }
 
 //+------------------------------------------------------------------+
@@ -400,25 +434,75 @@ public:
       }
    }
 
-   //--- count consecutive losing closes for this EA from the history
-   void UpdateLossStreak()
+   //--- net result of every position that FINISHED in [from, now], grouped by
+   //--- position id: scaling out of one position in several legs is one trade,
+   //--- and a position that is still open is not a completed trade at all (its
+   //--- OUT deals are partial exits). Rows are ordered by the ticket of the
+   //--- position's last close deal, so a loss streak stays chronological.
+   int ClosedTradeResults(const datetime from, ulong &ids[], double &pls[], ulong &newest[])
    {
-      datetime from = TimeTradeServer() - (datetime)(30 * 86400);
-      if(!HistorySelect(from, TimeTradeServer() + 60)) return;
-      int total = HistoryDealsTotal();
-      for(int i = 0; i < total; i++)
+      ArrayResize(ids, 0); ArrayResize(pls, 0); ArrayResize(newest, 0);
+      if(!HistorySelect(from, TimeTradeServer() + 60)) return 0;
+      int deals = HistoryDealsTotal();
+      int n = 0;
+      for(int i = 0; i < deals; i++)
       {
          ulong t = HistoryDealGetTicket(i);
-         if(t == 0 || t <= m_lastOutDeal) continue;
+         if(t == 0) continue;
          if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != g_eaCfg.magic) continue;
          long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
          if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY && entry != DEAL_ENTRY_INOUT) continue;
-         m_lastOutDeal = t;
-         double pl = HistoryDealGetDouble(t, DEAL_PROFIT) +
-                     HistoryDealGetDouble(t, DEAL_SWAP) +
-                     HistoryDealGetDouble(t, DEAL_COMMISSION);
-         if(pl < 0.0) m_lossStreak++;
-         else         m_lossStreak = 0;
+         ulong pid = (ulong)HistoryDealGetInteger(t, DEAL_POSITION_ID);
+         if(pid == 0) continue;
+         int k = -1;
+         for(int j = 0; j < n; j++) if(ids[j] == pid) { k = j; break; }
+         if(k < 0)
+         {
+            k = n++;
+            ArrayResize(ids, n); ArrayResize(pls, n); ArrayResize(newest, n);
+            ids[k] = pid; pls[k] = 0.0; newest[k] = 0;
+         }
+         pls[k] += HistoryDealGetDouble(t, DEAL_PROFIT) +
+                   HistoryDealGetDouble(t, DEAL_SWAP) +
+                   HistoryDealGetDouble(t, DEAL_COMMISSION);
+         if(t > newest[k]) newest[k] = t;
+      }
+      //--- drop the positions that are still open, then sort by close deal
+      int m = 0;
+      for(int j = 0; j < n; j++)
+      {
+         if(PositionSelectByTicket(ids[j])) continue;                 // still open: not finished
+         ids[m] = ids[j]; pls[m] = pls[j]; newest[m] = newest[j]; m++;
+      }
+      for(int a = 1; a < m; a++)
+      {
+         ulong ki = ids[a], kt = newest[a];
+         double kp = pls[a];
+         int b = a - 1;
+         while(b >= 0 && newest[b] > kt)
+         {
+            ids[b + 1] = ids[b]; pls[b + 1] = pls[b]; newest[b + 1] = newest[b];
+            b--;
+         }
+         ids[b + 1] = ki; pls[b + 1] = kp; newest[b + 1] = kt;
+      }
+      ArrayResize(ids, m); ArrayResize(pls, m); ArrayResize(newest, m);
+      return m;
+   }
+
+   //--- count consecutive losing positions for this EA from the history
+   void UpdateLossStreak()
+   {
+      if(g_eaCfg.lossStreakPause <= 0) return;                        // circuit breaker disabled
+      datetime from = TimeTradeServer() - (datetime)(30 * 86400);
+      ulong  ids[]; double pls[]; ulong newest[];
+      int n = ClosedTradeResults(from, ids, pls, newest);
+      for(int i = 0; i < n; i++)
+      {
+         if(newest[i] <= m_lastOutDeal) continue;                      // already counted
+         m_lastOutDeal = newest[i];
+         if(pls[i] < 0.0) m_lossStreak++;
+         else             m_lossStreak = 0;
          GlobalVariableSet(KeyStreak(), (double)m_lossStreak);
          if(m_lossStreak >= g_eaCfg.lossStreakPause)
          {
@@ -496,28 +580,15 @@ public:
       return realized;
    }
 
-   //--- completed trades for the clock day that ended net-negative
+   //--- completed trades for the clock day that ended net-negative. One
+   //--- position that was scaled out of is one trade, whatever its leg count.
    int LosingTradesToday()
    {
-      int n = 0;
-      datetime from = DayStartServer(m_dayStamp);
-      if(HistorySelect(from, TimeTradeServer() + 60))
-      {
-         int deals = HistoryDealsTotal();
-         for(int i = 0; i < deals; i++)
-         {
-            ulong t = HistoryDealGetTicket(i);
-            if(t == 0) continue;
-            if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != g_eaCfg.magic) continue;
-            long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
-            if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY && entry != DEAL_ENTRY_INOUT) continue;
-            double pl = HistoryDealGetDouble(t, DEAL_PROFIT) +
-                        HistoryDealGetDouble(t, DEAL_SWAP) +
-                        HistoryDealGetDouble(t, DEAL_COMMISSION);
-            if(pl < 0.0) n++;
-         }
-      }
-      return n;
+      ulong  ids[]; double pls[]; ulong newest[];
+      int n = ClosedTradeResults(DayStartServer(m_dayStamp), ids, pls, newest);
+      int losses = 0;
+      for(int i = 0; i < n; i++) if(pls[i] < 0.0) losses++;
+      return losses;
    }
 
    int TradesToday()
@@ -832,15 +903,33 @@ public:
    }
 
    //--- can this position be split at pct without falling below the broker minimum?
+   //--- `pct` is a share of the volume the position STARTED with, so a two-stage
+   //--- schedule ("25% at 1.2R, 25% at 2.5R") always means 25% of the original
+   //--- position. A share that reaches the current volume is a close of the rest.
+   //--- Returns 0.0 when the schedule cannot be honoured at this ticket size:
+   //--- a share that rounds away, or a sub-min-lot share of a position that only
+   //--- holds one minimum lot (closing the whole winner there would silently
+   //--- turn a scale-out into a full exit, so the stage is skipped instead).
+   double PartialVolume(const ulong ticket, const double pct)
+   {
+      if(!PositionSelectByTicket(ticket)) return 0.0;
+      string sym  = PositionGetString(POSITION_SYMBOL);
+      double vol  = PositionGetDouble(POSITION_VOLUME);
+      double minV = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+      double base = vol;
+      int i = EA_TrackIndex(ticket);
+      if(i >= 0 && g_eaTrack[i].volume0 > 0.0) base = g_eaTrack[i].volume0;
+      double raw  = base * pct / 100.0;               // the share the schedule asked for
+      double part = EA_NormalizeVolume(sym, raw);     // floored to the step, at least the minimum
+      if(part < minV - 1e-9) return 0.0;              // rounds away: nothing to do
+      if(raw >= vol - 1e-9) return vol;               // the share IS the whole remainder
+      if(part >= vol - 1e-9) return 0.0;              // normalisation inflated it: cannot split
+      return MathMin(part, vol);                      // never more than is held
+   }
+
    bool CanPartial(const ulong ticket, const double pct)
    {
-      if(!PositionSelectByTicket(ticket)) return false;
-      double vol  = PositionGetDouble(POSITION_VOLUME);
-      string sym  = PositionGetString(POSITION_SYMBOL);
-      double minV = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      double part = EA_NormalizeVolume(sym, vol * pct / 100.0);
-      double remain = vol - part;
-      return (part >= minV - 1e-9 && remain >= minV - 1e-9);
+      return (PartialVolume(ticket, pct) > 0.0);
    }
 
    bool ClosePartial(const ulong ticket, const double pct)
@@ -849,18 +938,27 @@ public:
       double vol    = PositionGetDouble(POSITION_VOLUME);
       string sym    = PositionGetString(POSITION_SYMBOL);
       double minV   = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
-      double step   = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
-      if(step <= 0.0) step = minV;
-      double part   = EA_NormalizeVolume(sym, vol * pct / 100.0);
-      double remain = vol - part;
-      if(part < minV - 1e-9 || remain < minV - 1e-9) return false;   // cannot split
+      double part   = PartialVolume(ticket, pct);
+      if(part <= 0.0) return false;                                  // cannot split
+      if(part >= vol - 1e-9)                                         // the share reaches the rest
+      {
+         double px = PositionGetDouble(POSITION_PRICE_CURRENT);
+         if(!m_trade.PositionClose(ticket))
+         {
+            EA_Log(EA_LOG_EVENTS, StringFormat("final partial close failed ticket=%I64u retcode=%u", ticket, m_trade.ResultRetcode()), true);
+            return false;
+         }
+         EA_Ledger("CLOSE_PARTIAL_FINAL", sym, px, 0, 0, vol, StringFormat("%.0f%% of the entry volume - closed the rest", pct));
+         return true;
+      }
+      if(vol - part < minV - 1e-9) return false;                     // would leave an invalid remainder
       if(!m_trade.PositionClosePartial(ticket, part))
       {
          EA_Log(EA_LOG_EVENTS, StringFormat("partial close failed ticket=%I64u retcode=%u", ticket, m_trade.ResultRetcode()), true);
          return false;
       }
       EA_Ledger("PARTIAL", sym, PositionGetDouble(POSITION_PRICE_CURRENT), 0, 0, part,
-                StringFormat("%.0f%% of position", pct));
+                StringFormat("%.0f%% of the entry volume", pct));
       return true;
    }
 
@@ -1081,7 +1179,7 @@ void EA_ManagePositions(const SEAContext &ctx)
          {
             //--- doc policy: only a COMPLETED bar beyond +1R confirms the move
             MqlRates br[];
-            if(EA_Rates(sym, g_eaCfg.signalTimeframe, 1, 2, br) >= 2)
+            if(EA_Rates(sym, g_eaCfg.signalTimeframe, 0, 2, br) >= 2)   // br[1] = last closed bar
             {
                double closedMove = (dir > 0) ? (br[1].close - entry) : (entry - br[1].close);
                beTrigger = (closedMove >= g_eaCfg.breakEvenAtR * risk);

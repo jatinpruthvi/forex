@@ -136,9 +136,13 @@ public:
    bool SpreadNormal(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);
-      double med = MedianSpread();
+      double med = EA_SpreadBaseline(ctx.symbol, 30);                     // same time of day
+      if(med <= 0.0) med = MedianSpread();                                // fallback: live ring
       if(med <= 0.0) return true;
-      return (ctx.spreadPoints <= InpSpreadMedianX * med);
+      if(ctx.spreadPoints <= InpSpreadMedianX * med) return true;
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx time-of-day median %.1f - skip",
+             ctx.symbol, ctx.spreadPoints, InpSpreadMedianX, med), true);
+      return false;
    }
 
    double m_spreads[64];

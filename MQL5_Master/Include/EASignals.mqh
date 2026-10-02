@@ -214,9 +214,10 @@ bool SigPrevSessionRange(const string sym, const ENUM_TIMEFRAMES tf,
 {
    int nowMin = EA_MinutesOfDay(EA_ClockNow());
    int offset = (nowMin >= toMin) ? 0 : 1;      // today's window already closed?
-   if(SigRangeForDay(sym, tf, fromMin, toMin, offset, hi, lo))
+   int bars = 0;
+   if(SigRangeForDay(sym, tf, fromMin, toMin, offset, hi, lo, bars))
       return true;
-   return SigRangeForDay(sym, tf, fromMin, toMin, offset + 1, hi, lo);
+   return SigRangeForDay(sym, tf, fromMin, toMin, offset + 1, hi, lo, bars);
 }
 
 //--- Asia range (London 00:00-07:00) convenience wrapper

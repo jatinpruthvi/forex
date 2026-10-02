@@ -100,8 +100,40 @@ average with a 20-day decay.
 
 **Documented approximation that remains:** `round12_contestant_c` implements its
 "20th–85th ATR percentile band" as an ATR/median ratio of 0.6–1.6, and states so
-in a code comment. Two EAs (`round8_contestant_d`, `round12_contestant_a`) keep
-their own simpler time-of-day spread medians from the first pass.
+in a code comment. Four EAs whose documents name a spread-versus-history gate
+had been served by a round-local sample ring in the first pass
+(`round8_contestant_d`, `round12_contestant_a`, `round5_contestant_a_2047`,
+`EA_TRIAD_SURVIVE`); the third pass re-pointed all four at the engine baseline
+(`EA_SpreadBaseline(sym, 30)` for the time-of-day median, `(sym, 720)` for the
+"20-day average spread for that symbol"), keeping the local ring only as the
+fallback for the window before the engine has evidence.
+
+## Third pass — 2026-10-02 (third in-depth request)
+
+Scope widened from "does it compile / is any rule missing" to the *logic* of the
+shared engine: exit handling, risk accounting and the arithmetic that turns
+document percentages into broker volumes. Five defects were found; all were
+fixed at the source of truth (`EATrade.mqh`, `EASignals.mqh`, generator specs)
+and the delivery was regenerated and re-verified.
+
+| # | Severity | Where | Defect | Fix |
+|---|---|---|---|---|
+| 19 | **High (exits, 42 EAs use partial exits)** | `EATrade.mqh`, `ClosePartial`/`CanPartial` | A partial-close percentage was read as a share of the *current* volume, so the second stage of a ladder was re-sized off the reduced position, and any stage whose remainder fell below `SYMBOL_VOLUME_MIN` was rejected outright — a 100 % "bank at target" stage (e.g. `round4_contestant_f`, sleeve A/B bank) could never execute because `CanPartial` was false and the caller marked it permanently done. | The entry volume is stored per ticket (`SPosTrack.volume0` + global `EA_<magic>_V<ticket>`), `PartialVolume()` computes the share of that entry volume, and a share that reaches the remainder closes the whole position (`PositionClose` + `CLOSE_PARTIAL_FINAL` ledger action). A sub-min-lot share of a one-min-lot position is still refused so a scale-out never silently becomes a full exit; see the note below on that guard. |
+| 20 | **High (signal timing, 7 EAs)** | `EATrade.mqh`, `EA_ManagePositions` break-even-on-bar-close | Fetched `EA_Rates(sym, tf, 1, 2, br)` but read `br[1]` as the last closed bar — with `start=1`, `br[0]` is the last closed bar and `br[1]` the one before it, so a "+1R close" was confirmed a bar late (the move could have been given back). | `EA_Rates(..., 0, 2, br)`; `br[1]` is now the last closed bar, matching the convention stated above `EA_Rates`. |
+| 21 | **Medium (entries, grid EAs)** | `EATrade.mqh`, `EA_FindPosition` | Returned the *first* position matching symbol+side in terminal iteration order. Grid EAs hold several legs per symbol, so the caller could book the risk/volume of a new entry onto an older leg — order-dependent and not a contract. | Picks the newest position (`POSITION_TIME`, tie-broken by ticket). |
+| 22 | **High (compile, all 65 EAs)** | `EASignals.mqh`, `SigPrevSessionRange` | Called the 8-parameter `SigRangeForDay` with 7 arguments (the `int &barsUsed` out-parameter was missing), a hard compile error in the header every generated EA includes. | The helper passes a local `bars`; `scripts/dev/arity_check.py` (new) replays every signature in the delivery against every call site — it found this and now reports 0. |
+| 23 | **Medium (risk accounting, all staging EAs)** | `EATrade.mqh`, `LosingTradesToday` / `UpdateLossStreak` | Both counted each `DEAL_ENTRY_OUT` deal as a completed trade, so one position scaled out of in three legs could register three losing trades — inflating `dayLockAfterLosses` (premature day lock) and the `lossStreakPause` circuit breaker. | New `ClosedTradeResults()` groups close deals by `DEAL_POSITION_ID`, sums profit+swap+commission per position, drops positions that are still open (their OUT legs are partial exits), and returns rows in close order; both consumers now use it. Single-lot EAs are unaffected (one leg per position). `UpdateLossStreak()` also re-checks `lossStreakPause > 0` internally, so the method is safe if ever called from elsewhere. |
+
+Verification of the third pass: `python3 scripts/gen_additional_eas.py`
+regenerates all 65 cleanly; `check_mql5_source.py` reports **0 findings** on the
+65 and 92 on the whole tree (unchanged, legacy files only);
+`scripts/dev/arity_check.py` reports 0 arity and 0 undefined-name findings over
+87 files (Include + the 65 EAs) with positive controls for both detectors; a
+brace/paren/bracket balance pass over all 87 files reports 0 imbalances; the
+stdlib test suite passes 187 tests (`test_optimizer_fill_logic.py` still needs
+pytest, unavailable in this sandbox). `EA_TRIAD_SURVIVE` now enforces its
+document's filter 6 (live spread ≤ 1.5 × the 20-day average) before the eight-point
+score, with the old 240-sample ring kept as the warm-up fallback.
 
 ## Verification after the fixes
 
@@ -119,7 +151,10 @@ their own simpler time-of-day spread medians from the first pass.
 | Unsatisfiable comparisons ("extreme seeded from the bar it is compared against") | 0 |
 | Array bounds at every `EA_Rates` call site | 0 reads past `start + count − 1` |
 | Source-document rules re-checked against code (65 EAs) | 9 spread/slippage skip rules found missing, then implemented (engine telemetry + 10 EA specs); 1 rule implemented as a stated approximation |
-| Test suite (stdlib runners; `test_optimizer_fill_logic.py` needs pytest, unavailable here) | 8/9 files pass; the 9th cannot run in this sandbox |
+| Test suite (stdlib runners; `test_optimizer_fill_logic.py` needs pytest, unavailable here) | 187 tests pass across the 8 runnable modules; the 9th cannot run in this sandbox |
+| Call arity + undefined-name sweep (`scripts/dev/arity_check.py`, Include + 65 EAs) | **0 findings** — this is the check that caught the `SigRangeForDay` compile error (#22); both detectors have positive controls |
+| Brace/paren/bracket balance over all 87 delivery files | 0 imbalances |
+| Spread-vs-history gates re-pointed at the engine baseline (4 EAs) | regenerated; each gate logs its skip and fails open while evidence is thin |
 
 ## Known limitations (unchanged, not bugs)
 

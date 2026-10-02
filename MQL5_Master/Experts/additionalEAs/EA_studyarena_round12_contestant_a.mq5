@@ -191,8 +191,13 @@ public:
    bool SpreadGate(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);
-      double avg = AverageSpread();
-      return (avg <= 0.0 || ctx.spreadPoints <= InpSpreadAvgX * avg);
+      double avg = EA_SpreadBaseline(ctx.symbol, 720);              // whole-day 20-day baseline
+      if(avg <= 0.0) avg = AverageSpread();                        // fallback: live ring
+      if(avg <= 0.0) return true;
+      if(ctx.spreadPoints <= InpSpreadAvgX * avg) return true;
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx 20d avg %.1f - skip",
+             ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, avg), true);
+      return false;
    }
 
    bool ParticipationGate(SEAContext &ctx)

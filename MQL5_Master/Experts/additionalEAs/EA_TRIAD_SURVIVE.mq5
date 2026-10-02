@@ -210,6 +210,18 @@ public:
          m_spread[slot][0] = ctx.spreadPoints;
          m_spreadCount[slot] = (int)MathMin(m_spreadCount[slot] + 1, 240);
       }
+      //--- doc 2.2 filter 6: live spread at most 1.5x the 20-day average
+      double base = EA_SpreadBaseline(ctx.symbol, 720);
+      if(base > 0.0)
+      {
+         if(ctx.spreadPoints > 1.5 * base)
+         {
+            EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > 1.5x 20d average %.1f - skip",
+                   ctx.symbol, ctx.spreadPoints, base), true);
+            return false;
+         }
+         return true;
+      }
       int n = m_spreadCount[slot];
       if(n < 20) return true;                                      // warm-up
       double sum = 0.0;

@@ -103,8 +103,14 @@ public:
             return false;
       }
       PushSpread(ctx.spreadPoints);
-      double med = MedianSpread();
-      if(med > 0.0 && ctx.spreadPoints > InpSpreadTol * med) return false;
+      double med = EA_SpreadBaseline(ctx.symbol, 30);                     // same time of day
+      if(med <= 0.0) med = MedianSpread();                                // fallback: live ring
+      if(med > 0.0 && ctx.spreadPoints > InpSpreadTol * med)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx normal %.1f - skip",
+                ctx.symbol, ctx.spreadPoints, InpSpreadTol, med), true);
+         return false;
+      }
       return true;
    }
 

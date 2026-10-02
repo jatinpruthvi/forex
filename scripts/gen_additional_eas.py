@@ -2197,6 +2197,18 @@ input bool   InpSleeveCEnabled     = true;''',
          m_spread[slot][0] = ctx.spreadPoints;
          m_spreadCount[slot] = (int)MathMin(m_spreadCount[slot] + 1, 240);
       }
+      //--- doc 2.2 filter 6: live spread at most 1.5x the 20-day average
+      double base = EA_SpreadBaseline(ctx.symbol, 720);
+      if(base > 0.0)
+      {
+         if(ctx.spreadPoints > 1.5 * base)
+         {
+            EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > 1.5x 20d average %.1f - skip",
+                   ctx.symbol, ctx.spreadPoints, base), true);
+            return false;
+         }
+         return true;
+      }
       int n = m_spreadCount[slot];
       if(n < 20) return true;                                      // warm-up
       double sum = 0.0;
@@ -5316,8 +5328,14 @@ input double InpStopMaxAdr        = 0.35;  // Skip if the stop > 0.35 x ADR20'''
             return false;
       }
       PushSpread(ctx.spreadPoints);
-      double med = MedianSpread();
-      if(med > 0.0 && ctx.spreadPoints > InpSpreadTol * med) return false;
+      double med = EA_SpreadBaseline(ctx.symbol, 30);                     // same time of day
+      if(med <= 0.0) med = MedianSpread();                                // fallback: live ring
+      if(med > 0.0 && ctx.spreadPoints > InpSpreadTol * med)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx normal %.1f - skip",
+                ctx.symbol, ctx.spreadPoints, InpSpreadTol, med), true);
+         return false;
+      }
       return true;
    }
 
@@ -7306,9 +7324,13 @@ input int    InpHardCloseMin      = 20 * 60;  // Absolute closing time''',
    bool SpreadNormal(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);
-      double med = MedianSpread();
+      double med = EA_SpreadBaseline(ctx.symbol, 30);                     // same time of day
+      if(med <= 0.0) med = MedianSpread();                                // fallback: live ring
       if(med <= 0.0) return true;
-      return (ctx.spreadPoints <= InpSpreadMedianX * med);
+      if(ctx.spreadPoints <= InpSpreadMedianX * med) return true;
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx time-of-day median %.1f - skip",
+             ctx.symbol, ctx.spreadPoints, InpSpreadMedianX, med), true);
+      return false;
    }
 
    double m_spreads[64];
@@ -8974,8 +8996,13 @@ input double InpRunnerTrailAtrH1  = 2.50;  // 30% runner trail (2.5 x H1 ATR)'''
    bool SpreadGate(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);
-      double avg = AverageSpread();
-      return (avg <= 0.0 || ctx.spreadPoints <= InpSpreadAvgX * avg);
+      double avg = EA_SpreadBaseline(ctx.symbol, 720);              // whole-day 20-day baseline
+      if(avg <= 0.0) avg = AverageSpread();                        // fallback: live ring
+      if(avg <= 0.0) return true;
+      if(ctx.spreadPoints <= InpSpreadAvgX * avg) return true;
+      EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx 20d avg %.1f - skip",
+             ctx.symbol, ctx.spreadPoints, InpSpreadAvgX, avg), true);
+      return false;
    }
 
    bool ParticipationGate(SEAContext &ctx)
