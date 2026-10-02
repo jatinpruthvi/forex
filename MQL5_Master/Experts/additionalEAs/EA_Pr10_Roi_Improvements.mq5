@@ -16,7 +16,7 @@
 #property description "PR10 ROI improvements - cost-honest M5 fade + gold Donchian(55)"
 #property description "Source: docs/strategy/Pr10 Roi Improvements.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

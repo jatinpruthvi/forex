@@ -16,7 +16,7 @@
 #property description "Suggestion review - fail-closed release gates over canonical V2 Sleeve A"
 #property description "Source: docs/prop_firm/THE5ERS-STRATEGY-IMPROVEMENT-SUGGESTION-REVIEW.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -31,6 +31,7 @@ input int             InpMaxTradesPerDay  = 2;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 3109; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
+input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
 input bool InpGateDataProvenanceOK   = false;  // Global gate: data acquired + versioned
 input bool InpGateReplayExportOK     = false;  // Global gate: replay exporter produces the registry rows
 input bool InpGateDeclaredGatesSigned = false; // Global gate: Section 13 gates declared
@@ -38,6 +39,9 @@ input bool InpGateEurusdLondon       = false;  // Per-combination gate: EURUSD L
 input bool InpGateGbpsdLondon        = false;  // Per-combination gate: GBPUSD London
 input bool InpGateUsdjpyNewYork      = false;  // Per-combination gate: USDJPY New York
 input bool InpAcknowledgeNotApproved = false;  // Reviewer: README = not compile-verified/backtested/approved
+input string InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase
 
 //+------------------------------------------------------------------+
 //| Strategy: Suggestion review - fail-closed release gates over canonical V2 Sleeve A
@@ -52,6 +56,13 @@ public:
       cfg.symbols               = InpSymbolsToTrade;
       cfg.magic                 = InpMagicNumber;
       cfg.riskPct               = InpRiskPct;
+      cfg.maxCostR              = 0.10;                       // round-trip cost ceiling (section 13)
+      cfg.maxRequestsPerDay     = 20;                         // excess-request safeguard
+      cfg.newsFilter            = true;
+      cfg.newsFile              = InpNewsFile;
+      cfg.newsFailClosed        = true;                       // bad calendar = no new entries
+      cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+      cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
       cfg.signalTimeframe       = PERIOD_M5;
       cfg.clock                 = EA_CLOCK_LONDON;
       cfg.serverWinterGmtOffset = InpServerGmtOffset;
@@ -67,10 +78,24 @@ public:
       cfg.sessionEndFlat        = true;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
+      cfg.useLimitEntry         = true;                       // frozen V2 entry is a limit at the 50% retracement
       cfg.pendingExpiryMinutes  = 15;
       cfg.timeStopMinutes       = 45;
-      cfg.breakEvenAtR          = 1.0;
+      cfg.breakEvenAtR          = 0.0;                     // frozen controls: no breakeven move
       cfg.partial1AtR           = 0.0;                     // V2 removed partial closing
+      //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+      cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+      cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+      cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+      cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+      cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+      cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+      cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+      cfg.maxRetries           = 1;                        // one revalidated retry only
       cfg.logLevel              = InpLogLevel;
    }
 

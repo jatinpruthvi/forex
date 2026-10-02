@@ -16,7 +16,7 @@
 #property description "Round 11B - cost-of-business governor with virtual stops and hard-stop camouflage"
 #property description "Source: docs/research/study_arena/studyarena-round11-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

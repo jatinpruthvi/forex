@@ -16,7 +16,7 @@
 #property description "The5ers proposal review - corrected profitable-day and cash-risk rules"
 #property description "Source: docs/prop_firm/THE5ERS-PROPOSAL-REVIEW.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -44,6 +44,8 @@ input double InpQualifyingDayCash           = 12.50;   // 0.5% qualifying-day am
 input bool   InpVerifyProductName           = false;   // VERIFY item: confirm at checkout
 input int    InpRolloverHourServer          = 0;       // Server rollover hour
 input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollover
+input string InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers proposal review - corrected profitable-day and cash-risk rules
@@ -65,6 +67,10 @@ public:
       cfg.dailyLossPct          = InpDailyLossPct;
       cfg.weeklyLossPct         = 2.0;
       cfg.totalDdPct            = InpTotalDdPct;
+      cfg.newsFile              = InpNewsFile;
+      cfg.newsFailClosed        = true;                       // bad calendar = no new entries
+      cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+      cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
       cfg.profitTargetPct       = (InpReviewPhase == REVIEW_PHASE_2) ? 5.0 : InpProfitTargetPct;
       cfg.maxTradesPerDay       = InpMaxTradesPerDay;
       cfg.maxOpenPositions      = 1;                       // single position account-wide
@@ -76,7 +82,21 @@ public:
       cfg.pendingExpiryMinutes  = 15;
       cfg.timeStopMinutes       = 45;
       cfg.breakEvenAtR          = 1.0;
+      cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
       cfg.partial1AtR           = 0.0;                     // no partial closes
+      //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+      cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+      cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+      cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+      cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+      cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+      cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+      cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+      cfg.maxRetries           = 1;                        // one revalidated retry only
       cfg.logLevel              = InpLogLevel;
    }
 
@@ -144,23 +164,8 @@ public:
       dt.hour = 0; dt.min = 0; dt.sec = 0;
       datetime day = StructToTime(dt);
       if(lastDay != 0 && day != lastDay)
-      {
-         double dayPl = ctx.dayRealizedPl;
-         if(dayPl >= InpQualifyingDayCash)
-         {
-            string key = "EA_" + IntegerToString((long)InpMagicNumber) + "_QualDays_P" +
-                         IntegerToString((int)InpReviewPhase);
-            int n = GlobalVariableCheck(key) ? (int)GlobalVariableGet(key) : 0;
-            GlobalVariableSet(key, (double)(n + 1));
-            EA_Log(EA_LOG_EVENTS, StringFormat("qualifying day %d/3 banked (P/L %.2f, phase %s)",
-                   n + 1, dayPl, EnumToString(InpReviewPhase)));
-         }
-         else
-         {
-            EA_Log(EA_LOG_EVENTS, StringFormat("day did not qualify (%.2f < %.2f) - counter unchanged",
-                   dayPl, InpQualifyingDayCash));
-         }
-      }
+         EA_Log(EA_LOG_EVENTS, StringFormat("rollover: engine holds %d qualifying day(s) of %d (phase decision stays manual)",
+                ctx.qualifyingDays, InpQualifyingDayCount));
       lastDay = day;
    }
 };

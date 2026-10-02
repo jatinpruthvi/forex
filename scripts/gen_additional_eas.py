@@ -47,7 +47,7 @@ HEADER = '''//+-----------------------------------------------------------------
 #property description "{title}"
 #property description "Source: {doc}"
 
-#include "..\\Include\\EACommon.mqh"
+#include "..\\..\\Include\\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -181,97 +181,279 @@ add(
     name="EA_FINAL_OPTIMUM_STRATEGY",
     magic=3101,
     cls="FinalOptimum",
-    title="Final Optimum - per-pair Triad stack + gold Donchian",
+    title="Final Optimum - per-pair Triad stack (5 pairs) + 55-day gold Donchian",
     doc="docs/strategy/FINAL_OPTIMUM_STRATEGY.md",
-    common={"symbols": "AUDUSD,EURJPY,GBPJPY,USDJPY,XAUUSD", "risk": "1.75",
+    common={"symbols": "XAUUSD,AUDUSD,EURJPY,GBPJPY,USDJPY", "risk": "1.75",
             "spread": "25", "daily": "4.5", "totaldd": "10", "target": "10",
             "maxday": "2"},
-    inputs='''input double InpTriadRiskPct      = 1.75;  // Triad leg risk (champion run)
-input double InpGoldRiskPct       = 3.00;  // Gold Donchian leg risk
-input int    InpDonchianDays      = 20;    // Gold channel length (completed D1 bars)
-input double InpGoldStopAtr       = 1.50;  // Gold stop = x daily ATR
-input double InpGoldTargetR       = 3.00;  // Gold target in R
-input bool   InpTradeGold          = true; // Enable the XAUUSD Donchian leg''',
+    inputs='''input double InpGoldRiskPct       = 3.00;  // Gold Donchian leg: 3% of current balance
+input int    InpDonchianDays      = 55;    // Channel: 55 D1 bars ending the day before yesterday
+input double InpGoldStopAtr       = 2.50;  // Gold stop and chandelier k (2.5 x ATR14)
+input double InpGoldAtrPeriod     = 14;    // Gold ATR: 14 daily (high - low) bars
+input int    InpGoldEntryWindowMin= 60;    // Gold fills inside the first hour of the London day
+input bool   InpTradeGold         = true;  // Enable the XAUUSD Donchian leg
+input int    InpMaxTradesPerDayX  = 2;     // Max two trades/day across both legs
+input double InpQualifyingDayCash = 12.50; // 0.5% of $2,500: phase qualifying day''',
     configure='''cfg.strategyName         = "FINAL_OPTIMUM";
    cfg.sourceDoc            = "docs/strategy/FINAL_OPTIMUM_STRATEGY.md";
    cfg.symbols              = InpSymbolsToTrade;
    cfg.magic                = InpMagicNumber;
-   cfg.riskPct              = InpTriadRiskPct;
+   cfg.riskPct              = 1.75;                 // triad risk fraction (% of current balance)
+   cfg.riskBaseBalance      = true;                 // risk fraction x current balance (doc 3.5)
    cfg.signalTimeframe      = PERIOD_M5;
    cfg.clock                = EA_CLOCK_LONDON;
    cfg.serverWinterGmtOffset= InpServerGmtOffset;
    cfg.serverFollowsEuDst   = true;
    cfg.maxSpreadPoints      = InpMaxSpreadPoints;
-   cfg.dailyLossPct         = InpDailyLossPct;      // 4.5% internal buffer
+   cfg.commissionPerLotRT   = 7.00;                 // $7/lot round turn (doc 6)
+   cfg.maxCostR             = 0.10;                 // (spread + commission) <= 10% of R
+   cfg.dailyLossPct         = InpDailyLossPct;      // 4.5% internal buffer under the 5% rule
    cfg.totalDdPct           = InpTotalDdPct;        // $2,250 permanent floor
    cfg.profitTargetPct      = InpProfitTargetPct;   // $2,750 phase-1 target
-   cfg.maxTradesPerDay      = InpMaxTradesPerDay;   // max 2 account-wide
-   cfg.maxOpenPositions     = 1;                    // one slot account-wide
-   cfg.sessionStartHour     = 7;   cfg.sessionStartMin = 0;
-   cfg.sessionEndHour       = 13;  cfg.sessionEndMin   = 30;   // flat by 13:30
-   cfg.sessionEndFlat       = true;
-   cfg.fridayFlat           = true;  cfg.fridayFlatHour = 21;  cfg.fridayFlatMin = 0;
+   cfg.maxTradesPerDay      = InpMaxTradesPerDayX;  // max two trades/day across both legs
+   cfg.maxOpenPositions     = 1;                    // one shared slot; the gold leg holds it
+   cfg.sessionStartHour     = 0;   cfg.sessionStartMin = 0;
+   cfg.sessionEndHour       = 0;   cfg.sessionEndMin   = 0;   // 24h: gold is a multi-day swing
+   cfg.sessionEndFlat       = false;                // per-leg flat enforced in Manage()
+   cfg.fridayFlat           = false;                // gold holds through the weekend (doc 4)
    cfg.signalOnNewBarOnly   = true;
    cfg.useLimitEntry        = true;
-   cfg.pendingExpiryMinutes = 45;
-   cfg.breakEvenAtR         = 1.0;
-   cfg.timeStopMinutes      = 90;
+   cfg.pendingExpiryMinutes = 60;                   // dropped if never re-touched
+   cfg.breakEvenAtR         = 0.0;                  // no BE rule in the champion
+   cfg.timeStopMinutes      = 0;                    // per-pair time stop lives in Manage()
    cfg.minSecondsBetweenTrades = 120;
+   cfg.qualifyingDayAmount  = InpQualifyingDayCash; // any three 0.5% days per phase
+   cfg.qualifyingDaysTarget = 3;
    cfg.logLevel             = InpLogLevel;''',
-    plan='''bool isGold = (ctx.symbol == "XAUUSD");
-   if(isGold)
+    plan='''//--- Leg B first: gold acts first at the open and holds the only slot (doc 5)
+   if(ctx.symbol == "XAUUSD" && InpTradeGold)
    {
-      if(!InpTradeGold) return false;
-      SDonchianParams d;
-      d.Reset();
-      d.lookbackDays = InpDonchianDays;
-      d.stopD1Atr    = InpGoldStopAtr;
-      d.targetR      = InpGoldTargetR;
-      d.trailD1Atr   = 2.5;
-      d.longOnly     = false;
-      if(!SigDonchian(ctx, d, plan)) return false;
-      plan.reason = "GOLD-DONCHIAN " + plan.reason;
+      if(GoldLegPlan(ctx, plan)) { plan.reason = "GOLD " + plan.reason; return true; }
+   }
+   return TriadPlan(ctx, plan);''',
+    extra='''   //--- per-pair overrides (doc 3.1)
+   int    PairSessionEnd(const string sym)
+   {
+      if(sym == "EURJPY" || sym == "USDJPY" || sym == "XAUUSD") return 13 * 60 + 30;
+      return 11 * 60;
+   }
+   double PairSweepMinAtr(const string sym)  { return (sym == "GBPJPY") ? 0.01 : 0.02; }
+   double PairStopBufferAtr(const string sym)
+   {
+      if(sym == "EURJPY" || sym == "XAUUSD") return 0.05;
+      return 0.10;
+   }
+   double PairTargetR(const string sym)      { return (sym == "AUDUSD") ? 2.5 : 1.5; }
+
+   //--- Leg A: the doc 3.3 pattern (sweep, reclaim, displacement), one signal
+   //--- per pair per day, BUY/SELL LIMIT at the displacement body midpoint
+   bool TriadPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(ctx.atr <= 0.0) return false;
+      int sessionEnd = PairSessionEnd(ctx.symbol);
+      if(ctx.clockMinutes < 7 * 60 || ctx.clockMinutes >= sessionEnd) return false;
+      if(ctx.symbol == "XAUUSD" && ctx.clockMinutes > 10 * 60) return false;   // no-late cutoff
+
+      //--- reference range: M5 bars [00:00, 07:00) London, at least 12 bars
+      double rHi = 0.0, rLo = 0.0;
+      int    rangeBars = 0;
+      if(!SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, 0, rHi, rLo, rangeBars)) return false;
+      if(rHi <= rLo || rangeBars < 12) return false;
+
+      int lookback = (ctx.clockMinutes - 7 * 60) / 5 + 4;
+      if(lookback > 300) lookback = 300;
+      MqlRates r[];
+      int got = EA_Rates(ctx.symbol, PERIOD_M5, 1, lookback, r);
+      if(got < 4) return false;
+
+      double sweepMin = PairSweepMinAtr(ctx.symbol) * ctx.atr;
+      double sweepMax = 0.50 * ctx.atr;
+
+      for(int k = got - 1; k >= 3; k--)                    // oldest session bar first
+      {
+         MqlRates sw = r[k];
+         bool sweptLow  = (sw.low  < rLo - sweepMin);
+         bool sweptHigh = (sw.high > rHi + sweepMin);
+         if(sweptLow && sweptHigh) return false;           // two-sided sweep consumes the day
+         bool isLong = sweptLow;
+         if(!isLong && !sweptHigh) continue;
+
+         double extreme = isLong ? sw.low : sw.high;
+         if(MathAbs(extreme - (isLong ? rLo : rHi)) > sweepMax) return false;   // abort day
+
+         for(int c = 0; c <= 2; c++)                        // reclaim within the next two bars
+         {
+            int ri = k - c;
+            if(ri < 1) continue;
+            MqlRates re = r[ri];
+            if(isLong)
+            {
+               if(re.high > rHi + sweepMin) return false;              // opposite sweep: day consumed
+               if(re.low < extreme) extreme = re.low;                  // new extreme low
+               if(MathAbs(extreme - rLo) > sweepMax) return false;
+               if(!(re.close > rLo && re.close < rHi)) continue;       // close back inside
+               if(EA_WickRatio(re, +1) < 0.45) continue;               // sellers' wick
+            }
+            else
+            {
+               if(re.low < rLo - sweepMin) return false;
+               if(re.high > extreme) extreme = re.high;
+               if(MathAbs(extreme - rHi) > sweepMax) return false;
+               if(!(re.close > rLo && re.close < rHi)) continue;
+               if(EA_WickRatio(re, -1) < 0.45) continue;
+            }
+
+            int di = ri - 1;                                // displacement: bar right after reclaim
+            if(di < 1) continue;
+            MqlRates disp = r[di];
+            double body = EA_BodyRatio(disp);
+            if(body < 0.50) continue;
+            if(isLong  && !(disp.close > disp.open && disp.close > (re.open + re.close) / 2.0)) continue;
+            if(!isLong && !(disp.close < disp.open && disp.close < (re.open + re.close) / 2.0)) continue;
+
+            double entry = (disp.open + disp.close) / 2.0;
+            double stop  = isLong ? extreme - PairStopBufferAtr(ctx.symbol) * ctx.atr
+                                  : extreme + PairStopBufferAtr(ctx.symbol) * ctx.atr;
+            double risk  = isLong ? entry - stop : stop - entry;
+            if(risk <= 0.0) continue;
+            if(risk < 0.60 * ctx.atr || risk > 1.50 * ctx.atr) return false;   // 0.60-1.50 ATR band
+            if(risk < 2.0 * EA_PipSize(ctx.symbol)) return false;              // at least 2 pips
+
+            int digits = (int)SymbolInfoInteger(ctx.symbol, SYMBOL_DIGITS);
+            plan.Reset();
+            plan.dir      = isLong ? +1 : -1;
+            plan.entry    = NormalizeDouble(entry, digits);
+            plan.stop     = stop;
+            plan.riskDist = risk;
+            plan.target   = isLong ? entry + PairTargetR(ctx.symbol) * risk
+                                   : entry - PairTargetR(ctx.symbol) * risk;
+            plan.score    = 70.0;
+            plan.isLimit  = true;                           // BUY/SELL LIMIT at the body midpoint
+            plan.expiry   = TimeTradeServer() + (datetime)(g_eaCfg.pendingExpiryMinutes * 60);
+            plan.reason   = StringFormat("TRIAD-%s sweep %.2f ATR, disp body %.2f", ctx.symbol,
+                                         MathAbs(extreme - (isLong ? rLo : rHi)) / ctx.atr, body);
+            return true;
+         }
+      }
+      return false;
+   }
+
+   //--- Leg B: gold Donchian swing (doc 4): 55 days ending the day before
+   //--- yesterday, signal on yesterday's close beyond the channel, fill at the
+   //--- open window, stop and chandelier = 2.5 x ATR14, no fixed target
+   bool GoldLegPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(ctx.clockMinutes > InpGoldEntryWindowMin) return false;
+      MqlRates r[];
+      int need = InpDonchianDays + (int)InpGoldAtrPeriod + 1;
+      if(EA_Rates(ctx.symbol, PERIOD_D1, 1, need, r) < need) return false;
+      double atr14 = GoldAtr(r);
+      if(atr14 <= 0.0) return false;
+
+      double h = -1e18, l = 1e18;
+      for(int i = 1; i <= InpDonchianDays; i++)                     // channel = d-1 .. d-55
+      {
+         if(r[i].high > h) h = r[i].high;
+         if(r[i].low  < l) l = r[i].low;
+      }
+      int dir = 0;
+      if(r[0].close > h)      dir = +1;                             // yesterday's close broke out
+      else if(r[0].close < l) dir = -1;
+      if(dir == 0) return false;
+
+      double entry = (dir > 0) ? ctx.ask : ctx.bid;
+      double stop  = (dir > 0) ? entry - InpGoldStopAtr * atr14 : entry + InpGoldStopAtr * atr14;
+      double risk  = MathAbs(entry - stop);
+      if(risk <= 0.0) return false;
+      plan.Reset();
+      plan.dir      = dir;
+      plan.entry    = entry;
+      plan.stop     = stop;
+      plan.riskDist = risk;
+      plan.target   = 0.0;                                          // chandelier: no fixed target
+      plan.score    = 80.0;
+      plan.reason   = StringFormat("GOLD-DONCHIAN(%d) close %.2f vs %s %.2f", InpDonchianDays,
+                                   r[0].close, dir > 0 ? "high" : "low", dir > 0 ? h : l);
       return true;
    }
 
-   //--- Leg A: per-pair triad parameters straight from the champion table
-   SSweepParams p;
-   p.Reset();
-   p.rangeFromMin = 0;        // Asian range 00:00-07:00 London
-   p.rangeToMin   = 7 * 60;
-   p.sessionFromMin = 7 * 60;
-   p.sessionToMin   = 11 * 60;                     // AUDUSD / GBPJPY default
-   p.sweepMinAtr    = 0.02;
-   p.reclaimWindowBars = 2;                        // disp_max = 2
-   p.wickRatio      = 0.45;                        // relaxed champion geometry
-   p.bodyRatio      = 0.60;
-   p.stopBufferAtr  = 0.10;
-   p.minStopAtr     = 0.60;   p.maxStopAtr = 1.50;
-   p.entryRetrace   = 0.50;                        // limit at 50% of displacement body
-   p.targetR        = 1.5;
-
-   if(ctx.symbol == "AUDUSD")      { p.targetR = 2.5; }
-   else if(ctx.symbol == "GBPJPY") { p.sweepMinAtr = 0.01; }
-   else if(ctx.symbol == "EURJPY") { p.stopBufferAtr = 0.05; p.sessionToMin = 13 * 60 + 30; p.targetR = 1.5; }
-   else if(ctx.symbol == "USDJPY") { p.sessionToMin = 13 * 60 + 30; p.targetR = 1.5; }
-
-   //--- XAUUSD no-late cutoff is enforced by the engine session end (13:30);
-   //--- the 10:00 signal cutoff is applied here for the gold-triad variant
-   if(ctx.symbol == "XAUUSD" && ctx.clockMinutes > 10 * 60) return false;
-
-   if(!SigSweepReclaim(ctx, p, plan)) return false;
-   plan.reason = StringFormat("TRIAD-%s %s", ctx.symbol, plan.reason);
-   return true;
+   //--- ATR14 = mean of the last 14 daily (high - low) bars ending yesterday
+   double GoldAtr(MqlRates &r[])
+   {
+      int n = (int)InpGoldAtrPeriod;
+      if(ArraySize(r) < n) return 0.0;
+      double sum = 0.0;
+      for(int i = 0; i < n; i++) sum += (r[i].high - r[i].low);
+      return (n > 0) ? sum / n : 0.0;
    }
 
-   //--- gold leg risk (3%) vs triad leg risk (1.75%): scale the engine lot
-   double LotsMultiplier(SEAContext &ctx)
+   //--- per-pair time stop and flat-by for the intraday leg
+   void Manage(SEAContext &ctx)
    {
-      if(ctx.symbol == "XAUUSD" && InpTriadRiskPct > 0.0)
-         return InpGoldRiskPct / InpTriadRiskPct;
-      return 1.0;''',
-)
+      if(ctx.symbol == "XAUUSD") { GoldManage(ctx); return; }
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
 
+         datetime opened = (datetime)PositionGetInteger(POSITION_TIME);
+         double limitMin = (ctx.symbol == "EURJPY") ? 120.0 : 90.0;
+         int    minutesOpen = (int)((TimeTradeServer() - opened) / 60);
+         if(minutesOpen >= limitMin)
+         {
+            g_eaExec.Close(g_eaTrack[t].ticket, "per-pair time stop");
+            continue;
+         }
+         if(ctx.clockMinutes >= PairSessionEnd(ctx.symbol))
+         {
+            g_eaExec.CancelPending(ctx.symbol, "session end - drop unfilled");
+            g_eaExec.Close(g_eaTrack[t].ticket, "flat by pair session end");
+         }
+      }
+   }
+
+   //--- gold: opposite-channel exit plus the 2.5 x ATR chandelier, evaluated on
+   //--- completed daily closes (no intra-day stop chasing, doc 4)
+   void GoldManage(SEAContext &ctx)
+   {
+      MqlRates r[];
+      int need = InpDonchianDays + (int)InpGoldAtrPeriod + 2;
+      if(EA_Rates(ctx.symbol, PERIOD_D1, 1, need, r) < need) return;
+      double atr14 = GoldAtr(r);
+      if(atr14 <= 0.0) return;
+
+      double h = -1e18, l = 1e18;
+      for(int i = 1; i <= InpDonchianDays; i++)
+      {
+         if(r[i].high > h) h = r[i].high;
+         if(r[i].low  < l) l = r[i].low;
+      }
+
+      for(int p = PositionsTotal() - 1; p >= 0; p--)
+      {
+         ulong tk = PositionGetTicket(p);
+         if(tk == 0) continue;
+         if((ulong)PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
+         if(PositionGetString(POSITION_SYMBOL) != ctx.symbol) continue;
+
+         bool   isBuy  = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+         double sl     = PositionGetDouble(POSITION_SL);
+         datetime opened = (datetime)PositionGetInteger(POSITION_TIME);
+         bool   exitCh = isBuy ? (r[1].close < l) : (r[1].close > h);
+
+         double extreme = PositionGetDouble(POSITION_PRICE_OPEN);
+         for(int i = 0; i < ArraySize(r); i++)
+         {
+            if(r[i].time < opened) break;
+            extreme = isBuy ? MathMax(extreme, r[i].close) : MathMin(extreme, r[i].close);
+         }
+         double trail = isBuy ? extreme - InpGoldStopAtr * atr14 : extreme + InpGoldStopAtr * atr14;
+         if(exitCh) { g_eaExec.Close(tk, "gold opposite-channel exit"); continue; }
+         if((isBuy && trail > sl) || (!isBuy && (sl <= 0.0 || trail < sl)))
+            g_eaExec.Modify(tk, NormalizeDouble(trail, (int)SymbolInfoInteger(ctx.symbol, SYMBOL_DIGITS)), 0.0);
+      }
+   }''',
+)
 
 add(
     entry=16,
@@ -282,11 +464,19 @@ add(
     doc="docs/prop_firm/THE5ERS-CHALLENGE-STRATEGY-V2.md",
     common={"symbols": "EURUSD", "risk": "0.5", "spread": "1.5",
             "daily": "1.0", "totaldd": "5.0", "target": "10", "maxday": "2"},
-    inputs='''input double InpExtremeBodyAtr    = 2.50;  // Extreme candle body in ATR(M1,14)
+    inputs='''
+input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
+input double InpExtremeBodyAtr    = 2.50;  // Extreme candle body in ATR(M1,14)
 input double InpStopAtr           = 1.50;  // Stop beyond the extreme candle (ATR)
 input double InpTargetR           = 1.50;  // Fixed +1.5R target
 input int    InpTimeStopMinutes   = 45;    // Close if +1R not confirmed within x min
-input int    InpMaxTradesPerSession = 1;   // One signal event per symbol/session''',
+input int    InpMaxTradesPerSession = 1;   // One signal event per symbol/session
+input double InpSpreadMedianMult   = 1.50;  // Spread gate: x times the same-minute/session median
+input string InpNewsFile           = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int    InpNewsBeforeMin      = 30;    // No new entry x min before the event
+input int    InpNewsAfterMin       = 30;    // No new entry x min after the event
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase''',
     configure='''cfg.strategyName         = "THE5ERS_V2";
    cfg.sourceDoc            = "docs/prop_firm/THE5ERS-CHALLENGE-STRATEGY-V2.md";
    cfg.symbols              = InpSymbolsToTrade;
@@ -297,6 +487,7 @@ input int    InpMaxTradesPerSession = 1;   // One signal event per symbol/sessio
    cfg.serverWinterGmtOffset= InpServerGmtOffset;
    cfg.maxSpreadPoints      = InpMaxSpreadPoints;
    cfg.dailyLossPct         = InpDailyLossPct;          // internal -1% daily stop
+   cfg.weeklyLossPct        = 2.0;                      // internal -2% weekly stop
    cfg.totalDdPct           = InpTotalDdPct;
    cfg.profitTargetPct      = InpProfitTargetPct;
    cfg.maxTradesPerDay      = InpMaxTradesPerDay;       // max two completed trades
@@ -307,15 +498,43 @@ input int    InpMaxTradesPerSession = 1;   // One signal event per symbol/sessio
    cfg.fridayFlat           = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly   = true;                     // completed M1 candle
    cfg.useLimitEntry        = false;                    // enter at market
-   cfg.breakEvenAtR         = 1.0;                      // tested BE policy
+   cfg.breakEvenAtR         = 0.0;                      // BE is bar-close confirmed in Manage()
    cfg.timeStopMinutes      = InpTimeStopMinutes;
    cfg.useHwmThrottle       = true;                     // 0-2%: 100%, 2-5%: 50%, >=5%: halt
    cfg.hwmTier1Dd           = 2.0;  cfg.hwmTier1Mult = 0.50;
    cfg.hwmTier2Dd           = 5.0;  cfg.hwmTier2Mult = 0.0;
    cfg.hwmHaltDd            = 5.0;
-   cfg.newsFilter           = false;                    // attach a verified feed before live use
+   cfg.newsFilter           = true;                     // mandatory red-folder gate (fail closed)
+   cfg.newsFile             = InpNewsFile;              // inert only while the file is absent
+   cfg.newsBeforeMin        = InpNewsBeforeMin;
+   cfg.newsAfterMin         = InpNewsAfterMin;
+   cfg.newsFailClosed       = true;                     // bad calendar = no new entries
+   cfg.qualifyingDayAmount  = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget = InpQualifyingDayCount;
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel             = InpLogLevel;''',
     plan='''if(ctx.atr <= 0.0) return false;
+
+   //--- certified entry windows: EURUSD/GBPUSD 07:00-11:00, USDJPY 13:30-16:00 London
+   int fromMin = 7 * 60;
+   int toMin   = 11 * 60;
+   if(ctx.symbol == "USDJPY") { fromMin = 13 * 60 + 30; toMin = 16 * 60; }
+   if(ctx.clockMinutes < fromMin || ctx.clockMinutes >= toMin) return false;
+
+   //--- mandatory spread gate: no worse than 1.5x the same-minute/session median
+   if(!SpreadWithinMedian(ctx)) return false;
 
    //--- M1 momentum reversion: fade a completed extreme candle
    MqlRates r[];
@@ -347,8 +566,85 @@ input int    InpMaxTradesPerSession = 1;   // One signal event per symbol/sessio
       return true;
    }
    return false;''',
-    extra='''   //--- daily state machine: any net-positive first trade locks the day
+    extra='''   //--- rolling spread median per minute-of-session over the prior 60 sessions
+   double   m_slotRing[1440][60];
+   datetime m_slotStamp;
+   datetime m_lastDay;
+   int      m_dayCycle;
+
+   void OnInitStrategy()
+   {
+      for(int m = 0; m < 1440; m++)
+         for(int d = 0; d < 60; d++) m_slotRing[m][d] = 0.0;
+      m_slotStamp = 0; m_lastDay = 0; m_dayCycle = 0;
+   }
+
+   bool SpreadWithinMedian(SEAContext &ctx)
+   {
+      MqlDateTime dt;
+      if(!TimeToStruct(ctx.nowClock, dt)) return true;
+      int slot = dt.hour * 60 + dt.min;
+      dt.hour = 0; dt.min = 0; dt.sec = 0;
+      datetime day = StructToTime(dt);
+      if(day != m_lastDay)
+      {
+         m_lastDay  = day;
+         m_dayCycle = (m_dayCycle + 1) % 60;
+      }
+      datetime minute = ctx.nowClock - (ctx.nowClock % 60);
+      if(minute != m_slotStamp && ctx.spreadPoints < 1e10 && slot >= 0 && slot < 1440)
+      {
+         m_slotStamp = minute;
+         m_slotRing[slot][m_dayCycle] = ctx.spreadPoints;
+      }
+      double arr[60];
+      int n = 0;
+      for(int i = 0; i < 60; i++)
+      {
+         double v = m_slotRing[slot][i];
+         if(v > 0.0) arr[n++] = v;
+      }
+      if(n < 20) return true;                                   // warm-up
+      for(int i = 1; i < n; i++)
+      {
+         double key = arr[i];
+         int    j   = i - 1;
+         while(j >= 0 && arr[j] > key) { arr[j + 1] = arr[j]; j--; }
+         arr[j + 1] = key;
+      }
+      double median = arr[n / 2];
+      if(median > 0.0 && ctx.spreadPoints > InpSpreadMedianMult * median)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx same-minute median %.1f - skip",
+                ctx.symbol, ctx.spreadPoints, InpSpreadMedianMult, median), true);
+         return false;
+      }
+      return true;
+   }
+
+   //--- documented BE policy: move the visible stop to entry only after a
+   //--- COMPLETED M5 close beyond +1R (no intraday tick trigger)
    void Manage(SEAContext &ctx)
+   {
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+         if(g_eaTrack[t].beMoved) continue;
+         MqlRates m[];
+         if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 2, m) < 2) continue;
+         double d = (g_eaTrack[t].dir > 0) ? (m[1].close - g_eaTrack[t].entry) : (g_eaTrack[t].entry - m[1].close);
+         if(d >= g_eaTrack[t].riskDist)
+         {
+            g_eaTrack[t].beMoved = true;
+            g_eaExec.Modify(g_eaTrack[t].ticket, g_eaTrack[t].entry, 0.0);
+         }
+      }
+      DailyStateMachine(ctx);
+   }
+
+   //--- daily state machine: any net-positive first trade locks the day
+   void DailyStateMachine(SEAContext &ctx)
    {
       static datetime lockedDay = 0;
       MqlDateTime dt;
@@ -374,7 +670,9 @@ add(
     doc="docs/prop_firm/THE5ERS-CHALLENGE-OPTIMIZATION.md",
     common={"symbols": "EURUSD,GBPUSD,USDJPY", "risk": "0.4", "spread": "3.0",
             "daily": "1.0", "totaldd": "10", "target": "10", "maxday": "2"},
-    inputs='''input double InpCommissionPerLotRT = 7.00;  // Round-turn commission per lot (cost model)
+    inputs='''
+input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
+input double InpCommissionPerLotRT = 7.00;  // Round-turn commission per lot (cost model)
 input double InpMaxCostR             = 0.10;  // Priority-1 gate: reject when all-in cost > xR
 input int    InpMaxRequestsPerDay    = 20;    // Rate limit: non-emergency trade requests/day
 input int    InpTimeStopMinutes      = 45;    // Plateau time stop (30/45/60/90 candidates)
@@ -413,7 +711,21 @@ input int    InpUsdJpyToMin          = 960;   // 16:00 London = 11:00 New York''
    cfg.pendingExpiryMinutes  = 15;                      // three M5 candles
    cfg.timeStopMinutes       = InpTimeStopMinutes;
    cfg.breakEvenAtR          = (InpUseBreakEven ? 1.0 : 0.0);
+   cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
    cfg.partial1AtR           = 0.0;                     // no partials in this profile
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- Priority 3: accepted breakouts are no-trades; only the reversal is traded
    SSweepParams p;
@@ -482,10 +794,18 @@ add(
     doc="docs/prop_firm/THE5ERS-2.5K-CHALLENGE-PLAN.md",
     common={"symbols": "EURUSD,GBPUSD,USDJPY", "risk": "0.4", "spread": "0",
             "daily": "1.0", "totaldd": "10", "target": "10", "maxday": "2"},
-    inputs='''input double InpSpreadMedianMult   = 1.50;  // Spread gate: x times the symbol/minute median
+    inputs='''
+input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
+input double InpSpreadMedianMult   = 1.50;  // Spread gate: x times the symbol/minute median
 input int    InpSpreadSamples      = 64;    // Rolling spread window (M5 samples)
 input double InpCommissionPerLotRT = 7.00;  // Round-turn commission per lot
 input double InpMaxCostR           = 0.10;  // Round-trip cost ceiling in R
+enum ENUM_T5K_PROFILE
+{
+   T5K_ROUTE_A      = 0,  // Route A sweep/reclaim (research module)
+   T5K_M1_MOMENTUM  = 1   // M1 Momentum Reversion (active first-challenge module)
+};
+input ENUM_T5K_PROFILE InpProfile          = T5K_M1_MOMENTUM; // Active module per doc section 2
 input double InpSweepMinAtr        = 0.05;  // Route A: sweep depth band
 input double InpSweepMaxAtr        = 0.50;
 input double InpReclaimWickRatio   = 0.60;  // Reclaim wick >= x of candle range
@@ -495,13 +815,20 @@ input double InpStopMinAtr         = 0.60;  // Reject stop outside [0.60, 1.50] 
 input double InpStopMaxAtr         = 1.50;
 input double InpTargetR            = 1.50;  // Fixed validated target
 input int    InpTimeStopMinutes    = 45;    // +1R plateau time stop
-input bool   InpTradeUsdJpyNy      = true;  // USDJPY New York combination''',
+input bool   InpTradeUsdJpyNy      = true;  // USDJPY New York combination
+input string InpNewsFile           = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int    InpNewsBeforeMin      = 30;    // Cancel/protect before the event
+input int    InpNewsAfterMin       = 30;    // No retries after the event
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase''',
     configure='''cfg.strategyName          = "THE5ERS_25K_PLAN";
    cfg.sourceDoc             = "docs/prop_firm/THE5ERS-2.5K-CHALLENGE-PLAN.md";
    cfg.symbols               = InpSymbolsToTrade;
    cfg.magic                 = InpMagicNumber;
-   cfg.riskPct               = InpRiskPct;               // 0.40% evaluation default
-   cfg.signalTimeframe       = PERIOD_M5;
+   bool m1Mode = (InpProfile == T5K_M1_MOMENTUM);
+   cfg.riskPct               = m1Mode ? 0.50 : InpRiskPct;   // M1 module: 0.50% of initial balance
+   cfg.riskBaseBalance       = false;
+   cfg.signalTimeframe       = m1Mode ? PERIOD_M1 : PERIOD_M5;
    cfg.clock                 = EA_CLOCK_LONDON;
    cfg.serverWinterGmtOffset = InpServerGmtOffset;
    cfg.commissionPerLotRT    = InpCommissionPerLotRT;
@@ -510,7 +837,7 @@ input bool   InpTradeUsdJpyNy      = true;  // USDJPY New York combination''',
    cfg.weeklyLossPct         = 2.0;                      // internal -2.0% incl. floating
    cfg.totalDdPct            = InpTotalDdPct;
    cfg.profitTargetPct       = InpProfitTargetPct;       // $2,750 phase-1 target
-   cfg.maxTradesPerDay       = InpMaxTradesPerDay;       // max two sequential trades
+   cfg.maxTradesPerDay       = MathMin(m1Mode ? 5 : InpMaxTradesPerDay, 2); // account rule: 2 sequential trades/day
    cfg.maxOpenPositions      = 1;                        // one working entry/position
    cfg.minSecondsBetweenTrades = 60;
    cfg.sessionStartHour      = 7;   cfg.sessionStartMin = 0;
@@ -519,14 +846,75 @@ input bool   InpTradeUsdJpyNy      = true;  // USDJPY New York combination''',
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 21;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
    cfg.pendingExpiryMinutes  = 15;                       // cancel after three M5 candles
-   cfg.timeStopMinutes       = InpTimeStopMinutes;
+   cfg.timeStopMinutes       = InpTimeStopMinutes;        // 45-minute plateau
+   cfg.breakEvenAtR          = 0.0;                       // M1 contract: fixed stop, +1.5R target
    cfg.breakEvenAtR          = 0.0;                      // no BE in the baseline profile
    cfg.partial1AtR           = 0.0;                      // never partial-size on a small account
+   cfg.newsFilter            = true;                     // cancel on blackout (inert without the file)
+   cfg.newsFile              = InpNewsFile;
+   cfg.newsBeforeMin         = InpNewsBeforeMin;
+   cfg.newsAfterMin          = InpNewsAfterMin;
+   cfg.newsFailClosed        = true;                     // bad calendar = no new entries
+   cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+   cfg.dayLockAfterLosses     = 2;      // stop after two full losses (doc section 14)
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(ctx.symbol == "USDJPY" && !InpTradeUsdJpyNy) return false;
 
    //--- shared hard gate: spread no worse than 1.5x its rolling median
    if(!SpreadWithinMedian(ctx)) return false;
+
+   //--- active module (doc section 2): M1 momentum reversion, EURUSD/GBPUSD
+   //--- London and USDJPY New York, 0.5% risk, 1.5 x ATR stop, fixed +1.5R
+   if(InpProfile == T5K_M1_MOMENTUM)
+   {
+      if(ctx.symbol != "EURUSD" && ctx.symbol != "GBPUSD" && ctx.symbol != "USDJPY") return false;
+      int fromMin = 7 * 60, toMin = 11 * 60;                     // London scan
+      if(ctx.symbol == "USDJPY") { fromMin = 13 * 60 + 30; toMin = 16 * 60; }   // New York
+      if(ctx.clockMinutes < fromMin || ctx.clockMinutes >= toMin) return false;
+      if(ctx.atr <= 0.0) return false;
+
+      MqlRates m[];
+      if(EA_Rates(ctx.symbol, PERIOD_M1, 1, 20, m) < 16) return false;
+      for(int i = 1; i <= 3; i++)
+      {
+         double body = MathAbs(m[i].close - m[i].open);
+         if(body < 2.5 * ctx.atr) continue;                       // body > 2.5 x ATR(M1,14)
+         int dir = (m[i].close < m[i].open) ? +1 : -1;            // fade the extreme candle
+         double entry = (dir > 0) ? ctx.ask : ctx.bid;
+         double stop  = (dir > 0) ? m[i].low  - 1.5 * ctx.atr
+                                  : m[i].high + 1.5 * ctx.atr;
+         double risk  = (dir > 0) ? entry - stop : stop - entry;
+         if(risk <= 0.0) continue;
+         plan.Reset();
+         plan.dir      = dir;
+         plan.entry    = entry;
+         plan.stop     = stop;
+         plan.riskDist = risk;
+         plan.target   = (dir > 0) ? entry + 1.5 * risk : entry - 1.5 * risk;
+         plan.score    = 65.0;
+         plan.barsAgo  = i;
+         plan.reason   = StringFormat("M1-MOMENTUM %s fade (body %.2f ATR)", ctx.symbol, body / ctx.atr);
+         return true;
+      }
+      return false;
+   }
+
+   //--- research module: Route A sweep/reclaim (shadow until separately approved henceforth
+   //--- independent validation, doc section 3)
 
    SSweepParams p;
    p.Reset();
@@ -608,6 +996,36 @@ input bool   InpTradeUsdJpyNy      = true;  // USDJPY New York combination''',
          m_spreadLast[i]  = 0;
          for(int j = 0; j < 64; j++) m_spread[i][j] = 0.0;
       }
+   }
+
+   //--- pending hygiene: cancel at the pair's hard stop, on news blackout,
+   //--- or when price reaches +1R without filling (rule 8 of the plan)
+   void Manage(SEAContext &ctx)
+   {
+      if(ctx.newsBlocked) g_eaExec.CancelPending(ctx.symbol, "news blackout");
+
+      int endMin = (ctx.symbol == "USDJPY") ? 16 * 60 : 11 * 60;
+      for(int o = OrdersTotal() - 1; o >= 0; o--)
+      {
+         ulong t = OrderGetTicket(o);
+         if(t == 0) continue;
+         if((ulong)OrderGetInteger(ORDER_MAGIC) != InpMagicNumber) continue;
+         string sym = OrderGetString(ORDER_SYMBOL);
+         if(sym != ctx.symbol) continue;
+         if(ctx.clockMinutes >= endMin)
+         {
+            g_eaExec.CancelPending(sym, "pair session end");
+            continue;
+         }
+         long type = OrderGetInteger(ORDER_TYPE);
+         bool isBuy = (type == ORDER_TYPE_BUY_LIMIT || type == ORDER_TYPE_BUY_STOP);
+         double px  = OrderGetDouble(ORDER_PRICE_OPEN);
+         double sl  = OrderGetDouble(ORDER_SL);
+         double risk = MathAbs(px - sl);
+         if(risk <= 0.0) continue;
+         if(isBuy  && (ctx.bid - px) >= risk) g_eaExec.CancelPending(sym, "+1R without fill");
+         if(!isBuy && (px - ctx.ask) >= risk) g_eaExec.CancelPending(sym, "+1R without fill");
+      }
    }''',
 )
 
@@ -627,6 +1045,13 @@ input double InpDailyBoundaryPct     = 0.05;   // Firm boundary: max(balance,equ
 input int    InpInactivityWarnDays   = 20;     // Warn at day 20 without a trade
 input int    InpInactivityEscalateDays = 25;   // Escalate at day 25 (never fake a trade)
 input double InpMaxCostR             = 0.10;   // Cost gate in R
+input string InpNewsFile           = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int    InpNewsBeforeMin      = 30;    // Mandatory 30-minute pre-event buffer
+input int    InpNewsAfterMin       = 30;    // Mandatory 30-minute post-event buffer
+input int    InpMaxRequestsPerDay  = 20;    // Non-emergency trade-request cap
+input int    InpRetryCount         = 1;     // One revalidated retry after a transient reject
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase
 input double InpCommissionPerLotRT   = 7.00;   // Round-turn commission per lot
 input double InpTargetR              = 1.50;   // Sleeve A target
 input int    InpTimeStopMinutes      = 45;     // Sleeve A time stop''',
@@ -641,6 +1066,14 @@ input int    InpTimeStopMinutes      = 45;     // Sleeve A time stop''',
    cfg.maxSpreadPoints       = InpMaxSpreadPoints;
    cfg.commissionPerLotRT    = InpCommissionPerLotRT;
    cfg.maxCostR              = InpMaxCostR;
+   cfg.newsFilter            = true;
+   cfg.maxRequestsPerDay     = InpMaxRequestsPerDay;
+   cfg.newsFile              = InpNewsFile;
+   cfg.newsBeforeMin         = InpNewsBeforeMin;
+   cfg.newsAfterMin          = InpNewsAfterMin;
+   cfg.newsFailClosed        = true;                     // calendar unavailable = no new entries
+   cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
    cfg.dailyLossPct          = InpDailyLossPct;         // firm boundary (fail closed)
    cfg.totalDdPct            = InpTotalDdPct;           // static floor from persisted base
    cfg.profitTargetPct       = InpProfitTargetPct;      // 10% Phase 1 / 5% Phase 2
@@ -653,9 +1086,25 @@ input int    InpTimeStopMinutes      = 45;     // Sleeve A time stop''',
    cfg.signalOnNewBarOnly    = true;
    cfg.pendingExpiryMinutes  = 15;
    cfg.timeStopMinutes       = InpTimeStopMinutes;
+   cfg.breakEvenAtR          = 1.0;                     // BE after +1R...
+   cfg.breakEvenOnBarClose   = true;                    // ...confirmed by a completed M5 close
+   cfg.partial1AtR           = 0.0;                     // no partials in the frozen contract
    cfg.useHwmThrottle        = true;
    cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;
    cfg.hwmTier2Dd            = 5.0;  cfg.hwmTier2Mult = 0.0;  cfg.hwmHaltDd = 5.0;
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''SSweepParams p;
    p.Reset();
@@ -711,16 +1160,8 @@ input int    InpTimeStopMinutes      = 45;     // Sleeve A time stop''',
       dt.hour = 0; dt.min = 0; dt.sec = 0;
       datetime day = StructToTime(dt);
       if(lastDay != 0 && day != lastDay)
-      {
-         double priorDayPl = ctx.dayRealizedPl;
-         if(priorDayPl >= InpPhaseInitialBalance * InpQualifyingDayPct)
-         {
-            string key = "EA_" + IntegerToString((long)InpMagicNumber) + "_QualDays";
-            int n = GlobalVariableCheck(key) ? (int)GlobalVariableGet(key) : 0;
-            GlobalVariableSet(key, (double)(n + 1));
-            EA_Log(EA_LOG_EVENTS, StringFormat("QUALIFYING DAY banked (%d total, P/L %.2f)", n + 1, priorDayPl));
-         }
-      }
+         EA_Log(EA_LOG_EVENTS, StringFormat("rollover: %d qualifying day(s) banked by the engine (no duplicate counter)",
+                ctx.qualifyingDays));
       lastDay = day;
 
       //--- inactivity watchdog: warn day 20, escalate day 25
@@ -765,7 +1206,11 @@ input long            InpAuthorizedLogin     = 0;       // Account login (0 = sk
 input string          InpAuthorizedProduct   = "$2,500 New High Stakes"; // Stage 0 product check
 input bool            InpEnableTrading        = false;  // Stage 0/15 gate: refuse until verified
 input int             InpTimeStopMinutes      = 45;     // Time exit candidate (30/45/60/90)
-input bool            InpMoveBeAfter1R        = false;  // Breakeven challenger: M5 close beyond +1R''',
+input bool            InpMoveBeAfter1R        = false;  // Breakeven challenger: M5 close beyond +1R
+input string          InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int             InpMaxRequestsPerDay     = 20;     // Non-emergency trade-request cap
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase''',
     configure='''//--- paired profile A-D (Stage 1 candidates)
    double riskPct = 0.40, targetR = 1.50;
    if(InpProfile == RR_B_035_175) { riskPct = 0.35; targetR = 1.75; }
@@ -798,10 +1243,31 @@ input bool            InpMoveBeAfter1R        = false;  // Breakeven challenger:
    cfg.timeStopMinutes       = InpTimeStopMinutes;
    cfg.partial1AtR           = 0.0;                         // partial closing removed
    cfg.breakEvenAtR          = (InpMoveBeAfter1R ? 1.0 : 0.0);
+   cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
    cfg.useHwmThrottle        = true;                        // single documented half-risk tier
    cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;
    cfg.hwmTier2Dd            = 5.0;  cfg.hwmTier2Mult = 0.0;  cfg.hwmHaltDd = 5.0;
-   cfg.newsFilter            = false;
+   cfg.newsFilter            = true;                        // LOCKED 30-minute red-folder blackout
+   cfg.newsFile              = InpNewsFile;
+   cfg.newsBeforeMin         = 30;
+   cfg.newsAfterMin          = 30;
+   cfg.newsFailClosed        = true;                        // bad calendar = no new entries
+   cfg.maxRequestsPerDay     = InpMaxRequestsPerDay;
+   cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- Stage 0/15 gate: never trade an unverified product/account
    if(!InpEnableTrading) return false;
@@ -1006,7 +1472,10 @@ input double InpMaxOpenRiskPct    = 0.72;  // Normal maximum open risk
 input double InpAbsOpenRiskCapPct = 1.00;  // Absolute technical open-risk cap
 input bool   InpNewsGate          = true;  // Red-folder news blackout
 input int    InpNewsBeforeMin     = 30;    // Cancel/protect before the event
-input int    InpNewsAfterMin      = 30;    // No retries after the event''',
+input int    InpNewsAfterMin      = 30;    // No retries after the event
+input double InpAccountSize       = 2500.0; // Account size for the $150 payout gate
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase''',
     configure='''cfg.strategyName          = "HIGH_STAKES_RESEARCH";
    cfg.sourceDoc             = "docs/prop_firm/THE5ERS-HIGH-STAKES-RESEARCH.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -1015,6 +1484,7 @@ input int    InpNewsAfterMin      = 30;    // No retries after the event''',
    cfg.signalTimeframe       = PERIOD_M15;
    cfg.clock                 = EA_CLOCK_LONDON;
    cfg.serverWinterGmtOffset = InpServerGmtOffset;
+   cfg.serverOffsetAuto      = true;                       // live offset, never hard-coded
    cfg.maxSpreadPoints       = InpMaxSpreadPoints;
    cfg.dailyLossPct          = InpDailyLossPct;            // internal 0.75-1.0%
    cfg.weeklyLossPct         = InpWeeklyStopPct;           // internal 2.0-2.5%
@@ -1037,8 +1507,25 @@ input int    InpNewsAfterMin      = 30;    // No retries after the event''',
    cfg.newsFile              = "the5ers_red_news.csv";
    cfg.newsBeforeMin         = InpNewsBeforeMin;
    cfg.newsAfterMin          = InpNewsAfterMin;
+   cfg.newsFailClosed        = true;                       // bad calendar = no new entries
+   cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
    cfg.timeStopMinutes       = 45;
    cfg.breakEvenAtR          = 1.0;
+   cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpAccountSize;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- Sleeve A sweep/reclaim on M15 ATR geometry
    SSweepParams p;
@@ -1110,7 +1597,9 @@ input double InpPlannedRiskCash             = 10.00;   // Planned $ risk per tra
 input double InpQualifyingDayCash           = 12.50;   // 0.5% qualifying-day amount
 input bool   InpVerifyProductName           = false;   // VERIFY item: confirm at checkout
 input int    InpRolloverHourServer          = 0;       // Server rollover hour
-input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollover''',
+input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollover
+input string InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase''',
     configure='''cfg.strategyName          = "PROPOSAL_REVIEW";
    cfg.sourceDoc             = "docs/prop_firm/THE5ERS-PROPOSAL-REVIEW.md";
    cfg.symbols               = InpSymbolsToTrade;
@@ -1123,6 +1612,10 @@ input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollove
    cfg.dailyLossPct          = InpDailyLossPct;
    cfg.weeklyLossPct         = 2.0;
    cfg.totalDdPct            = InpTotalDdPct;
+   cfg.newsFile              = InpNewsFile;
+   cfg.newsFailClosed        = true;                       // bad calendar = no new entries
+   cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
    cfg.profitTargetPct       = (InpReviewPhase == REVIEW_PHASE_2) ? 5.0 : InpProfitTargetPct;
    cfg.maxTradesPerDay       = InpMaxTradesPerDay;
    cfg.maxOpenPositions      = 1;                       // single position account-wide
@@ -1134,7 +1627,21 @@ input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollove
    cfg.pendingExpiryMinutes  = 15;
    cfg.timeStopMinutes       = 45;
    cfg.breakEvenAtR          = 1.0;
+   cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
    cfg.partial1AtR           = 0.0;                     // no partial closes
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''if(InpVerifyProductName) return false;    // VERIFY item stays fail-closed until confirmed
 
@@ -1196,23 +1703,8 @@ input int    InpFlatBeforeRolloverMin       = 15;      // Stay flat into rollove
       dt.hour = 0; dt.min = 0; dt.sec = 0;
       datetime day = StructToTime(dt);
       if(lastDay != 0 && day != lastDay)
-      {
-         double dayPl = ctx.dayRealizedPl;
-         if(dayPl >= InpQualifyingDayCash)
-         {
-            string key = "EA_" + IntegerToString((long)InpMagicNumber) + "_QualDays_P" +
-                         IntegerToString((int)InpReviewPhase);
-            int n = GlobalVariableCheck(key) ? (int)GlobalVariableGet(key) : 0;
-            GlobalVariableSet(key, (double)(n + 1));
-            EA_Log(EA_LOG_EVENTS, StringFormat("qualifying day %d/3 banked (P/L %.2f, phase %s)",
-                   n + 1, dayPl, EnumToString(InpReviewPhase)));
-         }
-         else
-         {
-            EA_Log(EA_LOG_EVENTS, StringFormat("day did not qualify (%.2f < %.2f) - counter unchanged",
-                   dayPl, InpQualifyingDayCash));
-         }
-      }
+         EA_Log(EA_LOG_EVENTS, StringFormat("rollover: engine holds %d qualifying day(s) of %d (phase decision stays manual)",
+                ctx.qualifyingDays, InpQualifyingDayCount));
       lastDay = day;
    }''',
 )
@@ -1227,18 +1719,30 @@ add(
     doc="docs/prop_firm/THE5ERS-STRATEGY-IMPROVEMENT-SUGGESTION-REVIEW.md",
     common={"symbols": "EURUSD,GBPUSD,USDJPY", "risk": "0.4", "spread": "3.0",
             "daily": "1.0", "totaldd": "10", "target": "10", "maxday": "2"},
-    inputs='''input bool InpGateDataProvenanceOK   = false;  // Global gate: data acquired + versioned
+    inputs='''
+input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
+input bool InpGateDataProvenanceOK   = false;  // Global gate: data acquired + versioned
 input bool InpGateReplayExportOK     = false;  // Global gate: replay exporter produces the registry rows
 input bool InpGateDeclaredGatesSigned = false; // Global gate: Section 13 gates declared
 input bool InpGateEurusdLondon       = false;  // Per-combination gate: EURUSD London
 input bool InpGateGbpsdLondon        = false;  // Per-combination gate: GBPUSD London
 input bool InpGateUsdjpyNewYork      = false;  // Per-combination gate: USDJPY New York
-input bool InpAcknowledgeNotApproved = false;  // Reviewer: README = not compile-verified/backtested/approved''',
+input bool InpAcknowledgeNotApproved = false;  // Reviewer: README = not compile-verified/backtested/approved
+input string InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase''',
     configure='''cfg.strategyName          = "SUGGESTION_REVIEW_GATES";
    cfg.sourceDoc             = "docs/prop_firm/THE5ERS-STRATEGY-IMPROVEMENT-SUGGESTION-REVIEW.md";
    cfg.symbols               = InpSymbolsToTrade;
    cfg.magic                 = InpMagicNumber;
    cfg.riskPct               = InpRiskPct;
+   cfg.maxCostR              = 0.10;                       // round-trip cost ceiling (section 13)
+   cfg.maxRequestsPerDay     = 20;                         // excess-request safeguard
+   cfg.newsFilter            = true;
+   cfg.newsFile              = InpNewsFile;
+   cfg.newsFailClosed        = true;                       // bad calendar = no new entries
+   cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+   cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
    cfg.signalTimeframe       = PERIOD_M5;
    cfg.clock                 = EA_CLOCK_LONDON;
    cfg.serverWinterGmtOffset = InpServerGmtOffset;
@@ -1254,10 +1758,24 @@ input bool InpAcknowledgeNotApproved = false;  // Reviewer: README = not compile
    cfg.sessionEndFlat        = true;
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
+   cfg.useLimitEntry         = true;                       // frozen V2 entry is a limit at the 50% retracement
    cfg.pendingExpiryMinutes  = 15;
    cfg.timeStopMinutes       = 45;
-   cfg.breakEvenAtR          = 1.0;
+   cfg.breakEvenAtR          = 0.0;                     // frozen controls: no breakeven move
    cfg.partial1AtR           = 0.0;                     // V2 removed partial closing
+   //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+   cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+   cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+   cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+   cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+   cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+   cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+   cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+   cfg.maxRetries           = 1;                        // one revalidated retry only
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- fail-closed release gates: nothing trades until every gate is enabled
    if(!InpGateDataProvenanceOK || !InpGateReplayExportOK || !InpGateDeclaredGatesSigned) return false;
@@ -1498,14 +2016,16 @@ add(
     common={"symbols": "EURUSD,GBPUSD,USDJPY,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF",
             "risk": "0.24", "spread": "4.0", "daily": "1.0", "totaldd": "10",
             "target": "0", "maxday": "4"},
-    inputs='''input double InpFullTierRiskPct    = 0.24;  // 8/8 score: full tier risk
-input double InpHalfTierRiskPct    = 0.12;  // 7/8 score: half tier risk
+    inputs='''input double InpFullTierRiskPct    = 0.24;  // 8/8 or 5/5 score: full tier risk
+input double InpHalfTierRiskPct    = 0.12;  // 7/8 or 4/5 score: half tier risk
 input double InpMaxTotalOpenRisk   = 1.00;  // Max total open risk at any moment
 input double InpMaxGroupRiskPct    = 0.24;  // Max risk per correlated group
 input int    InpMaxPositions       = 4;     // Max concurrent positions (all sleeves)
 input int    InpMaxPerSleeve       = 2;     // Max concurrent positions per sleeve
 input double InpShutdownDdPct      = 6.00;  // Shutdown from closed-equity high
-input int    InpSleeveCExitMinute = 390;   // Sleeve C hard flat 06:30 London
+input int    InpSleeveATimeStopMin = 45;    // Sleeve A: the 45-minute plateau
+input double InpRunnerTrailAtr     = 2.5;   // Runner chandelier: 2.5 x ATR(H1,14)
+input int    InpSleeveCExitMinute  = 390;   // Sleeve C hard flat 06:30 London
 input bool   InpSleeveAEnabled     = true;
 input bool   InpSleeveBEnabled     = true;
 input bool   InpSleeveCEnabled     = true;''',
@@ -1525,19 +2045,18 @@ input bool   InpSleeveCEnabled     = true;''',
    cfg.maxOpenPositions      = InpMaxPositions;
    cfg.minSecondsBetweenTrades = 120;
    cfg.useHwmThrottle        = true;
-   cfg.hwmTier1Dd            = 3.0;  cfg.hwmTier1Mult = 0.50;
-   cfg.hwmTier2Dd            = InpShutdownDdPct;  cfg.hwmTier2Mult = 0.0;
-   cfg.hwmHaltDd             = InpShutdownDdPct;
+   cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;   // 2-4%: half tier
+   cfg.hwmTier2Dd            = 4.0;  cfg.hwmTier2Mult = 0.25;   // 4-6%: quarter tier
+   cfg.hwmHaltDd             = InpShutdownDdPct;                // above 6%: shutdown
    cfg.sessionStartHour      = 0;   cfg.sessionStartMin = 0;
    cfg.sessionEndHour        = 19;  cfg.sessionEndMin = 30;
    cfg.noTradeAfterHour      = 21;  cfg.noTradeAfterMin = 30;   // no thin-liquidity entries
    cfg.fridayFlat            = true;  cfg.fridayFlatHour = 20;  cfg.fridayFlatMin = 0;
    cfg.signalOnNewBarOnly    = true;
-   cfg.pendingExpiryMinutes  = 15;
-   cfg.timeStopMinutes       = 90;
-   cfg.breakEvenAtR          = 1.0;
-   cfg.partial1AtR           = 0.0;                             // single entry, no partial ladder
-   cfg.trailAtR              = 1.0;  cfg.trailDistanceR = 0.5;
+   cfg.pendingExpiryMinutes  = 15;                              // three M5 candles
+   cfg.timeStopMinutes       = 0;                               // per-sleeve, in Manage()
+   cfg.breakEvenAtR          = 0.0;                             // ladder moves the stop instead
+   cfg.partial1AtR           = 0.0;                             // per-symbol ladder in Manage()
    cfg.logLevel              = InpLogLevel;''',
     plan='''//--- portfolio-level caps first
    m_lastScore = 0.0;
@@ -1552,39 +2071,17 @@ input bool   InpSleeveCEnabled     = true;''',
    if(IsSleeveCSymbol(ctx.symbol) && InpSleeveCEnabled && ctx.clockMinutes < InpSleeveCExitMinute)
    {
       sleeve = 3;
-      SRangeFadeParams f;
-      f.Reset();
-      f.bbPeriod = 20; f.bbDeviation = 2.0;
-      f.rsiOversold = 35.0; f.rsiOverbought = 65.0;
-      f.wickRatio = 0.30; f.stopBufferAtr = 0.30; f.targetR = 1.1;
-      f.requireRangeRegime = true; f.maxAdx = 22.0;
-      if(!SigRangeFade(ctx, f, plan)) return false;
-      score = 6.0;      // sleeve C carries a six-point profile
-      tierRisk = InpHalfTierRiskPct;
+      if(!SleeveCPlan(ctx, plan, score)) return false;
+      tierRisk = (score >= 5.0) ? InpFullTierRiskPct : InpHalfTierRiskPct;
    }
-   //--- SLEEVE B: volatility-expansion continuation (trending regime)
+   //--- SLEEVE B: volatility-expansion continuation (M15 breakout + retest)
    else if(IsSleeveBSymbol(ctx.symbol) && InpSleeveBEnabled)
    {
       sleeve = 2;
-      int nowMin = ctx.clockMinutes;
-      bool inWin = (nowMin >= 7 * 60 && nowMin < 15 * 60 + 30) ||
-                   (nowMin >= 13 * 60 + 30 && nowMin < 19 * 60 + 30);
-      if(!inWin) return false;
-      //--- six-gate continuation: H1 bias + expansion + first pullback
-      if(ctx.emaH1_50 <= 0.0) return false;
-      int    bias = (ctx.mid > ctx.emaH1_50) ? +1 : -1;
-      SEmaPullbackParams e;
-      e.Reset();
-      e.requireH1Bias = true;
-      e.touchTolAtr = 0.35; e.wickRatio = 0.35; e.stopBufferAtr = 0.20;
-      e.targetR = 2.5; e.maxBarsSinceTouch = 3;
-      e.tradeBothWays = (bias > 0);
-      if(!SigEmaPullback(ctx, e, plan)) return false;
-      if((bias > 0) != (plan.dir > 0)) return false;
-      score = 7.0;
-      tierRisk = InpHalfTierRiskPct;
+      if(!SleeveBPlan(ctx, plan, score)) return false;
+      tierRisk = (score >= 5.0) ? InpFullTierRiskPct : InpHalfTierRiskPct;
    }
-   //--- SLEEVE A: session-open sweep and reclaim, scored 8-point profile
+   //--- SLEEVE A: session sweep/reclaim, scored 8-point profile
    else
    {
       if(!InpSleeveAEnabled) return false;
@@ -1614,6 +2111,7 @@ input bool   InpSleeveCEnabled     = true;''',
       if(ctx.clockMinutes < p.sessionFromMin || ctx.clockMinutes >= p.sessionToMin) return false;
       if(!SigSweepReclaim(ctx, p, plan)) return false;
       score = ScoreSleeveA(ctx, plan);
+      if(score <= 6.0) return false;                               // 6 or below: no trade
       tierRisk = (score >= 8.0) ? InpFullTierRiskPct : InpHalfTierRiskPct;
    }
 
@@ -1631,13 +2129,35 @@ input bool   InpSleeveCEnabled     = true;''',
    double m_lastScore;
    double m_tierRisk;
 
+   int    m_hAdxH1[EA_MAX_SYMBOLS];      // sleeve C regime gate: ADX(14) on H1
+   double m_spread[EA_MAX_SYMBOLS][240]; // rolling spread samples for the 1.5x gate
+   int    m_spreadCount[EA_MAX_SYMBOLS];
+
+   void OnInitStrategy()
+   {
+      for(int i = 0; i < EA_MAX_SYMBOLS; i++)
+      {
+         m_hAdxH1[i] = INVALID_HANDLE;
+         m_spreadCount[i] = 0;
+         for(int j = 0; j < 240; j++) m_spread[i][j] = 0.0;
+      }
+      for(int i = 0; i < g_eaSymbolCount; i++)
+         m_hAdxH1[i] = iADX(g_eaSymbols[i], PERIOD_H1, 14);
+   }
+
+   void OnDeinitStrategy()
+   {
+      for(int i = 0; i < EA_MAX_SYMBOLS; i++)
+         if(m_hAdxH1[i] != INVALID_HANDLE) { IndicatorRelease(m_hAdxH1[i]); m_hAdxH1[i] = INVALID_HANDLE; }
+   }
+
    bool IsSleeveCSymbol(const string s)
    {
       return (s == "AUDNZD" || s == "EURGBP" || s == "EURCHF");
    }
    bool IsSleeveBSymbol(const string s)
    {
-      return (s == "XAUUSD" || s == "GBPJPY" || s == "GER40" || s == "US30");
+      return (s == "XAUUSD" || s == "GBPJPY" || s == "GER40" || s == "US30" || s == "DE40" || s == "DAX");
    }
    string CorrelatedGroup(const string s)
    {
@@ -1648,70 +2168,333 @@ input bool   InpSleeveCEnabled     = true;''',
       return "";
    }
 
-   //--- sleeve A eight-point score (7/8 halves the risk, 6 or below refuses)
+   //--- rolling spread gate: live spread at most 1.5x the recent average
+   bool SpreadOk(SEAContext &ctx)
+   {
+      int slot = -1;
+      for(int i = 0; i < g_eaSymbolCount; i++) if(g_eaSymbols[i] == ctx.symbol) slot = i;
+      if(slot < 0 || slot >= EA_MAX_SYMBOLS) return true;
+      datetime barTime = iTime(ctx.symbol, PERIOD_M5, 0);
+      static datetime lastBar[EA_MAX_SYMBOLS];
+      if(m_spreadCount[slot] == 0 || lastBar[slot] != barTime)
+      {
+         lastBar[slot] = barTime;
+         for(int i = 239; i > 0; i--) m_spread[slot][i] = m_spread[slot][i - 1];
+         m_spread[slot][0] = ctx.spreadPoints;
+         m_spreadCount[slot] = (int)MathMin(m_spreadCount[slot] + 1, 240);
+      }
+      int n = m_spreadCount[slot];
+      if(n < 20) return true;                                      // warm-up
+      double sum = 0.0;
+      for(int i = 0; i < n; i++) sum += m_spread[slot][i];
+      double avg = sum / n;
+      if(avg > 0.0 && ctx.spreadPoints > 1.5 * avg)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > 1.5x average %.1f - skip",
+                ctx.symbol, ctx.spreadPoints, avg), true);
+         return false;
+      }
+      return true;
+   }
+
+   //--- SLEEVE A eight-point score (doc 2.2): range quality, HTF bias,
+   //--- geometry (implied by the signal), spread, cost, clean book
    double ScoreSleeveA(SEAContext &ctx, const SSignalPlan &plan)
    {
-      double score = 5.0;      // filters 3,4,5 are proven by the signal itself
-      //--- 1. range quality (35-75% of the 20-day median width)
-      double hi = 0.0, lo = 0.0;
+      double score = 3.0;      // sweep band + wick + displacement already proven
+      if(!SpreadOk(ctx)) return 0.0;
+      score += 1.0;
+
+      //--- 1. range width within 35-75% of the 20-day median
       double widths[20];
       int    n = 0;
       for(int d = 0; d < 20; d++)
       {
          double h = 0.0, l = 0.0; int bars = 0;
-         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, d, h, l, bars))
-         { widths[n++] = h - l; }
+         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, d, h, l, bars)) widths[n++] = h - l;
       }
       if(n >= 5)
       {
-         double sum = 0.0;
-         for(int i = 0; i < n; i++) sum += widths[i];
-         double median = sum / n;
-         double today  = 0.0, l2 = 0.0; int b2 = 0;
-         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, 0, today, l2, b2))
+         for(int i = 1; i < n; i++)
          {
-            double width = today - l2;
+            double key = widths[i]; int j = i - 1;
+            while(j >= 0 && widths[j] > key) { widths[j + 1] = widths[j]; j--; }
+            widths[j + 1] = key;
+         }
+         double median = widths[n / 2];
+         double h0 = 0.0, l0 = 0.0; int b0 = 0;
+         if(SigRangeForDay(ctx.symbol, PERIOD_M5, 0, 7 * 60, 0, h0, l0, b0))
+         {
+            double width = h0 - l0;
             if(median > 0.0 && width >= 0.35 * median && width <= 0.75 * median) score += 1.0;
          }
       }
-      //--- 2. higher-timeframe bias (H1 50-EMA, slope agrees)
-      double ema = ctx.emaH1_50;
+      //--- 2. higher-timeframe bias: H1 50-EMA agrees and is sloping the right way
       double hp[];
-      int slopeOk = 0;
-      if(EA_BufN(g_eaInd[ctx.index].hEmaH1_50, 0, 1, 5, hp) == 5)
+      if(EA_BufN(g_eaInd[ctx.index].hEmaH1_50, 0, 1, 5, hp) == 5 && ctx.emaH1_50 > 0.0)
       {
-         if(plan.dir > 0 && ctx.mid > ema && hp[0] >= hp[4]) slopeOk = 1;
-         if(plan.dir < 0 && ctx.mid < ema && hp[0] <= hp[4]) slopeOk = 1;
+         if(plan.dir > 0 && ctx.mid > ctx.emaH1_50 && hp[0] >= hp[4]) score += 1.0;
+         if(plan.dir < 0 && ctx.mid < ctx.emaH1_50 && hp[0] <= hp[4]) score += 1.0;
       }
-      if(slopeOk == 1) score += 1.0;
       //--- 7. cost gate: stop distance at least 10x the round-trip cost
-      double costR = EA_CostInR(ctx.symbol, plan.riskDist, 0.0);
-      if(costR <= 0.10) score += 1.0;
-      //--- 8. clean book: no correlated position open (news gate is the engine's)
+      double cost = EA_CostInR(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
+      if(cost <= 0.10) score += 1.0;
+      //--- 8. clean book: no correlated position already open
       string group = CorrelatedGroup(ctx.symbol);
       if(group == "" || EA_GroupRiskPct(group) <= 0.0) score += 1.0;
       return score;
    }
 
-   //--- sleeve C hard flat at 06:30 London
+   //--- SLEEVE B (doc 3.2): daily ATR in the 60-90th percentile, M15 close
+   //--- beyond the 4-hour range with body >= 70%, retest within 6 bars, limit
+   //--- at the breakout level, stop 1.20 x ATR(M15) beyond the candle extreme
+   bool SleeveBPlan(SEAContext &ctx, SSignalPlan &plan, double &score)
+   {
+      score = 0.0;
+      int nowMin = ctx.clockMinutes;
+      bool london = (nowMin >= 7 * 60 && nowMin < 15 * 60 + 30);
+      bool ny     = (nowMin >= 13 * 60 + 30 && nowMin < 19 * 60 + 30);
+      if(!london && !ny) return false;
+      if(!SpreadOk(ctx)) return false;
+
+      //--- filter 1: daily ATR(14) inside the 60-90th percentile of 20 days
+      MqlRates d[];
+      if(EA_Rates(ctx.symbol, PERIOD_D1, 1, 40, d) < 34) return false;
+      double atrNow = 0.0;
+      for(int i = 0; i < 14; i++) atrNow += (d[i].high - d[i].low);
+      atrNow /= 14.0;
+      if(atrNow <= 0.0) return false;
+      double dist[20];
+      for(int j = 0; j < 20; j++)
+      {
+         double a = 0.0;
+         for(int i = j; i < j + 14; i++) a += (d[i].high - d[i].low);
+         dist[j] = a / 14.0;
+      }
+      for(int i = 1; i < 20; i++)
+      {
+         double key = dist[i]; int j = i - 1;
+         while(j >= 0 && dist[j] > key) { dist[j + 1] = dist[j]; j--; }
+         dist[j + 1] = key;
+      }
+      double p60 = dist[12], p90 = dist[18];
+      if(atrNow < p60 || atrNow > p90) return false;
+      score += 1.0;
+
+      //--- filter 2/4: M15 close beyond the 4-hour range with body >= 70%
+      MqlRates r[];
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 30, r) < 20) return false;
+      double hi = -1e18, lo = 1e18;
+      for(int i = 3; i < 19; i++)                                   // prior 16 bars = 4 hours
+      {
+         if(r[i].high > hi) hi = r[i].high;
+         if(r[i].low  < lo) lo = r[i].low;
+      }
+      int    dir = 0;
+      int    breakIdx = -1;
+      double extreme = 0.0;
+      for(int i = 1; i <= 6; i++)                                   // breakout within 6 bars
+      {
+         double range = r[i].high - r[i].low;
+         if(range <= 0.0) continue;
+         double body = MathAbs(r[i].close - r[i].open) / range;
+         if(body < 0.70) continue;
+         if(r[i].close > hi)      { dir = +1; breakIdx = i; extreme = r[i].high; break; }
+         if(r[i].close < lo)      { dir = -1; breakIdx = i; extreme = r[i].low;  break; }
+      }
+      if(dir == 0) return false;
+      score += 1.0;
+
+      //--- filter 3: volume expansion (skipped when broker volume is unusable)
+      double volSum = 0.0; int volN = 0;
+      for(int i = breakIdx + 1; i < breakIdx + 21; i++)
+      { if(i < ArraySize(r)) { volSum += (double)r[i].tick_volume; volN++; } }
+      if(volN > 0 && volSum > 0.0)
+      {
+         double volAvg = volSum / volN;
+         if(volAvg > 0.0 && (double)r[breakIdx].tick_volume >= 1.3 * volAvg) score += 1.0;
+      }
+      else score += 1.0;                                            // unusable volume: 4/5 path
+      score += 1.0;                                                 // filter 4: spread (checked)
+      string grp = CorrelatedGroup(ctx.symbol);
+      if(grp == "" || EA_GroupRiskPct(grp) <= 0.0) score += 1.0;    // filter 5: clean book
+      if(score < 4.0) return false;
+
+      //--- filter 4: pullback to the breakout level inside 6 M15 candles
+      int retestIdx = -1;
+      for(int i = breakIdx - 1; i >= 1 && i > breakIdx - 6; i--)
+      {
+         if(dir > 0 && r[i].low  <= hi) { retestIdx = i; break; }
+         if(dir < 0 && r[i].high >= lo) { retestIdx = i; break; }
+      }
+      if(retestIdx < 0) return false;
+
+      double entry = (dir > 0) ? hi : lo;                           // limit at the breakout level
+      double stop  = (dir > 0) ? extreme - 1.20 * ctx.atr : extreme + 1.20 * ctx.atr;
+      double risk  = (dir > 0) ? entry - stop : stop - entry;
+      if(risk <= 0.0) return false;
+      plan.Reset();
+      plan.dir      = dir;
+      plan.entry    = entry;
+      plan.stop     = stop;
+      plan.riskDist = risk;
+      plan.target   = (dir > 0) ? entry + 2.0 * risk : entry - 2.0 * risk;
+      plan.score    = score * 10.0;
+      plan.isLimit  = true;
+      plan.expiry   = TimeTradeServer() + (datetime)(g_eaCfg.pendingExpiryMinutes * 60);
+      plan.reason   = StringFormat("SLEEVE-B breakout-retest %s (score %.0f/5)", ctx.symbol, score);
+      return true;
+   }
+
+   //--- SLEEVE C (doc 4.2): H1 ADX < 16, 2.0-sigma band touch, wick >= 50%,
+   //--- RSI(14) > 70 / < 30, limit at the band, stop 1.0 x ATR beyond the
+   //--- touch extreme, target = the 20-period middle band
+   bool SleeveCPlan(SEAContext &ctx, SSignalPlan &plan, double &score)
+   {
+      score = 0.0;
+      if(ctx.clockMinutes >= InpSleeveCExitMinute) return false;
+      if(ctx.atr <= 0.0 || ctx.rsi14 <= 0.0) return false;
+      if(!SpreadOk(ctx)) return false;
+
+      //--- regime: ADX(14) on H1 must be below 16
+      double adx = 0.0;
+      if(ctx.index >= 0 && ctx.index < EA_MAX_SYMBOLS && m_hAdxH1[ctx.index] != INVALID_HANDLE)
+      {
+         if(!EA_Buf(m_hAdxH1[ctx.index], 0, 1, adx)) adx = 0.0;
+      }
+      if(adx > 16.0) return false;
+
+      MqlRates r[];
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 24, r) < 21) return false;
+      double sum = 0.0, sum2 = 0.0;
+      for(int i = 1; i <= 20; i++) { sum += r[i].close; sum2 += r[i].close * r[i].close; }
+      double sma = sum / 20.0;
+      double var = MathMax(0.0, sum2 / 20.0 - sma * sma);
+      double sd  = MathSqrt(var);
+      if(sd <= 0.0) return false;
+      double up = sma + 2.0 * sd, lo = sma - 2.0 * sd;
+
+      MqlRates b = r[1];
+      bool isLong = false, isShort = false;
+      if(b.low  <= lo && b.close > lo && ctx.rsi14 <= 30.0) isLong  = true;
+      if(b.high >= up && b.close < up && ctx.rsi14 >= 70.0) isShort = true;
+      if(!isLong && !isShort) return false;
+      if(isLong  && EA_WickRatio(b, +1) < 0.50) return false;
+      if(isShort && EA_WickRatio(b, -1) < 0.50) return false;
+      score = 5.0;
+      if(!SpreadOk(ctx)) score -= 1.0;
+      string grp = CorrelatedGroup(ctx.symbol);
+      if(grp != "" && EA_GroupRiskPct(grp) > 0.0) score -= 1.0;
+      if(score < 4.0) return false;
+
+      double entry = isLong ? lo : up;                              // limit at the band
+      double stop  = isLong ? b.low - 1.0 * ctx.atr : b.high + 1.0 * ctx.atr;
+      double risk  = isLong ? entry - stop : stop - entry;
+      if(risk <= 0.0) return false;
+      plan.Reset();
+      plan.dir      = isLong ? +1 : -1;
+      plan.entry    = entry;
+      plan.stop     = stop;
+      plan.riskDist = risk;
+      plan.target   = sma;                                          // middle band
+      plan.score    = score * 10.0;
+      plan.isLimit  = true;
+      plan.expiry   = TimeTradeServer() + (datetime)(g_eaCfg.pendingExpiryMinutes * 60);
+      plan.reason   = StringFormat("SLEEVE-C band fade %s (ADX %.1f, score %.0f/5)", ctx.symbol, adx, score);
+      return true;
+   }
+
+   //--- exits: sleeve A 45-minute break-even ladder (40/30 FX, 60/20 XAUUSD)
+   //--- with a 2.5 x ATR(H1) runner trail; sleeve C hard flat; session-end rule
    void Manage(SEAContext &ctx)
    {
-      if(!IsSleeveCSymbol(ctx.symbol)) return;
-      if(ctx.clockMinutes >= InpSleeveCExitMinute)
+      //--- sleeve C: hard flat at 06:30
+      if(IsSleeveCSymbol(ctx.symbol) && ctx.clockMinutes >= InpSleeveCExitMinute)
       {
+         g_eaExec.CancelPending(ctx.symbol, "sleeve C hard flat");
          for(int p = PositionsTotal() - 1; p >= 0; p--)
          {
-            ulong t = PositionGetTicket(p);
-            if(t == 0) continue;
+            ulong tk = PositionGetTicket(p);
+            if(tk == 0) continue;
             if((ulong)PositionGetInteger(POSITION_MAGIC) != InpMagicNumber) continue;
             if(PositionGetString(POSITION_SYMBOL) != ctx.symbol) continue;
-            EA_Log(EA_LOG_EVENTS, "sleeve C hard flat 06:30 London");
-            g_eaExec.Close(t, "sleeve C hard flat");
+            g_eaExec.Close(tk, "sleeve C hard flat 06:30");
          }
+         return;
+      }
+
+      for(int t = g_eaTrackCount - 1; t >= 0; t--)
+      {
+         if(g_eaTrack[t].symbol != ctx.symbol) continue;
+         if(!PositionSelectByTicket(g_eaTrack[t].ticket)) continue;
+
+         int    dir   = g_eaTrack[t].dir;
+         double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+         double cur   = PositionGetDouble(POSITION_PRICE_CURRENT);
+         double risk  = g_eaTrack[t].riskDist;
+         if(risk <= 0.0) continue;
+         double rMult = ((dir > 0) ? (cur - entry) : (entry - cur)) / risk;
+
+         //--- sleeve A: close at market if +1R has not been reached within 45 min
+         if(!IsSleeveBSymbol(ctx.symbol) && !IsSleeveCSymbol(ctx.symbol))
+         {
+            datetime opened = (datetime)PositionGetInteger(POSITION_TIME);
+            int minutesOpen = (int)((TimeTradeServer() - opened) / 60);
+            if(rMult < 1.0 && minutesOpen >= InpSleeveATimeStopMin)
+            {
+               g_eaExec.Close(g_eaTrack[t].ticket, "sleeve A 45-minute time stop");
+               continue;
+            }
+         }
+
+         //--- ladder: +1R closes 40% (60% for XAUUSD) and moves the stop to entry
+         bool isXau = (ctx.symbol == "XAUUSD");
+         if(rMult >= 1.0 && !g_eaTrack[t].p1Done)
+         {
+            if(g_eaExec.ClosePartial(g_eaTrack[t].ticket, isXau ? 60.0 : 40.0))
+               g_eaTrack[t].p1Done = true;
+            else g_eaTrack[t].p1Done = true;
+            g_eaExec.Modify(g_eaTrack[t].ticket, PositionGetDouble(POSITION_PRICE_OPEN), 0.0);
+            g_eaTrack[t].beMoved = true;
+         }
+         if(rMult >= 2.0 && !g_eaTrack[t].p2Done)
+         {
+            if(g_eaExec.ClosePartial(g_eaTrack[t].ticket, isXau ? 20.0 : 30.0))
+               g_eaTrack[t].p2Done = true;
+            else g_eaTrack[t].p2Done = true;
+         }
+
+         //--- runner: chandelier 2.5 x ATR(H1,14) once +2R and the stop is at BE
+         if(rMult >= 2.0 && g_eaTrack[t].beMoved)
+         {
+            MqlRates h[];
+            if(EA_Rates(ctx.symbol, PERIOD_H1, 1, 20, h) >= 15)
+            {
+               double atrH1 = 0.0;
+               for(int i = 0; i < 14; i++) atrH1 += (h[i].high - h[i].low);
+               atrH1 /= 14.0;
+               double extreme = h[0].high;
+               if(dir < 0)
+               {
+                  extreme = h[0].low;
+                  for(int i = 1; i < 14; i++) if(h[i].low < extreme) extreme = h[i].low;
+               }
+               else
+                  for(int i = 1; i < 14; i++) if(h[i].high > extreme) extreme = h[i].high;
+               double trail = (dir > 0) ? extreme - InpRunnerTrailAtr * atrH1
+                                        : extreme + InpRunnerTrailAtr * atrH1;
+               double sl = PositionGetDouble(POSITION_SL);
+               if((dir > 0 && trail > sl) || (dir < 0 && (sl <= 0.0 || trail < sl)))
+                  g_eaExec.Modify(g_eaTrack[t].ticket, eaRoundSafe(ctx.symbol, trail), 0.0);
+            }
+         }
+
+         //--- session close: flat unless the runner is at least +2R with the stop at BE
+         if(ctx.clockMinutes >= 19 * 60 + 30 && !(rMult >= 2.0 && g_eaTrack[t].beMoved))
+            g_eaExec.Close(g_eaTrack[t].ticket, "session close");
       }
    }''',
 )
-
 
 add(
     entry=27,
@@ -1740,6 +2523,7 @@ input string InpBuildId             = "TRIAD_R_HS_2.1.6_20260905"; // Frozen bui
    cfg.symbols               = InpSymbolsToTrade;
    cfg.magic                 = InpMagicNumber;
    cfg.riskPct               = InpProfileRiskPct;         // profile A
+   cfg.riskBaseBalance       = true;                      // % of current balance
    cfg.signalTimeframe       = PERIOD_M5;
    cfg.clock                 = EA_CLOCK_LONDON;
    cfg.serverWinterGmtOffset = InpServerGmtOffset;
@@ -2050,8 +2834,8 @@ input double InpSleeveCTargetR     = 1.10;  // Quiet-session fade target''',
    cfg.maxOpenPositions      = InpMaxPositions;
    cfg.minSecondsBetweenTrades = 180;
    cfg.useHwmThrottle        = true;
-   cfg.hwmTier1Dd            = 3.0;  cfg.hwmTier1Mult = 0.50;
-   cfg.hwmTier2Dd            = InpShutdownDdPct;  cfg.hwmTier2Mult = 0.0;
+   cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;   // 2-4%: half risk
+   cfg.hwmTier2Dd            = 4.0;  cfg.hwmTier2Mult = 0.25;   // 4-5.5%: quarter risk
    cfg.hwmHaltDd             = InpShutdownDdPct;   // strategy shutdown/review
    cfg.sessionStartHour      = 0;   cfg.sessionStartMin = 0;
    cfg.sessionEndHour        = 19;  cfg.sessionEndMin = 30;
@@ -2061,6 +2845,7 @@ input double InpSleeveCTargetR     = 1.10;  // Quiet-session fade target''',
    cfg.pendingExpiryMinutes  = 15;
    cfg.timeStopMinutes       = 60;
    cfg.breakEvenAtR          = 1.0;
+   cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
    cfg.partial1AtR           = 0.0;
    cfg.trailAtR              = 1.0;  cfg.trailDistanceR = 0.5;
    cfg.logLevel              = InpLogLevel;''',
@@ -2197,6 +2982,7 @@ input bool   InpGoldSwingPersonalTrack    = true;  // Personal track: gold swing
    cfg.pendingExpiryMinutes  = 15;
    cfg.timeStopMinutes       = 90;
    cfg.breakEvenAtR          = 1.0;
+   cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
    cfg.partial1AtR           = 0.0;
    cfg.useHwmThrottle        = true;
    cfg.hwmTier1Dd            = 3.0;  cfg.hwmTier1Mult = 0.50;
@@ -2212,7 +2998,7 @@ input bool   InpGoldSwingPersonalTrack    = true;  // Personal track: gold swing
          if(!InpGoldSwingPersonalTrack || ctx.symbol != "XAUUSD") return false;
          SDonchianParams d;
          d.Reset();
-         d.lookbackDays = 55; d.stopD1Atr = 3.0; d.targetR = 4.0; d.trailD1Atr = 2.5;
+         d.lookbackDays = 55; d.stopD1Atr = 2.5; d.targetR = 4.0; d.trailD1Atr = 2.5;
          if(!SigDonchian(ctx, d, plan)) return false;
          plan.reason = "PERSONAL-GOLD-SWING " + plan.reason;
          return true;
@@ -6535,7 +7321,7 @@ input double InpSpreadAvgMult     = 2.00;  // Skip if spread > 2x its rolling av
    cfg.trailAtR              = 2.50;  cfg.trailDistanceR = 1.00;
    cfg.timeStopMinutes       = InpScalpTimeStopMin;   // the biggest EV upgrade
    cfg.logLevel              = InpLogLevel;''',
-    plan='''if(!SpreadGuard(ctx, plan)) return false;
+    plan='''if(!SpreadGuard(ctx)) return false;
 
    SSweepParams p;
    p.Reset();

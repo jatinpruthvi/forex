@@ -16,7 +16,7 @@
 #property description "Round 5B - asymmetric runner: 25% at 1.2R, break-even +0.3R, trail the 8R tail"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

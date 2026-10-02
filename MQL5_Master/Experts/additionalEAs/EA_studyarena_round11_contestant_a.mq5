@@ -16,7 +16,7 @@
 #property description "Round 11A - adaptive session sweep-reclaim with session caps and cost governors"
 #property description "Source: docs/research/study_arena/studyarena-round11-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 4D - regime router: trend, range and expansion portfolios with exact ladders"
 #property description "Source: docs/research/study_arena/studyarena-round4-contestant-d.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

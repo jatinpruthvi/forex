@@ -16,7 +16,7 @@
 #property description "Round 2A - liquidity-hunting with correlation ripple and z-score reversion"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round2-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 8B - SOS-3 session-open sweep and reclaim with an A+ free-roll booster"
 #property description "Source: docs/research/study_arena/studyarena-round8-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

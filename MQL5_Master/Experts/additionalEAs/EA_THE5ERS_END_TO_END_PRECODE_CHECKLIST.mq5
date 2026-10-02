@@ -16,7 +16,7 @@
 #property description "The5ers pre-code checklist - staged compliance gates + paired profiles"
 #property description "Source: docs/prop_firm/THE5ERS-END-TO-END-PRECODE-CHECKLIST.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -52,6 +52,10 @@ input string          InpAuthorizedProduct   = "$2,500 New High Stakes"; // Stag
 input bool            InpEnableTrading        = false;  // Stage 0/15 gate: refuse until verified
 input int             InpTimeStopMinutes      = 45;     // Time exit candidate (30/45/60/90)
 input bool            InpMoveBeAfter1R        = false;  // Breakeven challenger: M5 close beyond +1R
+input string          InpNewsFile             = "the5ers_red_news.csv"; // Red-folder calendar (MQL5/Files)
+input int             InpMaxRequestsPerDay     = 20;     // Non-emergency trade-request cap
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers pre-code checklist - staged compliance gates + paired profiles
@@ -93,10 +97,31 @@ public:
       cfg.timeStopMinutes       = InpTimeStopMinutes;
       cfg.partial1AtR           = 0.0;                         // partial closing removed
       cfg.breakEvenAtR          = (InpMoveBeAfter1R ? 1.0 : 0.0);
+      cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
       cfg.useHwmThrottle        = true;                        // single documented half-risk tier
       cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;
       cfg.hwmTier2Dd            = 5.0;  cfg.hwmTier2Mult = 0.0;  cfg.hwmHaltDd = 5.0;
-      cfg.newsFilter            = false;
+      cfg.newsFilter            = true;                        // LOCKED 30-minute red-folder blackout
+      cfg.newsFile              = InpNewsFile;
+      cfg.newsBeforeMin         = 30;
+      cfg.newsAfterMin          = 30;
+      cfg.newsFailClosed        = true;                        // bad calendar = no new entries
+      cfg.maxRequestsPerDay     = InpMaxRequestsPerDay;
+      cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+      cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
+      //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+      cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+      cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+      cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+      cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+      cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+      cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+      cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+      cfg.maxRetries           = 1;                        // one revalidated retry only
       cfg.logLevel              = InpLogLevel;
    }
 

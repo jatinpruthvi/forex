@@ -16,7 +16,7 @@
 #property description "Round 2C - SMC pillars: HTF bias, fractal sweep, CHoCH and OB zone"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round2-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

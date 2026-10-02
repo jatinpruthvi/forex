@@ -16,7 +16,7 @@
 #property description "Round 12C - SR-10 survival: ban list, volatility percentile band and 0.70% open-risk cap"
 #property description "Source: docs/research/study_arena/studyarena-round12-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

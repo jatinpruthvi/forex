@@ -16,7 +16,7 @@
 #property description "Round 10 Opus - LSR-A cost-gated micro-swing state machine with correlation cap"
 #property description "Source: docs/research/study_arena/studyarena-round10-claude-opus-5-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

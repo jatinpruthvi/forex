@@ -16,7 +16,7 @@
 #property description "Round 5F - stat-arb gates: ADX, band-width rank, channel check and 8-level ladder"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-f.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 8C - immediate close-entry reclaim with a 50/20/30 ladder and 3-loss de-risk"
 #property description "Source: docs/research/study_arena/studyarena-round8-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

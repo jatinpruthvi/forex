@@ -16,7 +16,7 @@
 #property description "The5ers optimization - non-market-failure elimination + Route A router"
 #property description "Source: docs/prop_firm/THE5ERS-CHALLENGE-OPTIMIZATION.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -31,6 +31,7 @@ input int             InpMaxTradesPerDay  = 2;      // 0 = unlimited
 input int             InpServerGmtOffset  = 2;      // Broker server clock minus GMT (winter)
 input ulong           InpMagicNumber      = 3103; // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
+input double InpPhaseInitialBalance = 2500.0; // Persisted phase initial balance (LOCKED sizing base)
 input double InpCommissionPerLotRT = 7.00;  // Round-turn commission per lot (cost model)
 input double InpMaxCostR             = 0.10;  // Priority-1 gate: reject when all-in cost > xR
 input int    InpMaxRequestsPerDay    = 20;    // Rate limit: non-emergency trade requests/day
@@ -79,7 +80,21 @@ public:
       cfg.pendingExpiryMinutes  = 15;                      // three M5 candles
       cfg.timeStopMinutes       = InpTimeStopMinutes;
       cfg.breakEvenAtR          = (InpUseBreakEven ? 1.0 : 0.0);
+      cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
       cfg.partial1AtR           = 0.0;                     // no partials in this profile
+      //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+      cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpPhaseInitialBalance;
+      cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+      cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+      cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+      cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+      cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+      cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+      cfg.maxRetries           = 1;                        // one revalidated retry only
       cfg.logLevel              = InpLogLevel;
    }
 

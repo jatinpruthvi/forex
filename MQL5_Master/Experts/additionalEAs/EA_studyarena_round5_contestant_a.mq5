@@ -16,7 +16,7 @@
 #property description "Round 5A - 60/25/15 portfolio: London sweep, NY continuation, capped reversion basket"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

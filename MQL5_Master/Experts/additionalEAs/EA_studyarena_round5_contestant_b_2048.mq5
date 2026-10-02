@@ -16,7 +16,7 @@
 #property description "Round 5B-2048 - Contestant E's executable core: 3 equal legs, 0.5% basket, RSI(2) entry"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

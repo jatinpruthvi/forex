@@ -16,7 +16,7 @@
 #property description "Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing"
 #property description "Source: docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

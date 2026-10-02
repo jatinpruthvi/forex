@@ -16,7 +16,7 @@
 #property description "Round 7B - three sleeves, equity-curve throttle and a 2.5x-ATR runner trail"
 #property description "Source: docs/research/study_arena/studyarena-round7-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

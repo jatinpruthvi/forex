@@ -16,7 +16,7 @@
 #property description "Round 3A - three-timeframe cascade with pyramided units and Kelly sizing"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round3-contestant-a (1).md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

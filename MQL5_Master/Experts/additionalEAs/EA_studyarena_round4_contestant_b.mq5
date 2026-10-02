@@ -16,7 +16,7 @@
 #property description "Round 4B - session map portfolio with grid, sweep, pullback and VWAP engines"
 #property description "Source: docs/research/study_arena/studyarena-round4-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 12A - SWEEP-1 final locked with the 8-point score gate (>= 7/8)"
 #property description "Source: docs/research/study_arena/studyarena-round12-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

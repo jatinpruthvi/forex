@@ -16,7 +16,7 @@
 #property description "Round 5A-2047 - percentile-gated London sweep with the full checklist and 40/40/20 ladder"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

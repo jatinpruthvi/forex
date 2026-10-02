@@ -16,7 +16,7 @@
 #property description "Round 8D - one trade per day, five attempts a week, strict spread and slope filters"
 #property description "Source: docs/research/study_arena/studyarena-round8-contestant-d.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

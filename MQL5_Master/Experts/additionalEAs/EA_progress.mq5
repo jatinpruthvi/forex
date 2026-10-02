@@ -16,7 +16,7 @@
 #property description "progress.md - the frozen TRIAD-R Sleeve A contract"
 #property description "Source: docs/strategy/progress.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -58,6 +58,7 @@ public:
       cfg.symbols               = InpSymbolsToTrade;
       cfg.magic                 = InpMagicNumber;
       cfg.riskPct               = InpProfileRiskPct;         // profile A
+      cfg.riskBaseBalance       = true;                      // % of current balance
       cfg.signalTimeframe       = PERIOD_M5;
       cfg.clock                 = EA_CLOCK_LONDON;
       cfg.serverWinterGmtOffset = InpServerGmtOffset;

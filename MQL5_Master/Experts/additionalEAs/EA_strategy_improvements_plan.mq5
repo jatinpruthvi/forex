@@ -16,7 +16,7 @@
 #property description "Strategy improvements plan - H1 bias filter, news-day counter, stats gate"
 #property description "Source: docs/strategy/strategy-improvements-plan.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

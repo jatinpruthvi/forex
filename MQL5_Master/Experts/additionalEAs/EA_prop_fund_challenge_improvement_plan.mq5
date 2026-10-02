@@ -16,7 +16,7 @@
 #property description "Prop-fund improvement plan - evidence gates before any live risk"
 #property description "Source: docs/prop_firm/prop-fund-challenge-improvement-plan.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

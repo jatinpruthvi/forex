@@ -21,15 +21,15 @@ bool ValidateTimeframeCascade()
     
     // Example D1 Check (EMA 200)
     double emaD1[1];
-    int handleD1 = iMA(Symbol(), PERIOD_D1, 200, 0, MODE_EMA, PRICE_CLOSE);
+    int handleD1 = iMA(_Symbol, PERIOD_D1, 200, 0, MODE_EMA, PRICE_CLOSE);
     CopyBuffer(handleD1, 0, 1, 1, emaD1);
-    bool isD1Bullish = (iClose(Symbol(), PERIOD_D1, 1) > emaD1[0]);
+    bool isD1Bullish = (iClose(_Symbol, PERIOD_D1, 1) > emaD1[0]);
     
     // Example H4 Check (EMA 50)
     double emaH4[1];
-    int handleH4 = iMA(Symbol(), PERIOD_H4, 50, 0, MODE_EMA, PRICE_CLOSE);
+    int handleH4 = iMA(_Symbol, PERIOD_H4, 50, 0, MODE_EMA, PRICE_CLOSE);
     CopyBuffer(handleH4, 0, 1, 1, emaH4);
-    bool isH4Bullish = (iClose(Symbol(), PERIOD_H4, 1) > emaH4[0]);
+    bool isH4Bullish = (iClose(_Symbol, PERIOD_H4, 1) > emaH4[0]);
     
     if(isD1Bullish && isH4Bullish)
     {

@@ -16,7 +16,7 @@
 #property description "Round 7C - 5% single strategy: 1.5x M15 ATR stop with an hourly chandelier runner"
 #property description "Source: docs/research/study_arena/studyarena-round7-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

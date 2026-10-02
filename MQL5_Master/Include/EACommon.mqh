@@ -157,7 +157,9 @@ bool EA_BuildContext(SEAContext &ctx, const string sym, const int idx)
    ctx.openPositionsAll = EA_CountPositions("", false);
    ctx.floatingPl     = EA_FloatingPl(sym, true);
    ctx.tradesToday    = g_eaRisk.TradesToday();
-   ctx.dayRealizedPl  = g_eaRisk.DayPl();
+   ctx.qualifyingDays = g_eaRisk.QualifyingDays();
+   ctx.dayRealizedPl  = g_eaRisk.DayRealizedPl();   // name matches content
+   ctx.dayPl          = g_eaRisk.DayPl();
    ctx.terminalReady  = (bool)MQLInfoInteger(MQL_TRADE_ALLOWED) &&
                         (bool)TerminalInfoInteger(TERMINAL_TRADE_ALLOWED);
    return true;
@@ -240,6 +242,7 @@ void EA_ManageAll()
       SEAContext ctx;
       if(!EA_BuildContext(ctx, g_eaSymbols[i], i)) continue;
       g_eaStrategy.Manage(ctx);
+      EA_PendingHygiene(ctx);
       EA_ManagePositions(ctx);
       EA_CalendarFlats(ctx);
    }
@@ -275,6 +278,11 @@ bool EA_SelectPlan(SSignalPlan &best, SEAContext &bestCtx)
          continue;
       }
       if(!g_eaRisk.CanOpen(ctx)) continue;
+      if(g_eaCfg.oneEntryAccountWide)
+      {
+         if(ctx.openPositionsAll > 0) continue;                           // one position account-wide
+         if(EA_CountPendings("") > 0) continue;                           // one working entry account-wide
+      }
       if(!g_eaStrategy.AllowMultipleOnSymbol())
       {
          if(ctx.openPositions > 0) continue;                              // already positioned
@@ -320,7 +328,12 @@ void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
       }
    }
 
-   double riskMoney = AccountInfoDouble(ACCOUNT_EQUITY) * riskPct / 100.0;
+   double base = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(g_eaCfg.riskBaseInitialBalance && g_eaCfg.riskInitialBalance > 0.0)
+      base = g_eaCfg.riskInitialBalance;                      // phase-initial balance (LOCKED risk base)
+   else if(g_eaCfg.riskBaseBalance)
+      base = AccountInfoDouble(ACCOUNT_BALANCE);
+   double riskMoney = base * riskPct / 100.0;
    double lots      = EA_LotsForRisk(ctx.symbol, riskMoney, plan.riskDist);
    //--- re-check with commission included so the all-in loss stays inside the budget
    if(lots > 0.0 && g_eaCfg.commissionPerLotRT > 0.0)
@@ -339,11 +352,33 @@ void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
       return;
    }
 
+   //--- Stage 6: the smallest tradable lot must still fit the risk budget,
+   //--- otherwise the broker minimum forces more risk than the tier allows
+   double minLots = SymbolInfoDouble(ctx.symbol, SYMBOL_VOLUME_MIN);
+   if(minLots > 0.0)
+   {
+      double allInPerLot = EA_LossPerLotAllIn(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
+      double minLotRisk   = allInPerLot * minLots;
+      if(minLotRisk > riskMoney * 1.0001)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s minimum lot %.2f risks %.2f > budget %.2f - skip (minimum lot unsafe)",
+                ctx.symbol, minLots, minLotRisk, riskMoney), true);
+         return;
+      }
+   }
+
    double sl = eaRoundSafe(ctx.symbol, plan.stop);
    double tp = eaRoundSafe(ctx.symbol, plan.target);
    string note = plan.reason;
 
-   if(plan.isLimit && plan.entry > 0.0)
+   //--- limit-only configurations never chase a market fill
+   if(g_eaCfg.useLimitEntry && !(plan.entry > 0.0))
+   {
+      EA_Log(EA_LOG_ERRORS, StringFormat("%s limit-only config without a limit price - entry skipped", ctx.symbol), true);
+      return;
+   }
+
+   if((plan.isLimit || g_eaCfg.useLimitEntry) && plan.entry > 0.0)
    {
       double px = eaRoundSafe(ctx.symbol, plan.entry);
       if(g_eaExec.HasPending(ctx.symbol, plan.dir)) return;
@@ -359,30 +394,6 @@ void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
       }
    }
 }
-
-//+------------------------------------------------------------------+
-//| Main tick                                                        |
-//+------------------------------------------------------------------+
-void EA_Tick()
-{
-   if(!g_eaInitialised || g_eaStrategy == NULL) return;
-   g_eaRisk.OnTick();
-   EA_ManageAll();
-
-   if(g_eaCfg.signalOnNewBarOnly && !EA_IsNewSignalBar()) return;
-   if(!g_eaCfg.signalOnNewBarOnly) g_eaLastSignalBar = iTime(g_eaSymbols[0], g_eaCfg.signalTimeframe, 0);
-
-   SSignalPlan best;
-   SEAContext  bestCtx;
-   if(!EA_SelectPlan(best, bestCtx)) return;
-   EA_ExecutePlan(bestCtx, best);
-   EA_Log(EA_LOG_EVENTS, StringFormat("signal %s %s @ %.5f sl %.5f tp %.5f (%.0f)",
-          bestCtx.symbol, best.dir > 0 ? "BUY" : "SELL", best.entry, best.stop, best.target, best.score));
-}
-
-//+------------------------------------------------------------------+
-//| Optional helpers used by individual EAs                          |
-//+------------------------------------------------------------------+
 
 //--- close everything for this EA (kill switch)
 void EA_FlattenAll(const string reason)
@@ -405,6 +416,55 @@ int EA_CountPendings(const string sym)
    }
    return n;
 }
+
+//+------------------------------------------------------------------+
+//| Main tick                                                        |
+//+------------------------------------------------------------------+
+void EA_Tick()
+{
+   if(!g_eaInitialised || g_eaStrategy == NULL) return;
+   g_eaRisk.OnTick();
+   EA_ManageAll();
+
+   //--- a halt cancels every entry and closes exposure (kill switch)
+   if(g_eaCfg.flattenOnHalt)
+   {
+      static bool haltHandled = false;
+      if(!g_eaRisk.Halted()) haltHandled = false;
+      else if(!haltHandled)
+      {
+         haltHandled = true;
+         EA_Log(EA_LOG_EVENTS, "halt: cancelling entries and flattening (" + g_eaRisk.HaltReason() + ")", true);
+         EA_FlattenAll("halt flatten");
+      }
+   }
+
+   //--- red-folder rule: flat this many minutes before the event
+   if(g_eaCfg.newsFlatBeforeMin > 0.0)
+   {
+      int toNews = EA_NewsMinutesToNext();
+      if(toNews >= 0 && toNews <= (int)MathCeil(g_eaCfg.newsFlatBeforeMin) &&
+         (EA_CountPositions("", false) > 0 || EA_CountPendings("") > 0))
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("red event in %d min: flattening before the release", toNews), true);
+         EA_FlattenAll("pre-news flat");
+      }
+   }
+
+   if(g_eaCfg.signalOnNewBarOnly && !EA_IsNewSignalBar()) return;
+   if(!g_eaCfg.signalOnNewBarOnly) g_eaLastSignalBar = iTime(g_eaSymbols[0], g_eaCfg.signalTimeframe, 0);
+
+   SSignalPlan best;
+   SEAContext  bestCtx;
+   if(!EA_SelectPlan(best, bestCtx)) return;
+   EA_ExecutePlan(bestCtx, best);
+   EA_Log(EA_LOG_EVENTS, StringFormat("signal %s %s @ %.5f sl %.5f tp %.5f (%.0f)",
+          bestCtx.symbol, best.dir > 0 ? "BUY" : "SELL", best.entry, best.stop, best.target, best.score));
+}
+
+//+------------------------------------------------------------------+
+//| Optional helpers used by individual EAs                          |
+//+------------------------------------------------------------------+
 
 #endif // EA_COMMON_MQH
 //+------------------------------------------------------------------+

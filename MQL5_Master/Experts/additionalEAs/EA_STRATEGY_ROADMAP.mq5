@@ -16,7 +16,7 @@
 #property description "Strategy roadmap - Track A preservation, Track B fast-track families"
 #property description "Source: docs/strategy/STRATEGY-ROADMAP.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -81,6 +81,7 @@ public:
       cfg.pendingExpiryMinutes  = 15;
       cfg.timeStopMinutes       = 90;
       cfg.breakEvenAtR          = 1.0;
+      cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
       cfg.partial1AtR           = 0.0;
       cfg.useHwmThrottle        = true;
       cfg.hwmTier1Dd            = 3.0;  cfg.hwmTier1Mult = 0.50;
@@ -100,7 +101,7 @@ public:
             if(!InpGoldSwingPersonalTrack || ctx.symbol != "XAUUSD") return false;
             SDonchianParams d;
             d.Reset();
-            d.lookbackDays = 55; d.stopD1Atr = 3.0; d.targetR = 4.0; d.trailD1Atr = 2.5;
+            d.lookbackDays = 55; d.stopD1Atr = 2.5; d.targetR = 4.0; d.trailD1Atr = 2.5;
             if(!SigDonchian(ctx, d, plan)) return false;
             plan.reason = "PERSONAL-GOLD-SWING " + plan.reason;
             return true;

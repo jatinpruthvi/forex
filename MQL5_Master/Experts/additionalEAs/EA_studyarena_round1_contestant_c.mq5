@@ -16,7 +16,7 @@
 #property description "Round 1C - multi-timeframe SMC confluence with exposure cap"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round1-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

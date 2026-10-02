@@ -16,7 +16,7 @@
 #property description "Round 11F - TRIAD: one edge, three decorrelated expressions at 0.24% per sleeve"
 #property description "Source: docs/research/study_arena/studyarena-round11-contestant-f.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

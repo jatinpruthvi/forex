@@ -16,7 +16,7 @@
 #property description "Round 10 Gemini - M1 delta-sweep scalper with volume divergence and tick acceleration"
 #property description "Source: docs/research/study_arena/studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

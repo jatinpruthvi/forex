@@ -218,10 +218,12 @@ forex/
 
 ---
 
-## 5. Verification Performed (2026-10-01)
+## 5. Verification Performed (2026-10-01, extended 2026-10-02)
 
 * **Static contract validation** - `python3 scripts/check_mql5_source.py MQL5_Master/Experts/additionalEAs/<file>.mq5` on all 65 new EAs: **0 findings** (no MQL4 patterns, event handlers delegate to the engine, no bare `return;` in typed functions, no per-tick alerts, risk checks present).
 * **Whole-tree scan** - 93 findings remain in the repository, all of them pre-existing: the 12 untracked legacy helper EAs, `EA_studyarena_round1_contestant_a.mq5` (§1, finished), `Master_Triad_V1.mq5` and the three legacy `#property strict` includes (`E1_SMC_Core.mqh`, `ExecutionManager.mqh`, `NewsManager.mqh`). None of the 65 implemented EAs contributes a finding.
 * **Generation reproducibility** - every implemented `.mq5` is emitted by `python3 scripts/gen_additional_eas.py`; the generator holds all 65 specs (inputs, `Configure`, `BuildPlan`, `Manage`, helper methods) and must be edited instead of the rendered files.
 * **Shared engine** - all 65 EAs inherit `CEAStrategy` from `MQL5_Master/Include/EACommon.mqh` (settings/clock/session engine, `EACore` + `EASignals` + `EATrade` risk governor, news filter and execution manager). Detectors used include sweep/reclaim, break-retest, range fade, EMA pullback, ORB, Donchian, FVG retest, order-block retest, z-score fade and fractal structure.
+* **Deep bug audit (2026-10-02)** - full static audit of the engine and the 65 generated EAs plus a review of the entry/sizing/exit/rollover paths: **15 defects found and fixed** (unresolvable `#include` path in all 65, four input declarations swallowed by a comment, a duplicate input, an unknown `cfg.beOffsetR` field, a wrong-arity `SpreadGuard` call, a missing minimum-lot risk guard, floating P&L leaking into `ctx.dayRealizedPl`, double-counted qualifying days, London-clock day anchors for the server-day firm rollover, a request cap that halted/flattened instead of blocking, restart-unsafe `riskDist`, swallowed partial-close failures, MQL4 `Symbol()` in four legacy EAs, and the engine/generator/checker not being tracked in git). See `docs/EA_BUG_AUDIT.md` for the evidence table.
+* **New regression checks** - `scripts/check_mql5_source.py` now also verifies include resolution, unknown `SEASettings` fields, duplicate inputs, declarations glued onto comments and MQL4 `Symbol()`. Whole-tree result after the fixes: **92 findings**, all pre-existing structure of the 13 legacy non-engine EAs; the 65 implemented EAs remain at **0 findings**.
 * **Not yet done in this environment** - MetaEditor compilation and Strategy Tester execution require Windows (see §4); the Linux sandbox cannot run `metaeditor64.exe`.

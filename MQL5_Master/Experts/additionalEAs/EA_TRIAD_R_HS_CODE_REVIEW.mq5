@@ -16,7 +16,7 @@
 #property description "TRIAD-R code review - hardened runtime controls from the 12 findings"
 #property description "Source: docs/strategy/TRIAD_R_HS-CODE-REVIEW.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

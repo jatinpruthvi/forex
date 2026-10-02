@@ -16,7 +16,7 @@
 #property description "Round 4E - pair/session map with correlation groups and exact entry steps"
 #property description "Source: docs/research/study_arena/studyarena-round4-contestant-e.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

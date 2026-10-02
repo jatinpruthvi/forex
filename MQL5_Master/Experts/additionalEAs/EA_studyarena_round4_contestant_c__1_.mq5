@@ -16,7 +16,7 @@
 #property description "Round 4C(1) - 23 levers: regime parameter sets, streaks, EOM harvest, CVD and OB scoring"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round4-contestant-c (1).md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

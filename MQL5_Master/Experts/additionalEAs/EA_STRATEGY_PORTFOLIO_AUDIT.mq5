@@ -16,7 +16,7 @@
 #property description "Portfolio audit - three-sleeve session router with per-sleeve R telemetry"
 #property description "Source: docs/strategy/STRATEGY-PORTFOLIO-AUDIT.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -62,8 +62,8 @@ public:
       cfg.maxOpenPositions      = InpMaxPositions;
       cfg.minSecondsBetweenTrades = 180;
       cfg.useHwmThrottle        = true;
-      cfg.hwmTier1Dd            = 3.0;  cfg.hwmTier1Mult = 0.50;
-      cfg.hwmTier2Dd            = InpShutdownDdPct;  cfg.hwmTier2Mult = 0.0;
+      cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;   // 2-4%: half risk
+      cfg.hwmTier2Dd            = 4.0;  cfg.hwmTier2Mult = 0.25;   // 4-5.5%: quarter risk
       cfg.hwmHaltDd             = InpShutdownDdPct;   // strategy shutdown/review
       cfg.sessionStartHour      = 0;   cfg.sessionStartMin = 0;
       cfg.sessionEndHour        = 19;  cfg.sessionEndMin = 30;
@@ -73,6 +73,7 @@ public:
       cfg.pendingExpiryMinutes  = 15;
       cfg.timeStopMinutes       = 60;
       cfg.breakEvenAtR          = 1.0;
+      cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
       cfg.partial1AtR           = 0.0;
       cfg.trailAtR              = 1.0;  cfg.trailDistanceR = 0.5;
       cfg.logLevel              = InpLogLevel;

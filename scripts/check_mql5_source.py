@@ -31,6 +31,7 @@ FORBIDDEN = [
     r"\bMarketInfo\s*\(", r"\bOrderClose\s*\(", r"\bOrderModify\s*\(",
     r"\bOrderSelect\s*\(",
     r"\btry\b", r"\bcatch\b", r"#property\s+strict",
+    r"(?<![\w.])Symbol\s*\(\s*\)",   # MQL4 Symbol(); MQL5 uses _Symbol
     r"\bBid\b(?!\s*[.(])", r"\bAsk\b(?!\s*[.(])",
 ]
 BUILTIN_OK = {
@@ -216,6 +217,65 @@ def check_file(path: Path, defined: set[str], is_ea: bool) -> list[str]:
     return problems
 
 
+
+#--- fields declared in the engine's SEASettings block (used by cfg.<field> checks)
+def _settings_fields() -> set[str]:
+    core = (INCLUDES / "EACore.mqh").read_text(encoding="utf-8", errors="replace")
+    m = re.search(r"struct\s+SEASettings\s*\{(.*?)\n\};", core, re.S)
+    if not m:
+        return set()
+    fields: set[str] = set()
+    for line in m.group(1).splitlines():
+        line = line.split("//")[0].strip()
+        if not line or line.startswith("//"):
+            continue
+        mm = re.match(r"[\w:]+(?:\s*<[^>]*>)?\s+([^;]+);", line)
+        if not mm:
+            continue
+        for part in mm.group(1).split(","):
+            nm = re.match(r"\s*([A-Za-z_]\w*)", part)
+            if nm:
+                fields.add(nm.group(1))
+    return fields
+
+
+SETTINGS_FIELDS = _settings_fields()
+
+
+def check_generation_defects(path: Path, raw: str, src: str) -> list[str]:
+    """Defects the old checker could not see: bad include paths, unknown cfg
+    fields, duplicated inputs and declarations glued onto a // comment."""
+    problems: list[str] = []
+
+    # every quoted #include must resolve exactly as MetaEditor would
+    for m in re.finditer(r'#include\s+"([^"]+)"', raw):
+        inc = m.group(1).replace("\\", "/")
+        cand = (path.parent / inc).resolve()
+        if not cand.exists():
+            problems.append(f"unresolvable #include \"{m.group(1)}\" (-> {cand})")
+
+    # cfg.<field> must exist in SEASettings
+    for m in re.finditer(r"\bcfg\s*\.\s*([A-Za-z_]\w*)", src):
+        if src[m.end():m.end() + 1] == "(":
+            continue                      # method call such as cfg.Reset()
+        if SETTINGS_FIELDS and m.group(1) not in SETTINGS_FIELDS:
+            line = src[:m.start()].count("\n") + 1
+            problems.append(f"unknown SEASettings field cfg.{m.group(1)} at line {line}")
+
+    # no input may be declared twice
+    names = re.findall(r"^\s*input\s+[\w\s]+?\s+([A-Za-z_]\w*)\s*=", src, re.M)
+    dupes = {n for n in names if names.count(n) > 1}
+    for n in sorted(dupes):
+        problems.append(f"duplicate input declaration {n}")
+
+    # every input declaration must start its own line (a trailing // comment
+    # otherwise swallows the next declaration)
+    for m in re.finditer(r"//[^\n]*input\s+[\w\s]+?\s+Inp\w+\s*=", raw):
+        line = raw[:m.start()].count("\n") + 1
+        problems.append(f"input declaration glued onto a comment at line {line}")
+    return problems
+
+
 def main(argv: list[str]) -> int:
     paths = [Path(a).resolve() if Path(a).is_absolute() else (ROOT / a) for a in argv[1:]]
     if not paths:
@@ -227,6 +287,9 @@ def main(argv: list[str]) -> int:
     for p in paths:
         is_ea = p.parent == ADDITIONAL or p.name.startswith("EA_")
         for problem in check_file(p, defined, is_ea):
+            findings.append((p, problem))
+        for problem in check_generation_defects(p, p.read_text(encoding="utf-8", errors="replace"),
+                                                strip_noise(p.read_text(encoding="utf-8", errors="replace"))):
             findings.append((p, problem))
         if is_ea:
             m = re.search(r"input\s+ulong\s+InpMagicNumber\s*=\s*(\d+)",

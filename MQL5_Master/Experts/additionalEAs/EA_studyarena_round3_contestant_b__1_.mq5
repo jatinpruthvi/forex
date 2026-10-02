@@ -16,7 +16,7 @@
 #property description "Round 3B - 17 levers: imbalance entries, MTF stacking, graded ladder exits"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round3-contestant-b (1).md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

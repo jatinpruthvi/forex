@@ -16,7 +16,7 @@
 #property description "Round 5E - executable core: 1% per group, 0.5% basket grid and three named setups"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-e.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

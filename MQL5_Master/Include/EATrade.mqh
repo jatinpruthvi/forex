@@ -45,8 +45,16 @@ int EA_TrackIndex(const ulong ticket)
 void EA_TrackRemoveAt(const int idx)
 {
    if(idx < 0 || idx >= g_eaTrackCount) return;
+   string key = "EA_" + IntegerToString((long)g_eaCfg.magic) + "_R" + IntegerToString((long)g_eaTrack[idx].ticket);
+   if(GlobalVariableCheck(key)) GlobalVariableDel(key);
    for(int i = idx; i < g_eaTrackCount - 1; i++) g_eaTrack[i] = g_eaTrack[i + 1];
    g_eaTrackCount--;
+}
+
+//--- persisted initial risk distance (survives restart/recompile)
+string EA_RiskKey(const ulong ticket)
+{
+   return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_R" + IntegerToString((long)ticket);
 }
 
 //--- sync the tracking table with live positions belonging to this EA
@@ -71,7 +79,10 @@ void EA_SyncTracks()
       g_eaTrack[i].dir      = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? +1 : -1;
       g_eaTrack[i].entry    = PositionGetDouble(POSITION_PRICE_OPEN);
       g_eaTrack[i].sl0      = PositionGetDouble(POSITION_SL);
-      g_eaTrack[i].riskDist = MathAbs(g_eaTrack[i].entry - g_eaTrack[i].sl0);
+      //--- prefer the risk recorded at entry: a stop already moved to BE/+
+      //--- would otherwise make every R-multiple explode after a restart
+      double saved = GlobalVariableCheck(EA_RiskKey(t)) ? GlobalVariableGet(EA_RiskKey(t)) : 0.0;
+      g_eaTrack[i].riskDist = (saved > 0.0) ? saved : MathAbs(g_eaTrack[i].entry - g_eaTrack[i].sl0);
       g_eaTrack[i].beMoved  = false;
       g_eaTrack[i].p1Done   = false;
       g_eaTrack[i].p2Done   = false;
@@ -83,8 +94,10 @@ void EA_SyncTracks()
 //--- restore risk distance for a ticket (used right after entry)
 void EA_TrackSetRisk(const ulong ticket, const double riskDist)
 {
+   if(riskDist <= 0.0) return;
+   GlobalVariableSet(EA_RiskKey(ticket), riskDist);
    int i = EA_TrackIndex(ticket);
-   if(i >= 0 && riskDist > 0.0) g_eaTrack[i].riskDist = riskDist;
+   if(i >= 0) g_eaTrack[i].riskDist = riskDist;
 }
 
 //+------------------------------------------------------------------+
@@ -142,11 +155,19 @@ private:
    double   m_dayStartEquity;
    double   m_weekStartEquity;
    datetime m_weekStamp;         // clock-week the weekly anchor belongs to
+   double   m_monthStartEquity;
+   datetime m_monthStamp;        // clock-month the monthly anchor belongs to
+   int      m_lossStreak;        // consecutive losing closes for this magic
+   ulong    m_lastOutDeal;       // highest close deal already counted
+   datetime m_pauseUntil;        // loss-streak pause expiry (persisted)
+   datetime m_dayLockStamp;      // clock-day currently locked by the state machine
    int      m_requestsToday;     // non-emergency trade request counter
    datetime m_requestsStamp;
    datetime m_dayStamp;          // clock-day the anchors belong to
    double   m_hwm;               // high-water mark equity
    double   m_startBalance;      // first balance ever seen (DD floor anchor)
+   double   m_prevDayFloor;      // min(balance, equity) at the previous clock-day close
+   int      m_qualDays;          // qualifying days banked in this phase
    bool     m_halted;
    string   m_haltReason;
    datetime m_lastTradeTime;
@@ -155,6 +176,10 @@ private:
    string   KeyHwm()   const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_Hwm"; }
    string   KeyStart() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_StartBal"; }
    string   KeyHalt()  const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_HaltDay"; }
+   string   KeyPause()  const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_PauseUntil"; }
+   string   KeyStreak() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_LossStreak"; }
+   string   KeyQual()  const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_QualDays"; }
+   string   KeyQualFloor() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_QualFloor"; }
 
    datetime ClockDayStart() const
    {
@@ -165,15 +190,37 @@ private:
       return StructToTime(dt);
    }
 
+   //--- the day the governor rolls on: broker server day when the firm rule
+   //--- requires it (The5ers: "firm rollover on the server boundary"), else clock day
+   datetime DayStart() const
+   {
+      if(!g_eaCfg.dayAnchorServer) return ClockDayStart();
+      datetime srv = TimeTradeServer();
+      MqlDateTime dt;
+      TimeToStruct(srv, dt);
+      dt.hour = 0; dt.min = 0; dt.sec = 0;
+      return StructToTime(dt);
+   }
+
+   //--- convert a day stamp back to broker server time for history queries
+   datetime DayStartServer(const datetime dayStart) const
+   {
+      return g_eaCfg.dayAnchorServer ? dayStart : EA_ClockToServer(dayStart);
+   }
+
 public:
    CEARiskGovernor() { m_dayStartEquity = 0; m_dayStamp = 0; m_hwm = 0;
                        m_startBalance = 0; m_halted = false; m_haltReason = "";
                        m_lastTradeTime = 0; m_weekStartEquity = 0; m_weekStamp = 0;
-                       m_requestsToday = 0; m_requestsStamp = 0; }
+                       m_requestsToday = 0; m_requestsStamp = 0;
+                       m_prevDayFloor = 0.0; m_qualDays = 0;
+                       m_monthStartEquity = 0.0; m_monthStamp = 0; m_lossStreak = 0;
+                       m_dayLockStamp = 0;
+                       m_lastOutDeal = 0; m_pauseUntil = 0; }
 
    void Init()
    {
-      m_dayStamp = ClockDayStart();
+      m_dayStamp = DayStart();
       double eq  = AccountInfoDouble(ACCOUNT_EQUITY);
       double bal = AccountInfoDouble(ACCOUNT_BALANCE);
 
@@ -187,14 +234,32 @@ public:
       if(eq > m_hwm) { m_hwm = eq; GlobalVariableSet(KeyHwm(), m_hwm); }
 
       //--- day anchor (restart-safe)
+      //--- The5ers-style daily floor measures from the HIGHER of the rollover
+      //--- balance and equity (max(rollover balance, rollover equity)), so the
+      //--- internal anchor uses the conservative value and never understates it.
+      double dayAnchor = MathMax(bal, eq);
       if(GlobalVariableCheck(KeyDay()) && (datetime)GlobalVariableGet(KeyDay() + "_Stamp") == m_dayStamp)
-         m_dayStartEquity = GlobalVariableGet(KeyDay());
+         m_dayStartEquity = MathMax(GlobalVariableGet(KeyDay()), dayAnchor);
       else
       {
-         m_dayStartEquity = eq;
+         m_dayStartEquity = dayAnchor;
          GlobalVariableSet(KeyDay(), m_dayStartEquity);
          GlobalVariableSet(KeyDay() + "_Stamp", (double)m_dayStamp);
       }
+      //--- qualifying-day persistence (never reset by a losing/small day)
+      if(GlobalVariableCheck(KeyQual()))      m_qualDays     = (int)GlobalVariableGet(KeyQual());
+      if(GlobalVariableCheck(KeyQualFloor())) m_prevDayFloor = GlobalVariableGet(KeyQualFloor());
+
+      //--- circuit-breaker persistence
+      if(GlobalVariableCheck(KeyPause()))  m_pauseUntil = (datetime)GlobalVariableGet(KeyPause());
+      if(GlobalVariableCheck(KeyStreak())) m_lossStreak = (int)GlobalVariableGet(KeyStreak());
+
+      //--- monthly anchor
+      m_monthStartEquity = eq;
+      MqlDateTime mdt;
+      TimeToStruct(EA_ClockNow(), mdt);
+      m_monthStamp = StructToTime(mdt) - (datetime)((mdt.day - 1) * 86400);
+
       //--- halted-day persistence
       if(GlobalVariableCheck(KeyHalt()) && (datetime)GlobalVariableGet(KeyHalt()) == m_dayStamp)
       {
@@ -237,17 +302,66 @@ public:
          if(wkPct <= -MathAbs(g_eaCfg.weeklyLossPct))
             Halt(StringFormat("weekly loss limit hit (%.2f%%)", wkPct));
       }
-      if(m_requestsStamp != ClockDayStart())
+      //--- monthly loss stop
+      MqlDateTime ndt;
+      TimeToStruct(EA_ClockNow(), ndt);
+      datetime monthStart = StructToTime(ndt) - (datetime)((ndt.day - 1) * 86400);
+      if(monthStart != m_monthStamp)
       {
-         m_requestsStamp = ClockDayStart();
+         m_monthStamp = monthStart;
+         m_monthStartEquity = eq;
+         EA_Log(EA_LOG_EVENTS, StringFormat("new clock month: monthly anchor reset (%.2f)", eq));
+      }
+      if(g_eaCfg.monthlyLossPct > 0.0 && m_monthStartEquity > 0.0)
+      {
+         double moPct = (eq - m_monthStartEquity) / m_monthStartEquity * 100.0;
+         if(moPct <= -MathAbs(g_eaCfg.monthlyLossPct))
+            Halt(StringFormat("monthly loss limit hit (%.2f%%)", moPct));
+      }
+
+      //--- consecutive-loss pause (circuit breaker)
+      if(m_pauseUntil > 0 && TimeTradeServer() >= m_pauseUntil)
+      {
+         m_pauseUntil = 0;
+         GlobalVariableSet(KeyPause(), 0.0);
+         m_lossStreak = 0;
+         GlobalVariableSet(KeyStreak(), 0.0);
+      }
+      if(m_pauseUntil > TimeTradeServer())
+         Halt(StringFormat("loss-streak pause until %s", TimeToString(m_pauseUntil, TIME_DATE | TIME_MINUTES)));
+      else if(g_eaCfg.lossStreakPause > 0)
+         UpdateLossStreak();
+
+      if(m_requestsStamp != DayStart())
+      {
+         m_requestsStamp = DayStart();
          m_requestsToday = 0;
       }
 
-      datetime dayStart = ClockDayStart();
+      datetime dayStart = DayStart();
       if(dayStart != m_dayStamp)
       {
          m_dayStamp = dayStart;
-         m_dayStartEquity = eq;
+
+         //--- profitable-day rule: min(midnight balance, midnight equity) - previous-day balance
+         double balNow   = AccountInfoDouble(ACCOUNT_BALANCE);
+         double floorNow = MathMin(balNow, eq);
+         if(g_eaCfg.qualifyingDayAmount > 0.0 && m_prevDayFloor > 0.0)
+         {
+            double dayDelta = floorNow - m_prevDayFloor;
+            if(dayDelta >= g_eaCfg.qualifyingDayAmount)
+            {
+               m_qualDays++;
+               GlobalVariableSet(KeyQual(), (double)m_qualDays);
+               EA_Log(EA_LOG_EVENTS, StringFormat("QUALIFYING DAY banked: %d/%d (day change %.2f >= %.2f)",
+                      m_qualDays, g_eaCfg.qualifyingDaysTarget, dayDelta, g_eaCfg.qualifyingDayAmount), true);
+            }
+         }
+         if(m_prevDayFloor > 0.0 || g_eaCfg.qualifyingDayAmount > 0.0)
+            GlobalVariableSet(KeyQualFloor(), floorNow);
+         m_prevDayFloor = floorNow;
+
+         m_dayStartEquity = MathMax(balNow, eq);   // firm floor basis: higher of the two
          m_halted = false;
          m_haltReason = "";
          GlobalVariableSet(KeyDay(), m_dayStartEquity);
@@ -257,10 +371,43 @@ public:
       }
    }
 
+   //--- count consecutive losing closes for this EA from the history
+   void UpdateLossStreak()
+   {
+      datetime from = TimeTradeServer() - (datetime)(30 * 86400);
+      if(!HistorySelect(from, TimeTradeServer() + 60)) return;
+      int total = HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+      {
+         ulong t = HistoryDealGetTicket(i);
+         if(t == 0 || t <= m_lastOutDeal) continue;
+         if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != g_eaCfg.magic) continue;
+         long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+         if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY && entry != DEAL_ENTRY_INOUT) continue;
+         m_lastOutDeal = t;
+         double pl = HistoryDealGetDouble(t, DEAL_PROFIT) +
+                     HistoryDealGetDouble(t, DEAL_SWAP) +
+                     HistoryDealGetDouble(t, DEAL_COMMISSION);
+         if(pl < 0.0) m_lossStreak++;
+         else         m_lossStreak = 0;
+         GlobalVariableSet(KeyStreak(), (double)m_lossStreak);
+         if(m_lossStreak >= g_eaCfg.lossStreakPause)
+         {
+            m_pauseUntil = TimeTradeServer() + (datetime)(MathMax(1, g_eaCfg.lossStreakPauseHours) * 3600);
+            GlobalVariableSet(KeyPause(), (double)m_pauseUntil);
+            EA_Log(EA_LOG_EVENTS, StringFormat("CIRCUIT BREAKER: %d consecutive losses - pausing %d h",
+                   m_lossStreak, g_eaCfg.lossStreakPauseHours), true);
+            Halt("loss-streak pause");
+         }
+      }
+   }
+
    double DayStartEquity() const { return m_dayStartEquity; }
    double Hwm()            const { return m_hwm; }
    double StartBalance()   const { return m_startBalance; }
    bool   Halted()         const { return m_halted; }
+   int    QualifyingDays() const { return m_qualDays; }
+   void   ResetQualifyingDays() { m_qualDays = 0; GlobalVariableSet(KeyQual(), 0.0); }
    string HaltReason()     const { return m_haltReason; }
 
    void Halt(const string reason)
@@ -278,7 +425,7 @@ public:
    double DayPl()
    {
       double realized = 0.0;
-      datetime from = EA_ClockToServer(m_dayStamp);
+      datetime from = DayStartServer(m_dayStamp);
       if(HistorySelect(from, TimeTradeServer() + 60))
       {
          int deals = HistoryDealsTotal();
@@ -297,10 +444,57 @@ public:
       return realized + EA_FloatingPl("", false);
    }
 
+   //--- realized-only P/L for the clock day (completed trades; excludes floating)
+   double DayRealizedPl()
+   {
+      double realized = 0.0;
+      datetime from = DayStartServer(m_dayStamp);
+      if(HistorySelect(from, TimeTradeServer() + 60))
+      {
+         int deals = HistoryDealsTotal();
+         for(int i = 0; i < deals; i++)
+         {
+            ulong t = HistoryDealGetTicket(i);
+            if(t == 0) continue;
+            if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != g_eaCfg.magic) continue;
+            long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+            if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY && entry != DEAL_ENTRY_INOUT) continue;
+            realized += HistoryDealGetDouble(t, DEAL_PROFIT) +
+                        HistoryDealGetDouble(t, DEAL_SWAP) +
+                        HistoryDealGetDouble(t, DEAL_COMMISSION);
+         }
+      }
+      return realized;
+   }
+
+   //--- completed trades for the clock day that ended net-negative
+   int LosingTradesToday()
+   {
+      int n = 0;
+      datetime from = DayStartServer(m_dayStamp);
+      if(HistorySelect(from, TimeTradeServer() + 60))
+      {
+         int deals = HistoryDealsTotal();
+         for(int i = 0; i < deals; i++)
+         {
+            ulong t = HistoryDealGetTicket(i);
+            if(t == 0) continue;
+            if((ulong)HistoryDealGetInteger(t, DEAL_MAGIC) != g_eaCfg.magic) continue;
+            long entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+            if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY && entry != DEAL_ENTRY_INOUT) continue;
+            double pl = HistoryDealGetDouble(t, DEAL_PROFIT) +
+                        HistoryDealGetDouble(t, DEAL_SWAP) +
+                        HistoryDealGetDouble(t, DEAL_COMMISSION);
+            if(pl < 0.0) n++;
+         }
+      }
+      return n;
+   }
+
    int TradesToday()
    {
       int n = 0;
-      datetime from = EA_ClockToServer(m_dayStamp);
+      datetime from = DayStartServer(m_dayStamp);
       if(HistorySelect(from, TimeTradeServer() + 60))
       {
          int deals = HistoryDealsTotal();
@@ -390,6 +584,40 @@ public:
    }
 
    //--- full pre-trade gate (called by the engine before every entry)
+   string   KeyDayLock() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_DayLocked"; }
+
+   //--- daily state machine: first net-positive exit, or N completed trades, locks the day
+   void DayLockTick(const SEAContext &ctx)
+   {
+      datetime today = DayStart();
+      if(m_dayLockStamp != today)
+      {
+         if(GlobalVariableCheck(KeyDayLock()) &&
+            (datetime)GlobalVariableGet(KeyDayLock()) == today)
+            m_dayLockStamp = today;                 // survives a recompile mid-day
+         else
+            m_dayLockStamp = 0;
+      }
+      if(m_dayLockStamp == today) return;
+      if(ctx.openPositionsAll > 0) return;         // only a completed trade can lock
+      bool lock = false;
+      if(g_eaCfg.dayLockFirstWin && ctx.tradesToday >= 1 && DayRealizedPl() > 0.0)
+         lock = true;
+      if(g_eaCfg.dayLockAfterTrades > 0 && ctx.tradesToday >= g_eaCfg.dayLockAfterTrades)
+         lock = true;
+      if(g_eaCfg.dayLockAfterLosses > 0 && LosingTradesToday() >= g_eaCfg.dayLockAfterLosses)
+         lock = true;
+      if(lock)
+      {
+         m_dayLockStamp = today;
+         GlobalVariableSet(KeyDayLock(), (double)today);
+         EA_Log(EA_LOG_EVENTS, StringFormat("DAY LOCKED: %d completed trade(s), realised %.2f - no new risk today",
+                ctx.tradesToday, DayRealizedPl()), true);
+      }
+   }
+
+   bool DayLocked() const { return m_dayLockStamp != 0; }
+
    bool CanOpen(const SEAContext &ctx)
    {
       if(!ctx.terminalReady)            return false;
@@ -408,20 +636,24 @@ public:
       if(EffectiveRiskPct() <= 0.0)     return false;
       if(g_eaCfg.maxRequestsPerDay > 0 && m_requestsToday >= g_eaCfg.maxRequestsPerDay)
       {
-         Halt(StringFormat("daily trade-request cap reached (%d)", m_requestsToday));
+         //--- blocks NEW entries only; safety closes/cancels stay permitted
+         EA_Log(EA_LOG_EVENTS, StringFormat("daily trade-request cap reached (%d) - no new entries today",
+                m_requestsToday), true);
          return false;
       }
       if(EA_NewsBlocked())              return false;
       if(g_eaCfg.sessionStartHour >= 0 && !ctx.inSession) return false;
       if(g_eaCfg.noTradeAfterHour >= 0 && ctx.pastNoTradeHour) return false;
       if(ctx.fridayCloseZone)           return false;
+      DayLockTick(ctx);
+      if(DayLocked())                   return false;
       return true;
    }
 
    void NoteTrade()
    {
       m_lastTradeTime = TimeTradeServer();
-      if(m_requestsStamp != ClockDayStart()) { m_requestsStamp = ClockDayStart(); m_requestsToday = 0; }
+      if(m_requestsStamp != DayStart()) { m_requestsStamp = DayStart(); m_requestsToday = 0; }
       m_requestsToday++;
    }
 
@@ -570,6 +802,18 @@ public:
       return true;
    }
 
+   //--- can this position be split at pct without falling below the broker minimum?
+   bool CanPartial(const ulong ticket, const double pct)
+   {
+      if(!PositionSelectByTicket(ticket)) return false;
+      double vol  = PositionGetDouble(POSITION_VOLUME);
+      string sym  = PositionGetString(POSITION_SYMBOL);
+      double minV = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+      double part = EA_NormalizeVolume(sym, vol * pct / 100.0);
+      double remain = vol - part;
+      return (part >= minV - 1e-9 && remain >= minV - 1e-9);
+   }
+
    bool ClosePartial(const ulong ticket, const double pct)
    {
       if(!PositionSelectByTicket(ticket)) return false;
@@ -672,6 +916,16 @@ double EA_OpenRiskMoney()
    return total;
 }
 
+int EA_QualifyingDays()
+{
+   return g_eaRisk.QualifyingDays();
+}
+
+void EA_ResetQualifyingDays()
+{
+   g_eaRisk.ResetQualifyingDays();
+}
+
 double EA_OpenRiskPct()
 {
    double eq = AccountInfoDouble(ACCOUNT_EQUITY);
@@ -717,6 +971,30 @@ double eaRoundSafe(const string sym, const double price)
 }
 
 
+//--- pending-order hygiene: cancel a resting entry when price has already
+//--- travelled +1R from the limit without filling (the trade premise is spent)
+void EA_PendingHygiene(const SEAContext &ctx)
+{
+   for(int o = OrdersTotal() - 1; o >= 0; o--)
+   {
+      ulong t = OrderGetTicket(o);
+      if(t == 0) continue;
+      if((ulong)OrderGetInteger(ORDER_MAGIC) != g_eaCfg.magic) continue;
+      string sym = OrderGetString(ORDER_SYMBOL);
+      if(sym != ctx.symbol) continue;
+      long type = OrderGetInteger(ORDER_TYPE);
+      if(type != ORDER_TYPE_BUY_LIMIT && type != ORDER_TYPE_SELL_LIMIT &&
+         type != ORDER_TYPE_BUY_STOP  && type != ORDER_TYPE_SELL_STOP) continue;
+      double px = OrderGetDouble(ORDER_PRICE_OPEN);
+      double sl = OrderGetDouble(ORDER_SL);
+      double risk = MathAbs(px - sl);
+      if(risk <= 0.0) continue;
+      bool isBuy = (type == ORDER_TYPE_BUY_LIMIT || type == ORDER_TYPE_BUY_STOP);
+      if(isBuy  && (ctx.bid - px) >= risk) g_eaExec.CancelPending(sym, "+1R without fill");
+      if(!isBuy && (px - ctx.ask) >= risk) g_eaExec.CancelPending(sym, "+1R without fill");
+   }
+}
+
 void EA_ManagePositions(const SEAContext &ctx)
 {
    EA_SyncTracks();
@@ -729,14 +1007,13 @@ void EA_ManagePositions(const SEAContext &ctx)
       if(!PositionSelectByTicket(t)) continue;
       int    dir  = g_eaTrack[i].dir;
       double risk = g_eaTrack[i].riskDist;
-      if(risk <= 0.0) continue;
 
       double entry = PositionGetDouble(POSITION_PRICE_OPEN);
       double cur   = PositionGetDouble(POSITION_PRICE_CURRENT);
       double sl    = PositionGetDouble(POSITION_SL);
       double tp    = PositionGetDouble(POSITION_TP);
       double moveR = (dir > 0) ? (cur - entry) : (entry - cur);
-      double rMult = moveR / risk;
+      double rMult = (risk > 0.0) ? moveR / risk : 0.0;
       double point = EA_Point(sym);
 
       //--- time stop first (premise dead)
@@ -751,22 +1028,42 @@ void EA_ManagePositions(const SEAContext &ctx)
          }
       }
 
+      if(risk <= 0.0) continue;      // R-based exits need a known risk distance
+
       //--- partial exits
       if(g_eaCfg.partial1AtR > 0.0 && !g_eaTrack[i].p1Done && rMult >= g_eaCfg.partial1AtR)
       {
          if(g_eaExec.ClosePartial(t, g_eaCfg.partial1Pct)) g_eaTrack[i].p1Done = true;
-         else g_eaTrack[i].p1Done = true;   // volume cannot split - treat as done
+         else if(!g_eaExec.CanPartial(t, g_eaCfg.partial1Pct)) g_eaTrack[i].p1Done = true; // unsplittable
+         // else: transient close failure - retry next tick
       }
       if(g_eaCfg.partial2AtR > 0.0 && !g_eaTrack[i].p2Done && rMult >= g_eaCfg.partial2AtR)
       {
          if(g_eaExec.ClosePartial(t, g_eaCfg.partial2Pct)) g_eaTrack[i].p2Done = true;
-         else g_eaTrack[i].p2Done = true;
+         else if(!g_eaExec.CanPartial(t, g_eaCfg.partial2Pct)) g_eaTrack[i].p2Done = true; // unsplittable
+         // else: transient close failure - retry next tick
       }
 
       //--- break-even move
-      if(g_eaCfg.breakEvenAtR > 0.0 && !g_eaTrack[i].beMoved && rMult >= g_eaCfg.breakEvenAtR)
+      bool beTrigger = false;
+      if(g_eaCfg.breakEvenAtR > 0.0 && !g_eaTrack[i].beMoved)
       {
-         double be = entry + dir * (point * 2.0);      // 2 points past entry
+         if(g_eaCfg.breakEvenOnBarClose)
+         {
+            //--- doc policy: only a COMPLETED bar beyond +1R confirms the move
+            MqlRates br[];
+            if(EA_Rates(sym, g_eaCfg.signalTimeframe, 1, 2, br) >= 2)
+            {
+               double closedMove = (dir > 0) ? (br[1].close - entry) : (entry - br[1].close);
+               beTrigger = (closedMove >= g_eaCfg.breakEvenAtR * risk);
+            }
+         }
+         else
+            beTrigger = (rMult >= g_eaCfg.breakEvenAtR);
+      }
+      if(beTrigger && !g_eaTrack[i].beMoved)
+      {
+         double be = entry + dir * MathMax(point * 2.0, g_eaCfg.beOffsetR * risk); // BE (+xR if set)
          double newSl = eaRoundSafe(sym, be);
          if((dir > 0 && (sl <= 0.0 || newSl > sl)) || (dir < 0 && (sl <= 0.0 || newSl < sl)))
          {

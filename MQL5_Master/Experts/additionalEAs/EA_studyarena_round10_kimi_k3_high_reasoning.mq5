@@ -16,7 +16,7 @@
 #property description "Round 10 Kimi - SWEEP-1 multi-session engine with a score gate and drawdown throttle"
 #property description "Source: docs/research/study_arena/studyarena-round10-kimi-k3-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

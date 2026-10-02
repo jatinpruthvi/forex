@@ -16,7 +16,7 @@
 #property description "Round 12 Fable - SWEEP-1 the 10-year machine with six entry gates and flow checks"
 #property description "Source: docs/research/study_arena/studyarena-round12-claude-fable-5-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

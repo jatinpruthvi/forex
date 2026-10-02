@@ -16,7 +16,7 @@
 #property description "Round 10 Fable - M1 session-open sweep scalper with a ruthless 30-minute exit"
 #property description "Source: docs/research/study_arena/studyarena-round10-claude-fable-5-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -69,7 +69,7 @@ public:
 
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
-      if(!SpreadGuard(ctx, plan)) return false;
+      if(!SpreadGuard(ctx)) return false;
 
       SSweepParams p;
       p.Reset();

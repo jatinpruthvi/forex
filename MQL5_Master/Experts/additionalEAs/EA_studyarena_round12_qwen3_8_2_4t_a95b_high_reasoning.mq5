@@ -16,7 +16,7 @@
 #property description "Round 12 Qwen - SWEEP-1 definitive with session flat times and overlap discipline"
 #property description "Source: docs/research/study_arena/studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

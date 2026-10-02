@@ -16,7 +16,7 @@
 #property description "Round 4C - 24-hour matrix: Asian grid, London Judas swing, NY pullback"
 #property description "Source: docs/research/study_arena/studyarena-round4-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

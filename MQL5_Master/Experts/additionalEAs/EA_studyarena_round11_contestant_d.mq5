@@ -16,7 +16,7 @@
 #property description "Round 11D - veteran spec: 0.4-0.5% cap, -2% throttle steps and three decorrelated sleeves"
 #property description "Source: docs/research/study_arena/studyarena-round11-contestant-d.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

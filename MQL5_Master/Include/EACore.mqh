@@ -63,10 +63,25 @@ struct SEASettings
    string               symbols;               // comma separated list
    bool                 requireSupportedList;  // fail init if symbol not in list
    //--- risk
-   double               riskPct;               // base risk per trade (% of equity)
+   double               riskPct;               // base risk per trade (% of equity/balance)
+   bool                 riskBaseBalance;       // size on balance instead of equity
+   double               qualifyingDayAmount;   // cash: a day counts when the closed-day delta reaches this
+   int                  qualifyingDaysTarget;  // required qualifying days per phase (0 = off)
    double               maxSpreadPoints;       // 0 = disabled
    double               dailyLossPct;          // halt day at -x%  (0 = disabled)
    double               weeklyLossPct;         // halt week at -x% (0 = disabled)
+   bool                 flattenOnHalt;        // close positions and cancel entries when halted
+   bool                 oneEntryAccountWide;  // one working entry/open position across the EA
+   bool                 riskBaseInitialBalance; // size off a fixed phase-initial balance
+   double               riskInitialBalance;   // the fixed phase-initial balance (0 = off)
+   double               newsFlatBeforeMin;    // flatten this many minutes before a red event
+   bool                 dayAnchorServer;      // firm rollover uses the broker SERVER day, not the clock day
+   bool                 dayLockFirstWin;      // lock the day after a net-positive first exit
+   int                  dayLockAfterTrades;   // lock the day after N completed trades (0 = off)
+   int                  dayLockAfterLosses;   // lock the day after N losing completed trades (0 = off)
+   double               monthlyLossPct;        // halt month at -x% (0 = disabled)
+   int                  lossStreakPause;      // consecutive losses that trigger a pause (0 = off)
+   int                  lossStreakPauseHours; // pause length in hours
    double               commissionPerLotRT;    // broker round-turn commission per lot
    double               maxCostR;              // reject if all-in cost > xR (0 = off)
    int                  maxRequestsPerDay;     // trade-request rate limit (0 = off)
@@ -87,6 +102,7 @@ struct SEASettings
    //--- time
    ENUM_EA_CLOCK        clock;
    int                  serverWinterGmtOffset; // server clock minus GMT in winter
+   bool                 serverOffsetAuto;      // read the live server-GMT offset instead
    bool                 serverFollowsEuDst;    // +1h in EU summer time
    int                  noTradeAfterHour;      // London hour, -1 disabled
    int                  noTradeAfterMin;
@@ -106,7 +122,9 @@ struct SEASettings
    int                  deviationPoints;
    int                  maxRetries;
    //--- exits (engine level, applied in addition to strategy Manage())
+   bool                 breakEvenOnBarClose;     // require a completed bar beyond +1R
    double               breakEvenAtR;          // 0 = disabled
+   double               beOffsetR;             // stop lands at BE + xR instead of exactly entry
    double               partial1AtR;           // 0 = disabled
    double               partial1Pct;
    double               partial2AtR;
@@ -116,6 +134,7 @@ struct SEASettings
    int                  timeStopMinutes;       // 0 = disabled
    //--- safety
    bool                 newsFilter;
+   bool                 newsFailClosed;        // no usable calendar -> refuse new entries
    string               newsFile;              // MQL5/Files/<name>.csv
    int                  newsBeforeMin;
    int                  newsAfterMin;
@@ -133,9 +152,24 @@ struct SEASettings
       symbols                = "";
       requireSupportedList   = false;
       riskPct                = 0.5;
+      riskBaseBalance        = false;
+      qualifyingDayAmount    = 0.0;
+      qualifyingDaysTarget   = 0;
       maxSpreadPoints        = 0.0;
       dailyLossPct           = 0.0;
       weeklyLossPct          = 0.0;
+      flattenOnHalt          = false;
+      oneEntryAccountWide    = false;
+      riskBaseInitialBalance = false;
+      riskInitialBalance     = 0.0;
+      newsFlatBeforeMin      = 0.0;
+      dayAnchorServer        = false;
+      dayLockFirstWin        = false;
+      dayLockAfterTrades     = 0;
+      dayLockAfterLosses     = 0;
+      monthlyLossPct         = 0.0;
+      lossStreakPause        = 0;
+      lossStreakPauseHours   = 24;
       commissionPerLotRT     = 0.0;
       maxCostR               = 0.0;
       maxRequestsPerDay      = 0;
@@ -152,6 +186,7 @@ struct SEASettings
       hwmHaltDd              = 6.0;
       clock                  = EA_CLOCK_LONDON;
       serverWinterGmtOffset  = 2;
+      serverOffsetAuto       = false;
       serverFollowsEuDst     = true;
       noTradeAfterHour       = -1;   noTradeAfterMin = 0;
       fridayFlat             = false;
@@ -165,12 +200,15 @@ struct SEASettings
       pendingExpiryMinutes   = 15;
       deviationPoints        = 20;
       maxRetries             = 3;
+      breakEvenOnBarClose    = false;
       breakEvenAtR           = 0.0;
+      beOffsetR              = 0.0;
       partial1AtR            = 0.0;  partial1Pct = 50.0;
       partial2AtR            = 0.0;  partial2Pct = 30.0;
       trailAtR               = 0.0;  trailDistanceR = 0.5;
       timeStopMinutes        = 0;
       newsFilter             = false;
+      newsFailClosed         = false;
       newsFile               = "";
       newsBeforeMin          = 30;
       newsAfterMin           = 30;
@@ -353,6 +391,12 @@ bool EA_IsEuDst(const datetime utc)
 //--- server clock offset from GMT (hours), DST aware
 int EA_ServerGmtOffsetHours()
 {
+   //--- the doc rule: query MT5 server time, never hard-code the offset
+   if(g_eaCfg.serverOffsetAuto)
+   {
+      long diff = (long)TimeTradeServer() - (long)TimeGMT();
+      return (int)MathRound((double)diff / 3600.0);
+   }
    int winter = g_eaCfg.serverWinterGmtOffset;
    if(!g_eaCfg.serverFollowsEuDst) return winter;
    // first approximation: assume winter offset, then refine once
@@ -499,11 +543,29 @@ void EA_LoadNewsCache()
    EA_Log(EA_LOG_EVENTS, StringFormat("news cache loaded: %d blocking events", g_eaNewsCount));
 }
 
+//--- minutes until the next blocking red event (-1 when none is pending)
+int EA_NewsMinutesToNext()
+{
+   if(!g_eaCfg.newsFilter) return -1;
+   EA_LoadNewsCache();
+   if(g_eaNewsCount == 0) return -1;
+   datetime nowUtc = EA_ServerToUtc(TimeTradeServer());
+   long best = -1;
+   for(int i = 0; i < g_eaNewsCount; i++)
+   {
+      long secs = (long)g_eaNewsTimes[i] - (long)nowUtc;
+      if(secs < 0) continue;
+      if(best < 0 || secs < best) best = secs;
+   }
+   if(best < 0) return -1;
+   return (int)MathFloor((double)best / 60.0);
+}
+
 bool EA_NewsBlocked()
 {
    if(!g_eaCfg.newsFilter) return false;
    EA_LoadNewsCache();
-   if(g_eaNewsCount == 0) return false;
+   if(g_eaNewsCount == 0) return g_eaCfg.newsFailClosed;   // fail closed without a calendar
    datetime nowUtc = EA_ServerToUtc(TimeTradeServer());
    for(int i = 0; i < g_eaNewsCount; i++)
    {
@@ -573,12 +635,14 @@ struct SEAContext
    double      equity, balance;
    double      dayStartEquity;
    double      riskPct;             // after daily / HWM throttles
+   int         qualifyingDays;
    bool        riskHalted;          // no new risk today
    string      riskHaltReason;
    double      floatingPl;          // on this symbol+magic
    int         openPositions;       // this symbol+magic
    int         openPositionsAll;    // all symbols of this EA
-   double      dayRealizedPl;
+   double      dayRealizedPl;       // completed trades only (no floating)
+   double      dayPl;               // realized + floating
    int         tradesToday;
    bool        newsBlocked;
    bool        terminalReady;

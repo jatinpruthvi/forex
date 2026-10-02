@@ -16,7 +16,7 @@
 #property description "Round 11C - decade-honest risk throttle: halve at -3%, quarter at -5%, month over at -5.5%"
 #property description "Source: docs/research/study_arena/studyarena-round11-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 1B - SMC order-block EA with break/retest confirmation"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round1-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

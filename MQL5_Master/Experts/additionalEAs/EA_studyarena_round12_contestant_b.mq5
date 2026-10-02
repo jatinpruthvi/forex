@@ -16,7 +16,7 @@
 #property description "Round 12B - three-tier DD throttle on top of the programmatic M5 sweep-reclaim"
 #property description "Source: docs/research/study_arena/studyarena-round12-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

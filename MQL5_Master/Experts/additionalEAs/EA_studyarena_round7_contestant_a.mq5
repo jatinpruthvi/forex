@@ -16,7 +16,7 @@
 #property description "Round 7A - GER40 cash open gap fade: 20-80 point filter, 1.5x stop, exact gap fill"
 #property description "Source: docs/research/study_arena/studyarena-round7-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

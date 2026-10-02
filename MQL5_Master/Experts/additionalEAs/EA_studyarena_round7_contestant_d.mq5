@@ -16,7 +16,7 @@
 #property description "Round 7D - regime-switched compression breakout with adaptive stops"
 #property description "Source: docs/research/study_arena/studyarena-round7-contestant-d.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 4B(1) - imbalance engine with correlated heat, meta-labeling and recycling"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round4-contestant-b (1).md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

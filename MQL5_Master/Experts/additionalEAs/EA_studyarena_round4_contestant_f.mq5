@@ -16,7 +16,7 @@
 #property description "Round 4F - three sleeves: London break+retest, filtered Asian grid, NY momentum"
 #property description "Source: docs/research/study_arena/studyarena-round4-contestant-f.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

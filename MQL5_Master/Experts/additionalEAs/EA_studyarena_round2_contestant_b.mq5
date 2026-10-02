@@ -16,7 +16,7 @@
 #property description "Round 2B - portfolio of five return engines with graded conviction sizing"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round2-contestant-b.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

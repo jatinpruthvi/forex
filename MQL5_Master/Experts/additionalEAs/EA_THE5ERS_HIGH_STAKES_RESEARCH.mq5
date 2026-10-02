@@ -16,7 +16,7 @@
 #property description "The5ers High Stakes research - internal limit ladder + news jurisdiction"
 #property description "Source: docs/prop_firm/THE5ERS-HIGH-STAKES-RESEARCH.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
@@ -44,6 +44,9 @@ input double InpAbsOpenRiskCapPct = 1.00;  // Absolute technical open-risk cap
 input bool   InpNewsGate          = true;  // Red-folder news blackout
 input int    InpNewsBeforeMin     = 30;    // Cancel/protect before the event
 input int    InpNewsAfterMin      = 30;    // No retries after the event
+input double InpAccountSize       = 2500.0; // Account size for the $150 payout gate
+input double InpQualifyingDayCash   = 12.50;  // 0.5% of $2,500: qualifying-day amount
+input int    InpQualifyingDayCount  = 3;      // Qualifying days required per phase
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers High Stakes research - internal limit ladder + news jurisdiction
@@ -61,6 +64,7 @@ public:
       cfg.signalTimeframe       = PERIOD_M15;
       cfg.clock                 = EA_CLOCK_LONDON;
       cfg.serverWinterGmtOffset = InpServerGmtOffset;
+      cfg.serverOffsetAuto      = true;                       // live offset, never hard-coded
       cfg.maxSpreadPoints       = InpMaxSpreadPoints;
       cfg.dailyLossPct          = InpDailyLossPct;            // internal 0.75-1.0%
       cfg.weeklyLossPct         = InpWeeklyStopPct;           // internal 2.0-2.5%
@@ -83,8 +87,25 @@ public:
       cfg.newsFile              = "the5ers_red_news.csv";
       cfg.newsBeforeMin         = InpNewsBeforeMin;
       cfg.newsAfterMin          = InpNewsAfterMin;
+      cfg.newsFailClosed        = true;                       // bad calendar = no new entries
+      cfg.qualifyingDayAmount   = InpQualifyingDayCash;
+      cfg.qualifyingDaysTarget  = InpQualifyingDayCount;
       cfg.timeStopMinutes       = 45;
       cfg.breakEvenAtR          = 1.0;
+      cfg.breakEvenOnBarClose   = true;                    // only a completed bar confirms +1R
+      //--- LOCKED: phase-initial balance is the sizing base; one working entry account-wide
+      cfg.riskBaseInitialBalance = true;  cfg.riskInitialBalance = InpAccountSize;
+      cfg.oneEntryAccountWide    = true;   // no second entry while one is working or open
+      cfg.flattenOnHalt          = true;   // governor halt = cancel entries + close
+      cfg.newsFlatBeforeMin      = 15.0;   // flat 15 min before a relevant red event
+
+      cfg.dayAnchorServer        = true;   // firm rollover on the SERVER day, never the clock day
+      cfg.dayLockFirstWin        = true;   // any first net-positive exit locks the day
+
+      cfg.dayLockAfterTrades     = 2;      // two completed sequential trades end the day
+
+
+      cfg.maxRetries           = 1;                        // one revalidated retry only
       cfg.logLevel              = InpLogLevel;
    }
 

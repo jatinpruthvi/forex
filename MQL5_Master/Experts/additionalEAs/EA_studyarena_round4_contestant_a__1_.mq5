@@ -16,7 +16,7 @@
 #property description "Round 4A(1) - leverage layer: liquidity sniper, gamma scalp and asymmetric exit"
 #property description "Source: docs_v1/docs/coreIdea/studyarena-round4-contestant-a (1).md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

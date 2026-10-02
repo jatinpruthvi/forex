@@ -16,7 +16,7 @@
 #property description "Round 11E - SWEEP-1 veteran: score gate, DD-tier risk ladder and Friday flat"
 #property description "Source: docs/research/study_arena/studyarena-round11-contestant-e.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

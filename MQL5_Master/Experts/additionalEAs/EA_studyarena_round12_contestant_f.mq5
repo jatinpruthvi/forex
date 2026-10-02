@@ -16,7 +16,7 @@
 #property description "Round 12F - SOS-SWEEP veteran: five gates, one-position correlation rule, 1.2% heat cap"
 #property description "Source: docs/research/study_arena/studyarena-round12-contestant-f.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

@@ -16,7 +16,7 @@
 #property description "Round 8A - London sweep-and-reclaim on borrowed capital with a 6% monthly stop"
 #property description "Source: docs/research/study_arena/studyarena-round8-contestant-a.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

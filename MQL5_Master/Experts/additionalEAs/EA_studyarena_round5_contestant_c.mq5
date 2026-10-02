@@ -16,7 +16,7 @@
 #property description "Round 5C - honest-math London sweep with chandelier trail and fuel filter"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-c.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |

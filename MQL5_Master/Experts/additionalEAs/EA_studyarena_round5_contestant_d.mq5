@@ -16,7 +16,7 @@
 #property description "Round 5D - 3-shift portfolio with an un-blow-up-able equal-lot grid"
 #property description "Source: docs/research/study_arena/studyarena-round5-contestant-d.md"
 
-#include "..\Include\EACommon.mqh"
+#include "..\..\Include\EACommon.mqh"
 
 //+------------------------------------------------------------------+
 //| Inputs                                                           |
