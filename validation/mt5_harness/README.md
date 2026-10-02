@@ -77,6 +77,41 @@ PF &lt; 1.10, DD ≥ 10 %, expectancy ≤ 0. All overridable:
 python3 validation/mt5_harness/parse_results.py --min-trades 30 --min-pf 1.2 --max-dd 15
 ```
 
+## 5. Running the EAs for real — one attach, not 65
+
+Validation is chart-free (above). *Running* them is the part where MT5's
+one-EA-per-chart rule bites, so the same folder also generates a launcher:
+
+```bash
+# 1. in MT5: attach any EA to a chart (Algo Trading ON)
+#    -> right-click -> Template -> Save Template -> "EA_Launch_Base"
+# 2. stamp 65 templates from that one file (names + inputs rewritten):
+python3 validation/mt5_harness/gen_launcher.py \
+    --base-tpl "<data>\MQL5\Profiles\Templates\EA_Launch_Base.tpl" \
+    --groups 1
+# 3. copy validation/mt5_harness/out/launch/*  ->  <data>\MQL5\Files\EA_Launch\
+```
+
+Then attach **`MQL5_Master/Scripts/PortfolioLauncher.mq5`** to one chart
+(Algo Trading ON, "Allow Algo Trading" ticked) and press OK:
+
+| Mode | Effect |
+| --- | --- |
+| START | opens one chart per EA and attaches it from its template; skips EAs that are already running, so it is safe to re-run |
+| STOP | closes every chart that is running one of these EAs |
+| DRYRUN | reports what it would do, changes nothing |
+
+Everything is logged to `MQL5\Files\EA_Launch\launch_status.csv` and the
+Experts tab. `--groups N` splits the plan into N groups so you can spread the
+load over N terminals (`InpGroup=<n>` each). MT5 gives every EA its own thread,
+so a single terminal handles 65 EAs fine (chart limit is 200); groups are for
+memory/UI/stability, not for CPU.
+
+Permission note (MT5 rule, not ours): an EA attached via `ChartApplyTemplate`
+can only trade if the **calling** program has trade permission. That is why
+START refuses to run with Algo Trading off — it would give you 65 charts of
+mute EAs.
+
 ## What the sweep does and does not prove
 
 * It **does** prove each EA compiles, initialises, takes trades under its gates,
@@ -89,6 +124,5 @@ python3 validation/mt5_harness/parse_results.py --min-trades 30 --min-pf 1.2 --m
   with less tick precision than the tested symbol. For finalists, re-run with
   `--model 4` (every tick based on real ticks).
 
-See `docs/EA_VALIDATION_PLAYBOOK.md` for the full 3-stage plan (sweep →
-real-ticks finalists → forward demo) and for the live-deployment options once
-EAs pass.
+See `docs/EA_VALIDATION_PLAYBOOK.md` for the full plan (sweep → real-ticks
+finalists → forward demo) and for the one-chart *portfolio EA* option.
