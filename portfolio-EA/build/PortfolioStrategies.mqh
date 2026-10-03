@@ -11017,4 +11017,917 @@ public:
 
 //+------------------------------------------------------------------+
 
+//--- NOTE: the wrappers below call PortEntryGate()/tags; the including
+//--- translation unit must declare those hooks before this include.
+
+//--- portfolio wrapper for EA_FINAL_OPTIMUM_STRATEGY (magic 3101, tag P3101|)
+class P3101_Port : public P3101_CFinalOptimum
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3101_CFinalOptimum::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3101|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_CHALLENGE_STRATEGY_V2 (magic 3102, tag P3102|)
+class P3102_Port : public P3102_CThe5ersV2
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3102_CThe5ersV2::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3102|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_CHALLENGE_OPTIMIZATION (magic 3103, tag P3103|)
+class P3103_Port : public P3103_CChallengeOptimization
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3103_CChallengeOptimization::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3103|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_2_5K_CHALLENGE_PLAN (magic 3104, tag P3104|)
+class P3104_Port : public P3104_CChallengePlan25K
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3104_CChallengePlan25K::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3104|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_CHALLENGE_V2_REVALIDATION (magic 3105, tag P3105|)
+class P3105_Port : public P3105_CChallengeV2Revalidation
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3105_CChallengeV2Revalidation::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3105|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST (magic 3106, tag P3106|)
+class P3106_Port : public P3106_CPrecodeChecklist
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3106_CPrecodeChecklist::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3106|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_Pr10_Roi_Improvements (magic 3112, tag P3112|)
+class P3112_Port : public P3112_CPr10RoiImprovements
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3112_CPr10RoiImprovements::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3112|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_HIGH_STAKES_RESEARCH (magic 3107, tag P3107|)
+class P3107_Port : public P3107_CHighStakesResearch
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3107_CHighStakesResearch::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3107|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_PROPOSAL_REVIEW (magic 3108, tag P3108|)
+class P3108_Port : public P3108_CProposalReview
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3108_CProposalReview::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3108|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW (magic 3109, tag P3109|)
+class P3109_Port : public P3109_CSuggestionReview
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3109_CSuggestionReview::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3109|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_TRIAD_R_HS_CODE_REVIEW (magic 3110, tag P3110|)
+class P3110_Port : public P3110_CTriadCodeReviewHardened
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3110_CTriadCodeReviewHardened::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3110|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_TRIAD_SURVIVE (magic 3111, tag P3111|)
+class P3111_Port : public P3111_CTriadSurvive
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3111_CTriadSurvive::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3111|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_progress (magic 3113, tag P3113|)
+class P3113_Port : public P3113_CProgressFrozenContract
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3113_CProgressFrozenContract::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3113|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_prop_fund_challenge_improvement_plan (magic 3114, tag P3114|)
+class P3114_Port : public P3114_CPropFundImprovementPlan
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3114_CPropFundImprovementPlan::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3114|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_strategy_improvements_plan (magic 3115, tag P3115|)
+class P3115_Port : public P3115_CStrategyImprovementsPlan
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3115_CStrategyImprovementsPlan::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3115|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_STRATEGY_PORTFOLIO_AUDIT (magic 3116, tag P3116|)
+class P3116_Port : public P3116_CPortfolioAuditRouter
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3116_CPortfolioAuditRouter::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3116|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_STRATEGY_ROADMAP (magic 3117, tag P3117|)
+class P3117_Port : public P3117_CStrategyRoadmap
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P3117_CStrategyRoadmap::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P3117|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round1_contestant_b (magic 2001, tag P2001|)
+class P2001_Port : public P2001_CRound1B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2001_CRound1B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2001|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round1_contestant_c (magic 2002, tag P2002|)
+class P2002_Port : public P2002_CRound1C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2002_CRound1C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2002|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round2_contestant_a (magic 2003, tag P2003|)
+class P2003_Port : public P2003_CRound2A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2003_CRound2A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2003|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round2_contestant_b (magic 2004, tag P2004|)
+class P2004_Port : public P2004_CRound2B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2004_CRound2B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2004|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round2_contestant_c (magic 2005, tag P2005|)
+class P2005_Port : public P2005_CRound2C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2005_CRound2C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2005|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round3_contestant_a__1_ (magic 2006, tag P2006|)
+class P2006_Port : public P2006_CRound3A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2006_CRound3A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2006|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round3_contestant_b__1_ (magic 2007, tag P2007|)
+class P2007_Port : public P2007_CRound3B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2007_CRound3B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2007|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_a__1_ (magic 2008, tag P2008|)
+class P2008_Port : public P2008_CRound4A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2008_CRound4A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2008|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_b (magic 2009, tag P2009|)
+class P2009_Port : public P2009_CRound4B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2009_CRound4B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2009|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_b__1_ (magic 2010, tag P2010|)
+class P2010_Port : public P2010_CRound4B2
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2010_CRound4B2::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2010|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_c (magic 2011, tag P2011|)
+class P2011_Port : public P2011_CRound4C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2011_CRound4C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2011|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_c__1_ (magic 2012, tag P2012|)
+class P2012_Port : public P2012_CRound4C2
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2012_CRound4C2::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2012|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_d (magic 2013, tag P2013|)
+class P2013_Port : public P2013_CRound4D
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2013_CRound4D::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2013|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_e (magic 2014, tag P2014|)
+class P2014_Port : public P2014_CRound4E
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2014_CRound4E::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2014|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round4_contestant_f (magic 2015, tag P2015|)
+class P2015_Port : public P2015_CRound4F
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2015_CRound4F::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2015|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_a (magic 2016, tag P2016|)
+class P2016_Port : public P2016_CRound5A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2016_CRound5A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2016|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_a_2047 (magic 2047, tag P2047|)
+class P2047_Port : public P2047_CRound5A2
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2047_CRound5A2::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2047|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_b (magic 2017, tag P2017|)
+class P2017_Port : public P2017_CRound5B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2017_CRound5B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2017|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_b_2048 (magic 2048, tag P2048|)
+class P2048_Port : public P2048_CRound5B2
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2048_CRound5B2::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2048|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_c (magic 2018, tag P2018|)
+class P2018_Port : public P2018_CRound5C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2018_CRound5C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2018|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_d (magic 2019, tag P2019|)
+class P2019_Port : public P2019_CRound5D
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2019_CRound5D::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2019|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_e (magic 2020, tag P2020|)
+class P2020_Port : public P2020_CRound5E
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2020_CRound5E::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2020|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round5_contestant_f (magic 2021, tag P2021|)
+class P2021_Port : public P2021_CRound5F
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2021_CRound5F::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2021|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round7_contestant_a (magic 2022, tag P2022|)
+class P2022_Port : public P2022_CRound7A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2022_CRound7A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2022|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round7_contestant_b (magic 2023, tag P2023|)
+class P2023_Port : public P2023_CRound7B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2023_CRound7B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2023|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round7_contestant_c (magic 2024, tag P2024|)
+class P2024_Port : public P2024_CRound7C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2024_CRound7C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2024|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round7_contestant_d (magic 2025, tag P2025|)
+class P2025_Port : public P2025_CRound7D
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2025_CRound7D::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2025|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round8_contestant_a (magic 2026, tag P2026|)
+class P2026_Port : public P2026_CRound8A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2026_CRound8A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2026|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round8_contestant_b (magic 2027, tag P2027|)
+class P2027_Port : public P2027_CRound8B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2027_CRound8B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2027|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round8_contestant_c (magic 2028, tag P2028|)
+class P2028_Port : public P2028_CRound8C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2028_CRound8C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2028|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round8_contestant_d (magic 2029, tag P2029|)
+class P2029_Port : public P2029_CRound8D
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2029_CRound8D::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2029|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round10_claude_fable_5_high_reasoning (magic 2030, tag P2030|)
+class P2030_Port : public P2030_CRound10Fable
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2030_CRound10Fable::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2030|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round10_claude_opus_5_high_reasoning (magic 2031, tag P2031|)
+class P2031_Port : public P2031_CRound10Opus
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2031_CRound10Opus::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2031|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning (magic 2032, tag P2032|)
+class P2032_Port : public P2032_CRound10Gemini
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2032_CRound10Gemini::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2032|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round10_kimi_k3_high_reasoning (magic 2033, tag P2033|)
+class P2033_Port : public P2033_CRound10Kimi
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2033_CRound10Kimi::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2033|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round10_qwen3_8_2_4t_a95b_high_reasoning (magic 2034, tag P2034|)
+class P2034_Port : public P2034_CRound10Qwen
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2034_CRound10Qwen::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2034|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round11_contestant_a (magic 2035, tag P2035|)
+class P2035_Port : public P2035_CRound11A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2035_CRound11A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2035|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round11_contestant_b (magic 2036, tag P2036|)
+class P2036_Port : public P2036_CRound11B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2036_CRound11B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2036|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round11_contestant_c (magic 2037, tag P2037|)
+class P2037_Port : public P2037_CRound11C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2037_CRound11C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2037|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round11_contestant_d (magic 2038, tag P2038|)
+class P2038_Port : public P2038_CRound11D
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2038_CRound11D::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2038|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round11_contestant_e (magic 2039, tag P2039|)
+class P2039_Port : public P2039_CRound11E
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2039_CRound11E::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2039|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round11_contestant_f (magic 2040, tag P2040|)
+class P2040_Port : public P2040_CRound11F
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2040_CRound11F::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2040|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round12_claude_fable_5_high_reasoning (magic 2041, tag P2041|)
+class P2041_Port : public P2041_CRound12Fable
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2041_CRound12Fable::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2041|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round12_contestant_a (magic 2042, tag P2042|)
+class P2042_Port : public P2042_CRound12A
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2042_CRound12A::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2042|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round12_contestant_b (magic 2043, tag P2043|)
+class P2043_Port : public P2043_CRound12B
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2043_CRound12B::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2043|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round12_contestant_c (magic 2044, tag P2044|)
+class P2044_Port : public P2044_CRound12C
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2044_CRound12C::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2044|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round12_contestant_f (magic 2045, tag P2045|)
+class P2045_Port : public P2045_CRound12F
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2045_CRound12F::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2045|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
+//--- portfolio wrapper for EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning (magic 2046, tag P2046|)
+class P2046_Port : public P2046_CRound12Qwen
+{
+public:
+   virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      if(!PortEntryGate(ctx.symbol)) return false;          // book caps (host)
+      if(!P2046_CRound12Qwen::BuildPlan(ctx, plan)) return false;
+      if(plan.dir != 0) plan.reason = "P2046|" + plan.reason;   // identity, front-loaded
+      return true;
+   }
+};
+
+
 #endif // PORTFOLIO_STRATEGIES_MQH

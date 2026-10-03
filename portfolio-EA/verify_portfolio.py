@@ -55,7 +55,7 @@ def check(cond: bool, label: str) -> None:
 
 def main() -> int:
     strategies_p = BUILD / "PortfolioStrategies.mqh"
-    host_p = BUILD / "PortfolioEA.mq5"
+    host_p = BUILD / "AllEnginesEA.mq5"
     manifest_p = BUILD / "portfolio_manifest.json"
     check(all(p.exists() for p in (strategies_p, host_p, manifest_p)),
           "build/ missing - run gen_portfolio_ea.py first")
@@ -73,7 +73,7 @@ def main() -> int:
     fresh, fresh_host, fresh_manifest = gpe.render(gpe.engine_enum_values(), specs)
     fresh_md, fresh_csv = gpe.registry_docs(fresh_manifest)
     check(fresh == strategies, "PortfolioStrategies.mqh differs from a fresh generation")
-    check(fresh_host == host, "PortfolioEA.mq5 differs from a fresh generation")
+    check(fresh_host == host, "AllEnginesEA.mq5 differs from a fresh generation")
     check(fresh_md == reg_md, "STRATEGY_REGISTRY.md differs from a fresh generation")
     check(fresh_csv == reg_csv, "strategy_registry.csv differs from a fresh generation")
     expect_manifest = json.loads(json.dumps(manifest))
@@ -120,7 +120,7 @@ def main() -> int:
     check("#ifndef PORTFOLIO_STRATEGIES_MQH" in strategies, "include guard missing")
 
     # 6 - braces ---------------------------------------------------------------------
-    for name, text in (("PortfolioStrategies.mqh", strategies), ("PortfolioEA.mq5", host)):
+    for name, text in (("PortfolioStrategies.mqh", strategies), ("AllEnginesEA.mq5", host)):
         check(text.count("{") == text.count("}"),
               f"brace mismatch in {name} ({text.count('{')} vs {text.count('}')})")
 
@@ -166,30 +166,105 @@ def main() -> int:
     for e in entries:
         check(f"g_portEnableReq[{e['index']}]  = InpRun_{e['magic']};" in host,
               f"registry index {e['index']} does not read InpRun_{e['magic']}")
-    check("g_portEnableReq[i] ? \"on\"  : \"off\"" in host,
-          "roster does not report the switch state")
+    check("if(!g_portEnableReq[i]) return false;" in host,
+          "PortAllowed must honour the per-engine switch")
 
     # registry documents must carry every magic exactly once
-    check(len(re.findall(r"^\| \d+ \| `InpRun_", reg_md, re.M)) == 65,
+    check(len(re.findall(r"^\| \d+ \| `P\d+\|` \| `InpRun_", reg_md, re.M)) == 65,
           "STRATEGY_REGISTRY.md does not list 65 strategies")
     for e in entries:
-        check(f"| {e['magic']} | `InpRun_{e['magic']}` | {e['expert']} |" in reg_md,
+        check(f"| {e['magic']} | `{e['tag']}` | `InpRun_{e['magic']}` | {e['expert']} |" in reg_md,
               f"STRATEGY_REGISTRY.md missing magic {e['magic']}")
     csv_rows = [r for r in reg_csv.strip().splitlines() if r and not r.startswith("magic,")]
     check(len(csv_rows) == 65, f"strategy_registry.csv has {len(csv_rows)} rows, expected 65")
     check(len({r.split(",")[0] for r in csv_rows}) == 65, "registry CSV has duplicate magics")
 
-    # roster writer: present, live-only, and covering the roster columns
-    check("void PortWriteRoster()" in host, "roster writer missing")
-    for col in ("updated", "magic", "strategy", "switch", "allowed", "ready", "positions"):
-        check(f'"{col}"' in host, f"roster column '{col}' missing")
-    check("PortfolioEA" in host and "roster.csv" in host, "roster path missing")
-    check("if(!InpRosterFile || MQLInfoInteger(MQL_TESTER)) return;" in host,
-          "roster must be live-only (not written during backtests)")
+    # identity file for the tracker EA -------------------------------------------
+    engines_p = BUILD / "engines.csv"
+    check(engines_p.exists(), "engines.csv missing (the tracker EA needs it)")
+    engines = engines_p.read_text(encoding="utf-8")
+    e_rows = [r for r in engines.strip().splitlines() if r and not r.startswith("magic,")]
+    check(len(e_rows) == 65, f"engines.csv has {len(e_rows)} rows, expected 65")
+    check(len({r.split(",")[0] for r in e_rows}) == 65, "engines.csv has duplicate magics")
+    for e in entries:
+        check(f"{e['magic']},{e['tag']},{e['expert']}" in engines,
+              f"engines.csv missing magic {e['magic']}")
+    check(engines.startswith("magic,tag,ea,strategy,symbols,timeframe,risk_pct,switch,"),
+          "engines.csv header changed - the tracker parses it")
 
-    # 10 - repo checkers --------------------------------------------------------------
+    # comment identity: one wrapper per engine, tag front-loaded, gate applied -----
+    for e in entries:
+        check(f"class {e['wrapper']} : public {e['class']}" in strategies,
+              f"wrapper {e['wrapper']} missing")
+        check(f'plan.reason = "{e["tag"]}" + plan.reason;' in strategies,
+              f"wrapper {e['wrapper']} does not tag the comment")
+        check(f"if(!{e['class']}::BuildPlan(ctx, plan)) return false;" in strategies,
+              f"wrapper {e['wrapper']} does not call the delivered BuildPlan")
+        check(f"g_portStrategy[{e['index']}]   = new {e['wrapper']}();" in host,
+              f"registry index {e['index']} does not use the wrapper")
+    check("if(!PortEntryGate(ctx.symbol)) return false;" in strategies,
+          "wrappers do not apply the book-level entry gate")
+    check("bool   PortEntryGate(const string sym);" in host and
+          "bool PortEntryGate(const string sym)" in host,
+          "PortEntryGate must be declared before the include and defined after")
+
+    # order policy: one per symbol (engine-enforced), cap raised to symbol count --
+    check("g_eaCfg.maxOpenPositions    = (int)MathMax(1, cap);" in host,
+          "per-engine cap override missing")
+    check("g_eaCfg.oneEntryAccountWide = false;" in host,
+          "oneEntryAccountWide override missing (multi-symbol needs it off)")
+    check('input string InpKeepDeliveredPolicy = "2006"' in host,
+          "delivered-policy exception list missing (2006 is the ladder)")
+    check("MathMax(1, ctx.openPositions" not in host and
+          "g_eaStrategy.AllowMultipleOnSymbol" not in host,
+          "the trader must not re-implement the per-symbol rule (the engine has it)")
+    check("if(!PortKeepDelivered(g_portMagic[i]))" in host,
+          "policy override is not gated by the exception list")
+
+    # dashboard boundary: the trader draws and writes nothing ---------------------
+    for forbidden in ("ObjectCreate", "OBJ_LABEL", "OnChartEvent", "Comment(",
+                      "ChartRedraw", "ChartSetString", "FileOpen", "FileWrite",
+                      "FileDelete", "FileMove", "EventSetTimer"):
+        check(forbidden not in host, f"dashboard/file logic leaked into the trader: {forbidden}")
+    check('input group "Per-strategy switches' in host, "switch group heading missing")
+
+    # 10 - tracker EA (PortfolioEA.mq5 in src/): read-only, by magic ------------------
+    tracker_p = HERE / "src" / "PortfolioEA.mq5"
+    check(tracker_p.exists(), "tracker EA missing: src/PortfolioEA.mq5")
+    if tracker_p.exists():
+        tracker = tracker_p.read_text(encoding="utf-8")
+        code_only = "\n".join(l.split("//")[0] for l in tracker.splitlines())
+        for forbidden in ("OrderSend", "OrderSendAsync", "PositionClose", "PositionOpen",
+                          "PositionModify", "PositionClosePartial", "OrderModify",
+                          "OrderDelete", "CTrade", "trade.Buy", "trade.Sell",
+                          "PositionSelect(", "SetExpertMagicNumber"):
+            check(forbidden not in code_only,
+                  f"tracker must never trade - found {forbidden}")
+        check(tracker.count("{") == tracker.count("}"),
+              f"brace mismatch in the tracker ({tracker.count('{')} vs {tracker.count('}')})")
+        check("EventSetTimer(" in tracker and "void OnTimer()" in tracker and
+              "EventKillTimer()" in tracker, "tracker timer wiring incomplete")
+        bslash = chr(92)
+        check(f'InpIdentityFile = "PortfolioEA{bslash * 2}engines.csv"' in tracker,
+              "tracker must read the generated engines.csv")
+        check(f'InpReportFile   = "PortfolioEA{bslash * 2}performance.csv"' in tracker,
+              "tracker report path changed")
+        check("FileOpen(InpReportFile, FILE_WRITE | FILE_CSV | FILE_ANSI, ',')" in tracker,
+              "tracker does not write the CSV report")
+        for verdict in ("DROP", "REVIEW", "TOO_FEW", "KEEP"):
+            check(f'"{verdict}"' in tracker, f"tracker verdict {verdict} missing")
+        check("InpRun_" in tracker, "tracker should name the switch (InpRun_<magic>)")
+        check("InpRegistryOnly" in tracker, "tracker registry filter missing")
+        check("ObjectsTotal(0)" in tracker and "ObjectDelete(0, name)" in tracker,
+              "tracker must clean its panel objects on deinit")
+        check('g_panelPrefix' in tracker and "PFX_" in tracker, "panel prefix missing")
+        # the identity file the tracker expects must be the one we generate
+        check("tag" in engines.splitlines()[0] and "switch" in engines.splitlines()[0],
+              "engines.csv header does not match what the tracker parses")
+
+    # 11 - repo checkers --------------------------------------------------------------
     for cmd in (["python3", "scripts/check_mql5_source.py",
-                 "portfolio-EA/build/PortfolioEA.mq5"],
+                 "portfolio-EA/build/AllEnginesEA.mq5"],
                 ["python3", "scripts/dev/arity_check.py"]):
         r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
         tail = (r.stdout + r.stderr).strip().splitlines()
@@ -210,7 +285,8 @@ def report() -> int:
     print(f"OK - {CHECKS} checks passed")
     print("     build/ is current | originals untouched (sha256) | 65 classes, 859 inputs")
     print("     registry complete | state coverage complete | repo checkers clean")
-    print("     per-strategy switches (InpRun_<magic>) + registry docs + live roster verified")
+    print("     per-strategy switches + tags + registry/docs/engines.csv verified")
+    print("     trader boundary (no dashboard/files) + tracker read-only checks verified")
     print("     NOT verified here: MQL5 compilation (needs MetaEditor on Windows)")
     return 0
 

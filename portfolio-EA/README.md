@@ -1,142 +1,177 @@
-# portfolio-EA — the whole book on **one chart**
+# portfolio-EA — all 65 engines on one chart + a separate tracker
 
-MT5 attaches exactly one EA per chart. The launcher
-(`validation/mt5_harness/gen_launcher.py` + `MQL5_Master/Scripts/PortfolioLauncher.mq5`)
-removes the *manual* work but still ends up with 65 charts. This folder is the
-other answer: **one program, one chart, all 65 strategies**, generated as new
-files from the delivered EAs.
+Two EAs, one boundary:
 
-## Nothing original is touched
+| EA | File | Chart | Job | Trading |
+| --- | --- | --- | --- | --- |
+| **AllEnginesEA** | `build/AllEnginesEA.mq5` (generated) | 1 chart | runs **all 65 engines** in one program: registry, per-engine state switch, on/off switches, identity tags | yes |
+| **PortfolioEA** | `src/PortfolioEA.mq5` (hand-written) | any chart, or a second chart | **tracks per-engine performance** and writes the report you use to decide what to switch off | **never** (read-only) |
 
-* The 65 delivered EAs are **read only** — `build/originals.sha256` records the
-  hash of every file this generator reads, and `verify_portfolio.py` re-checks
-  them, so any accidental edit to an original is detected.
-* `MQL5_Master/Include/*.mqh` (the engine) is **read only** too, and is included
-  unchanged.
-* Everything produced lives in `portfolio-EA/`.
+MT5 allows one EA per chart, so AllEnginesEA is the only way to get a genuinely
+single-chart book; PortfolioEA is the dashboard, deliberately kept out of the
+trading program.
 
 ```
 portfolio-EA/
-├── gen_portfolio_ea.py      reads the 65 EAs + the engine, writes build/
-├── verify_portfolio.py      207 static checks (deterministic, hashes, coverage)
-├── README.md                this file
+├── gen_portfolio_ea.py      reads the 65 delivered EAs + engine (READ-ONLY) -> build/
+├── verify_portfolio.py      723 static checks (freshness, hashes, policy, tags, boundary)
+├── PLAN.md                  the design + the decisions taken (read this first)
+├── src/
+│   └── PortfolioEA.mq5      the tracker EA (independent, no engine include)
+├── README.md
 └── build/                   GENERATED - do not hand-edit
-    ├── PortfolioEA.mq5               the host (registry + state switch + scheduler)
-    ├── PortfolioStrategies.mqh       65 strategy classes, one namespace
-    ├── portfolio_manifest.json       index / class / magic / tf / symbols per strategy
+    ├── AllEnginesEA.mq5              the trading host (one attach)
+    ├── PortfolioStrategies.mqh       65 strategy classes + 65 tag wrappers
+    ├── engines.csv                   magic -> tag -> engine -> switch  (for the tracker)
+    ├── STRATEGY_REGISTRY.md          the same table, human-readable
+    ├── strategy_registry.csv         and machine-readable
+    ├── portfolio_manifest.json
     └── originals.sha256              hashes of every original file read
 ```
 
-## How it works
+## Nothing original is touched
 
-1. **Registry** — one `new P<magic>_<Class>()` per delivered EA; magics are the
-   delivered ones, unchanged (so results, tracking and the tester reports stay
-   comparable with the standalone EAs).
-2. **State switch** — the engine keeps its state in globals (`g_eaCfg`,
-   `g_eaSymbols`, `g_eaInd`, `g_eaTrack`, `g_eaStatSym`, the news cache…). The
-   host snapshots all of it per strategy, loads it before that strategy's tick
-   and saves it afterwards. `formula` — see `PortLoadState` / `PortSaveState`.
-3. **Risk + executor** — their state is private, but both persist it to
-   magic-scoped GlobalVariables and reload it in `Init()`, so a switch calls the
-   same path a terminal restart uses (`g_eaRisk.Init(); g_eaExec.Init();`).
-4. **Scheduler** — per tick, a strategy is only processed when it has exposure
-   (open position/pending with its magic) or one of its symbols has a new bar.
-   Without that, 65 strategies × up to 8 symbols would rebuild contexts on every
-   tick for nothing.
-5. **Result rows** — `EA_Deinit` per strategy calls the tester-only
-   `EA_TestReport()`, so one portfolio backtest still produces **one row per
-   strategy** for `parse_results.py` / `compare_results.py` (65 rows, 65 EAs).
+The 65 delivered EAs and `MQL5_Master/Include/*.mqh` are **read-only inputs**.
+`build/originals.sha256` records their hashes and `verify_portfolio.py` re-checks
+them, so any accidental edit to an original fails verification.
 
-## Tracking strategies: magic -> switch -> result
+## Identity: magic + comment tag
 
-Every strategy keeps its **delivered magic**, and that magic is the key used
-everywhere: the terminal's trade history, the tester reports, the comparison
-harness and the switch you tick in the EA.
+* **Magic is the primary key.** Every engine keeps its delivered magic (3101…3193),
+  and the engine filters every position/order/history query by it — including
+  `openPositionsAll`, which is **per engine**, not account-wide (verified in
+  `EA_CountPositions`). One engine can never touch another's trades.
+* **Comment tag** is the visible secondary key. Each engine is wrapped by a
+  generated class that prefixes the order comment with `P<magic>|`
+  (front-loaded because MT5 caps comments at 31 characters and the server may
+  rewrite the tail):
 
-| Where | What it gives you |
-| --- | --- |
-| `build/STRATEGY_REGISTRY.md` | the full table: magic, switch name, EA file, strategy label, timeframe, symbols, risk, source doc |
-| `build/strategy_registry.csv` | the same, for scripts/spreadsheets |
-| EA inputs → group *"Per-strategy switches"* | `InpRun_<magic>` checkbox per strategy (65 of them) |
-| `MQL5\Files\PortfolioEA\roster.csv` (live) | written at start and refreshed every 5 min: magic, strategy, switch, allowed, ready, open positions, floating P/L per strategy |
+  ```cpp
+  //--- portfolio wrapper for EA_FINAL_OPTIMUM_STRATEGY (magic 3101, tag P3101|)
+  class P3101_Port : public P3101_CFinalOptimum
+  {
+  public:
+     virtual bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+     {
+        if(!PortEntryGate(ctx.symbol)) return false;            // book caps (host)
+        if(!P3101_CFinalOptimum::BuildPlan(ctx, plan)) return false;
+        if(plan.dir != 0) plan.reason = "P3101|" + plan.reason; // identity, front-loaded
+        return true;
+     }
+  };
+  ```
 
-**After demo testing**, the workflow is:
+* `build/engines.csv` is the static map (magic, tag, engine, strategy, symbols,
+  timeframe, risk, switch, order policy, source doc). Copy it to
+  `MQL5\Files\PortfolioEA\engines.csv` — the tracker reads it; without it the
+  tracker still works but shows magics instead of engine names.
 
-1. Run the copy trading/demo period, then look at the results per magic
-   (`compare_results.py` gives the correlation, redundancy and leave-one-out
-   tables from a tester sweep; the terminal's history is grouped by magic).
-2. Open the EA's properties on the chart and untick `InpRun_<magic>` for the
-   strategies you want off. **No recompile, no re-attach.**
-3. Extra shortcuts: `InpDisableMagics = "2035,2027"` (blacklist) and
-   `InpOnlyMagics = "3101,3102"` (whitelist, handy for testing a subset).
-   Precedence: whitelist first, then the checkbox, then the blacklist.
-4. Check `roster.csv` (or the Experts log line `... DISABLED (switch=off ...)`) to
-   confirm what is actually running.
+## Order policy: one position per symbol, many symbols
 
-The same magics are used by the standalone EAs, so a decision made from the
-one-chart build applies 1:1 to the 65-chart launcher:
-`validation/mt5_harness/out/launch/launch_plan.csv` has an `enabled` column
-(2nd) — set it to `0` and re-run START.
+That rule is **already the engine's behaviour** (`EA_SelectPlan`):
+
+```cpp
+if(!g_eaStrategy.AllowMultipleOnSymbol())
+{
+   if(ctx.openPositions > 0) continue;                 // already positioned on THIS symbol
+   if(g_eaExec.HasPending(ctx.symbol, +1) || …) continue;   // or a working order
+}
+```
+
+`ctx.openPositions` counts only that engine's positions on that symbol. So an
+engine may hold one position on each of its symbols and never doubles up on one.
+
+What *did* need fixing is the per-engine cap, which would have limited engines to
+a single position book-wide: 46 of the 65 deliver `maxOpenPositions = 1` and 8
+(THE5ERS family) set `oneEntryAccountWide = true`. The host therefore applies,
+per engine right after init (config-level only — no engine or EA code changed):
+
+```
+maxOpenPositions    = its symbol count   (or InpMaxPerEngine if > 0)
+oneEntryAccountWide = false
+```
+
+Engines listed in `InpKeepDeliveredPolicy` (**default `"2006"`** — the intentional
+one-symbol ladder) keep their delivered policy. Per-engine caps can be capped
+lower with `InpMaxPerEngine`.
+
+Book-level guards (off by default; raise the risk scale and switch them on as you
+prefer): `InpMaxBookPositions`, `InpMaxBookPerSymbol`, `InpBookRiskPct`. Context:
+delivered risk sums to **51.5 % of equity** across the engines and EURUSD appears
+in **63 of 65** universes, so an unguarded "all on" demo can put 60+ positions on
+one symbol. For a demo phase that is meant to be *measured*, start with
+`InpRiskScale` below 1 and only the caps you are comfortable with — the tracker
+records what each engine did either way.
+
+## Switches (after demo testing)
+
+| Control | Where | Effect |
+| --- | --- | --- |
+| `InpRun_<magic>` | inputs, group *"Per-strategy switches"* | untick one engine — no recompile, no re-attach |
+| `InpDisableMagics` | portfolio inputs | blacklist, e.g. `"2036,2039"` |
+| `InpOnlyMagics` | portfolio inputs | whitelist, e.g. `"3101,3102"` (subset testing) |
+| `InpRiskScale` | portfolio inputs | scales **every** engine's delivered risk at once |
+
+Precedence: whitelist → `InpRun_<magic>` → blacklist. Disabled engines are logged
+at startup with the reason, and their open positions are still managed (the engine
+keeps managing exposure regardless of the switch — that is the delivered design).
+
+## The tracker EA (`src/PortfolioEA.mq5`)
+
+Read-only by construction (no `CTrade`, no order functions, verified by
+`verify_portfolio.py`). Runs on a timer, groups the account's history by magic:
+
+* net closed P/L, trades, wins/losses, win %, **max closed drawdown per engine**;
+* open positions and floating P/L per engine;
+* a **verdict** you can act on: `DROP` (≥ `InpMinTrades` and net negative),
+  `REVIEW` (expectancy ≤ 0 or DD ≥ `InpReviewDdPct`), `TOO_FEW`, `KEEP`;
+* writes `MQL5\Files\PortfolioEA\performance.csv` (includes the `switch` column —
+  the exact input name to untick), and draws an optional on-chart panel sorted by
+  net.
+
+Install: copy `build/engines.csv` **and** the whole `build/` folder into
+`<data>\MQL5\Files\PortfolioEA\` (for the launcher/templates), put
+`src/PortfolioEA.mq5` in `<data>\MQL5\Experts\` (or any subfolder), compile, and
+attach it to a chart with `InpDaysBack` set to your demo window.
 
 ## Build and deploy
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # write build/
-python3 portfolio-EA/verify_portfolio.py        # 207 static checks
+python3 portfolio-EA/verify_portfolio.py        # 723 checks
 ```
 
-Then on the Windows/MT5 machine:
+On Windows/MT5:
 
-1. The engine headers must already be in `<data>\MQL5\Include\` (the 65 EAs need
-   them there too, so this is normally already true).
-2. Copy `portfolio-EA/build/PortfolioEA.mq5` **and** `PortfolioStrategies.mqh`
-   into `<data>\MQL5\Experts\portfolio\`.
-3. Compile `PortfolioEA.mq5` in MetaEditor (F7).
-4. Attach it to **one** chart, Algo Trading ON.
+1. engine headers already in `<data>\MQL5\Include\` (the 65 EAs need them too);
+2. copy `build/AllEnginesEA.mq5` **and** `build/PortfolioStrategies.mqh` into
+   `<data>\MQL5\Experts\portfolio\` and compile `AllEnginesEA.mq5`;
+3. copy the rest of `build/` (`engines.csv`, registry files) into
+   `<data>\MQL5\Files\PortfolioEA\`;
+4. attach `AllEnginesEA` to **one** chart (Algo Trading ON) — demo first;
+5. compile + attach `PortfolioEA.mq5` on another chart to watch per-engine results.
 
-Inputs: `InpRiskScale` (multiplies every strategy's delivered `riskPct`),
-`InpOnlyMagics` / `InpDisableMagics` (whitelist / blacklist by magic),
-`InpRosterFile` (write the magic roster), `InpQuietInit`, `InpSummary`, plus the
-65 `InpRun_<magic>` switches described above.
-Per-strategy parameters are the delivered defaults, baked in as
-`P<magic>_…` constants — a single program cannot expose 860 inputs. To change
-one, edit the constant in `build/PortfolioStrategies.mqh` (regenerating later
-overwrites it) or keep running that strategy standalone.
-
-## Fidelity — what is exact and what is not
+## Fidelity — exact and not exact
 
 | Area | Status |
 | --- | --- |
 | Strategy logic | **exact** — class bodies copied verbatim; only identifiers are prefixed |
-| Config, symbols, timeframe, risk, magic | **exact** (delivered defaults; `InpRiskScale` is a deliberate multiplier) |
-| Positions, partials, break-even, trailing, session/news gates | **exact** — same engine functions, same magic |
-| Risk anchors (day/week/month floors, HWM, qualifying days, halts, loss-streak pause) | **exact** — GlobalVariables are keyed by magic and reloaded on switch |
-| Indicator handles | **exact** — one set per strategy per symbol; identical parameters share the terminal's global indicator cache |
-| Spread/slippage/outcome rings | **shared, on purpose** — they are symbol/market statistics, not strategy state (keyed by symbol) |
-| Per-day request counter (`m_requestsToday`) | **resets on each switch** — only 4 EAs set `maxRequestsPerDay`, so their caps effectively stop binding. Fixable with the accessor below |
-| Deal cursor (`m_lastOutDeal`) | resets on switch; **inert here** — 0 of 65 EAs enable `lossStreakPause`, the only consumer |
-| News cache | snapshotted per strategy, capped at `PORT_NEWS_MAX` (512 events per strategy); longer calendars truncate (logged) |
-
-The two "resets" are memory-only counters in the risk governor. The clean fix is
-a 3-line accessor on the governor (snapshot/restore) — deliberately **not**
-added, because that would mean editing the engine. If you want it, say so and it
-becomes an opt-in overlay file plus one `#include` line.
+| Config, symbols, timeframe, risk, magic | **exact** delivered defaults (`InpRiskScale` is a deliberate multiplier) |
+| Position management (partials, BE, trails, session/news gates) | **exact** — same engine functions |
+| Risk anchors (day/week/month, HWM, halts) | **exact** — GlobalVariables are magic-keyed and reloaded per switch |
+| Order policy | host override described above; `2006` keeps the delivered ladder |
+| Spread/slippage/outcome rings | **shared on purpose** — symbol/market statistics, not engine state |
+| Per-day request counter | resets on switch (only 4 engines set `maxRequestsPerDay`) — documented gap |
+| Deal cursor | resets on switch; **inert** — 0 of 65 enable `lossStreakPause` |
 
 ## Status
 
-* `gen_portfolio_ea.py` — **run**: 65 strategies, 860 inputs converted to
-  constants, 0 enum collisions, registry and state coverage verified.
-* `verify_portfolio.py` — **357/357 checks pass** (adds: every registry index reads
-  its own switch, 65 unique switches in manifest order, registry documents list
-  all 65 magics exactly once, roster writer present / live-only / complete) (fresh-generation equality,
-  originals unchanged by hash, no bare input identifiers, brace balance,
-  registry/manifest agreement, complete save/restore coverage, repo checkers
-  clean on the generated files).
-* **Not verified: MQL5 compilation.** There is no MetaEditor on the Linux
-  machine this was built on. Compile step 3 above is the real test; if the
-  compiler complains, send the messages — the fix belongs in
-  `gen_portfolio_ea.py` (the generator), never in `build/`.
-
-Related: `MQL5_Master/Scripts/PortfolioLauncher.mq5` (65 charts, one attach),
-`validation/mt5_harness/README.md` (validation *without* any charts),
-`docs/EA_VALIDATION_PLAYBOOK.md` (the whole plan).
+* `gen_portfolio_ea.py` — **run**: 65 engines, 860 inputs as constants, 65 tag
+  wrappers, registry + engines.csv + policy override + book caps.
+* `verify_portfolio.py` — **723/723 checks pass** (freshness, originals by hash,
+  switches, tags/wrappers, policy override, registry/engines.csv completeness,
+  **no dashboard or file I/O in the trader**, **no trading API in the tracker**,
+  repo checkers clean).
+* **Not verified: MQL5 compilation** — no MetaEditor on Linux. Compile
+  `AllEnginesEA.mq5` and `PortfolioEA.mq5` on Windows; anything the compiler
+  reports is fixed in `gen_portfolio_ea.py` or `src/`, never in `build/`.

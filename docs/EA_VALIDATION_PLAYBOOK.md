@@ -156,7 +156,7 @@ A portfolio host therefore needs:
    a template change, not new strategy code;
 4. a full re-run of the six-pass audit on the modified engine.
 
-**Status: implemented as new files in [`portfolio-EA/`](../portfolio-EA/README.md)** —
+**Status: implemented as new files in [`portfolio-EA/`](../portfolio-EA/README.md)** — `AllEnginesEA.mq5` runs all 65 engines on one chart, `PortfolioEA.mq5` is the separate read-only tracker that reports per-engine net/DD/win-rate and the `InpRun_<magic>` switch to flip —
 the 65 delivered EAs and the engine are read-only inputs (hashed and re-verified);
 the folder holds the generator, the verifier (207 checks) and the generated host.
 Not compiled yet (no MetaEditor here), so compile it before trusting it live.

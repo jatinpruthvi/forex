@@ -1,6 +1,20 @@
 # portfolio-EA — PLAN (for approval, before building)
 
-**Status: proposal.** No build changes have been made for this round yet. Everything
+**Status: decisions taken and implemented** (2026-10-03) - the user confirmed the intent:
+*a new EA holding all 65 engines, plus a separate PortfolioEA tracker*.  The four
+questions below were skipped, so the plan's recommended defaults were applied:
+1) magic 2006 keeps its delivered ladder (`InpKeepDeliveredPolicy = "2006"`);
+2) comment tags `P<magic>|` inside the generated trader only;
+3) the trader writes no runtime files (identity ships as static `engines.csv`);
+4) risk/book guards exist but default to faithful (`InpRiskScale = 1.0`, caps 0 =
+off) - set them for the demo phase as you prefer.
+Names per the clarification: trader = `AllEnginesEA.mq5`, tracker = `PortfolioEA.mq5`.
+See README.md for the implemented state and `verify_portfolio.py` (723 checks) for the
+evidence.  Items below are kept as the original design record.
+
+---
+
+**Original proposal text follows.** Everything
 below is grounded in the delivered code, verified by reading it (facts and line
 references are given). Approve/adjust the four decisions at the end and the build
 follows.
