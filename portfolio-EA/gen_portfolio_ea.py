@@ -530,6 +530,13 @@ bool PortIsRegistryMagic(const long magic)
    return false;
 }
 
+int PortIndexOf(const long magic)
+{
+   for(int i = 0; i < g_portCount; i++)
+      if(g_portMagic[i] == magic) return i;
+   return -1;
+}
+
 int PortCountBookPositions()
 {
    int n = 0;
@@ -614,6 +621,9 @@ bool PortEntryGate(const string sym)
    long magic = (long)g_eaCfg.magic;
    if(!PortKeepDelivered(magic) && PortCountEngineSymbol(magic, sym) > 0)
       return false;                                            // one order per symbol
+   int idx = PortIndexOf(magic);
+   if(idx >= 0 && !g_portAllowed[idx])
+      return false;                           // switched off: exits only, no new entries
    if(InpMaxBookPositions > 0 && PortCountBookPositions() >= InpMaxBookPositions) return false;
    if(InpMaxBookPerSymbol > 0 && PortCountBookSymbol(sym) >= InpMaxBookPerSymbol) return false;
    if(InpBookRiskPct > 0.0 && PortBookRiskPct() >= InpBookRiskPct) return false;
@@ -641,22 +651,17 @@ int OnInit()
       g_portNewsCount[i] = 0;
    }
 
-   int disabled = 0;
+   int disabled = 0, entriesLive = 0;
    for(int i = 0; i < g_portCount; i++)
       if(!g_portAllowed[i]) disabled++;
 
+   //--- EVERY engine is initialised, including the switched-off ones.  A switch
+   //--- must never orphan open trades: a disabled engine keeps its state so it
+   //--- can still manage (break-even, trail, time stop, session flats, halt
+   //--- flatten) the positions it opened before the restart; PortEntryGate is
+   //--- what stops it from taking new ones.
    for(int i = 0; i < g_portCount; i++)
    {
-      if(!g_portAllowed[i])
-      {
-         if(InpSummary)
-            PrintFormat("[portfolio] %-45s magic=%-5s DISABLED (switch=%s, list=%s%s)",
-                        g_portName[i], IntegerToString(g_portMagic[i]),
-                        g_portEnableReq[i] ? "on" : "OFF",
-                        InpOnlyMagics, InpDisableMagics);
-         continue;
-      }
-
       PortClearEngineState();
       ResetLastError();
       int rc = EA_Init(g_portStrategy[i]);
@@ -684,28 +689,37 @@ int OnInit()
       PortSaveState(i);
       g_portEnabled[i] = true;
       g_portLive++;
+      if(g_portAllowed[i]) entriesLive++;
 
       if(InpSummary)
          PrintFormat("[portfolio] %-45s ready  magic=%-5s tag=%-6s %s %s risk=%.3f%% "
-                     "maxOpen=%d oneEntryAccountWide=%s%s",
+                     "maxOpen=%d oneEntryAccountWide=%s%s%s",
                      g_portName[i], IntegerToString(g_portMagic[i]), PortTagOf(g_portMagic[i]),
                      g_portSymbolsTxt[i], g_portTfTxt[i], g_eaCfg.riskPct,
                      g_eaCfg.maxOpenPositions, g_eaCfg.oneEntryAccountWide ? "true" : "false",
-                     PortKeepDelivered(g_portMagic[i]) ? " (delivered policy kept)" : "");
+                     PortKeepDelivered(g_portMagic[i]) ? " (delivered policy kept)" : "",
+                     g_portAllowed[i] ? "" : StringFormat(" - SWITCHED OFF (switch=%s%s%s): "
+                                                          "no new entries, exits still managed",
+                                                          g_portEnableReq[i] ? "on" : "off",
+                                                          StringLen(InpOnlyMagics) ? " list=" + InpOnlyMagics : "",
+                                                          StringLen(InpDisableMagics) ? " block=" + InpDisableMagics : ""));
    }
 
    if(g_portLive == 0)
    {
-      Print("[portfolio] no strategy enabled/initialised - nothing to run");
+      Print("[portfolio] no engine could be initialised - nothing to run");
       return INIT_FAILED;
    }
+   if(entriesLive == 0)
+      Print("[portfolio] every engine is switched off - attached for exits only");
 
    g_eaInitialised = true;      // engine's global readiness flag
    g_portReady     = true;
    EventSetTimer(1);            // ticks only arrive for the chart symbol; this
                                 // keeps every engine alive on its own schedule
-   PrintFormat("[portfolio] %d/%d strategies live on one chart (%d disabled, risk scale %.2f)",
-               g_portLive, g_portCount, disabled, InpRiskScale);
+   PrintFormat("[portfolio] %d/%d engines live on one chart, %d open for new entries "
+               "(%d switched off, risk scale %.2f)", g_portLive, g_portCount, entriesLive,
+               disabled, InpRiskScale);
    return INIT_SUCCEEDED;
 }
 
@@ -723,6 +737,7 @@ void PortProcess()
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
+      if(!g_portAllowed[i] && !exposure[i]) continue;   // switched off and flat: nothing to do
       //--- engines that asked for every-tick signals (cfg.signalOnNewBarOnly
       //--- is false) are never gated; all 65 delivered engines leave it true
       if(!exposure[i] && g_portState[i].cfg.signalOnNewBarOnly && !PortNewBar(i)) continue;
@@ -893,12 +908,17 @@ def registry_docs(manifest: list[dict]) -> tuple[str, str]:
                     f"{m['strategy']} | {m['timeframe_label']} | "
                     f"{','.join(m['symbols'])} | {m['risk_pct']} | {m['order_policy']} | {m['doc']} |")
     md = ("# Strategy registry - magic numbers and switches\n\n"
-          "Generated by `portfolio-EA/gen_portfolio_ea.py`. Untick the input in the "
-          "second column inside `PortfolioEA` (one chart) to disable that strategy - "
-          "no recompile. The same magics are used by the standalone EAs, so demo "
-          "results in the terminal map 1:1 to this table.\n\n"
-          "Live equivalent at runtime: `MQL5\\Files\\PortfolioEA\\roster.csv` "
-          "(magic, strategy, switch, allowed, ready, positions, floating P/L).\n\n"
+          "Generated by `portfolio-EA/gen_portfolio_ea.py` and compiled into "
+          "`AllEnginesEA.mq5` (one chart, all engines). Untick `InpRun_<magic>` in the "
+          "EA's input dialog to switch that engine off - no recompile. Switched-off "
+          "engines keep managing the trades they already hold; only new entries stop. "
+          "The same magics are used by the standalone EAs, so demo results in the "
+          "terminal map 1:1 to this table.\n\n"
+          "Runtime report: the separate `PortfolioEA` tracker reads `engines.csv` and "
+          "writes `MQL5\\Files\\PortfolioEA\\performance.csv` (magic, tag, engine, "
+          "strategy, timeframe, net, trades, wins, losses, win %, max DD, DD % of base, "
+          "open positions, floating, verdict, switch). The trading EA itself writes no "
+          "files.\n\n"
           + header + "\n" + sep + "\n" + "\n".join(rows) + "\n")
 
     lines = ["magic,tag,switch,ea,strategy,timeframe,symbols,risk_pct,source_doc"]
@@ -934,7 +954,10 @@ def main() -> int:
              "portfolio_manifest.json": json.dumps({
                  "generated_by": "portfolio-EA/gen_portfolio_ea.py",
                  "strategies": len(specs),
-                 "note": "one-chart host; the 65 delivered EAs and the engine are unmodified",
+                 "note": ("one-chart EA; the 65 delivered EAs are read-only inputs "
+                          "(hashed in originals.sha256). The shared engine headers are "
+                          "used as-is apart from the documented fixes in "
+                          "docs/EA_BUG_AUDIT.md (eighth pass)"),
                  "entries": manifest}, indent=2) + "\n"}
 
     if args.check:

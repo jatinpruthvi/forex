@@ -43,8 +43,8 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      1 739 static checks (freshness, hashes, policy, tags,
-│                              identifier hygiene, both boundaries)
+├── verify_portfolio.py      1 747 static checks (freshness, hashes, policy, tags,
+│                              identifier hygiene, capacity, both boundaries)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
     ├── AllEnginesEA.mq5              the EA (the strategies are inlined)
@@ -147,9 +147,15 @@ records what each engine did either way.
 | `InpOnlyMagics` | portfolio inputs | whitelist, e.g. `"3101,3102"` (subset testing) |
 | `InpRiskScale` | portfolio inputs | scales **every** engine's delivered risk at once |
 
-Precedence: whitelist → `InpRun_<magic>` → blacklist. Disabled engines are logged
-at startup with the reason, and their open positions are still managed (the engine
-keeps managing exposure regardless of the switch — that is the delivered design).
+Precedence: whitelist → `InpRun_<magic>` → blacklist.
+
+**A switch stops new entries, never the management of open trades.** A
+switched-off engine is still initialised and keeps running its exits — break-even,
+partials, trail, time stop, session flats, halt flatten — for the positions it
+already holds; only `PortEntryGate` refuses new ones. That is what makes "run the
+demo, then switch off what did not work" safe: you never orphan a live position by
+unticking a box. (The EA must be reloaded for input changes, and it will say
+`N open for new entries, M switched off` in the Experts log at startup.)
 
 ## The tracker EA (`src/PortfolioEA.mq5`)
 
@@ -171,7 +177,8 @@ Read-only by construction (no `CTrade`, no order functions, verified by
 Install: copy `build/engines.csv` to `<data>\MQL5\Files\PortfolioEA\engines.csv`
 (it is the magic -> name map), put `src/PortfolioEA.mq5` in `<data>\MQL5\Experts\`
 (or any subfolder), compile, and attach it to a chart with `InpDaysBack` set to
-your demo window. Without `engines.csv` the tracker still works — it just shows
+your demo window. The folder for the report is created automatically. Without
+`engines.csv` the tracker still works — it just shows
 magic numbers instead of engine names.
 
 ## Build and deploy
@@ -190,12 +197,30 @@ Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 1 739 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 747 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
 first: re-running the generator overwrites it. Hand edits belong in the delivered
 EA (for logic) or in `gen_portfolio_ea.py` (for the host).
+
+## Known limits of a 65-engine program
+
+* **`EA_MAX_SYMBOLS` is 8 per engine.** Four delivered universes list 9-10 symbols
+  (magics 3111, 2031, 2034, 2040); the tail is never traded by the delivered EA
+  either. The engine now logs the names it drops, and `verify_portfolio.py`
+  lists the four. Widening the cap or trimming the universes changes delivered
+  behaviour, so it is left to the owner (say the word and I will do either).
+* **Indicator memory.** One program shares the terminal's indicator cache, so the
+  book resolves to ~476 indicator instances (34 symbol x timeframe pairs x 14
+  handles), not 65 x 8 x 14. Expect a slower first init on a fresh terminal and a
+  few hundred MB of history/buffers — keep "Max bars in chart" moderate.
+* **Market statistics are pooled.** Spread, fill-slippage and R-outcome rings are
+  keyed by symbol and shared by all engines (they measure the market/broker, not
+  a strategy). Two engines gate on them (`EA_SymbolSlippageOk`); for those, the
+  gate sees the whole book's fills on the symbol.
+* **Per-day request budget** is per engine and now survives restarts within the
+  same trading day (4 engines set `maxRequestsPerDay`).
 
 ## Fidelity — exact and not exact
 
@@ -216,7 +241,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
   override + book caps. Enum types of the 6 engines that declare them are
   prefixed like every other per-engine identifier (defect #67).
-* `verify_portfolio.py` — **1 739/1 739 checks pass** (freshness, originals by
+* `verify_portfolio.py` — **1 747/1 747 checks pass** (freshness, originals by
   hash, switches, tags/wrappers, policy override, registry/engines.csv
   completeness, **one-file EA: every strategy inlined verbatim**, **identifier
   hygiene**: every emitted type exists, no top-level name twice, every
@@ -225,7 +250,11 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
 * **Not verified: MQL5 compilation** — no MetaEditor on Linux. Compile
   `AllEnginesEA.mq5` and `PortfolioEA.mq5` on Windows; anything the compiler
   reports is fixed in `gen_portfolio_ea.py` or `src/`, never in `build/`.
-* Deep-review findings of this round (defects #67–#70, engine halt latch, host
-  timer / per-symbol rule / caps, tracker accounting) are listed in
-  `docs/EA_BUG_AUDIT.md`, "Eighth pass"; the tracker's parse/accounting/verdict
-  contract is mirrored by `tests/test_portfolio_tracker.py` (15 tests).
+* Deep-review findings are listed in `docs/EA_BUG_AUDIT.md`: **eighth pass**
+  (#67-#70: a prefixed enum type that was never declared, the halt-latch, the
+  tracker's entry costs, magic 3117's duplicated symbol) and **ninth pass**
+  (#71-#77: switched-off engines orphaning open trades, the silent 8-symbol
+  truncation, per-position cost carry, the request budget and loss cursor leaking
+  between engines, the 16-slot market-statistics table, and the report folder).
+  The tracker's parse/accounting/verdict contract is mirrored by
+  `tests/test_portfolio_tracker.py` (16 tests).

@@ -419,6 +419,43 @@ logic touched):
   be reported as `KEEP`), keeps its last good report when `HistorySelect` fails,
   checks `ArrayResize`, casts `MathMin`, and sanitises commas in CSV text fields.
 
+## Ninth pass — 2026-10-03 (runtime behaviour of the 65-in-one-program host)
+
+The eighth pass read the generated code for *compile* correctness. This pass
+walked the same files against the engine's runtime contracts — what happens when
+65 engines share one program's globals, one chart's tick stream and one broker
+account. Seven more defects came out; two of them change what a switched-off
+engine does with money.
+
+| # | File | Defect | Fix |
+| --- | --- | --- | --- |
+| 71 | `portfolio-EA/gen_portfolio_ea.py` (host `OnInit`) | A switched-off engine (`InpRun_<magic>` unticked, or in `InpDisableMagics`) was **never initialised**, so its open positions were abandoned: no break-even, no trail, no time stop, no session flat, no halt flatten. That is exactly the workflow the switches exist for (run the demo, then switch engines off) — and the README claimed the opposite. | Every engine is initialised; a switched-off engine runs **for exits only** — `PortEntryGate` refuses its new entries, management keeps running. It is skipped only while it holds no exposure. `OnInit` reports `N open for new entries` and says so when everything is off. |
+| 72 | `MQL5_Master/Include/EACommon.mqh` (`EA_ParseSymbols`) | `EA_MAX_SYMBOLS` is 8, but 4 delivered universes list 9-10 symbols (3111, 2031, 2034, 2040). The tail was dropped **silently** — the EA traded a smaller book than its document, and the portfolio's per-engine position cap was derived from the truncated list. | The truncation is now logged by name (`universe lists N symbols but this engine trades at most 8 - never traded: ...`), the verifier prints the affected engines, and the audit records them. The cap and the universes themselves were left alone: widening either changes delivered behaviour (and invalidates existing backtests), so that is the owner's call. |
+| 73 | `portfolio-EA/src/PortfolioEA.mq5` (tracker `Refresh`) | Entry-side commission/swap was carried in **one bucket per engine**. With two positions open at once, the first close absorbed both entry costs (and the second none) — net stayed right, but the win/loss split and the curve could flip a marginal winner into a loser. | The carry is keyed by `(magic, DEAL_POSITION_ID)` (`SPending` store), so every close is judged on its own round turn. `tests/test_portfolio_tracker.py` mirrors the rule and has a two-open-positions case. |
+| 74 | `MQL5_Master/Include/EATrade.mqh` (risk governor) | `m_requestsToday` and its day stamp were **memory-only** and not reloaded by `Init()`. In the host, where `Init()` runs before every engine switch, one engine's requests counted against the next engine's daily cap (4 engines set `maxRequestsPerDay`), so those engines could stop trading for the rest of the day on someone else's budget. | Both are magic-scoped GlobalVariables now, day-stamped and reloaded in `Init()`; a stale stamp is inert. Side benefit for the standalone EAs: a restart no longer hands out a fresh daily budget. |
+| 75 | `MQL5_Master/Include/EATrade.mqh` (risk governor) | Same class: `m_lastOutDeal` (the "already counted" cursor of the consecutive-loss breaker) was memory-only. When the switch moves to the next engine, the cursor sits high, so that engine's own closes look "already counted" and its circuit breaker never fires. | The cursor is persisted per magic. |
+| 76 | `MQL5_Master/Include/EASpread.mqh` | `EA_STAT_MAX_SYMBOLS = 16` is a **per-program** table, but the book spans **19** symbols. In the host the last symbols never got spread/slippage/outcome baselines, and every baseline-dependent gate fails open without evidence - i.e. silently less protection than the standalone EAs. | Raised to 32 (the rings cost ~1.5 MB). Inert for a one-EA program, which uses at most 8 slots. The verifier now fails if the table cannot hold the book. |
+| 77 | `portfolio-EA/src/PortfolioEA.mq5` (`WriteCsv`) | MQL5 does not create subfolders on write, so a user who skipped the manual copy of `engines.csv` got a tracker that could not write its report either. | `FolderCreate("PortfolioEA")` before opening the report. |
+
+Also confirmed sound in this pass (no change needed):
+
+* the executor's magic is re-armed per engine — `PortRefreshRiskExec()` calls
+  `g_eaExec.Init()`, which re-runs `m_trade.SetExpertMagicNumber(g_eaCfg.magic)`,
+  so orders always carry the engine's own magic;
+* every one of the 27 `PositionsTotal()` loops inside the 65 strategies filters
+  by that engine's magic const, and the strategy-side `GlobalVariable` keys are
+  magic-scoped (`EA_<magic>_...`) — no cross-engine interference;
+* the market-statistics rings (spread, slippage, R outcomes) are symbol-keyed and
+  deliberately shared; they record broker/market execution quality, not strategy
+  P/L. Only 2 engines consume them (`EA_SymbolSlippageOk`), and the gate fails
+  open while the evidence is thin;
+* `EA_Ledger` is inert (`ledgerEnabled` is false in all 65), so the host writes
+  no ledger files; the only file the engine writes is the tester-only report
+  (one per engine, keyed by strategy + magic);
+* the engine's indicator cache is shared inside one program (identical parameter
+  sets reuse one handle), so the 65 engines resolve to ~476 distinct indicator
+  instances (34 symbol x timeframe pairs x 14 handles), not 65 x 8 x 14.
+
 ## Verification after the fixes
 
 | Check | Result |

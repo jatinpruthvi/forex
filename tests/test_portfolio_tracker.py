@@ -57,20 +57,21 @@ def parse_identity(text: str) -> dict:
 
 
 def deal_accounting(deals):
-    """Mirror of Refresh() pass 1: (is_trade, entry_in, money) tuples.
+    """Mirror of Refresh() pass 1.  Each deal is
+    (is_trade, entry_in, money, position_id) and entry-side money is carried per
+    position, exactly like the MQL5 SPending store.
 
     Returns (net, closed, wins, losses, max_dd).
     """
     net = closed = wins = losses = 0
     run = peak = max_dd = 0.0
-    pending = 0.0
-    for is_trade, entry_in, money in deals:
+    pending: dict[int, float] = {}
+    for is_trade, entry_in, money, pos_id in deals:
         if is_trade and entry_in:
-            pending += money                                # entry-side costs
+            pending[pos_id] = pending.get(pos_id, 0.0) + money
             continue
         if is_trade:
-            pl = money + pending                            # whole round turn
-            pending = 0.0
+            pl = money + pending.pop(pos_id, 0.0)           # whole round turn
             net += pl
             closed += 1
             if pl > 0:
@@ -149,7 +150,7 @@ class TrackerAccounting(unittest.TestCase):
     def test_entry_commission_reaches_net(self):
         # entry deal: commission -7, no profit; close: +100 gross
         net, closed, wins, losses, dd = deal_accounting(
-            [(True, True, -7.0), (True, False, 100.0)])
+            [(True, True, -7.0, 1), (True, False, 100.0, 1)])
         self.assertAlmostEqual(net, 93.0)
         self.assertEqual((closed, wins, losses), (1, 1, 0))
         self.assertAlmostEqual(dd, 0.0)
@@ -158,23 +159,33 @@ class TrackerAccounting(unittest.TestCase):
 
     def test_entry_cost_turns_a_winner_into_a_loser(self):
         net, closed, wins, losses, dd = deal_accounting(
-            [(True, True, -30.0), (True, False, 25.0)])
+            [(True, True, -30.0, 1), (True, False, 25.0, 1)])
         self.assertAlmostEqual(net, -5.0)
         self.assertEqual((wins, losses), (0, 1))
         self.assertAlmostEqual(dd, 5.0)
 
     def test_cost_only_deals_count_once(self):
         net, closed, wins, losses, dd = deal_accounting(
-            [(True, True, -2.0), (False, False, -8.0), (True, False, 50.0)])
+            [(True, True, -2.0, 1), (False, False, -8.0, 0), (True, False, 50.0, 1)])
         self.assertAlmostEqual(net, 40.0)
         self.assertEqual(closed, 1)
         # the -8 charge is its own event on the curve, so the curve dips to -8
         # before the winning close lifts it - the cost is not lost
         self.assertAlmostEqual(dd, 8.0)
 
+    def test_two_open_positions_are_not_cross_charged(self):
+        # position 1: -10 entry cost, closes at +8  -> a net LOSS
+        # position 2: -30 entry cost, closes at +50 -> a net WIN
+        # a per-engine bucket would charge both entry costs to the first close
+        net, closed, wins, losses, _ = deal_accounting(
+            [(True, True, -10.0, 1), (True, True, -30.0, 2),
+             (True, False, 8.0, 1), (True, False, 50.0, 2)])
+        self.assertAlmostEqual(net, 18.0)
+        self.assertEqual((closed, wins, losses), (2, 1, 1))
+
     def test_drawdown_curve_includes_entry_costs(self):
         _, _, _, _, dd = deal_accounting(
-            [(True, True, -5.0), (True, False, -20.0)])
+            [(True, True, -5.0, 1), (True, False, -20.0, 1)])
         self.assertAlmostEqual(dd, 25.0)
 
 

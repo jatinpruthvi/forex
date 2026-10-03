@@ -245,6 +245,11 @@ private:
    string   KeyQualFloor() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_QualFloor"; }
    string   KeyWeek()  const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_WeekStart"; }
    string   KeyMonth() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_MonthStart"; }
+   //--- these two were memory-only: fine for one EA per program, wrong for the
+   //--- portfolio host, where the same governor object serves 65 engines and
+   //--- Init() runs before every switch (see docs/EA_BUG_AUDIT.md, eighth pass)
+   string   KeyReq()   const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_ReqToday"; }
+   string   KeyOut()   const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_LastOutDeal"; }
 
    datetime ClockDayStart() const
    {
@@ -312,6 +317,20 @@ public:
          GlobalVariableSet(KeyDay() + "_Stamp", (double)m_dayStamp);
       }
       //--- qualifying-day persistence (never reset by a losing/small day)
+      //--- per-engine daily request budget and close cursor.  The stamp makes a
+      //--- stale value inert: only today's counter is adopted.
+      if(GlobalVariableCheck(KeyReq() + "_Stamp") &&
+         (datetime)GlobalVariableGet(KeyReq() + "_Stamp") == m_dayStamp)
+         m_requestsToday = (int)GlobalVariableGet(KeyReq());
+      else
+      {
+         m_requestsToday = 0;
+         GlobalVariableSet(KeyReq(), 0.0);
+         GlobalVariableSet(KeyReq() + "_Stamp", (double)m_dayStamp);
+      }
+      m_requestsStamp = m_dayStamp;
+      if(GlobalVariableCheck(KeyOut())) m_lastOutDeal = (ulong)GlobalVariableGet(KeyOut());
+
       if(GlobalVariableCheck(KeyQual()))      m_qualDays     = (int)GlobalVariableGet(KeyQual());
       if(GlobalVariableCheck(KeyQualFloor())) m_prevDayFloor = GlobalVariableGet(KeyQualFloor());
 
@@ -422,6 +441,8 @@ public:
       {
          m_requestsStamp = DayStart();
          m_requestsToday = 0;
+         GlobalVariableSet(KeyReq(), 0.0);
+         GlobalVariableSet(KeyReq() + "_Stamp", (double)m_requestsStamp);
       }
 
       datetime dayStart = DayStart();
@@ -524,6 +545,7 @@ public:
       {
          if(newest[i] <= m_lastOutDeal) continue;                      // already counted
          m_lastOutDeal = newest[i];
+         GlobalVariableSet(KeyOut(), (double)m_lastOutDeal);
          if(pls[i] < 0.0) m_lossStreak++;
          else             m_lossStreak = 0;
          GlobalVariableSet(KeyStreak(), (double)m_lossStreak);
@@ -804,8 +826,14 @@ public:
    void NoteTrade()
    {
       m_lastTradeTime = TimeTradeServer();
-      if(m_requestsStamp != DayStart()) { m_requestsStamp = DayStart(); m_requestsToday = 0; }
+      if(m_requestsStamp != DayStart())
+      {
+         m_requestsStamp = DayStart();
+         m_requestsToday = 0;
+         GlobalVariableSet(KeyReq() + "_Stamp", (double)m_requestsStamp);
+      }
       m_requestsToday++;
+      GlobalVariableSet(KeyReq(), (double)m_requestsToday);
    }
 
    int RequestsToday() const { return m_requestsToday; }

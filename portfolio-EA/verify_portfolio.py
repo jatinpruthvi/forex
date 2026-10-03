@@ -222,6 +222,20 @@ def main() -> int:
           "per-engine per-symbol hold counter missing")
     check("if(!PortKeepDelivered(magic) && PortCountEngineSymbol(magic, sym) > 0)" in host,
           "host does not enforce one-order-per-symbol for the stacking engine")
+    # switching an engine off must stop new entries WITHOUT orphaning its open
+    # trades: every engine is initialised and keeps managing its exposure
+    check("int PortIndexOf(const long magic)" in host, "engine-index helper missing")
+    check("if(idx >= 0 && !g_portAllowed[idx])" in host and
+          "switched off: exits only, no new entries" in host,
+          "the switch does not block new entries")
+    check("if(!g_portAllowed[i] && !exposure[i]) continue;" in host,
+          "switched-off engines should only run while they hold exposure")
+    check("if(g_portAllowed[i]) entriesLive++;" in host and
+          "every engine is switched off - attached for exits only" in host,
+          "switched-off engines must still be initialised (exits managed)")
+    check(host.count("PortClearEngineState();") == 1 and
+          "for(int i = 0; i < g_portCount; i++)\n   {\n      PortClearEngineState();" in host,
+          "every engine (including switched-off ones) must be initialised")
     check("if(PortKeepDelivered(magic)) return true;" not in host,
           "the delivered-policy exemption must not bypass the book caps")
     check("MathMax(1, ctx.openPositions" not in host and
@@ -286,6 +300,8 @@ def main() -> int:
               "tracker report path changed")
         check("FileOpen(InpReportFile, FILE_WRITE | FILE_CSV | FILE_ANSI, ',')" in tracker,
               "tracker does not write the CSV report")
+        check('FolderCreate("PortfolioEA");' in tracker,
+              "tracker must create the report folder (MQL5 does not create subfolders)")
         for verdict in ("DROP", "REVIEW", "TOO_FEW", "KEEP"):
             check(f'"{verdict}"' in tracker, f"tracker verdict {verdict} missing")
         check("InpRun_" in tracker, "tracker should name the switch (InpRun_<magic>)")
@@ -297,10 +313,12 @@ def main() -> int:
         # charge commission on the entry deal), and cost-only deal types must
         # still land in net
         check("isTrade && entry == DEAL_ENTRY_IN" in tracker and
-              "g_rows[i].pending += money;" in tracker,
+              "PendingAdd(pend, magic, posId, money);" in tracker,
               "tracker drops entry-side commission/swap")
-        check("double pl = money + g_rows[i].pending;" in tracker,
+        check("double pl = money + PendingTake(pend, magic, posId);" in tracker,
               "closed-trade P/L does not include the entry-side costs")
+        check("DEAL_POSITION_ID" in tracker and "struct SPending" in tracker,
+              "entry-side costs must be carried per POSITION, not per engine")
         check("DEAL_ENTRY_OUT_BY" in tracker and "DEAL_ENTRY_INOUT" in tracker,
               "partial/out-by closes are not counted as closed trades")
         check("DEAL_TYPE_BUY" in tracker and "DEAL_TYPE_SELL" in tracker,
@@ -319,6 +337,14 @@ def main() -> int:
         # the identity file the tracker expects must be the one we generate
         check("tag" in engines.splitlines()[0] and "switch" in engines.splitlines()[0],
               "engines.csv header does not match what the tracker parses")
+
+    # capacity: the shared market-statistics table must cover the book ------------
+    spread_src = (REPO / "MQL5_Master" / "Include" / "EASpread.mqh").read_text(encoding="utf-8")
+    cap = int(re.search(r"#define\s+EA_STAT_MAX_SYMBOLS\s+(\d+)", spread_src).group(1))
+    book_syms = sorted({s for e in entries for s in e["symbols"]})
+    check(cap >= len(book_syms),
+          f"EA_STAT_MAX_SYMBOLS={cap} cannot hold the book's {len(book_syms)} symbols "
+          f"(gates on the missing ones would fail open)")
 
     # 12 - identifier hygiene: what an MQL5 compile rejects -------------------------
     # (a) every `const <type> <name>` must name a type that exists: built-in,
@@ -390,6 +416,12 @@ def report() -> int:
                             .read_text(encoding="utf-8"), re.M))
     print("     build/ is current | originals untouched (sha256) | 65 classes, %d inputs" % consts)
     print("     registry complete | state coverage complete | repo checkers clean")
+    manifest = json.loads((BUILD / "portfolio_manifest.json").read_text(encoding="utf-8"))
+    truncated = [(e["magic"], len(e["symbols"])) for e in manifest["entries"]
+                 if len(e["symbols"]) > 8]
+    if truncated:
+        print("     NOTE: EA_MAX_SYMBOLS caps an engine at 8 symbols - truncated universes: %s"
+              % ", ".join(f"{m} lists {n}" for m, n in truncated))
     print("     per-strategy switches + tags + registry/docs/engines.csv verified")
     print("     trader boundary (no dashboard/files) + tracker read-only checks verified")
     print("     NOT verified here: MQL5 compilation (needs MetaEditor on Windows)")

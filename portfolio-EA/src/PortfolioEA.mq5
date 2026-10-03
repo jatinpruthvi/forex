@@ -55,7 +55,6 @@ struct SEngineRow
    double   maxDd;         // max closed drawdown, account currency
    double   run;           // running sum (working value for the DD curve)
    double   peak;
-   double   pending;       // entry-side costs (commission/swap) of open legs
    int      openPos;
    double   floating;
    string   verdict;
@@ -70,7 +69,18 @@ double     g_totalFloat      = 0.0;
 int        g_totalOpen       = 0;
 string     g_panelPrefix     = "PFX_";
 
+//--- entry-side money per (engine, position): a close must be judged on its own
+//--- round turn even when two positions of the same engine are open at once
+struct SPending
+{
+   long   magic;
+   long   posId;
+   double money;
+};
+
 //--- forward declarations (MQL5 compiles in order) -------------------------
+void PendingAdd(SPending &store[], const long magic, const long posId, const double money);
+double PendingTake(SPending &store[], const long magic, const long posId);
 int  FindRow(const long magic);
 int  EnsureRow(const long magic);
 void LoadIdentity();
@@ -82,6 +92,35 @@ void RemovePanel();
 //+------------------------------------------------------------------+
 //| row lookup / creation                                             |
 //+------------------------------------------------------------------+
+void PendingAdd(SPending &store[], const long magic, const long posId, const double money)
+{
+   if(posId == 0) return;
+   for(int i = 0; i < ArraySize(store); i++)
+      if(store[i].magic == magic && store[i].posId == posId)
+      {
+         store[i].money += money;
+         return;
+      }
+   int n = ArraySize(store);
+   if(ArrayResize(store, n + 1) != n + 1) return;
+   store[n].magic = magic;
+   store[n].posId = posId;
+   store[n].money = money;
+}
+
+double PendingTake(SPending &store[], const long magic, const long posId)
+{
+   if(posId == 0) return 0.0;
+   for(int i = 0; i < ArraySize(store); i++)
+      if(store[i].magic == magic && store[i].posId == posId)
+      {
+         double money = store[i].money;
+         ArrayRemove(store, i, 1);
+         return money;
+      }
+   return 0.0;
+}
+
 int FindRow(const long magic)
 {
    for(int i = 0; i < g_count; i++)
@@ -111,7 +150,6 @@ int EnsureRow(const long magic)
    g_rows[g_count].maxDd    = 0.0;
    g_rows[g_count].run      = 0.0;
    g_rows[g_count].peak     = 0.0;
-   g_rows[g_count].pending  = 0.0;
    g_rows[g_count].openPos  = 0;
    g_rows[g_count].floating = 0.0;
    g_rows[g_count].verdict  = "NEW";
@@ -192,7 +230,7 @@ void Refresh()
    {
       g_rows[i].net = 0.0; g_rows[i].closed = 0; g_rows[i].wins = 0;
       g_rows[i].losses = 0; g_rows[i].maxDd = 0.0; g_rows[i].run = 0.0;
-      g_rows[i].peak = 0.0; g_rows[i].pending = 0.0;
+      g_rows[i].peak = 0.0;
       g_rows[i].openPos = 0; g_rows[i].floating = 0.0;
       g_rows[i].verdict = "KEEP";
    }
@@ -200,8 +238,10 @@ void Refresh()
 
    //--- pass 1: deals, in time order -> net, trades, win/loss, DD curve.
    //--- Commission is charged on the entry deal by many brokers, so entry-side
-   //--- money is carried (pending) and folded into the closing deal: net stays
-   //--- exact and the drawdown curve sees each cost exactly once.
+   //--- money is carried per position and folded into that position's closing
+   //--- deal: net stays exact, the win/loss split uses the whole round turn, and
+   //--- the drawdown curve sees each cost exactly once.
+   SPending pend[];
    int deals = haveHistory ? HistoryDealsTotal() : 0;
    for(int d = 0; d < deals; d++)
    {
@@ -220,6 +260,7 @@ void Refresh()
 
       long   dtype = HistoryDealGetInteger(t, DEAL_TYPE);
       long   entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+      long   posId = HistoryDealGetInteger(t, DEAL_POSITION_ID);
       double money = HistoryDealGetDouble(t, DEAL_PROFIT)
                    + HistoryDealGetDouble(t, DEAL_SWAP)
                    + HistoryDealGetDouble(t, DEAL_COMMISSION);
@@ -227,15 +268,14 @@ void Refresh()
 
       if(isTrade && entry == DEAL_ENTRY_IN)
       {
-         g_rows[i].pending += money;        // entry commission/swap
-         continue;                          // not a closed trade
+         PendingAdd(pend, magic, posId, money);   // entry commission/swap
+         continue;                                // not a closed trade
       }
 
       if(isTrade && (entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY ||
                      entry == DEAL_ENTRY_INOUT))
       {
-         double pl = money + g_rows[i].pending;   // whole round turn
-         g_rows[i].pending = 0.0;
+         double pl = money + PendingTake(pend, magic, posId);   // whole round turn
          g_rows[i].net += pl;
          g_rows[i].closed++;
          if(pl > 0.0)      g_rows[i].wins++;
@@ -335,10 +375,12 @@ string CsvText(string s)
 
 void WriteCsv()
 {
+   FolderCreate("PortfolioEA");       // MQL5 does not create subfolders on write
    int h = FileOpen(InpReportFile, FILE_WRITE | FILE_CSV | FILE_ANSI, ',');
    if(h == INVALID_HANDLE)
    {
-      PrintFormat("PortfolioEA tracker: cannot write %s (error %d)", InpReportFile, GetLastError());
+      PrintFormat("PortfolioEA tracker: cannot write %s (error %d) - create "
+                  "MQL5\\Files\\PortfolioEA if this persists", InpReportFile, GetLastError());
       return;
    }
    FileWrite(h, "magic", "tag", "engine", "strategy", "timeframe", "net", "trades",

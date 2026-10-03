@@ -1,7 +1,7 @@
 {
   "generated_by": "portfolio-EA/gen_portfolio_ea.py",
   "strategies": 65,
-  "note": "one-chart host; the 65 delivered EAs and the engine are unmodified",
+  "note": "one-chart EA; the 65 delivered EAs are read-only inputs (hashed in originals.sha256). The shared engine headers are used as-is apart from the documented fixes in docs/EA_BUG_AUDIT.md (eighth pass)",
   "entries": [
     {
       "index": 0,

@@ -91,6 +91,28 @@ int EA_ParseSymbols(const string csv)
       }
       g_eaSymbols[used++] = brokerName;
    }
+   //--- loud, not silent: EA_MAX_SYMBOLS is a hard cap, and 4 delivered EAs ship
+   //--- 9-10 symbols, so their tail is never traded (see docs/EA_BUG_AUDIT.md,
+   //--- eighth pass).  The universe itself is a strategy decision - this only
+   //--- makes the truncation visible instead of silent.
+   if(used == EA_MAX_SYMBOLS)
+   {
+      string skipped = "";
+      int seen = 0;
+      for(int i = 0; i < n; i++)
+      {
+         string s = parts[i];
+         StringTrimLeft(s);
+         StringTrimRight(s);
+         if(StringLen(s) == 0) continue;
+         seen++;
+         if(seen > EA_MAX_SYMBOLS)
+            skipped += (StringLen(skipped) > 0 ? "," : "") + s;
+      }
+      if(StringLen(skipped) > 0)
+         EA_Log(EA_LOG_ERRORS, StringFormat("universe lists %d symbols but this engine trades at "
+                "most %d - never traded: %s", seen, EA_MAX_SYMBOLS, skipped));
+   }
    g_eaSymbolCount = used;
    return used;
 }

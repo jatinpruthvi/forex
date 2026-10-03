@@ -9,8 +9,16 @@ questions below were skipped, so the plan's recommended defaults were applied:
 4) risk/book guards exist but default to faithful (`InpRiskScale = 1.0`, caps 0 =
 off) - set them for the demo phase as you prefer.
 Names per the clarification: trader = `AllEnginesEA.mq5`, tracker = `PortfolioEA.mq5`.
-See README.md for the implemented state and `verify_portfolio.py` (1 739 checks) for the
+See README.md for the implemented state and `verify_portfolio.py` (1 747 checks) for the
 evidence.  Items below are kept as the original design record.
+
+**Ninth review (2026-10-03) - runtime behaviour of 65 engines in one program.**  7 more defects
+fixed (docs/EA_BUG_AUDIT.md): a switched-off engine abandoned its open trades (#71), four universes
+lost their 9th/10th symbol silently (#72), the tracker's cost carry was per engine instead of per
+position (#73), the daily request budget and the loss cursor leaked between engines (#74/#75), the
+market-statistics table could not hold the book's 19 symbols (#76), and the tracker could not write
+its report folder (#77).  Also confirmed sound: per-engine executor magic, magic-filtered position
+loops and GlobalVariable keys inside the strategies, inert ledger, shared indicator cache.
 
 **Deep review (2026-10-03).**  Read line by line after the split: 4 real defects found and
 fixed (see `docs/EA_BUG_AUDIT.md`, eighth pass) - the generated EA named 8 enum types it
