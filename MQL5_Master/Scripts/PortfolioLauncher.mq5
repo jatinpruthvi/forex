@@ -24,6 +24,7 @@
 #property script_show_inputs
 #property description "Open + attach every EA listed in EA_Launch\\launch_plan.csv (one chart per EA)."
 #property description "Modes: START (open+attach) / STOP (close these charts) / DRYRUN (report only)."
+#property description "launch_plan.csv column 2 (enabled) switches an EA off without deleting it."
 
 enum ENUM_LAUNCH_MODE
 {
@@ -42,6 +43,7 @@ input string           InpFolder    = "EA_Launch";       // folder inside MQL5\F
 struct SLaunchRow
 {
    int      group;
+   bool     enabled;             // launch_plan.csv column 2: 0 = switched off
    string   ea;
    string   symbol;
    int      tfMinutes;
@@ -89,6 +91,7 @@ int ReadPlan(SLaunchRow &rows[])
    {
       string grp  = FileReadString(h);
       if(StringLen(grp) == 0 && FileIsEnding(h)) break;
+      string flag  = FileReadString(h);
       string ea    = FileReadString(h);
       string sym   = FileReadString(h);
       string tf    = FileReadString(h);
@@ -106,6 +109,7 @@ int ReadPlan(SLaunchRow &rows[])
       int n = ArraySize(rows);
       ArrayResize(rows, n + 1);
       rows[n].group        = (int)StringToInteger(grp);
+      rows[n].enabled      = (StringToInteger(flag) != 0);
       rows[n].ea           = ea;
       rows[n].symbol       = sym;
       rows[n].tfLabel      = tf;
@@ -228,10 +232,21 @@ void OnStart()
       FileWrite(sh, "time", "mode", "ea", "symbol", "tf", "chart_id", "expert", "status");
 
    //--- START / DRYRUN ---------------------------------------------------
-   int launched = 0, skipped = 0, failed = 0, noSymbol = 0;
+   int launched = 0, skipped = 0, failed = 0, noSymbol = 0, offPlan = 0;
    for(int i = 0; i < total; i++)
    {
       if(InpGroup > 0 && rows[i].group != InpGroup) continue;
+      if(!rows[i].enabled)
+      {
+         offPlan++;
+         PrintFormat("[%3d/%3d] %-45s %-7s %-6s -> DISABLED_IN_PLAN (enabled=0)",
+                     i + 1, total, rows[i].ea, rows[i].symbol, rows[i].tfLabel);
+         if(sh != INVALID_HANDLE)
+            FileWrite(sh, TimeToString(TimeLocal(), TIME_DATE | TIME_SECONDS),
+                      EnumToString(InpMode), rows[i].ea, rows[i].symbol, rows[i].tfLabel,
+                      IntegerToString(0), "", "DISABLED_IN_PLAN");
+         continue;
+      }
       if(InpMaxCharts > 0 && launched >= InpMaxCharts)
       {
          PrintFormat("cap reached (%d) - remaining EAs left for the next run", InpMaxCharts);
@@ -320,8 +335,8 @@ void OnStart()
    }
 
    if(sh != INVALID_HANDLE) FileClose(sh);
-   PrintFormat("PortfolioLauncher done: launched %d | already running %d | missing symbol %d | failed %d",
-               launched, skipped, noSymbol, failed);
+   PrintFormat("PortfolioLauncher done: launched %d | already running %d | disabled in plan %d | missing symbol %d | failed %d",
+               launched, skipped, offPlan, noSymbol, failed);
    if(failed > 0)
       Print("Failed rows are listed above and in MQL5\\Files\\", statusFile,
             ".  A NO_EXPERT_AFTER_APPLY usually means the template's name= line does not");

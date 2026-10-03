@@ -56,6 +56,17 @@ INC_MARKER = '#include "..\\..\\Include\\EACommon.mqh"'
 HANDLERS_MARKER = "//| MQL5 event handlers"
 
 # trailing "// comment" is normal on every delivered input line
+TF_LABEL = {"PERIOD_M1": "M1", "PERIOD_M5": "M5", "PERIOD_M15": "M15",
+            "PERIOD_M30": "M30", "PERIOD_H1": "H1", "PERIOD_H4": "H4",
+            "PERIOD_D1": "D1"}
+
+
+def strategy_label(ea) -> str:
+    """cfg.strategyName from the delivered EA (the label used in its logs)."""
+    m = re.search(r'cfg\.strategyName\s*=\s*"([^"]+)"', ea.configure)
+    return m.group(1) if m else ea.name
+
+
 INPUT_LINE_RE = re.compile(r"^\s*input\s+(\w+)\s+(\w+)\s*=\s*(.*?);\s*(?://.*)?$", re.M)
 ENUM_RE = re.compile(r"^\s*enum\s+(\w+)\s*\{(.*?)\}\s*;", re.M | re.S)
 CLASS_RE = re.compile(r"^\s*class\s+(\w+)\s*:\s*public\s+CEAStrategy\s*\{", re.M)
@@ -211,10 +222,17 @@ HOST_TEMPLATE = r'''//+---------------------------------------------------------
 #define PORT_NEWS_MAX 512      // news events cached per strategy (see README)
 
 //--- portfolio-level inputs ------------------------------------------------
-input double InpRiskScale  = 1.0;    // multiplies every strategy's delivered riskPct
-input string InpOnlyMagics = "";     // comma-separated magics to run (empty = all)
-input bool   InpQuietInit  = true;   // hide the per-switch 'risk init' log line
-input bool   InpSummary    = true;   // log an init summary + a periodic status line
+input double InpRiskScale     = 1.0;  // multiplies every strategy's delivered riskPct
+input string InpOnlyMagics    = "";   // whitelist: run only these magics (empty = all)
+input string InpDisableMagics = "";   // blacklist: never run these magics (e.g. "2035,2027")
+input bool   InpQuietInit     = true; // hide the per-switch 'risk init' log line
+input bool   InpSummary       = true; // log the init summary + refresh the live roster
+input bool   InpRosterFile    = true; // write MQL5\Files\PortfolioEA\roster.csv
+
+//--- per-strategy switches (magic = strategy) ------------------------------
+//--- After demo testing, untick a strategy here to disable it - no recompile.
+input group "@@GROUP_NAME@@"
+@@ENABLE_INPUTS@@
 
 //--- everything the engine keeps for ONE EA --------------------------------
 struct SPortState
@@ -238,8 +256,14 @@ SPortState   g_portState[PORT_MAX];
 CEAStrategy *g_portStrategy[PORT_MAX];
 long         g_portMagic[PORT_MAX];
 string       g_portName[PORT_MAX];
-bool         g_portEnabled[PORT_MAX];
-bool         g_portAllowed[PORT_MAX];
+string       g_portLabel[PORT_MAX];        // cfg.strategyName from the delivered EA
+string       g_portSymbolsTxt[PORT_MAX];
+string       g_portTfTxt[PORT_MAX];
+string       g_portRiskTxt[PORT_MAX];
+bool         g_portEnableReq[PORT_MAX];    // its own InpRun_<magic> switch
+bool         g_portEnabled[PORT_MAX];      // initialised successfully
+bool         g_portAllowed[PORT_MAX];      // passes the switches/whitelist/blacklist
+datetime     g_portRosterStamp = 0;
 datetime     g_portLastBar[PORT_MAX][EA_MAX_SYMBOLS];
 datetime     g_portNews[PORT_MAX][PORT_NEWS_MAX];
 int          g_portNewsCount[PORT_MAX];
@@ -406,19 +430,72 @@ bool PortNewBar(const int i)
    return any;
 }
 
-bool PortAllowed(const long magic)
+bool PortInList(const string csv, const long magic)
 {
-   if(StringLen(InpOnlyMagics) == 0) return true;
+   if(StringLen(csv) == 0) return false;
    string parts[];
-   int n = StringSplit(InpOnlyMagics, ',', parts);
+   int n = StringSplit(csv, ',', parts);
    for(int i = 0; i < n; i++)
    {
-      StringTrimLeft(parts[i]);
-      StringTrimRight(parts[i]);
-      if(StringLen(parts[i]) == 0) continue;
-      if((long)StringToInteger(parts[i]) == magic) return true;
+      string p = parts[i];
+      StringTrimLeft(p);
+      StringTrimRight(p);
+      if(StringLen(p) == 0) continue;
+      if((long)StringToInteger(p) == magic) return true;
    }
    return false;
+}
+
+//--- a strategy runs when it is inside the whitelist (if one was given), its
+//--- own InpRun_<magic> switch is ticked, and it is not blacklisted
+bool PortAllowed(const int i)
+{
+   if(StringLen(InpOnlyMagics) > 0 && !PortInList(InpOnlyMagics, g_portMagic[i])) return false;
+   if(!g_portEnableReq[i]) return false;
+   if(PortInList(InpDisableMagics, g_portMagic[i])) return false;
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| live roster: magic -> strategy (MQL5\Files\PortfolioEA\roster.csv)  |
+//| so trade history, the terminal and post-demo decisions can all be   |
+//| mapped back to a strategy name.  Refreshed at init and every 5 min. |
+//+------------------------------------------------------------------+
+void PortWriteRoster()
+{
+   if(!InpRosterFile || MQLInfoInteger(MQL_TESTER)) return;
+   string dir = "PortfolioEA";                       // sandbox: MQL5\Files\PortfolioEA
+   FolderCreate(dir);
+   int h = FileOpen(dir + "\\roster.csv", FILE_WRITE | FILE_CSV | FILE_ANSI, ',');
+   if(h == INVALID_HANDLE)
+   {
+      PrintFormat("[portfolio] roster file not writable (error %d)", GetLastError());
+      return;
+   }
+   FileWrite(h, "updated", "magic", "strategy", "ea", "symbols", "timeframe",
+             "risk_pct", "switch", "allowed", "ready", "positions", "floating_pl");
+   for(int i = 0; i < g_portCount; i++)
+   {
+      int    pos = 0;
+      double pl  = 0.0;
+      for(int p = PositionsTotal() - 1; p >= 0; p--)
+      {
+         ulong t = PositionGetTicket(p);
+         if(t == 0) continue;
+         if(!PositionSelectByTicket(t)) continue;
+         if((long)PositionGetInteger(POSITION_MAGIC) != g_portMagic[i]) continue;
+         pos++;
+         pl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      }
+      FileWrite(h, TimeToString(TimeLocal(), TIME_DATE | TIME_SECONDS),
+                IntegerToString(g_portMagic[i]), g_portLabel[i], g_portName[i],
+                g_portSymbolsTxt[i], g_portTfTxt[i], g_portRiskTxt[i],
+                g_portEnableReq[i] ? "on"  : "off",
+                g_portAllowed[i]   ? "yes" : "no",
+                g_portEnabled[i]   ? "yes" : "no",
+                IntegerToString(pos), DoubleToString(pl, 2));
+   }
+   FileClose(h);
 }
 
 //+------------------------------------------------------------------+
@@ -431,16 +508,24 @@ int OnInit()
    for(int i = 0; i < g_portCount; i++)
    {
       g_portEnabled[i] = false;
-      g_portAllowed[i] = PortAllowed(g_portMagic[i]);
+      g_portAllowed[i] = PortAllowed(i);
       for(int k = 0; k < EA_MAX_SYMBOLS; k++) g_portLastBar[i][k] = 0;
       g_portNewsCount[i] = 0;
    }
+
+   int disabled = 0;
+   for(int i = 0; i < g_portCount; i++)
+      if(!g_portAllowed[i]) disabled++;
 
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portAllowed[i])
       {
-         if(InpSummary) PrintFormat("[portfolio] %-45s skipped (InpOnlyMagics)", g_portName[i]);
+         if(InpSummary)
+            PrintFormat("[portfolio] %-45s magic=%-5I64d DISABLED (switch=%s, list=%s%s)",
+                        g_portName[i], g_portMagic[i],
+                        g_portEnableReq[i] ? "on" : "OFF",
+                        InpOnlyMagics, InpDisableMagics);
          continue;
       }
 
@@ -460,27 +545,37 @@ int OnInit()
       g_portLive++;
 
       if(InpSummary)
-         PrintFormat("[portfolio] %-45s ready  magic=%-5I64d symbols=%s tf=%s risk=%.3f%%",
-                     g_portName[i], g_portMagic[i], g_eaCfg.symbols,
-                     EnumToString(g_eaCfg.signalTimeframe), g_eaCfg.riskPct);
+         PrintFormat("[portfolio] %-45s ready  magic=%-5I64d %s %s risk=%.3f%%",
+                     g_portName[i], g_portMagic[i], g_portSymbolsTxt[i],
+                     g_portTfTxt[i], g_eaCfg.riskPct);
    }
 
    if(g_portLive == 0)
    {
-      Print("[portfolio] no strategy initialised - nothing to run");
+      Print("[portfolio] no strategy enabled/initialised - nothing to run");
       return INIT_FAILED;
    }
 
    g_eaInitialised = true;      // engine's global readiness flag
    g_portReady     = true;
-   PrintFormat("[portfolio] %d/%d strategies live on one chart (risk scale %.2f)",
-               g_portLive, g_portCount, InpRiskScale);
+   g_portRosterStamp = TimeLocal();
+   PortWriteRoster();           // magic -> strategy map, live and on disk
+   PrintFormat("[portfolio] %d/%d strategies live on one chart (%d disabled, risk scale %.2f)",
+               g_portLive, g_portCount, disabled, InpRiskScale);
    return INIT_SUCCEEDED;
 }
 
 void OnTick()
 {
    if(!g_portReady) return;
+
+   //--- refresh the magic -> strategy roster (live/demo only, every 5 min)
+   if(!MQLInfoInteger(MQL_TESTER) && InpRosterFile &&
+      TimeLocal() - g_portRosterStamp >= 300)
+   {
+      g_portRosterStamp = TimeLocal();
+      PortWriteRoster();
+   }
 
    bool exposure[PORT_MAX];
    PortScanExposure(exposure);
@@ -500,6 +595,7 @@ void OnTick()
 void OnDeinit(const int reason)
 {
    g_portReady = false;
+   PortWriteRoster();               // final snapshot (shows the end state)
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
@@ -528,17 +624,27 @@ def render(engine_values: set[str], specs) -> tuple[str, str, list[dict]]:
             f"//| source document: {ea.doc}\n"
             "//==================================================================\n"
             f"{tr['consts']}\n\n{tr['body'].strip()}\n")
-        registry.append(
-            f"   g_portStrategy[{i}] = new {tr['class_new']}();\n"
-            f"   g_portMagic[{i}]    = {ea.magic};\n"
-            f"   g_portName[{i}]     = \"{ea.name}\";")
         tf = TIMEFRAME_RE.search(ea.configure)
+        tf_label = TF_LABEL.get(tf.group(1) if tf else "PERIOD_M5", "M5")
+        label = strategy_label(ea)
+        registry.append(
+            f"   g_portStrategy[{i}]   = new {tr['class_new']}();\n"
+            f"   g_portMagic[{i}]      = {ea.magic};\n"
+            f"   g_portName[{i}]       = \"{ea.name}\";\n"
+            f"   g_portLabel[{i}]      = \"{label}\";\n"
+            f"   g_portSymbolsTxt[{i}] = \"{','.join(gtc.symbols_of(ea))}\";\n"
+            f"   g_portTfTxt[{i}]      = \"{tf_label}\";\n"
+            f"   g_portRiskTxt[{i}]    = \"{ea.common.get('risk', '')}\";\n"
+            f"   g_portEnableReq[{i}]  = InpRun_{ea.magic};")
+        symbols = gtc.symbols_of(ea)
         manifest.append({
             "index": i, "expert": ea.name, "class": tr["class_new"],
             "magic": ea.magic, "title": ea.title, "doc": ea.doc,
+            "strategy": label, "enable_input": f"InpRun_{ea.magic}",
             "timeframe": (tf.group(1) if tf else "PERIOD_M5"),
+            "timeframe_label": tf_label,
             "risk_pct": ea.common.get("risk", ""),
-            "symbols": gtc.symbols_of(ea),
+            "symbols": symbols,
             "inputs": len(tr["inputs"]),
             "renamed_enum_values": sorted(tr["renamed_values"]),
         })
@@ -556,10 +662,44 @@ def render(engine_values: set[str], specs) -> tuple[str, str, list[dict]]:
               "#define PORTFOLIO_STRATEGIES_MQH\n\n")
     strategies = header + "\n".join(blocks) + "\n#endif // PORTFOLIO_STRATEGIES_MQH\n"
 
+    def enable_input(m: dict) -> str:
+        syms = ",".join(m["symbols"][:4]) + ("..." if len(m["symbols"]) > 4 else "")
+        comment = f"{m['magic']} | {m['strategy']} | {syms} {m['timeframe_label']}"
+        return f"input bool InpRun_{m['magic']} = true; // {comment}"
+
     host = (HOST_TEMPLATE
             .replace("@@COUNT@@", str(len(specs)))
+            .replace("@@GROUP_NAME@@", "Per-strategy switches - magic = strategy (untick to disable)")
+            .replace("@@ENABLE_INPUTS@@", "\n".join(enable_input(m) for m in manifest))
             .replace("@@REGISTRY@@", "\n".join(registry)))
     return strategies, host, manifest
+
+
+def registry_docs(manifest: list[dict]) -> tuple[str, str]:
+    """Human + machine registry: magic -> strategy -> switch, for demo decisions."""
+    header = ("| magic | switch (EA input) | EA file | strategy | tf | symbols | "
+              "risk % | source document |")
+    sep = "| ---: | --- | --- | --- | --- | --- | ---: | --- |"
+    rows = []
+    for m in manifest:
+        rows.append(f"| {m['magic']} | `{m['enable_input']}` | {m['expert']} | "
+                    f"{m['strategy']} | {m['timeframe_label']} | "
+                    f"{','.join(m['symbols'])} | {m['risk_pct']} | {m['doc']} |")
+    md = ("# Strategy registry - magic numbers and switches\n\n"
+          "Generated by `portfolio-EA/gen_portfolio_ea.py`. Untick the input in the "
+          "second column inside `PortfolioEA` (one chart) to disable that strategy - "
+          "no recompile. The same magics are used by the standalone EAs, so demo "
+          "results in the terminal map 1:1 to this table.\n\n"
+          "Live equivalent at runtime: `MQL5\\Files\\PortfolioEA\\roster.csv` "
+          "(magic, strategy, switch, allowed, ready, positions, floating P/L).\n\n"
+          + header + "\n" + sep + "\n" + "\n".join(rows) + "\n")
+
+    lines = ["magic,switch,ea,strategy,timeframe,symbols,risk_pct,source_doc"]
+    for m in manifest:
+        lines.append(",".join([str(m["magic"]), m["enable_input"], m["expert"],
+                               m["strategy"], m["timeframe_label"],
+                               ";".join(m["symbols"]), str(m["risk_pct"]), m["doc"]]))
+    return md, "\n".join(lines) + "\n"
 
 
 def main() -> int:
@@ -574,7 +714,9 @@ def main() -> int:
     strategies, host, manifest = render(engine_values, specs)
 
     BUILD.mkdir(parents=True, exist_ok=True)
+    reg_md, reg_csv = registry_docs(manifest)
     files = {"PortfolioStrategies.mqh": strategies, "PortfolioEA.mq5": host,
+             "STRATEGY_REGISTRY.md": reg_md, "strategy_registry.csv": reg_csv,
              "portfolio_manifest.json": json.dumps({
                  "generated_by": "portfolio-EA/gen_portfolio_ea.py",
                  "strategies": len(specs),

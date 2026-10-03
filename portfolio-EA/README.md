@@ -47,6 +47,37 @@ portfolio-EA/
    `EA_TestReport()`, so one portfolio backtest still produces **one row per
    strategy** for `parse_results.py` / `compare_results.py` (65 rows, 65 EAs).
 
+## Tracking strategies: magic -> switch -> result
+
+Every strategy keeps its **delivered magic**, and that magic is the key used
+everywhere: the terminal's trade history, the tester reports, the comparison
+harness and the switch you tick in the EA.
+
+| Where | What it gives you |
+| --- | --- |
+| `build/STRATEGY_REGISTRY.md` | the full table: magic, switch name, EA file, strategy label, timeframe, symbols, risk, source doc |
+| `build/strategy_registry.csv` | the same, for scripts/spreadsheets |
+| EA inputs → group *"Per-strategy switches"* | `InpRun_<magic>` checkbox per strategy (65 of them) |
+| `MQL5\Files\PortfolioEA\roster.csv` (live) | written at start and refreshed every 5 min: magic, strategy, switch, allowed, ready, open positions, floating P/L per strategy |
+
+**After demo testing**, the workflow is:
+
+1. Run the copy trading/demo period, then look at the results per magic
+   (`compare_results.py` gives the correlation, redundancy and leave-one-out
+   tables from a tester sweep; the terminal's history is grouped by magic).
+2. Open the EA's properties on the chart and untick `InpRun_<magic>` for the
+   strategies you want off. **No recompile, no re-attach.**
+3. Extra shortcuts: `InpDisableMagics = "2035,2027"` (blacklist) and
+   `InpOnlyMagics = "3101,3102"` (whitelist, handy for testing a subset).
+   Precedence: whitelist first, then the checkbox, then the blacklist.
+4. Check `roster.csv` (or the Experts log line `... DISABLED (switch=off ...)`) to
+   confirm what is actually running.
+
+The same magics are used by the standalone EAs, so a decision made from the
+one-chart build applies 1:1 to the 65-chart launcher:
+`validation/mt5_harness/out/launch/launch_plan.csv` has an `enabled` column
+(2nd) — set it to `0` and re-run START.
+
 ## Build and deploy
 
 ```bash
@@ -64,7 +95,9 @@ Then on the Windows/MT5 machine:
 4. Attach it to **one** chart, Algo Trading ON.
 
 Inputs: `InpRiskScale` (multiplies every strategy's delivered `riskPct`),
-`InpOnlyMagics` (run a subset, e.g. `2035,2027`), `InpQuietInit`, `InpSummary`.
+`InpOnlyMagics` / `InpDisableMagics` (whitelist / blacklist by magic),
+`InpRosterFile` (write the magic roster), `InpQuietInit`, `InpSummary`, plus the
+65 `InpRun_<magic>` switches described above.
 Per-strategy parameters are the delivered defaults, baked in as
 `P<magic>_…` constants — a single program cannot expose 860 inputs. To change
 one, edit the constant in `build/PortfolioStrategies.mqh` (regenerating later
@@ -93,7 +126,9 @@ becomes an opt-in overlay file plus one `#include` line.
 
 * `gen_portfolio_ea.py` — **run**: 65 strategies, 860 inputs converted to
   constants, 0 enum collisions, registry and state coverage verified.
-* `verify_portfolio.py` — **207/207 checks pass** (fresh-generation equality,
+* `verify_portfolio.py` — **357/357 checks pass** (adds: every registry index reads
+  its own switch, 65 unique switches in manifest order, registry documents list
+  all 65 magics exactly once, roster writer present / live-only / complete) (fresh-generation equality,
   originals unchanged by hash, no bare input identifiers, brace balance,
   registry/manifest agreement, complete save/restore coverage, repo checkers
   clean on the generated files).

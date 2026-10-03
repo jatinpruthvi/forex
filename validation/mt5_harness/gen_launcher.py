@@ -176,7 +176,9 @@ def main() -> int:
     out = Path(args.out)
     (out / "templates").mkdir(parents=True, exist_ok=True)
 
-    plan = ["group,ea,symbol,tf,template,magic,strategy,universe"]
+        # 'enabled' is the post-demo switch: set 0 to skip that EA on the next START
+    # (the same magic is the switch in the one-chart PortfolioEA: InpRun_<magic>)
+    plan = ["group,enabled,ea,symbol,tf,template,magic,strategy,universe"]
     magics: dict[int, str] = {}
     for i, ea in enumerate(eas):
         if ea.magic in magics:
@@ -190,7 +192,7 @@ def main() -> int:
         (out / "templates" / f"{ea.name}.tpl").write_text(tpl, encoding="utf-8")
         group = (i % args.groups) + 1
         universe = ";".join(gtc.symbols_of(ea))          # ';' keeps the CSV parseable
-        plan.append(f"{group},{ea.name},{sym},{tf},{ea.name},{ea.magic},"
+        plan.append(f"{group},1,{ea.name},{sym},{tf},{ea.name},{ea.magic},"
                     f"{strategy_of(ea)},{universe}")
 
     (out / "launch_plan.csv").write_text("\n".join(plan) + "\n", encoding="utf-8")
@@ -204,6 +206,9 @@ def main() -> int:
 3. Make sure "Algo Trading" is ON in the terminal, then drag
    PortfolioLauncher onto any chart and press OK.
    - START creates the charts and attaches every EA from the templates.
+   - launch_plan.csv column 2 is 'enabled': set it to 0 for any EA you want off
+     after demo testing, then run START again (column 7 is its magic, and the
+     same magic is InpRun_<magic> in the one-chart portfolio EA).
    - It is safe to run again: EAs already running are skipped.
    - STOP closes every chart that is running one of these EAs.
    - DRYRUN only reports what it would do.

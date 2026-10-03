@@ -64,13 +64,18 @@ def main() -> int:
 
     strategies = strategies_p.read_text(encoding="utf-8")
     host = host_p.read_text(encoding="utf-8")
+    reg_md = (BUILD / "STRATEGY_REGISTRY.md").read_text(encoding="utf-8")
+    reg_csv = (BUILD / "strategy_registry.csv").read_text(encoding="utf-8")
     manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
     specs = list(gtc.load_generator().EAS)
 
     # 1 - deterministic / up to date -------------------------------------------------
     fresh, fresh_host, fresh_manifest = gpe.render(gpe.engine_enum_values(), specs)
+    fresh_md, fresh_csv = gpe.registry_docs(fresh_manifest)
     check(fresh == strategies, "PortfolioStrategies.mqh differs from a fresh generation")
     check(fresh_host == host, "PortfolioEA.mq5 differs from a fresh generation")
+    check(fresh_md == reg_md, "STRATEGY_REGISTRY.md differs from a fresh generation")
+    check(fresh_csv == reg_csv, "strategy_registry.csv differs from a fresh generation")
     expect_manifest = json.loads(json.dumps(manifest))
     check(len(fresh_manifest) == len(expect_manifest["entries"]),
           "manifest entry count mismatch vs fresh generation")
@@ -149,7 +154,40 @@ def main() -> int:
     check("g_eaIndCount    = 0;" in host or "g_eaIndCount = 0;" in host,
           "indicator registry is not reset before each EA_Init (handles would accumulate)")
 
-    # 9 - repo checkers ---------------------------------------------------------------
+    # 9 - per-strategy switches and the magic registry (post-demo enable/disable) -----
+    entries = manifest["entries"]
+    switches = re.findall(r"^input bool (InpRun_(\d+)) = true;", host, re.M)
+    check(len(switches) == 65, f"expected 65 per-strategy switches, found {len(switches)}")
+    check(len({m for _, m in switches}) == len(switches), "duplicate switch magics")
+    check([int(m) for _, m in switches] == [e["magic"] for e in entries],
+          "switch order/magics do not match the manifest")
+    check(all(e["enable_input"] == f"InpRun_{e['magic']}" for e in entries),
+          "manifest enable_input does not match InpRun_<magic>")
+    for e in entries:
+        check(f"g_portEnableReq[{e['index']}]  = InpRun_{e['magic']};" in host,
+              f"registry index {e['index']} does not read InpRun_{e['magic']}")
+    check("g_portEnableReq[i] ? \"on\"  : \"off\"" in host,
+          "roster does not report the switch state")
+
+    # registry documents must carry every magic exactly once
+    check(len(re.findall(r"^\| \d+ \| `InpRun_", reg_md, re.M)) == 65,
+          "STRATEGY_REGISTRY.md does not list 65 strategies")
+    for e in entries:
+        check(f"| {e['magic']} | `InpRun_{e['magic']}` | {e['expert']} |" in reg_md,
+              f"STRATEGY_REGISTRY.md missing magic {e['magic']}")
+    csv_rows = [r for r in reg_csv.strip().splitlines() if r and not r.startswith("magic,")]
+    check(len(csv_rows) == 65, f"strategy_registry.csv has {len(csv_rows)} rows, expected 65")
+    check(len({r.split(",")[0] for r in csv_rows}) == 65, "registry CSV has duplicate magics")
+
+    # roster writer: present, live-only, and covering the roster columns
+    check("void PortWriteRoster()" in host, "roster writer missing")
+    for col in ("updated", "magic", "strategy", "switch", "allowed", "ready", "positions"):
+        check(f'"{col}"' in host, f"roster column '{col}' missing")
+    check("PortfolioEA" in host and "roster.csv" in host, "roster path missing")
+    check("if(!InpRosterFile || MQLInfoInteger(MQL_TESTER)) return;" in host,
+          "roster must be live-only (not written during backtests)")
+
+    # 10 - repo checkers --------------------------------------------------------------
     for cmd in (["python3", "scripts/check_mql5_source.py",
                  "portfolio-EA/build/PortfolioEA.mq5"],
                 ["python3", "scripts/dev/arity_check.py"]):
@@ -172,6 +210,7 @@ def report() -> int:
     print(f"OK - {CHECKS} checks passed")
     print("     build/ is current | originals untouched (sha256) | 65 classes, 859 inputs")
     print("     registry complete | state coverage complete | repo checkers clean")
+    print("     per-strategy switches (InpRun_<magic>) + registry docs + live roster verified")
     print("     NOT verified here: MQL5 compilation (needs MetaEditor on Windows)")
     return 0
 

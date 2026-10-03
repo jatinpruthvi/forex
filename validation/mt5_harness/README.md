@@ -123,9 +123,16 @@ Then attach **`MQL5_Master/Scripts/PortfolioLauncher.mq5`** to one chart
 
 | Mode | Effect |
 | --- | --- |
-| START | opens one chart per EA and attaches it from its template; skips EAs that are already running, so it is safe to re-run |
+| START | opens one chart per EA and attaches it from its template; skips EAs that are already running, so it is safe to re-run; skips entries switched off in the plan |
 | STOP | closes every chart that is running one of these EAs |
 | DRYRUN | reports what it would do, changes nothing |
+
+**Switching an EA off after demo testing:** `launch_plan.csv` column 2 is
+`enabled` — set it to `0` for that EA and run START again (delete its chart, or
+use STOP first). Column 7 is its magic, the same magic the strategy uses as a
+standalone EA and the same one as `InpRun_<magic>` in the
+[one-chart portfolio EA](../../portfolio-EA/README.md), so one decision applies
+to both routes. `launch_status.csv` records `DISABLED_IN_PLAN` for skipped rows.
 
 Everything is logged to `MQL5\Files\EA_Launch\launch_status.csv` and the
 Experts tab. `--groups N` splits the plan into N groups so you can spread the

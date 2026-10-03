@@ -30,10 +30,81 @@
 #define PORT_NEWS_MAX 512      // news events cached per strategy (see README)
 
 //--- portfolio-level inputs ------------------------------------------------
-input double InpRiskScale  = 1.0;    // multiplies every strategy's delivered riskPct
-input string InpOnlyMagics = "";     // comma-separated magics to run (empty = all)
-input bool   InpQuietInit  = true;   // hide the per-switch 'risk init' log line
-input bool   InpSummary    = true;   // log an init summary + a periodic status line
+input double InpRiskScale     = 1.0;  // multiplies every strategy's delivered riskPct
+input string InpOnlyMagics    = "";   // whitelist: run only these magics (empty = all)
+input string InpDisableMagics = "";   // blacklist: never run these magics (e.g. "2035,2027")
+input bool   InpQuietInit     = true; // hide the per-switch 'risk init' log line
+input bool   InpSummary       = true; // log the init summary + refresh the live roster
+input bool   InpRosterFile    = true; // write MQL5\Files\PortfolioEA\roster.csv
+
+//--- per-strategy switches (magic = strategy) ------------------------------
+//--- After demo testing, untick a strategy here to disable it - no recompile.
+input group "Per-strategy switches - magic = strategy (untick to disable)"
+input bool InpRun_3101 = true; // 3101 | FINAL_OPTIMUM | XAUUSD,AUDUSD,EURJPY,GBPJPY... M5
+input bool InpRun_3102 = true; // 3102 | THE5ERS_V2 | EURUSD,GBPUSD,USDJPY M1
+input bool InpRun_3103 = true; // 3103 | THE5ERS_OPTIMIZATION | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3104 = true; // 3104 | THE5ERS_25K_PLAN | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3105 = true; // 3105 | THE5ERS_V2_REVALIDATION | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3106 = true; // 3106 | PRECODE_CHECKLIST | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3112 = true; // 3112 | PR10_ROI_IMPROVEMENTS | EURUSD,GBPUSD,AUDUSD,USDCAD... M5
+input bool InpRun_3107 = true; // 3107 | HIGH_STAKES_RESEARCH | EURUSD,GBPUSD,USDJPY M15
+input bool InpRun_3108 = true; // 3108 | PROPOSAL_REVIEW | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3109 = true; // 3109 | SUGGESTION_REVIEW_GATES | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3110 = true; // 3110 | TRIAD_R_HS_HARDENED | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3111 = true; // 3111 | TRIAD_SURVIVE | EURUSD,GBPUSD,USDJPY,AUDUSD... M5
+input bool InpRun_3113 = true; // 3113 | TRIAD_R_FROZEN | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3114 = true; // 3114 | PROPFUND_IMPROVEMENT_PLAN | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3115 = true; // 3115 | STRATEGY_IMPROVEMENTS | EURUSD,GBPUSD,USDJPY M5
+input bool InpRun_3116 = true; // 3116 | PORTFOLIO_AUDIT_ROUTER | EURUSD,GBPUSD,USDJPY,XAUUSD... M5
+input bool InpRun_3117 = true; // 3117 | STRATEGY_ROADMAP | GBPJPY,EURJPY,XAUUSD,XAUUSD... M5
+input bool InpRun_2001 = true; // 2001 | R1B_SMC_ORDER_BLOCK | EURUSD,GBPUSD,XAUUSD M15
+input bool InpRun_2002 = true; // 2002 | R1C_SMC_CONFLUENCE | EURUSD,GBPUSD,USDJPY M15
+input bool InpRun_2003 = true; // 2003 | R2A_LIQUIDITY_HUNTING | EURUSD,GBPUSD,AUDUSD,USDJPY M15
+input bool InpRun_2004 = true; // 2004 | R2B_ENGINE_PORTFOLIO | EURUSD,GBPUSD,USDJPY,XAUUSD... M15
+input bool InpRun_2005 = true; // 2005 | R2C_SMC_PILLARS | EURUSD,GBPUSD,USDJPY,XAUUSD M15
+input bool InpRun_2006 = true; // 2006 | R3A_TF_CASCADE | EURUSD,GBPUSD,USDJPY,GBPJPY M5
+input bool InpRun_2007 = true; // 2007 | R3B_SEVENTEEN_LEVERS | EURUSD,GBPUSD,XAUUSD M15
+input bool InpRun_2008 = true; // 2008 | R4A_LEVERAGE_LAYER | EURUSD,GBPUSD M15
+input bool InpRun_2009 = true; // 2009 | R4B_SESSION_PORTFOLIO | EURUSD,GBPUSD,XAUUSD,AUDNZD... M15
+input bool InpRun_2010 = true; // 2010 | R4B2_IMBALANCE_ENGINE | EURUSD,GBPUSD,USDJPY,XAUUSD... M15
+input bool InpRun_2011 = true; // 2011 | R4C_24H_MATRIX | AUDNZD,EURGBP,EURUSD,GBPUSD... M15
+input bool InpRun_2012 = true; // 2012 | R4C2_REGIME_LEVERS | EURUSD,GBPUSD,EURGBP,USDJPY... M15
+input bool InpRun_2013 = true; // 2013 | R4D_REGIME_ROUTER | EURUSD,GBPUSD,USDJPY,EURJPY... M5
+input bool InpRun_2014 = true; // 2014 | R4E_PAIR_SESSION_MAP | EURUSD,GBPUSD,USDJPY,AUDUSD... M5
+input bool InpRun_2015 = true; // 2015 | R4F_THREE_SLEEVES | GBPUSD,EURUSD,GBPJPY,EURCHF... M15
+input bool InpRun_2016 = true; // 2016 | R5A_PORTFOLIO_60_25_15 | EURUSD,GBPUSD,USDJPY,USDCAD... M5
+input bool InpRun_2047 = true; // 2047 | R5A2_PERCENTILE_SWEEP | EURUSD,GBPUSD M5
+input bool InpRun_2017 = true; // 2017 | R5B_ASYMMETRIC_RUNNER | EURUSD,GBPUSD,USDJPY,XAUUSD M15
+input bool InpRun_2048 = true; // 2048 | R5B2_E_CORE | EURGBP,AUDNZD,EURUSD,GBPUSD... M15
+input bool InpRun_2018 = true; // 2018 | R5C_LONDON_SWEEP_HONEST | EURUSD,GBPUSD M5
+input bool InpRun_2019 = true; // 2019 | R5D_THREE_SHIFT | EURGBP,AUDNZD,EURUSD,GBPUSD... M15
+input bool InpRun_2020 = true; // 2020 | R5E_EXECUTABLE_CORE | EURUSD,GBPUSD,USDJPY,AUDUSD... M15
+input bool InpRun_2021 = true; // 2021 | R5F_STATARB_GATES | EURCHF,EURGBP,AUDNZD,EURUSD... M15
+input bool InpRun_2022 = true; // 2022 | R7A_DAX_GAP_FADE | GER40,DE40,GER30,DAX M5
+input bool InpRun_2023 = true; // 2023 | R7B_SLEEVES_THROTTLE | EURUSD,GBPUSD,XAUUSD,USDJPY... M15
+input bool InpRun_2024 = true; // 2024 | R7C_FIVE_PERCENT | EURUSD,GBPUSD,XAUUSD M5
+input bool InpRun_2025 = true; // 2025 | R7D_REGIME_BREAKOUT | EURUSD,GBPUSD,XAUUSD M5
+input bool InpRun_2026 = true; // 2026 | R8A_LONDON_RECLAIM | EURUSD,GBPUSD,XAUUSD M5
+input bool InpRun_2027 = true; // 2027 | R8B_SOS3_FREEROLL | EURUSD,GBPUSD,XAUUSD,USDJPY... M5
+input bool InpRun_2028 = true; // 2028 | R8C_RECLAIM_LADDER | EURUSD,GBPUSD M5
+input bool InpRun_2029 = true; // 2029 | R8D_ONE_SHOT | EURUSD,GBPUSD M5
+input bool InpRun_2030 = true; // 2030 | R10FABLE_SWEEP_SCALPER | EURUSD,GBPUSD M1
+input bool InpRun_2031 = true; // 2031 | R10OPUS_LSRA | AUDNZD,EURGBP,AUDUSD,EURUSD... M15
+input bool InpRun_2032 = true; // 2032 | R10GEMINI_DELTA_SCALP | EURUSD,GBPUSD,USDJPY,XAUUSD M1
+input bool InpRun_2033 = true; // 2033 | R10KIMI_SWEEP1 | EURUSD,GBPUSD,USDJPY,AUDUSD... M5
+input bool InpRun_2034 = true; // 2034 | R10QWEN_SOS3_ALGO | AUDNZD,EURGBP,EURUSD,GBPUSD... M5
+input bool InpRun_2035 = true; // 2035 | R11A_ADAPTIVE_SWEEP | EURUSD,GBPUSD,USDJPY,XAUUSD M5
+input bool InpRun_2036 = true; // 2036 | R11B_COB_VIRTUAL | EURUSD,GBPUSD,USDJPY,XAUUSD M5
+input bool InpRun_2037 = true; // 2037 | R11C_DECADE_THROTTLE | EURUSD,GBPUSD,USDJPY,XAUUSD M5
+input bool InpRun_2038 = true; // 2038 | R11D_VETERAN_SPEC | EURUSD,GBPUSD,XAUUSD,USDJPY... M5
+input bool InpRun_2039 = true; // 2039 | R11E_SWEEP1_VETERAN | EURUSD,GBPUSD,USDJPY,XAUUSD... M5
+input bool InpRun_2040 = true; // 2040 | R11F_TRIAD_SLEEVES | EURUSD,GBPUSD,USDJPY,AUDUSD... M5
+input bool InpRun_2041 = true; // 2041 | R12FABLE_SWEEP1_MACHINE | AUDNZD,EURGBP,EURUSD,GBPUSD... M5
+input bool InpRun_2042 = true; // 2042 | R12A_SWEEP1_SCORE | AUDNZD,EURGBP,EURUSD,GBPUSD... M5
+input bool InpRun_2043 = true; // 2043 | R12B_THREE_TIER_DD | EURUSD,GBPUSD,XAUUSD,USDJPY... M5
+input bool InpRun_2044 = true; // 2044 | R12C_SR10_SURVIVAL | EURUSD,GBPUSD,USDJPY,XAUUSD M1
+input bool InpRun_2045 = true; // 2045 | R12F_SOS_SWEEP_VET | AUDNZD,EURGBP,EURUSD,GBPUSD... M5
+input bool InpRun_2046 = true; // 2046 | R12QWEN_SWEEP1_DEFINITIVE | AUDNZD,EURGBP,EURUSD,GBPUSD... M5
 
 //--- everything the engine keeps for ONE EA --------------------------------
 struct SPortState
@@ -57,8 +128,14 @@ SPortState   g_portState[PORT_MAX];
 CEAStrategy *g_portStrategy[PORT_MAX];
 long         g_portMagic[PORT_MAX];
 string       g_portName[PORT_MAX];
-bool         g_portEnabled[PORT_MAX];
-bool         g_portAllowed[PORT_MAX];
+string       g_portLabel[PORT_MAX];        // cfg.strategyName from the delivered EA
+string       g_portSymbolsTxt[PORT_MAX];
+string       g_portTfTxt[PORT_MAX];
+string       g_portRiskTxt[PORT_MAX];
+bool         g_portEnableReq[PORT_MAX];    // its own InpRun_<magic> switch
+bool         g_portEnabled[PORT_MAX];      // initialised successfully
+bool         g_portAllowed[PORT_MAX];      // passes the switches/whitelist/blacklist
+datetime     g_portRosterStamp = 0;
 datetime     g_portLastBar[PORT_MAX][EA_MAX_SYMBOLS];
 datetime     g_portNews[PORT_MAX][PORT_NEWS_MAX];
 int          g_portNewsCount[PORT_MAX];
@@ -71,201 +148,526 @@ int          g_portLive = 0;
 //+------------------------------------------------------------------+
 void PortBuildRegistry()
 {
-   g_portStrategy[0] = new P3101_CFinalOptimum();
-   g_portMagic[0]    = 3101;
-   g_portName[0]     = "EA_FINAL_OPTIMUM_STRATEGY";
-   g_portStrategy[1] = new P3102_CThe5ersV2();
-   g_portMagic[1]    = 3102;
-   g_portName[1]     = "EA_THE5ERS_CHALLENGE_STRATEGY_V2";
-   g_portStrategy[2] = new P3103_CChallengeOptimization();
-   g_portMagic[2]    = 3103;
-   g_portName[2]     = "EA_THE5ERS_CHALLENGE_OPTIMIZATION";
-   g_portStrategy[3] = new P3104_CChallengePlan25K();
-   g_portMagic[3]    = 3104;
-   g_portName[3]     = "EA_THE5ERS_2_5K_CHALLENGE_PLAN";
-   g_portStrategy[4] = new P3105_CChallengeV2Revalidation();
-   g_portMagic[4]    = 3105;
-   g_portName[4]     = "EA_THE5ERS_CHALLENGE_V2_REVALIDATION";
-   g_portStrategy[5] = new P3106_CPrecodeChecklist();
-   g_portMagic[5]    = 3106;
-   g_portName[5]     = "EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST";
-   g_portStrategy[6] = new P3112_CPr10RoiImprovements();
-   g_portMagic[6]    = 3112;
-   g_portName[6]     = "EA_Pr10_Roi_Improvements";
-   g_portStrategy[7] = new P3107_CHighStakesResearch();
-   g_portMagic[7]    = 3107;
-   g_portName[7]     = "EA_THE5ERS_HIGH_STAKES_RESEARCH";
-   g_portStrategy[8] = new P3108_CProposalReview();
-   g_portMagic[8]    = 3108;
-   g_portName[8]     = "EA_THE5ERS_PROPOSAL_REVIEW";
-   g_portStrategy[9] = new P3109_CSuggestionReview();
-   g_portMagic[9]    = 3109;
-   g_portName[9]     = "EA_THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW";
-   g_portStrategy[10] = new P3110_CTriadCodeReviewHardened();
-   g_portMagic[10]    = 3110;
-   g_portName[10]     = "EA_TRIAD_R_HS_CODE_REVIEW";
-   g_portStrategy[11] = new P3111_CTriadSurvive();
-   g_portMagic[11]    = 3111;
-   g_portName[11]     = "EA_TRIAD_SURVIVE";
-   g_portStrategy[12] = new P3113_CProgressFrozenContract();
-   g_portMagic[12]    = 3113;
-   g_portName[12]     = "EA_progress";
-   g_portStrategy[13] = new P3114_CPropFundImprovementPlan();
-   g_portMagic[13]    = 3114;
-   g_portName[13]     = "EA_prop_fund_challenge_improvement_plan";
-   g_portStrategy[14] = new P3115_CStrategyImprovementsPlan();
-   g_portMagic[14]    = 3115;
-   g_portName[14]     = "EA_strategy_improvements_plan";
-   g_portStrategy[15] = new P3116_CPortfolioAuditRouter();
-   g_portMagic[15]    = 3116;
-   g_portName[15]     = "EA_STRATEGY_PORTFOLIO_AUDIT";
-   g_portStrategy[16] = new P3117_CStrategyRoadmap();
-   g_portMagic[16]    = 3117;
-   g_portName[16]     = "EA_STRATEGY_ROADMAP";
-   g_portStrategy[17] = new P2001_CRound1B();
-   g_portMagic[17]    = 2001;
-   g_portName[17]     = "EA_studyarena_round1_contestant_b";
-   g_portStrategy[18] = new P2002_CRound1C();
-   g_portMagic[18]    = 2002;
-   g_portName[18]     = "EA_studyarena_round1_contestant_c";
-   g_portStrategy[19] = new P2003_CRound2A();
-   g_portMagic[19]    = 2003;
-   g_portName[19]     = "EA_studyarena_round2_contestant_a";
-   g_portStrategy[20] = new P2004_CRound2B();
-   g_portMagic[20]    = 2004;
-   g_portName[20]     = "EA_studyarena_round2_contestant_b";
-   g_portStrategy[21] = new P2005_CRound2C();
-   g_portMagic[21]    = 2005;
-   g_portName[21]     = "EA_studyarena_round2_contestant_c";
-   g_portStrategy[22] = new P2006_CRound3A();
-   g_portMagic[22]    = 2006;
-   g_portName[22]     = "EA_studyarena_round3_contestant_a__1_";
-   g_portStrategy[23] = new P2007_CRound3B();
-   g_portMagic[23]    = 2007;
-   g_portName[23]     = "EA_studyarena_round3_contestant_b__1_";
-   g_portStrategy[24] = new P2008_CRound4A();
-   g_portMagic[24]    = 2008;
-   g_portName[24]     = "EA_studyarena_round4_contestant_a__1_";
-   g_portStrategy[25] = new P2009_CRound4B();
-   g_portMagic[25]    = 2009;
-   g_portName[25]     = "EA_studyarena_round4_contestant_b";
-   g_portStrategy[26] = new P2010_CRound4B2();
-   g_portMagic[26]    = 2010;
-   g_portName[26]     = "EA_studyarena_round4_contestant_b__1_";
-   g_portStrategy[27] = new P2011_CRound4C();
-   g_portMagic[27]    = 2011;
-   g_portName[27]     = "EA_studyarena_round4_contestant_c";
-   g_portStrategy[28] = new P2012_CRound4C2();
-   g_portMagic[28]    = 2012;
-   g_portName[28]     = "EA_studyarena_round4_contestant_c__1_";
-   g_portStrategy[29] = new P2013_CRound4D();
-   g_portMagic[29]    = 2013;
-   g_portName[29]     = "EA_studyarena_round4_contestant_d";
-   g_portStrategy[30] = new P2014_CRound4E();
-   g_portMagic[30]    = 2014;
-   g_portName[30]     = "EA_studyarena_round4_contestant_e";
-   g_portStrategy[31] = new P2015_CRound4F();
-   g_portMagic[31]    = 2015;
-   g_portName[31]     = "EA_studyarena_round4_contestant_f";
-   g_portStrategy[32] = new P2016_CRound5A();
-   g_portMagic[32]    = 2016;
-   g_portName[32]     = "EA_studyarena_round5_contestant_a";
-   g_portStrategy[33] = new P2047_CRound5A2();
-   g_portMagic[33]    = 2047;
-   g_portName[33]     = "EA_studyarena_round5_contestant_a_2047";
-   g_portStrategy[34] = new P2017_CRound5B();
-   g_portMagic[34]    = 2017;
-   g_portName[34]     = "EA_studyarena_round5_contestant_b";
-   g_portStrategy[35] = new P2048_CRound5B2();
-   g_portMagic[35]    = 2048;
-   g_portName[35]     = "EA_studyarena_round5_contestant_b_2048";
-   g_portStrategy[36] = new P2018_CRound5C();
-   g_portMagic[36]    = 2018;
-   g_portName[36]     = "EA_studyarena_round5_contestant_c";
-   g_portStrategy[37] = new P2019_CRound5D();
-   g_portMagic[37]    = 2019;
-   g_portName[37]     = "EA_studyarena_round5_contestant_d";
-   g_portStrategy[38] = new P2020_CRound5E();
-   g_portMagic[38]    = 2020;
-   g_portName[38]     = "EA_studyarena_round5_contestant_e";
-   g_portStrategy[39] = new P2021_CRound5F();
-   g_portMagic[39]    = 2021;
-   g_portName[39]     = "EA_studyarena_round5_contestant_f";
-   g_portStrategy[40] = new P2022_CRound7A();
-   g_portMagic[40]    = 2022;
-   g_portName[40]     = "EA_studyarena_round7_contestant_a";
-   g_portStrategy[41] = new P2023_CRound7B();
-   g_portMagic[41]    = 2023;
-   g_portName[41]     = "EA_studyarena_round7_contestant_b";
-   g_portStrategy[42] = new P2024_CRound7C();
-   g_portMagic[42]    = 2024;
-   g_portName[42]     = "EA_studyarena_round7_contestant_c";
-   g_portStrategy[43] = new P2025_CRound7D();
-   g_portMagic[43]    = 2025;
-   g_portName[43]     = "EA_studyarena_round7_contestant_d";
-   g_portStrategy[44] = new P2026_CRound8A();
-   g_portMagic[44]    = 2026;
-   g_portName[44]     = "EA_studyarena_round8_contestant_a";
-   g_portStrategy[45] = new P2027_CRound8B();
-   g_portMagic[45]    = 2027;
-   g_portName[45]     = "EA_studyarena_round8_contestant_b";
-   g_portStrategy[46] = new P2028_CRound8C();
-   g_portMagic[46]    = 2028;
-   g_portName[46]     = "EA_studyarena_round8_contestant_c";
-   g_portStrategy[47] = new P2029_CRound8D();
-   g_portMagic[47]    = 2029;
-   g_portName[47]     = "EA_studyarena_round8_contestant_d";
-   g_portStrategy[48] = new P2030_CRound10Fable();
-   g_portMagic[48]    = 2030;
-   g_portName[48]     = "EA_studyarena_round10_claude_fable_5_high_reasoning";
-   g_portStrategy[49] = new P2031_CRound10Opus();
-   g_portMagic[49]    = 2031;
-   g_portName[49]     = "EA_studyarena_round10_claude_opus_5_high_reasoning";
-   g_portStrategy[50] = new P2032_CRound10Gemini();
-   g_portMagic[50]    = 2032;
-   g_portName[50]     = "EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning";
-   g_portStrategy[51] = new P2033_CRound10Kimi();
-   g_portMagic[51]    = 2033;
-   g_portName[51]     = "EA_studyarena_round10_kimi_k3_high_reasoning";
-   g_portStrategy[52] = new P2034_CRound10Qwen();
-   g_portMagic[52]    = 2034;
-   g_portName[52]     = "EA_studyarena_round10_qwen3_8_2_4t_a95b_high_reasoning";
-   g_portStrategy[53] = new P2035_CRound11A();
-   g_portMagic[53]    = 2035;
-   g_portName[53]     = "EA_studyarena_round11_contestant_a";
-   g_portStrategy[54] = new P2036_CRound11B();
-   g_portMagic[54]    = 2036;
-   g_portName[54]     = "EA_studyarena_round11_contestant_b";
-   g_portStrategy[55] = new P2037_CRound11C();
-   g_portMagic[55]    = 2037;
-   g_portName[55]     = "EA_studyarena_round11_contestant_c";
-   g_portStrategy[56] = new P2038_CRound11D();
-   g_portMagic[56]    = 2038;
-   g_portName[56]     = "EA_studyarena_round11_contestant_d";
-   g_portStrategy[57] = new P2039_CRound11E();
-   g_portMagic[57]    = 2039;
-   g_portName[57]     = "EA_studyarena_round11_contestant_e";
-   g_portStrategy[58] = new P2040_CRound11F();
-   g_portMagic[58]    = 2040;
-   g_portName[58]     = "EA_studyarena_round11_contestant_f";
-   g_portStrategy[59] = new P2041_CRound12Fable();
-   g_portMagic[59]    = 2041;
-   g_portName[59]     = "EA_studyarena_round12_claude_fable_5_high_reasoning";
-   g_portStrategy[60] = new P2042_CRound12A();
-   g_portMagic[60]    = 2042;
-   g_portName[60]     = "EA_studyarena_round12_contestant_a";
-   g_portStrategy[61] = new P2043_CRound12B();
-   g_portMagic[61]    = 2043;
-   g_portName[61]     = "EA_studyarena_round12_contestant_b";
-   g_portStrategy[62] = new P2044_CRound12C();
-   g_portMagic[62]    = 2044;
-   g_portName[62]     = "EA_studyarena_round12_contestant_c";
-   g_portStrategy[63] = new P2045_CRound12F();
-   g_portMagic[63]    = 2045;
-   g_portName[63]     = "EA_studyarena_round12_contestant_f";
-   g_portStrategy[64] = new P2046_CRound12Qwen();
-   g_portMagic[64]    = 2046;
-   g_portName[64]     = "EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning";
+   g_portStrategy[0]   = new P3101_CFinalOptimum();
+   g_portMagic[0]      = 3101;
+   g_portName[0]       = "EA_FINAL_OPTIMUM_STRATEGY";
+   g_portLabel[0]      = "FINAL_OPTIMUM";
+   g_portSymbolsTxt[0] = "XAUUSD,AUDUSD,EURJPY,GBPJPY,USDJPY";
+   g_portTfTxt[0]      = "M5";
+   g_portRiskTxt[0]    = "1.75";
+   g_portEnableReq[0]  = InpRun_3101;
+   g_portStrategy[1]   = new P3102_CThe5ersV2();
+   g_portMagic[1]      = 3102;
+   g_portName[1]       = "EA_THE5ERS_CHALLENGE_STRATEGY_V2";
+   g_portLabel[1]      = "THE5ERS_V2";
+   g_portSymbolsTxt[1] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[1]      = "M1";
+   g_portRiskTxt[1]    = "0.5";
+   g_portEnableReq[1]  = InpRun_3102;
+   g_portStrategy[2]   = new P3103_CChallengeOptimization();
+   g_portMagic[2]      = 3103;
+   g_portName[2]       = "EA_THE5ERS_CHALLENGE_OPTIMIZATION";
+   g_portLabel[2]      = "THE5ERS_OPTIMIZATION";
+   g_portSymbolsTxt[2] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[2]      = "M5";
+   g_portRiskTxt[2]    = "0.4";
+   g_portEnableReq[2]  = InpRun_3103;
+   g_portStrategy[3]   = new P3104_CChallengePlan25K();
+   g_portMagic[3]      = 3104;
+   g_portName[3]       = "EA_THE5ERS_2_5K_CHALLENGE_PLAN";
+   g_portLabel[3]      = "THE5ERS_25K_PLAN";
+   g_portSymbolsTxt[3] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[3]      = "M5";
+   g_portRiskTxt[3]    = "0.4";
+   g_portEnableReq[3]  = InpRun_3104;
+   g_portStrategy[4]   = new P3105_CChallengeV2Revalidation();
+   g_portMagic[4]      = 3105;
+   g_portName[4]       = "EA_THE5ERS_CHALLENGE_V2_REVALIDATION";
+   g_portLabel[4]      = "THE5ERS_V2_REVALIDATION";
+   g_portSymbolsTxt[4] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[4]      = "M5";
+   g_portRiskTxt[4]    = "0.4";
+   g_portEnableReq[4]  = InpRun_3105;
+   g_portStrategy[5]   = new P3106_CPrecodeChecklist();
+   g_portMagic[5]      = 3106;
+   g_portName[5]       = "EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST";
+   g_portLabel[5]      = "PRECODE_CHECKLIST";
+   g_portSymbolsTxt[5] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[5]      = "M5";
+   g_portRiskTxt[5]    = "0.4";
+   g_portEnableReq[5]  = InpRun_3106;
+   g_portStrategy[6]   = new P3112_CPr10RoiImprovements();
+   g_portMagic[6]      = 3112;
+   g_portName[6]       = "EA_Pr10_Roi_Improvements";
+   g_portLabel[6]      = "PR10_ROI_IMPROVEMENTS";
+   g_portSymbolsTxt[6] = "EURUSD,GBPUSD,AUDUSD,USDCAD,XAUUSD";
+   g_portTfTxt[6]      = "M5";
+   g_portRiskTxt[6]    = "0.4";
+   g_portEnableReq[6]  = InpRun_3112;
+   g_portStrategy[7]   = new P3107_CHighStakesResearch();
+   g_portMagic[7]      = 3107;
+   g_portName[7]       = "EA_THE5ERS_HIGH_STAKES_RESEARCH";
+   g_portLabel[7]      = "HIGH_STAKES_RESEARCH";
+   g_portSymbolsTxt[7] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[7]      = "M15";
+   g_portRiskTxt[7]    = "0.4";
+   g_portEnableReq[7]  = InpRun_3107;
+   g_portStrategy[8]   = new P3108_CProposalReview();
+   g_portMagic[8]      = 3108;
+   g_portName[8]       = "EA_THE5ERS_PROPOSAL_REVIEW";
+   g_portLabel[8]      = "PROPOSAL_REVIEW";
+   g_portSymbolsTxt[8] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[8]      = "M5";
+   g_portRiskTxt[8]    = "0.4";
+   g_portEnableReq[8]  = InpRun_3108;
+   g_portStrategy[9]   = new P3109_CSuggestionReview();
+   g_portMagic[9]      = 3109;
+   g_portName[9]       = "EA_THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW";
+   g_portLabel[9]      = "SUGGESTION_REVIEW_GATES";
+   g_portSymbolsTxt[9] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[9]      = "M5";
+   g_portRiskTxt[9]    = "0.4";
+   g_portEnableReq[9]  = InpRun_3109;
+   g_portStrategy[10]   = new P3110_CTriadCodeReviewHardened();
+   g_portMagic[10]      = 3110;
+   g_portName[10]       = "EA_TRIAD_R_HS_CODE_REVIEW";
+   g_portLabel[10]      = "TRIAD_R_HS_HARDENED";
+   g_portSymbolsTxt[10] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[10]      = "M5";
+   g_portRiskTxt[10]    = "0.4";
+   g_portEnableReq[10]  = InpRun_3110;
+   g_portStrategy[11]   = new P3111_CTriadSurvive();
+   g_portMagic[11]      = 3111;
+   g_portName[11]       = "EA_TRIAD_SURVIVE";
+   g_portLabel[11]      = "TRIAD_SURVIVE";
+   g_portSymbolsTxt[11] = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,GBPJPY,AUDNZD,EURGBP,EURCHF";
+   g_portTfTxt[11]      = "M5";
+   g_portRiskTxt[11]    = "0.24";
+   g_portEnableReq[11]  = InpRun_3111;
+   g_portStrategy[12]   = new P3113_CProgressFrozenContract();
+   g_portMagic[12]      = 3113;
+   g_portName[12]       = "EA_progress";
+   g_portLabel[12]      = "TRIAD_R_FROZEN";
+   g_portSymbolsTxt[12] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[12]      = "M5";
+   g_portRiskTxt[12]    = "0.4";
+   g_portEnableReq[12]  = InpRun_3113;
+   g_portStrategy[13]   = new P3114_CPropFundImprovementPlan();
+   g_portMagic[13]      = 3114;
+   g_portName[13]       = "EA_prop_fund_challenge_improvement_plan";
+   g_portLabel[13]      = "PROPFUND_IMPROVEMENT_PLAN";
+   g_portSymbolsTxt[13] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[13]      = "M5";
+   g_portRiskTxt[13]    = "0.4";
+   g_portEnableReq[13]  = InpRun_3114;
+   g_portStrategy[14]   = new P3115_CStrategyImprovementsPlan();
+   g_portMagic[14]      = 3115;
+   g_portName[14]       = "EA_strategy_improvements_plan";
+   g_portLabel[14]      = "STRATEGY_IMPROVEMENTS";
+   g_portSymbolsTxt[14] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[14]      = "M5";
+   g_portRiskTxt[14]    = "0.4";
+   g_portEnableReq[14]  = InpRun_3115;
+   g_portStrategy[15]   = new P3116_CPortfolioAuditRouter();
+   g_portMagic[15]      = 3116;
+   g_portName[15]       = "EA_STRATEGY_PORTFOLIO_AUDIT";
+   g_portLabel[15]      = "PORTFOLIO_AUDIT_ROUTER";
+   g_portSymbolsTxt[15] = "EURUSD,GBPUSD,USDJPY,XAUUSD,AUDNZD,EURGBP,GBPJPY";
+   g_portTfTxt[15]      = "M5";
+   g_portRiskTxt[15]    = "0.24";
+   g_portEnableReq[15]  = InpRun_3116;
+   g_portStrategy[16]   = new P3117_CStrategyRoadmap();
+   g_portMagic[16]      = 3117;
+   g_portName[16]       = "EA_STRATEGY_ROADMAP";
+   g_portLabel[16]      = "STRATEGY_ROADMAP";
+   g_portSymbolsTxt[16] = "GBPJPY,EURJPY,XAUUSD,XAUUSD,EURUSD";
+   g_portTfTxt[16]      = "M5";
+   g_portRiskTxt[16]    = "1.5";
+   g_portEnableReq[16]  = InpRun_3117;
+   g_portStrategy[17]   = new P2001_CRound1B();
+   g_portMagic[17]      = 2001;
+   g_portName[17]       = "EA_studyarena_round1_contestant_b";
+   g_portLabel[17]      = "R1B_SMC_ORDER_BLOCK";
+   g_portSymbolsTxt[17] = "EURUSD,GBPUSD,XAUUSD";
+   g_portTfTxt[17]      = "M15";
+   g_portRiskTxt[17]    = "1.0";
+   g_portEnableReq[17]  = InpRun_2001;
+   g_portStrategy[18]   = new P2002_CRound1C();
+   g_portMagic[18]      = 2002;
+   g_portName[18]       = "EA_studyarena_round1_contestant_c";
+   g_portLabel[18]      = "R1C_SMC_CONFLUENCE";
+   g_portSymbolsTxt[18] = "EURUSD,GBPUSD,USDJPY";
+   g_portTfTxt[18]      = "M15";
+   g_portRiskTxt[18]    = "1.5";
+   g_portEnableReq[18]  = InpRun_2002;
+   g_portStrategy[19]   = new P2003_CRound2A();
+   g_portMagic[19]      = 2003;
+   g_portName[19]       = "EA_studyarena_round2_contestant_a";
+   g_portLabel[19]      = "R2A_LIQUIDITY_HUNTING";
+   g_portSymbolsTxt[19] = "EURUSD,GBPUSD,AUDUSD,USDJPY";
+   g_portTfTxt[19]      = "M15";
+   g_portRiskTxt[19]    = "1.0";
+   g_portEnableReq[19]  = InpRun_2003;
+   g_portStrategy[20]   = new P2004_CRound2B();
+   g_portMagic[20]      = 2004;
+   g_portName[20]       = "EA_studyarena_round2_contestant_b";
+   g_portLabel[20]      = "R2B_ENGINE_PORTFOLIO";
+   g_portSymbolsTxt[20] = "EURUSD,GBPUSD,USDJPY,XAUUSD,AUDNZD";
+   g_portTfTxt[20]      = "M15";
+   g_portRiskTxt[20]    = "1.0";
+   g_portEnableReq[20]  = InpRun_2004;
+   g_portStrategy[21]   = new P2005_CRound2C();
+   g_portMagic[21]      = 2005;
+   g_portName[21]       = "EA_studyarena_round2_contestant_c";
+   g_portLabel[21]      = "R2C_SMC_PILLARS";
+   g_portSymbolsTxt[21] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[21]      = "M15";
+   g_portRiskTxt[21]    = "1.0";
+   g_portEnableReq[21]  = InpRun_2005;
+   g_portStrategy[22]   = new P2006_CRound3A();
+   g_portMagic[22]      = 2006;
+   g_portName[22]       = "EA_studyarena_round3_contestant_a__1_";
+   g_portLabel[22]      = "R3A_TF_CASCADE";
+   g_portSymbolsTxt[22] = "EURUSD,GBPUSD,USDJPY,GBPJPY";
+   g_portTfTxt[22]      = "M5";
+   g_portRiskTxt[22]    = "1.0";
+   g_portEnableReq[22]  = InpRun_2006;
+   g_portStrategy[23]   = new P2007_CRound3B();
+   g_portMagic[23]      = 2007;
+   g_portName[23]       = "EA_studyarena_round3_contestant_b__1_";
+   g_portLabel[23]      = "R3B_SEVENTEEN_LEVERS";
+   g_portSymbolsTxt[23] = "EURUSD,GBPUSD,XAUUSD";
+   g_portTfTxt[23]      = "M15";
+   g_portRiskTxt[23]    = "1.0";
+   g_portEnableReq[23]  = InpRun_2007;
+   g_portStrategy[24]   = new P2008_CRound4A();
+   g_portMagic[24]      = 2008;
+   g_portName[24]       = "EA_studyarena_round4_contestant_a__1_";
+   g_portLabel[24]      = "R4A_LEVERAGE_LAYER";
+   g_portSymbolsTxt[24] = "EURUSD,GBPUSD";
+   g_portTfTxt[24]      = "M15";
+   g_portRiskTxt[24]    = "0.5";
+   g_portEnableReq[24]  = InpRun_2008;
+   g_portStrategy[25]   = new P2009_CRound4B();
+   g_portMagic[25]      = 2009;
+   g_portName[25]       = "EA_studyarena_round4_contestant_b";
+   g_portLabel[25]      = "R4B_SESSION_PORTFOLIO";
+   g_portSymbolsTxt[25] = "EURUSD,GBPUSD,XAUUSD,AUDNZD,EURCHF,GBPJPY,USDJPY";
+   g_portTfTxt[25]      = "M15";
+   g_portRiskTxt[25]    = "1.5";
+   g_portEnableReq[25]  = InpRun_2009;
+   g_portStrategy[26]   = new P2010_CRound4B2();
+   g_portMagic[26]      = 2010;
+   g_portName[26]       = "EA_studyarena_round4_contestant_b__1_";
+   g_portLabel[26]      = "R4B2_IMBALANCE_ENGINE";
+   g_portSymbolsTxt[26] = "EURUSD,GBPUSD,USDJPY,XAUUSD,AUDNZD";
+   g_portTfTxt[26]      = "M15";
+   g_portRiskTxt[26]    = "0.7";
+   g_portEnableReq[26]  = InpRun_2010;
+   g_portStrategy[27]   = new P2011_CRound4C();
+   g_portMagic[27]      = 2011;
+   g_portName[27]       = "EA_studyarena_round4_contestant_c";
+   g_portLabel[27]      = "R4C_24H_MATRIX";
+   g_portSymbolsTxt[27] = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDCAD";
+   g_portTfTxt[27]      = "M15";
+   g_portRiskTxt[27]    = "1.5";
+   g_portEnableReq[27]  = InpRun_2011;
+   g_portStrategy[28]   = new P2012_CRound4C2();
+   g_portMagic[28]      = 2012;
+   g_portName[28]       = "EA_studyarena_round4_contestant_c__1_";
+   g_portLabel[28]      = "R4C2_REGIME_LEVERS";
+   g_portSymbolsTxt[28] = "EURUSD,GBPUSD,EURGBP,USDJPY,XAUUSD";
+   g_portTfTxt[28]      = "M15";
+   g_portRiskTxt[28]    = "1.0";
+   g_portEnableReq[28]  = InpRun_2012;
+   g_portStrategy[29]   = new P2013_CRound4D();
+   g_portMagic[29]      = 2013;
+   g_portName[29]       = "EA_studyarena_round4_contestant_d";
+   g_portLabel[29]      = "R4D_REGIME_ROUTER";
+   g_portSymbolsTxt[29] = "EURUSD,GBPUSD,USDJPY,EURJPY,AUDUSD,AUDJPY,EURGBP";
+   g_portTfTxt[29]      = "M5";
+   g_portRiskTxt[29]    = "1.0";
+   g_portEnableReq[29]  = InpRun_2013;
+   g_portStrategy[30]   = new P2014_CRound4E();
+   g_portMagic[30]      = 2014;
+   g_portName[30]       = "EA_studyarena_round4_contestant_e";
+   g_portLabel[30]      = "R4E_PAIR_SESSION_MAP";
+   g_portSymbolsTxt[30] = "EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,EURGBP,AUDNZD";
+   g_portTfTxt[30]      = "M5";
+   g_portRiskTxt[30]    = "1.0";
+   g_portEnableReq[30]  = InpRun_2014;
+   g_portStrategy[31]   = new P2015_CRound4F();
+   g_portMagic[31]      = 2015;
+   g_portName[31]       = "EA_studyarena_round4_contestant_f";
+   g_portLabel[31]      = "R4F_THREE_SLEEVES";
+   g_portSymbolsTxt[31] = "GBPUSD,EURUSD,GBPJPY,EURCHF,EURGBP,AUDNZD,USDJPY,XAUUSD";
+   g_portTfTxt[31]      = "M15";
+   g_portRiskTxt[31]    = "1.2";
+   g_portEnableReq[31]  = InpRun_2015;
+   g_portStrategy[32]   = new P2016_CRound5A();
+   g_portMagic[32]      = 2016;
+   g_portName[32]       = "EA_studyarena_round5_contestant_a";
+   g_portLabel[32]      = "R5A_PORTFOLIO_60_25_15";
+   g_portSymbolsTxt[32] = "EURUSD,GBPUSD,USDJPY,USDCAD,XAUUSD,EURGBP,AUDNZD";
+   g_portTfTxt[32]      = "M5";
+   g_portRiskTxt[32]    = "0.8";
+   g_portEnableReq[32]  = InpRun_2016;
+   g_portStrategy[33]   = new P2047_CRound5A2();
+   g_portMagic[33]      = 2047;
+   g_portName[33]       = "EA_studyarena_round5_contestant_a_2047";
+   g_portLabel[33]      = "R5A2_PERCENTILE_SWEEP";
+   g_portSymbolsTxt[33] = "EURUSD,GBPUSD";
+   g_portTfTxt[33]      = "M5";
+   g_portRiskTxt[33]    = "1.0";
+   g_portEnableReq[33]  = InpRun_2047;
+   g_portStrategy[34]   = new P2017_CRound5B();
+   g_portMagic[34]      = 2017;
+   g_portName[34]       = "EA_studyarena_round5_contestant_b";
+   g_portLabel[34]      = "R5B_ASYMMETRIC_RUNNER";
+   g_portSymbolsTxt[34] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[34]      = "M15";
+   g_portRiskTxt[34]    = "1.5";
+   g_portEnableReq[34]  = InpRun_2017;
+   g_portStrategy[35]   = new P2048_CRound5B2();
+   g_portMagic[35]      = 2048;
+   g_portName[35]       = "EA_studyarena_round5_contestant_b_2048";
+   g_portLabel[35]      = "R5B2_E_CORE";
+   g_portSymbolsTxt[35] = "EURGBP,AUDNZD,EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[35]      = "M15";
+   g_portRiskTxt[35]    = "1.0";
+   g_portEnableReq[35]  = InpRun_2048;
+   g_portStrategy[36]   = new P2018_CRound5C();
+   g_portMagic[36]      = 2018;
+   g_portName[36]       = "EA_studyarena_round5_contestant_c";
+   g_portLabel[36]      = "R5C_LONDON_SWEEP_HONEST";
+   g_portSymbolsTxt[36] = "EURUSD,GBPUSD";
+   g_portTfTxt[36]      = "M5";
+   g_portRiskTxt[36]    = "0.75";
+   g_portEnableReq[36]  = InpRun_2018;
+   g_portStrategy[37]   = new P2019_CRound5D();
+   g_portMagic[37]      = 2019;
+   g_portName[37]       = "EA_studyarena_round5_contestant_d";
+   g_portLabel[37]      = "R5D_THREE_SHIFT";
+   g_portSymbolsTxt[37] = "EURGBP,AUDNZD,EURUSD,GBPUSD,XAUUSD,USDCAD";
+   g_portTfTxt[37]      = "M15";
+   g_portRiskTxt[37]    = "1.5";
+   g_portEnableReq[37]  = InpRun_2019;
+   g_portStrategy[38]   = new P2020_CRound5E();
+   g_portMagic[38]      = 2020;
+   g_portName[38]       = "EA_studyarena_round5_contestant_e";
+   g_portLabel[38]      = "R5E_EXECUTABLE_CORE";
+   g_portSymbolsTxt[38] = "EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,EURGBP,AUDNZD";
+   g_portTfTxt[38]      = "M15";
+   g_portRiskTxt[38]    = "1.0";
+   g_portEnableReq[38]  = InpRun_2020;
+   g_portStrategy[39]   = new P2021_CRound5F();
+   g_portMagic[39]      = 2021;
+   g_portName[39]       = "EA_studyarena_round5_contestant_f";
+   g_portLabel[39]      = "R5F_STATARB_GATES";
+   g_portSymbolsTxt[39] = "EURCHF,EURGBP,AUDNZD,EURUSD,GBPUSD,XAUUSD,USDJPY,USDCAD";
+   g_portTfTxt[39]      = "M15";
+   g_portRiskTxt[39]    = "1.0";
+   g_portEnableReq[39]  = InpRun_2021;
+   g_portStrategy[40]   = new P2022_CRound7A();
+   g_portMagic[40]      = 2022;
+   g_portName[40]       = "EA_studyarena_round7_contestant_a";
+   g_portLabel[40]      = "R7A_DAX_GAP_FADE";
+   g_portSymbolsTxt[40] = "GER40,DE40,GER30,DAX";
+   g_portTfTxt[40]      = "M5";
+   g_portRiskTxt[40]    = "1.0";
+   g_portEnableReq[40]  = InpRun_2022;
+   g_portStrategy[41]   = new P2023_CRound7B();
+   g_portMagic[41]      = 2023;
+   g_portName[41]       = "EA_studyarena_round7_contestant_b";
+   g_portLabel[41]      = "R7B_SLEEVES_THROTTLE";
+   g_portSymbolsTxt[41] = "EURUSD,GBPUSD,XAUUSD,USDJPY,EURGBP,AUDNZD,GER40";
+   g_portTfTxt[41]      = "M15";
+   g_portRiskTxt[41]    = "1.5";
+   g_portEnableReq[41]  = InpRun_2023;
+   g_portStrategy[42]   = new P2024_CRound7C();
+   g_portMagic[42]      = 2024;
+   g_portName[42]       = "EA_studyarena_round7_contestant_c";
+   g_portLabel[42]      = "R7C_FIVE_PERCENT";
+   g_portSymbolsTxt[42] = "EURUSD,GBPUSD,XAUUSD";
+   g_portTfTxt[42]      = "M5";
+   g_portRiskTxt[42]    = "0.75";
+   g_portEnableReq[42]  = InpRun_2024;
+   g_portStrategy[43]   = new P2025_CRound7D();
+   g_portMagic[43]      = 2025;
+   g_portName[43]       = "EA_studyarena_round7_contestant_d";
+   g_portLabel[43]      = "R7D_REGIME_BREAKOUT";
+   g_portSymbolsTxt[43] = "EURUSD,GBPUSD,XAUUSD";
+   g_portTfTxt[43]      = "M5";
+   g_portRiskTxt[43]    = "1.0";
+   g_portEnableReq[43]  = InpRun_2025;
+   g_portStrategy[44]   = new P2026_CRound8A();
+   g_portMagic[44]      = 2026;
+   g_portName[44]       = "EA_studyarena_round8_contestant_a";
+   g_portLabel[44]      = "R8A_LONDON_RECLAIM";
+   g_portSymbolsTxt[44] = "EURUSD,GBPUSD,XAUUSD";
+   g_portTfTxt[44]      = "M5";
+   g_portRiskTxt[44]    = "0.75";
+   g_portEnableReq[44]  = InpRun_2026;
+   g_portStrategy[45]   = new P2027_CRound8B();
+   g_portMagic[45]      = 2027;
+   g_portName[45]       = "EA_studyarena_round8_contestant_b";
+   g_portLabel[45]      = "R8B_SOS3_FREEROLL";
+   g_portSymbolsTxt[45] = "EURUSD,GBPUSD,XAUUSD,USDJPY,AUDNZD,EURGBP";
+   g_portTfTxt[45]      = "M5";
+   g_portRiskTxt[45]    = "0.75";
+   g_portEnableReq[45]  = InpRun_2027;
+   g_portStrategy[46]   = new P2028_CRound8C();
+   g_portMagic[46]      = 2028;
+   g_portName[46]       = "EA_studyarena_round8_contestant_c";
+   g_portLabel[46]      = "R8C_RECLAIM_LADDER";
+   g_portSymbolsTxt[46] = "EURUSD,GBPUSD";
+   g_portTfTxt[46]      = "M5";
+   g_portRiskTxt[46]    = "0.5";
+   g_portEnableReq[46]  = InpRun_2028;
+   g_portStrategy[47]   = new P2029_CRound8D();
+   g_portMagic[47]      = 2029;
+   g_portName[47]       = "EA_studyarena_round8_contestant_d";
+   g_portLabel[47]      = "R8D_ONE_SHOT";
+   g_portSymbolsTxt[47] = "EURUSD,GBPUSD";
+   g_portTfTxt[47]      = "M5";
+   g_portRiskTxt[47]    = "1.0";
+   g_portEnableReq[47]  = InpRun_2029;
+   g_portStrategy[48]   = new P2030_CRound10Fable();
+   g_portMagic[48]      = 2030;
+   g_portName[48]       = "EA_studyarena_round10_claude_fable_5_high_reasoning";
+   g_portLabel[48]      = "R10FABLE_SWEEP_SCALPER";
+   g_portSymbolsTxt[48] = "EURUSD,GBPUSD";
+   g_portTfTxt[48]      = "M1";
+   g_portRiskTxt[48]    = "0.50";
+   g_portEnableReq[48]  = InpRun_2030;
+   g_portStrategy[49]   = new P2031_CRound10Opus();
+   g_portMagic[49]      = 2031;
+   g_portName[49]       = "EA_studyarena_round10_claude_opus_5_high_reasoning";
+   g_portLabel[49]      = "R10OPUS_LSRA";
+   g_portSymbolsTxt[49] = "AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,GER40,USDJPY,US100";
+   g_portTfTxt[49]      = "M15";
+   g_portRiskTxt[49]    = "1.0";
+   g_portEnableReq[49]  = InpRun_2031;
+   g_portStrategy[50]   = new P2032_CRound10Gemini();
+   g_portMagic[50]      = 2032;
+   g_portName[50]       = "EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning";
+   g_portLabel[50]      = "R10GEMINI_DELTA_SCALP";
+   g_portSymbolsTxt[50] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[50]      = "M1";
+   g_portRiskTxt[50]    = "0.50";
+   g_portEnableReq[50]  = InpRun_2032;
+   g_portStrategy[51]   = new P2033_CRound10Kimi();
+   g_portMagic[51]      = 2033;
+   g_portName[51]       = "EA_studyarena_round10_kimi_k3_high_reasoning";
+   g_portLabel[51]      = "R10KIMI_SWEEP1";
+   g_portSymbolsTxt[51] = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,GBPJPY,AUDNZD,EURGBP";
+   g_portTfTxt[51]      = "M5";
+   g_portRiskTxt[51]    = "0.60";
+   g_portEnableReq[51]  = InpRun_2033;
+   g_portStrategy[52]   = new P2034_CRound10Qwen();
+   g_portMagic[52]      = 2034;
+   g_portName[52]       = "EA_studyarena_round10_qwen3_8_2_4t_a95b_high_reasoning";
+   g_portLabel[52]      = "R10QWEN_SOS3_ALGO";
+   g_portSymbolsTxt[52] = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,GBPJPY,USDJPY,DAX,US30,NAS100";
+   g_portTfTxt[52]      = "M5";
+   g_portRiskTxt[52]    = "0.75";
+   g_portEnableReq[52]  = InpRun_2034;
+   g_portStrategy[53]   = new P2035_CRound11A();
+   g_portMagic[53]      = 2035;
+   g_portName[53]       = "EA_studyarena_round11_contestant_a";
+   g_portLabel[53]      = "R11A_ADAPTIVE_SWEEP";
+   g_portSymbolsTxt[53] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[53]      = "M5";
+   g_portRiskTxt[53]    = "1.0";
+   g_portEnableReq[53]  = InpRun_2035;
+   g_portStrategy[54]   = new P2036_CRound11B();
+   g_portMagic[54]      = 2036;
+   g_portName[54]       = "EA_studyarena_round11_contestant_b";
+   g_portLabel[54]      = "R11B_COB_VIRTUAL";
+   g_portSymbolsTxt[54] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[54]      = "M5";
+   g_portRiskTxt[54]    = "0.75";
+   g_portEnableReq[54]  = InpRun_2036;
+   g_portStrategy[55]   = new P2037_CRound11C();
+   g_portMagic[55]      = 2037;
+   g_portName[55]       = "EA_studyarena_round11_contestant_c";
+   g_portLabel[55]      = "R11C_DECADE_THROTTLE";
+   g_portSymbolsTxt[55] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[55]      = "M5";
+   g_portRiskTxt[55]    = "0.80";
+   g_portEnableReq[55]  = InpRun_2037;
+   g_portStrategy[56]   = new P2038_CRound11D();
+   g_portMagic[56]      = 2038;
+   g_portName[56]       = "EA_studyarena_round11_contestant_d";
+   g_portLabel[56]      = "R11D_VETERAN_SPEC";
+   g_portSymbolsTxt[56] = "EURUSD,GBPUSD,XAUUSD,USDJPY,EURGBP,AUDNZD";
+   g_portTfTxt[56]      = "M5";
+   g_portRiskTxt[56]    = "0.50";
+   g_portEnableReq[56]  = InpRun_2038;
+   g_portStrategy[57]   = new P2039_CRound11E();
+   g_portMagic[57]      = 2039;
+   g_portName[57]       = "EA_studyarena_round11_contestant_e";
+   g_portLabel[57]      = "R11E_SWEEP1_VETERAN";
+   g_portSymbolsTxt[57] = "EURUSD,GBPUSD,USDJPY,XAUUSD,AUDNZD,EURGBP";
+   g_portTfTxt[57]      = "M5";
+   g_portRiskTxt[57]    = "0.60";
+   g_portEnableReq[57]  = InpRun_2039;
+   g_portStrategy[58]   = new P2040_CRound11F();
+   g_portMagic[58]      = 2040;
+   g_portName[58]       = "EA_studyarena_round11_contestant_f";
+   g_portLabel[58]      = "R11F_TRIAD_SLEEVES";
+   g_portSymbolsTxt[58] = "EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF,DAX,US30";
+   g_portTfTxt[58]      = "M5";
+   g_portRiskTxt[58]    = "0.24";
+   g_portEnableReq[58]  = InpRun_2040;
+   g_portStrategy[59]   = new P2041_CRound12Fable();
+   g_portMagic[59]      = 2041;
+   g_portName[59]       = "EA_studyarena_round12_claude_fable_5_high_reasoning";
+   g_portLabel[59]      = "R12FABLE_SWEEP1_MACHINE";
+   g_portSymbolsTxt[59] = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDJPY";
+   g_portTfTxt[59]      = "M5";
+   g_portRiskTxt[59]    = "0.60";
+   g_portEnableReq[59]  = InpRun_2041;
+   g_portStrategy[60]   = new P2042_CRound12A();
+   g_portMagic[60]      = 2042;
+   g_portName[60]       = "EA_studyarena_round12_contestant_a";
+   g_portLabel[60]      = "R12A_SWEEP1_SCORE";
+   g_portSymbolsTxt[60] = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDJPY";
+   g_portTfTxt[60]      = "M5";
+   g_portRiskTxt[60]    = "0.60";
+   g_portEnableReq[60]  = InpRun_2042;
+   g_portStrategy[61]   = new P2043_CRound12B();
+   g_portMagic[61]      = 2043;
+   g_portName[61]       = "EA_studyarena_round12_contestant_b";
+   g_portLabel[61]      = "R12B_THREE_TIER_DD";
+   g_portSymbolsTxt[61] = "EURUSD,GBPUSD,XAUUSD,USDJPY,US30,AUDNZD";
+   g_portTfTxt[61]      = "M5";
+   g_portRiskTxt[61]    = "0.60";
+   g_portEnableReq[61]  = InpRun_2043;
+   g_portStrategy[62]   = new P2044_CRound12C();
+   g_portMagic[62]      = 2044;
+   g_portName[62]       = "EA_studyarena_round12_contestant_c";
+   g_portLabel[62]      = "R12C_SR10_SURVIVAL";
+   g_portSymbolsTxt[62] = "EURUSD,GBPUSD,USDJPY,XAUUSD";
+   g_portTfTxt[62]      = "M1";
+   g_portRiskTxt[62]    = "0.50";
+   g_portEnableReq[62]  = InpRun_2044;
+   g_portStrategy[63]   = new P2045_CRound12F();
+   g_portMagic[63]      = 2045;
+   g_portName[63]       = "EA_studyarena_round12_contestant_f";
+   g_portLabel[63]      = "R12F_SOS_SWEEP_VET";
+   g_portSymbolsTxt[63] = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDJPY";
+   g_portTfTxt[63]      = "M5";
+   g_portRiskTxt[63]    = "0.60";
+   g_portEnableReq[63]  = InpRun_2045;
+   g_portStrategy[64]   = new P2046_CRound12Qwen();
+   g_portMagic[64]      = 2046;
+   g_portName[64]       = "EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning";
+   g_portLabel[64]      = "R12QWEN_SWEEP1_DEFINITIVE";
+   g_portSymbolsTxt[64] = "AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDJPY,GBPJPY";
+   g_portTfTxt[64]      = "M5";
+   g_portRiskTxt[64]    = "0.60";
+   g_portEnableReq[64]  = InpRun_2046;
    g_portCount = PORT_MAX;
 }
 
@@ -419,19 +821,72 @@ bool PortNewBar(const int i)
    return any;
 }
 
-bool PortAllowed(const long magic)
+bool PortInList(const string csv, const long magic)
 {
-   if(StringLen(InpOnlyMagics) == 0) return true;
+   if(StringLen(csv) == 0) return false;
    string parts[];
-   int n = StringSplit(InpOnlyMagics, ',', parts);
+   int n = StringSplit(csv, ',', parts);
    for(int i = 0; i < n; i++)
    {
-      StringTrimLeft(parts[i]);
-      StringTrimRight(parts[i]);
-      if(StringLen(parts[i]) == 0) continue;
-      if((long)StringToInteger(parts[i]) == magic) return true;
+      string p = parts[i];
+      StringTrimLeft(p);
+      StringTrimRight(p);
+      if(StringLen(p) == 0) continue;
+      if((long)StringToInteger(p) == magic) return true;
    }
    return false;
+}
+
+//--- a strategy runs when it is inside the whitelist (if one was given), its
+//--- own InpRun_<magic> switch is ticked, and it is not blacklisted
+bool PortAllowed(const int i)
+{
+   if(StringLen(InpOnlyMagics) > 0 && !PortInList(InpOnlyMagics, g_portMagic[i])) return false;
+   if(!g_portEnableReq[i]) return false;
+   if(PortInList(InpDisableMagics, g_portMagic[i])) return false;
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| live roster: magic -> strategy (MQL5\Files\PortfolioEA\roster.csv)  |
+//| so trade history, the terminal and post-demo decisions can all be   |
+//| mapped back to a strategy name.  Refreshed at init and every 5 min. |
+//+------------------------------------------------------------------+
+void PortWriteRoster()
+{
+   if(!InpRosterFile || MQLInfoInteger(MQL_TESTER)) return;
+   string dir = "PortfolioEA";                       // sandbox: MQL5\Files\PortfolioEA
+   FolderCreate(dir);
+   int h = FileOpen(dir + "\\roster.csv", FILE_WRITE | FILE_CSV | FILE_ANSI, ',');
+   if(h == INVALID_HANDLE)
+   {
+      PrintFormat("[portfolio] roster file not writable (error %d)", GetLastError());
+      return;
+   }
+   FileWrite(h, "updated", "magic", "strategy", "ea", "symbols", "timeframe",
+             "risk_pct", "switch", "allowed", "ready", "positions", "floating_pl");
+   for(int i = 0; i < g_portCount; i++)
+   {
+      int    pos = 0;
+      double pl  = 0.0;
+      for(int p = PositionsTotal() - 1; p >= 0; p--)
+      {
+         ulong t = PositionGetTicket(p);
+         if(t == 0) continue;
+         if(!PositionSelectByTicket(t)) continue;
+         if((long)PositionGetInteger(POSITION_MAGIC) != g_portMagic[i]) continue;
+         pos++;
+         pl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      }
+      FileWrite(h, TimeToString(TimeLocal(), TIME_DATE | TIME_SECONDS),
+                IntegerToString(g_portMagic[i]), g_portLabel[i], g_portName[i],
+                g_portSymbolsTxt[i], g_portTfTxt[i], g_portRiskTxt[i],
+                g_portEnableReq[i] ? "on"  : "off",
+                g_portAllowed[i]   ? "yes" : "no",
+                g_portEnabled[i]   ? "yes" : "no",
+                IntegerToString(pos), DoubleToString(pl, 2));
+   }
+   FileClose(h);
 }
 
 //+------------------------------------------------------------------+
@@ -444,16 +899,24 @@ int OnInit()
    for(int i = 0; i < g_portCount; i++)
    {
       g_portEnabled[i] = false;
-      g_portAllowed[i] = PortAllowed(g_portMagic[i]);
+      g_portAllowed[i] = PortAllowed(i);
       for(int k = 0; k < EA_MAX_SYMBOLS; k++) g_portLastBar[i][k] = 0;
       g_portNewsCount[i] = 0;
    }
+
+   int disabled = 0;
+   for(int i = 0; i < g_portCount; i++)
+      if(!g_portAllowed[i]) disabled++;
 
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portAllowed[i])
       {
-         if(InpSummary) PrintFormat("[portfolio] %-45s skipped (InpOnlyMagics)", g_portName[i]);
+         if(InpSummary)
+            PrintFormat("[portfolio] %-45s magic=%-5I64d DISABLED (switch=%s, list=%s%s)",
+                        g_portName[i], g_portMagic[i],
+                        g_portEnableReq[i] ? "on" : "OFF",
+                        InpOnlyMagics, InpDisableMagics);
          continue;
       }
 
@@ -473,27 +936,37 @@ int OnInit()
       g_portLive++;
 
       if(InpSummary)
-         PrintFormat("[portfolio] %-45s ready  magic=%-5I64d symbols=%s tf=%s risk=%.3f%%",
-                     g_portName[i], g_portMagic[i], g_eaCfg.symbols,
-                     EnumToString(g_eaCfg.signalTimeframe), g_eaCfg.riskPct);
+         PrintFormat("[portfolio] %-45s ready  magic=%-5I64d %s %s risk=%.3f%%",
+                     g_portName[i], g_portMagic[i], g_portSymbolsTxt[i],
+                     g_portTfTxt[i], g_eaCfg.riskPct);
    }
 
    if(g_portLive == 0)
    {
-      Print("[portfolio] no strategy initialised - nothing to run");
+      Print("[portfolio] no strategy enabled/initialised - nothing to run");
       return INIT_FAILED;
    }
 
    g_eaInitialised = true;      // engine's global readiness flag
    g_portReady     = true;
-   PrintFormat("[portfolio] %d/%d strategies live on one chart (risk scale %.2f)",
-               g_portLive, g_portCount, InpRiskScale);
+   g_portRosterStamp = TimeLocal();
+   PortWriteRoster();           // magic -> strategy map, live and on disk
+   PrintFormat("[portfolio] %d/%d strategies live on one chart (%d disabled, risk scale %.2f)",
+               g_portLive, g_portCount, disabled, InpRiskScale);
    return INIT_SUCCEEDED;
 }
 
 void OnTick()
 {
    if(!g_portReady) return;
+
+   //--- refresh the magic -> strategy roster (live/demo only, every 5 min)
+   if(!MQLInfoInteger(MQL_TESTER) && InpRosterFile &&
+      TimeLocal() - g_portRosterStamp >= 300)
+   {
+      g_portRosterStamp = TimeLocal();
+      PortWriteRoster();
+   }
 
    bool exposure[PORT_MAX];
    PortScanExposure(exposure);
@@ -513,6 +986,7 @@ void OnTick()
 void OnDeinit(const int reason)
 {
    g_portReady = false;
+   PortWriteRoster();               // final snapshot (shows the end state)
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
