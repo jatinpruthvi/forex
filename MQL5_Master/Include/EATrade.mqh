@@ -250,6 +250,10 @@ private:
    //--- Init() runs before every switch (see docs/EA_BUG_AUDIT.md, eighth pass)
    string   KeyReq()   const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_ReqToday"; }
    string   KeyOut()   const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_LastOutDeal"; }
+   //--- trade spacing: persisted per magic for the same reason (the shared
+   //--- governor would otherwise hand the previous engine's last-trade time to
+   //--- the next one and throttle entries that are not its own)
+   string   KeyLastTrade() const { return "EA_" + IntegerToString((long)g_eaCfg.magic) + "_LastTrade"; }
 
    datetime ClockDayStart() const
    {
@@ -290,6 +294,23 @@ public:
 
    void Init()
    {
+      //--- ONE governor object serves every engine in the portfolio host, and
+      //--- Init() is what switches it between them (EA_Init, then again before
+      //--- every tick/switch).  Every member therefore has to be re-derived from
+      //--- THIS engine's magic-scoped state on every path: a member left
+      //--- untouched leaks from the engine that ran before it - a stale halt or
+      //--- day lock would silently stop the next engine trading
+      //--- (docs/EA_BUG_AUDIT.md, tenth pass).  Reset first, then load below.
+      m_halted        = false;
+      m_haltReason    = "";
+      m_pauseUntil    = 0;
+      m_lossStreak    = 0;
+      m_lastOutDeal   = 0;
+      m_dayLockStamp  = 0;
+      m_prevDayFloor  = 0.0;
+      m_qualDays      = 0;
+      m_lastTradeTime = 0;
+
       m_dayStamp = DayStart();
       double eq  = AccountInfoDouble(ACCOUNT_EQUITY);
       double bal = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -305,17 +326,17 @@ public:
 
       //--- day anchor (restart-safe)
       //--- The5ers-style daily floor measures from the HIGHER of the rollover
-      //--- balance and equity (max(rollover balance, rollover equity)), so the
-      //--- internal anchor uses the conservative value and never understates it.
+      //--- balance and equity (max(rollover balance, rollover equity)) - that
+      //--- value is taken once, when the clock day rolls (RollClockDay below or
+      //--- OnTick), and is then FROZEN for the day.  Init() itself must not
+      //--- re-anchor: the portfolio host calls it before every tick, so
+      //--- re-anchoring here would ratchet the daily floor up with each intraday
+      //--- equity high and halt engines early (docs/EA_BUG_AUDIT.md, tenth pass).
       double dayAnchor = MathMax(bal, eq);
-      if(GlobalVariableCheck(KeyDay()) && (datetime)GlobalVariableGet(KeyDay() + "_Stamp") == m_dayStamp)
-         m_dayStartEquity = MathMax(GlobalVariableGet(KeyDay()), dayAnchor);
-      else
-      {
-         m_dayStartEquity = dayAnchor;
-         GlobalVariableSet(KeyDay(), m_dayStartEquity);
-         GlobalVariableSet(KeyDay() + "_Stamp", (double)m_dayStamp);
-      }
+      m_dayStartEquity = dayAnchor;        // default; RollClockDay() replaces it
+      if(GlobalVariableCheck(KeyDay()) && GlobalVariableGet(KeyDay()) > 0.0 &&
+         (datetime)GlobalVariableGet(KeyDay() + "_Stamp") == m_dayStamp)
+         m_dayStartEquity = GlobalVariableGet(KeyDay());   // today's frozen anchor
       //--- qualifying-day persistence (never reset by a losing/small day)
       //--- per-engine daily request budget and close cursor.  The stamp makes a
       //--- stale value inert: only today's counter is adopted.
@@ -330,6 +351,7 @@ public:
       }
       m_requestsStamp = m_dayStamp;
       if(GlobalVariableCheck(KeyOut())) m_lastOutDeal = (ulong)GlobalVariableGet(KeyOut());
+      if(GlobalVariableCheck(KeyLastTrade())) m_lastTradeTime = (datetime)GlobalVariableGet(KeyLastTrade());
 
       if(GlobalVariableCheck(KeyQual()))      m_qualDays     = (int)GlobalVariableGet(KeyQual());
       if(GlobalVariableCheck(KeyQualFloor())) m_prevDayFloor = GlobalVariableGet(KeyQualFloor());
@@ -374,8 +396,68 @@ public:
          GlobalVariableSet(KeyWeek(), m_weekStartEquity);
          GlobalVariableSet(KeyWeek() + "_Stamp", (double)m_weekStamp);
       }
+      //--- perform today's rollover if it has not happened yet (see RollClockDay):
+      //--- a start mid-day keeps the frozen anchor, a start after the roll
+      //--- banks the finished day and releases its halt exactly once
+      RollClockDay(eq, bal);
+
       EA_Log(EA_LOG_EVENTS, StringFormat("risk init: dayStart=%.2f weekStart=%.2f hwm=%.2f startBal=%.2f",
                                          m_dayStartEquity, m_weekStartEquity, m_hwm, m_startBalance));
+   }
+
+   //--- the clock-day rollover: banking the profitable-day rule, releasing the
+   //--- previous day's halt and (re)setting the day anchor.  It is driven by the
+   //--- PERSISTED day stamp, so it happens exactly once per clock day - a restart
+   //--- or a repeated Init() can neither repeat it nor swallow it.  The portfolio
+   //--- host calls Init() before every tick, and Init() advances m_dayStamp, so
+   //--- the delivered layout (this work inside OnTick's "day changed" branch)
+   //--- would never run there: the banked qualifying days and the daily halt
+   //--- release would be lost for as long as the terminal stays up
+   //--- (docs/EA_BUG_AUDIT.md, tenth pass).
+   void RollClockDay(const double eq, const double bal)
+   {
+      datetime today     = DayStart();
+      bool     haveStamp = GlobalVariableCheck(KeyDay() + "_Stamp");
+      datetime stamp     = haveStamp ? (datetime)GlobalVariableGet(KeyDay() + "_Stamp") : 0;
+
+      if(haveStamp && stamp == today && GlobalVariableGet(KeyDay()) > 0.0)
+      {
+         m_dayStartEquity = GlobalVariableGet(KeyDay());     // frozen for the whole day
+         m_dayStamp       = today;
+         return;                                             // today's rollover already happened
+      }
+
+      bool firstEver = (stamp == 0);                         // fresh account / first start
+      if(!firstEver)
+      {
+         //--- profitable-day rule: min(midnight balance, midnight equity) - previous-day balance
+         double floorNow = MathMin(bal, eq);
+         if(g_eaCfg.qualifyingDayAmount > 0.0 && m_prevDayFloor > 0.0)
+         {
+            double dayDelta = floorNow - m_prevDayFloor;
+            if(dayDelta >= g_eaCfg.qualifyingDayAmount)
+            {
+               m_qualDays++;
+               GlobalVariableSet(KeyQual(), (double)m_qualDays);
+               EA_Log(EA_LOG_EVENTS, StringFormat("QUALIFYING DAY banked: %d/%d (day change %.2f >= %.2f)",
+                      m_qualDays, g_eaCfg.qualifyingDaysTarget, dayDelta, g_eaCfg.qualifyingDayAmount), true);
+            }
+         }
+         if(m_prevDayFloor > 0.0 || g_eaCfg.qualifyingDayAmount > 0.0)
+            GlobalVariableSet(KeyQualFloor(), floorNow);
+         m_prevDayFloor = floorNow;
+
+         //--- a new clock day releases the previous day's halt
+         m_halted     = false;
+         m_haltReason = "";
+         GlobalVariableSet(KeyHalt(), 0.0);
+         EA_Log(EA_LOG_EVENTS, StringFormat("new clock day: anchors reset (equity %.2f)", eq));
+      }
+
+      m_dayStartEquity = MathMax(bal, eq);   // firm floor basis: higher of the two
+      m_dayStamp       = today;
+      GlobalVariableSet(KeyDay(), m_dayStartEquity);
+      GlobalVariableSet(KeyDay() + "_Stamp", (double)m_dayStamp);
    }
 
    void OnTick()
@@ -445,37 +527,10 @@ public:
          GlobalVariableSet(KeyReq() + "_Stamp", (double)m_requestsStamp);
       }
 
-      datetime dayStart = DayStart();
-      if(dayStart != m_dayStamp)
-      {
-         m_dayStamp = dayStart;
-
-         //--- profitable-day rule: min(midnight balance, midnight equity) - previous-day balance
-         double balNow   = AccountInfoDouble(ACCOUNT_BALANCE);
-         double floorNow = MathMin(balNow, eq);
-         if(g_eaCfg.qualifyingDayAmount > 0.0 && m_prevDayFloor > 0.0)
-         {
-            double dayDelta = floorNow - m_prevDayFloor;
-            if(dayDelta >= g_eaCfg.qualifyingDayAmount)
-            {
-               m_qualDays++;
-               GlobalVariableSet(KeyQual(), (double)m_qualDays);
-               EA_Log(EA_LOG_EVENTS, StringFormat("QUALIFYING DAY banked: %d/%d (day change %.2f >= %.2f)",
-                      m_qualDays, g_eaCfg.qualifyingDaysTarget, dayDelta, g_eaCfg.qualifyingDayAmount), true);
-            }
-         }
-         if(m_prevDayFloor > 0.0 || g_eaCfg.qualifyingDayAmount > 0.0)
-            GlobalVariableSet(KeyQualFloor(), floorNow);
-         m_prevDayFloor = floorNow;
-
-         m_dayStartEquity = MathMax(balNow, eq);   // firm floor basis: higher of the two
-         m_halted = false;
-         m_haltReason = "";
-         GlobalVariableSet(KeyDay(), m_dayStartEquity);
-         GlobalVariableSet(KeyDay() + "_Stamp", (double)m_dayStamp);
-         GlobalVariableSet(KeyHalt(), 0.0);
-         EA_Log(EA_LOG_EVENTS, StringFormat("new clock day: anchors reset (equity %.2f)", eq));
-      }
+      //--- calendar-day rollover (banking, halt release, day anchor) lives in
+      //--- RollClockDay() so that Init() can perform it too - the host calls
+      //--- Init() before every tick, and that already advances m_dayStamp
+      RollClockDay(eq, AccountInfoDouble(ACCOUNT_BALANCE));
    }
 
    //--- net result of every position that FINISHED in [from, now], grouped by
@@ -826,6 +881,7 @@ public:
    void NoteTrade()
    {
       m_lastTradeTime = TimeTradeServer();
+      GlobalVariableSet(KeyLastTrade(), (double)m_lastTradeTime);
       if(m_requestsStamp != DayStart())
       {
          m_requestsStamp = DayStart();

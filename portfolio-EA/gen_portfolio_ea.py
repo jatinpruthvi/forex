@@ -643,6 +643,21 @@ int OnInit()
    g_portLive = 0;
    PortBuildRegistry();
 
+   //--- this book needs a HEDGING account.  Every engine identifies its own
+   //--- trades by magic and may hold a position while another engine holds the
+   //--- opposite side of the same symbol; on a netting account MT5 merges those
+   //--- into a single position carrying one magic, so per-engine identity, the
+   //--- one-order-per-symbol gate and the tracker's per-engine P/L would all
+   //--- silently be wrong.  Refuse to run rather than trade an account this
+   //--- program cannot account for (docs/EA_BUG_AUDIT.md, tenth pass).
+   if((ENUM_ACCOUNT_MARGIN_MODE)AccountInfoInteger(ACCOUNT_MARGIN_MODE) != ACCOUNT_MARGIN_MODE_RETAIL_HEDGING)
+   {
+      Print("[portfolio] HEDGING account required: engines are told apart by magic, and a netting "
+            "account merges positions on the same symbol (magic and per-engine P/L are lost). "
+            "Use a hedging account, or run the individual EAs one chart at a time on netting.");
+      return INIT_FAILED;
+   }
+
    for(int i = 0; i < g_portCount; i++)
    {
       g_portEnabled[i] = false;

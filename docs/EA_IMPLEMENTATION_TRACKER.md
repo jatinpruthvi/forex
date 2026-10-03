@@ -263,7 +263,7 @@ forex/
   separate read-only `portfolio-EA/src/PortfolioEA.mq5` tracker (per-engine net/DD/win%/verdict
   -> `MQL5\Files\PortfolioEA\performance.csv` + panel).  The trader contains no dashboard or
   file I/O at all; the 65 strategies are inlined into `build/AllEnginesEA.mq5`, so the EA is
-  one file to compile; `verify_portfolio.py` (1 747 checks) enforces both boundaries, the
+  one file to compile; `verify_portfolio.py` (1 775 checks) enforces both boundaries, the
   single-file property and identifier hygiene (defects #67-#70 of the eighth deep pass:
   a prefixed enum type that was never declared, a halt-flatten latch shared by the 65 engines,
   entry-side commission missing from the tracker's net, and a duplicated symbol in magic 3117 -
@@ -272,7 +272,15 @@ forex/
   Ninth deep pass (2026-10-03): a switched-off engine now keeps managing its open trades
   (only new entries stop), the 8-symbol truncation is logged instead of silent, cost carry is
   per position, the request budget / loss cursor are magic-scoped GlobalVariables, the market
-  statistics table covers the book's 19 symbols, and the tracker creates its report folder. Not compiled here (no MetaEditor on
+  statistics table covers the book's 19 symbols, and the tracker creates its report folder.
+  Tenth deep pass (2026-10-03) followed the shared engine object the 65 engines run through:
+  the risk governor's `Init()` now re-derives every member from that engine's magic-scoped
+  state (a stale halt/day lock/trade-spacing stamp used to leak to the next engine - 53 engines
+  set `minSecondsBetweenTrades`), the daily anchor is frozen per clock day and the rollover
+  (banked qualifying days, halt release) runs exactly once from `Init()` or `OnTick()`, and the
+  host refuses to start on a netting account (identity is by magic). Six fail-closed news
+  engines and the account-wide (% limits measure the shared equity) semantics are documented.
+  Not compiled here (no MetaEditor on
   Linux) - compilation is the first step on the Windows machine.
 * **Validation tooling (2026-10-02)** - MT5 allows one EA per chart, so the 65 EAs are validated headlessly instead: `validation/mt5_harness/gen_tester_configs.py` generates one Strategy Tester config and `.set` per EA (read straight from the generator, so configs cannot drift), `run_all.ps1`/`run_all.bat` drive `terminal64.exe /config:` for all 65, every run writes one machine-readable row via the new tester-only `EA_TestReport()` (`EACommon.mqh`; no effect live), and `validation/mt5_harness/parse_results.py` produces a PASS/WARN/FAIL portfolio table plus the list of EAs that produced no row at all (i.e. compile failures). `MQL5_Master/Scripts/UniversePreflight.mq5` reports which of the EAs' symbols the broker actually offers and which index alias it uses, because the engine skips-and-logs unavailable symbols and an inert sleeve otherwise looks like "the EA does not trade". See `docs/EA_VALIDATION_PLAYBOOK.md`. For running the set for real, `MQL5_Master/Scripts/PortfolioLauncher.mq5` + `validation/mt5_harness/gen_launcher.py` reduce "65 manual attaches" to one: the generator stamps a per-EA template (EA + inputs) from a single template saved by the user, and the script opens every chart, attaches each EA, skips what is already running, and writes `MQL5\Files\EA_Launch\launch_status.csv` (START / STOP / DRYRUN, optional group split across terminals).
 * **Documented approximations (disclosed)** - `EA_studyarena_round12_contestant_c` turns its document's "20th-85th ATR percentile band" into an ATR-vs-median ratio of 0.6-1.6 and says so in a code comment. The four EAs whose documents name a spread-versus-history gate that the first pass had served with a round-local sample ring (`EA_studyarena_round8_contestant_d` and `EA_studyarena_round12_contestant_a`: "median for that time of day"; `EA_studyarena_round5_contestant_a_2047`: "1.5x that pair's normal spread for the same time"; `EA_TRIAD_SURVIVE`: "at most 1.5x the 20-day average spread") now query the engine baseline `EA_SpreadBaseline(sym, 30)` / `(sym, 720)` first and fall back to the local ring only while the engine has no evidence yet, so the statistic matches the documents (live-learned 20-day per-minute-of-day average, 30-minute or whole-day window).

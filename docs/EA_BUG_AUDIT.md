@@ -456,6 +456,65 @@ Also confirmed sound in this pass (no change needed):
   sets reuse one handle), so the 65 engines resolve to ~476 distinct indicator
   instances (34 symbol x timeframe pairs x 14 handles), not 65 x 8 x 14.
 
+## Tenth pass — 2026-10-03 (the shared engine object, 65 engines deep)
+
+The ninth pass followed the runtime of the *host* (what happens when 65 engines
+run in one program). This pass followed the runtime of the **engine object those
+engines share**: one `CEARiskGovernor`, one `CEAExecutor`, one set of engine
+globals, driven by a host that calls `g_eaRisk.Init()` before every tick and
+switches strategies between calls. Seven defects came out; every one of them was
+reachable in normal use, and three of them silently stop engines from trading.
+
+| # | File | Defect | Fix |
+| --- | --- | --- | --- |
+| 78 | `MQL5_Master/Include/EATrade.mqh` (governor `Init`) | While the clock day is in progress, `Init()` re-anchored the daily floor to `MathMax(stored, max(balance, equity))`. The delivered EA calls `Init()` once, but the host calls it **every tick**, so the anchor ratcheted up with every intraday equity high: the 24 engines with `dailyLossPct` measure their day loss from the day's running peak instead of the day open, and halt earlier than the backtests (the same value feeds `ctx.dayStartEquity`, which one strategy uses). | `Init()` now **loads** the frozen anchor while the day is in progress; the anchor is taken once, at the rollover, in `RollClockDay()`. |
+| 79 | `MQL5_Master/Include/EATrade.mqh` (governor `Init`/`OnTick`) | The rollover bookkeeping lived in `OnTick`'s `DayStart() != m_dayStamp` branch. In the host, `Init()` runs first and already advances `m_dayStamp`, so that branch **never ran**: qualifying days were never banked (8 engines) and, worse, a daily-loss halt was never released - the engine stayed halted with no entries until the terminal was restarted. | New `RollClockDay(eq, bal)`: the banking, the halt release and the anchor, driven by the **persisted** day stamp so it happens exactly once per day, called from `Init()` and from `OnTick()`. A restart mid-day loads the frozen anchor and repeats nothing. |
+| 80 | `MQL5_Master/Include/EATrade.mqh` (governor `Init`) | `m_halted`/`m_haltReason` were only ever *set* by the GV load, never cleared: an engine that halted (24 can halt on the daily limit) left the shared object halted, so **every engine processed after it was blocked from entering** - and with #79 in place, forever. `m_qualDays`, `m_prevDayFloor`, `m_pauseUntil`, `m_lossStreak` and `m_lastOutDeal` leaked the same way (qualifying days and the loss streak are the live ones; `lossStreakPause` is 0/65). | `Init()` opens with a full reset of every per-engine member, then loads that engine's magic-scoped state - so `Init()` is a complete "become this engine" operation. The verifier now fails if any member of the class is not re-derived in `Init()`. |
+| 81 | `MQL5_Master/Include/EATrade.mqh` (governor `DayLockTick`/`CanOpen`) | `m_dayLockStamp` leaked between engines and is sticky for the rest of the clock day. Once one of the 8 day-lock engines locked its day, `DayLocked()` stayed true for **every other engine** - the whole book stopped entering until midnight. | Reset in `Init()`; `DayLockTick` re-derives the lock from `EA_<magic>_DayLocked`, so each engine locks only its own day. |
+| 82 | `MQL5_Master/Include/EATrade.mqh` (governor, trade spacing) | `m_lastTradeTime` was shared and never reset: **53 of 65 engines** set `minSecondsBetweenTrades`, and the host evaluates engines in order, so when one engine traded, the next engine's entry attempt saw a foreign stamp. Because the engine consumes its signal on the first tick of a bar (`EA_IsNewSignalBar`), that is not a delay - the bar's signal is **lost**. | The stamp is persisted per magic (`EA_<magic>_LastTrade`), reloaded in `Init()` and written by `NoteTrade()`. Side benefit: spacing survives a restart for the standalone EAs. |
+| 83 | `portfolio-EA/gen_portfolio_ea.py` (host `OnInit`) | The host assumed hedging nowhere: on a **netting** account MT5 merges two engines' positions on the same symbol into one ticket with one magic, so per-engine identity, the one-order-per-symbol gate, the position tracker and the tracker EA's per-engine P/L are all silently wrong. | `OnInit` checks `ACCOUNT_MARGIN_MODE` and returns `INIT_FAILED` with a message telling the user to run the individual EAs on netting. |
+| 84 | `MQL5_Master/Include/EACore.mqh` (`EA_LoadNewsCache`) | When the calendar file is missing the engine logged `news filter inert` - but with `newsFailClosed` (6 engines: 3102, 3104, 3105, 3106, 3107, 3109) `EA_NewsBlocked()` returns true, so those engines take **no new entries at all**. The log said the opposite of what the code does, which would send the user hunting for a strategy bug. | The log now states the consequence (`FAIL CLOSED: no new entries until the calendar is in MQL5\\Files`), at error level so it shows at any log setting. The requirement is in the README's deploy step, with the CSV format. |
+
+Also confirmed sound in this pass (no change needed):
+
+* `CEAExecutor` is stateless between engines: `Init()` re-derives the retry count,
+  the magic, the deviation, the margin mode and the filling mode on `CTrade`
+  before each engine runs;
+* `EA_SyncTracks()` re-adopts an engine's own open positions after a live switch
+  (filtered by `POSITION_MAGIC`, risk distance and entry volume restored from
+  `EA_<magic>_R< ticket>` / `_V< ticket>`), and drops closed tickets - so a switch
+  can neither double-track nor lose a position;
+* `PortScanExposure()` initialises every flag before scanning, and `PortNewBar()`
+  cannot read past `EA_MAX_SYMBOLS`, because `EA_ParseSymbols()` caps
+  `g_eaSymbolCount` at the cap (it is the truncation of #72, not an overrun);
+* the host's extra timer-driven evaluations are idempotent: `EA_Tick()` consumes a
+  signal bar once (`EA_IsNewSignalBar`) and the per-symbol/per-book gates are
+  re-evaluated, never accumulated;
+* indicator handles are not released by the switch loop - `PortClearEngineState()`
+  only empties the in-memory registry and each engine's handles live in its own
+  snapshot; release happens once, per engine, in `EA_Deinit()`.
+
+Two things this pass **does not** change, deliberately, and surfaces instead:
+
+* **The account is one account.** 24 engines' daily limits and 8 engines'
+  weekly/monthly/HWM limits are percentages of the **shared** account equity, so a
+  book-level drawdown trips them together, and the 8 engines with `flattenOnHalt`
+  close their own positions at that point. That is inherent to running the book on
+  one account (a dedicated account makes it exactly the delivered behaviour) and is
+  written down in the README fidelity table as *book-wide*.
+* **Six engines fail closed on news** unless `MQL5\\Files\\the5ers_red_news.csv`
+  exists - that is the delivered policy (`// bad calendar = no new entries`), not a
+  bug, but it is now stated in the deploy step, and their log says so.
+
+Verification after this pass: `verify_portfolio.py` **OK - 1 775 checks**
+(+28: every governor member re-derived in `Init()`, no re-anchor, rollover call
+sites and stamp, halt release, per-magic spacing stamp, hedging guard);
+`check_mql5_source.py` 87 files / 78 EAs / 92 findings, all pre-existing in the
+legacy non-engine EAs, 0 on the two new EAs; `arity_check.py` 0/0 on all five
+headers + both new EAs; `gen_additional_eas.py --check` 65/65; `unittest discover
+tests` 204 ran, 203 pass (one import-loader artifact). **MQL5 compilation remains
+unverified** (no MetaEditor here).
+
 ## Verification after the fixes
 
 | Check | Result |

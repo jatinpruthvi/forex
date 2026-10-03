@@ -346,6 +346,67 @@ def main() -> int:
           f"EA_STAT_MAX_SYMBOLS={cap} cannot hold the book's {len(book_syms)} symbols "
           f"(gates on the missing ones would fail open)")
 
+    # 13 - shared engine state: 65 engines run through ONE engine object ---------
+    # The risk governor is a single global object and the host switches engines by
+    # calling g_eaRisk.Init() again and again, so Init() must re-derive EVERY
+    # member from this engine's magic-scoped state.  A member left untouched keeps
+    # the previous engine's value: a stale halt or day lock silently stops the next
+    # engine trading, a stale trade-spacing stamp drops its signals
+    # (docs/EA_BUG_AUDIT.md, tenth pass).
+    trade_src = (REPO / "MQL5_Master" / "Include" / "EATrade.mqh").read_text(encoding="utf-8")
+    gov = trade_src[trade_src.index("class CEARiskGovernor"):trade_src.index("CEARiskGovernor g_eaRisk;")]
+    gov_members = re.findall(r"\n\s+(?:double|datetime|int|ulong|bool|string)\s+(m_\w+)\s*;", gov)
+    init_body = gov[gov.index("void Init()"):gov.index("void RollClockDay(")]
+    roll_body = gov[gov.index("void RollClockDay("):gov.index("void OnTick()")]
+    tick_body = gov[gov.index("void OnTick()"):gov.index("int ClosedTradeResults(")]
+    check(len(gov_members) >= 18, f"governor member scan found only {len(gov_members)} members")
+    for mem in gov_members:
+        check(re.search(r"\b%s\s*=(?!=)" % mem, init_body) is not None,
+              f"risk governor: Init() never re-derives {mem} - it would leak "
+              f"from the engine that ran before")
+    # the daily anchor must be loaded while the day is in progress, never re-anchored
+    check("MathMax(GlobalVariableGet(KeyDay())" not in trade_src,
+          "Init() re-anchors the daily floor: the host calls it every tick, so the "
+          "floor would ratchet up with each intraday equity high")
+    # the rollover must be driven by the persisted day stamp and reachable from both
+    # entry points (Init is what runs in the host; OnTick alone would never see it)
+    check("stamp == today" in roll_body and 'GlobalVariableSet(KeyDay() + "_Stamp"' in roll_body,
+          "the clock-day rollover is not driven by the persisted day stamp")
+    check("GlobalVariableSet(KeyHalt(), 0.0);" in roll_body and "m_halted     = false;" in roll_body,
+          "the clock-day rollover does not release the previous day's halt")
+    check("RollClockDay(eq, bal);" in init_body,
+          "Init() does not perform a pending clock-day rollover (host path)")
+    check("RollClockDay(eq, AccountInfoDouble(ACCOUNT_BALANCE));" in tick_body,
+          "OnTick() does not perform the clock-day rollover")
+    # the per-engine trade-spacing stamp must be magic-scoped like the other two
+    check('"_LastTrade"' in trade_src and
+          "GlobalVariableSet(KeyLastTrade(), (double)m_lastTradeTime);" in trade_src and
+          "m_lastTradeTime = (datetime)GlobalVariableGet(KeyLastTrade());" in trade_src,
+          "trade-spacing stamp is not persisted per magic (53 engines enable it)")
+    # the book's identity model only exists on a hedging account
+    check("ACCOUNT_MARGIN_MODE_RETAIL_HEDGING" in host and
+          "HEDGING account required" in host and host.count("return INIT_FAILED;") >= 2,
+          "the host must refuse to run on a netting account (identity is by magic)")
+    # engines that fail closed without a news calendar must be named in the README
+    # (they take NO new entries until the CSV exists - an easy "why is nothing
+    # trading" trap, and the number of such engines must not drift silently)
+    gated = []
+    consts = dict(re.findall(r"^const\s+[\w:]+\s+(\w+)\s*=\s*(.+?);\s*$", strategies, re.M))
+    for blk_name, magic, body in [(p[i], int(p[i + 1]), p[i + 2])
+                                  for p in [re.split(r"//={66}\n//\| from (\S+)\s+\|\s+magic (\d+)\n",
+                                                     strategies)] if len(p) > 2
+                                  for i in range(1, len(p) - 2, 3)]:
+        def resolve(key):
+            m = re.search(r"cfg\.%s\s*=\s*([^;]+);" % key, body)
+            return consts.get(m.group(1).strip(), m.group(1).strip()) if m else None
+        if resolve("newsFilter") not in (None, "false", "False") and \
+           resolve("newsFailClosed") in ("true", "True"):
+            gated.append(magic)
+    readme = (HERE / "README.md").read_text(encoding="utf-8")
+    para = next((blk for blk in readme.split("\n\n") if "fail closed" in blk), "")
+    check(len(gated) >= 1 and all(str(m) in para for m in gated),
+          f"README does not name the news-fail-closed engines {sorted(gated)} in one place")
+
     # 12 - identifier hygiene: what an MQL5 compile rejects -------------------------
     # (a) every `const <type> <name>` must name a type that exists: built-in,
     #     engine enum, or an enum declared in this very file (defect #67 was a
