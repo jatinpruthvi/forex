@@ -179,6 +179,14 @@ EAs are going to run together in size.
   fast approximation).
 * Result rows are per **single run**; the summary keeps the newest row per EA,
   so you can re-run freely.
+* **Global variables in the tester are emulated and per-agent**, not the
+  terminal's (MQL5 documentation and forum consensus): a backtest can never
+  disturb the anchors a live/demo terminal holds, and the emulated store dies with
+  the agent. The engine's keys are magic-scoped (`EA_<magic>_...`) and each of the
+  65 runs uses its own magic, so the sweep cannot cross-contaminate. If you repeat
+  the *same* EA over the *same* start date, restart the terminal/agent first if you
+  want a byte-identical repeat (the emulated day stamp could otherwise carry that
+  day's request counter into the second run).
 
 ## Why this is better than charts
 
