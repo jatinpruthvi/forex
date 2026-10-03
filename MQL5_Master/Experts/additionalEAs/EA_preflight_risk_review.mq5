@@ -23,7 +23,7 @@ bool   g_dailyHaltActive = false;
 //+------------------------------------------------------------------+
 bool IsQuoteFresh()
 {
-    datetime tickTime = (datetime)SymbolInfoInteger(Symbol(), SYMBOL_TIME);
+    datetime tickTime = (datetime)SymbolInfoInteger(_Symbol, SYMBOL_TIME);
     datetime localTime = TimeCurrent(); // Broker Server Time
     
     if(localTime - tickTime > InpStaleQuoteMaxSeconds)

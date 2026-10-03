@@ -20,7 +20,7 @@ bool CheckExamFilters()
     if(!InpIsEvalAccount) return true; // Disabled for funded
     
     // Filter 1: NO XAUUSD on evals
-    if(StringFind(Symbol(), "XAU") != -1 || StringFind(Symbol(), "GOLD") != -1)
+    if(StringFind(_Symbol, "XAU") != -1 || StringFind(_Symbol, "GOLD") != -1)
     {
         Print("EXAM FILTER: XAUUSD blocked on eval account.");
         return false;

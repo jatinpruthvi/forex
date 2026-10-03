@@ -17,3 +17,7 @@ validation/*_report.json
 # EA_SIGNAL_DUMP outputs: regenerable, large (~70MB for a year of M5 x 11 symbols)
 MQL5/Files/ea_signal_dump*.csv
 validation/speed_lab/selftest_dump.csv
+
+# Strategy Tester validation harness: generated configs and downloaded results
+validation/mt5_harness/out/
+validation/mt5_harness/results/
