@@ -7041,7 +7041,7 @@ add(
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "4"},
     inputs='''input double InpBaseRiskPct       = 0.75;  // Base engine risk
 input double InpAplusBoostPct     = 0.50;  // A+ setup adds 0.5% free-roll risk
-\1input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
+input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
 input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)''',
     configure='''cfg.strategyName          = "R8B_SOS3_FREEROLL";
    cfg.sourceDoc             = "docs/research/study_arena/studyarena-round8-contestant-b.md";

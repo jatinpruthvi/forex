@@ -355,6 +355,34 @@ entry-side sentence in `round5_contestant_f`).
   structure level" - encoded as `breakEvenAtR = 2.0` with the M5 close
   confirmation (#63). The document does not quantify the structure level.
 
+## Seventh pass — 2026-10-03 (validation tooling)
+
+The chart-free validation harness, the one-click launcher and the generated
+portfolio EA each re-read the delivered EAs from disk with different parsers,
+which surfaced one defect the six source-level passes could not see.
+
+| # | File | Defect | Fix |
+| --- | --- | --- | --- |
+| 66 | `scripts/gen_additional_eas.py` (spec for `EA_studyarena_round8_contestant_b.mq5`), visible at `EA_studyarena_round8_contestant_b.mq5:31` | An input line began with **0x01** — a leaked regex backreference (`\1`) inside the template string. MetaEditor cannot parse that byte, so the EA would fail to compile; no previous check read the file byte-wise, and `--check` stayed green because the spec and the file carried the same byte. | Removed the stray `\1` at the source of truth, regenerated all 65 EAs (single-line diff), and added a **control-character guard** to `scripts/check_mql5_source.py` so this class of defect fails the standard battery from now on. |
+
+Detection path: `portfolio-EA/verify_portfolio.py` noticed an input identifier
+that had never been renamed (its declaration did not match the input regex
+because of the stray byte). The byte was the root cause, not a rename bug.
+
+Related tooling added in the same pass (no EA logic touched):
+
+* `scripts/check_mql5_source.py` — control-character guard, and include
+  resolution that also understands files living outside `MQL5_Master/` in the
+  repository (the portfolio host points at the terminal's `MQL5` tree).
+* `MQL5_Master/Scripts/UniversePreflight.mq5` — broker symbol/alias probe.
+* `MQL5_Master/Scripts/PortfolioLauncher.mq5` — opens + attaches the 65 EAs
+  (one attach instead of 65); templates stamped by
+  `validation/mt5_harness/gen_launcher.py`.
+* `validation/mt5_harness/*` — Strategy Tester CLI sweep, result parser,
+  EA comparison (correlation / redundancy / portfolio fit / leave-one-out).
+* `portfolio-EA/*` — generated one-chart host for all 65 strategies; originals
+  hashed and re-verified as unmodified.
+
 ## Verification after the fixes
 
 | Check | Result |

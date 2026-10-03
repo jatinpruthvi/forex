@@ -132,7 +132,7 @@ Honest limit: this still ends up with 65 charts inside the terminal (MT5's rule,
 not a choice) — what it removes is 65 *manual* attaches, and it makes the set
 reproducible. Charts are minimised automatically and need no attention.
 
-### B. One chart for the whole book — portfolio EA (design ready, not built)
+### B. One chart for the whole book — portfolio EA (built in `portfolio-EA/`)
 
 The engine was written for this: strategies are classes (`CEAStrategy` with
 virtual `Configure` / `BuildPlan` / `Manage` / `AllowTrading` / `RankSetup` /
@@ -155,6 +155,11 @@ A portfolio host therefore needs:
    `OnTick` looping) — the generator already emits all 65 as source, so this is
    a template change, not new strategy code;
 4. a full re-run of the six-pass audit on the modified engine.
+
+**Status: implemented as new files in [`portfolio-EA/`](../portfolio-EA/README.md)** —
+the 65 delivered EAs and the engine are read-only inputs (hashed and re-verified);
+the folder holds the generator, the verifier (207 checks) and the generated host.
+Not compiled yet (no MetaEditor here), so compile it before trusting it live.
 
 Payoff: one chart, one attach, **one tester run for the whole book**, and true
 portfolio-level caps across sleeves (several source documents assume

@@ -28,7 +28,7 @@ input ulong           InpMagicNumber      = 2027; // UNIQUE MAGIC NUMBER FOR THI
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpBaseRiskPct       = 0.75;  // Base engine risk
 input double InpAplusBoostPct     = 0.50;  // A+ setup adds 0.5% free-roll risk
-input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
+input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
 input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
 
 //+------------------------------------------------------------------+

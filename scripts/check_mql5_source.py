@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INCLUDES = ROOT / "MQL5_Master" / "Include"
+MASTER = ROOT / "MQL5_Master"
 ADDITIONAL = ROOT / "MQL5_Master" / "Experts" / "additionalEAs"
 
 MQL4_ONLY = [
@@ -252,7 +253,25 @@ def check_generation_defects(path: Path, raw: str, src: str) -> list[str]:
         inc = m.group(1).replace("\\", "/")
         cand = (path.parent / inc).resolve()
         if not cand.exists():
+            # files that live outside MQL5_Master in the repo (the portfolio host,
+            # for instance) still point at the terminal's MQL5 tree; the repo
+            # mirrors that tree under MQL5_Master, so fall back to it
+            stripped = inc
+            while stripped.startswith("../"):
+                stripped = stripped[3:]
+            for alt in (MASTER / inc, MASTER / stripped):
+                if alt.exists():
+                    cand = alt
+                    break
+        if not cand.exists():
             problems.append(f"unresolvable #include \"{m.group(1)}\" (-> {cand})")
+
+    # control characters that MetaEditor cannot parse (a leaked regex backref in
+    # a template once put 0x01 in front of an input declaration)
+    for i, line in enumerate(raw.splitlines(), 1):
+        bad = [c for c in line if ord(c) < 32 and c not in "\t"]
+        if bad:
+            problems.append(f"control character(s) {[hex(ord(c)) for c in bad]} on line {i}")
 
     # cfg.<field> must exist in SEASettings
     for m in re.finditer(r"\bcfg\s*\.\s*([A-Za-z_]\w*)", src):

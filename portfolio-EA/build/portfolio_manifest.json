@@ -1,0 +1,1231 @@
+{
+  "generated_by": "portfolio-EA/gen_portfolio_ea.py",
+  "strategies": 65,
+  "note": "one-chart host; the 65 delivered EAs and the engine are unmodified",
+  "entries": [
+    {
+      "index": 0,
+      "expert": "EA_FINAL_OPTIMUM_STRATEGY",
+      "class": "P3101_CFinalOptimum",
+      "magic": 3101,
+      "title": "Final Optimum - per-pair Triad stack (5 pairs) + 55-day gold Donchian",
+      "doc": "docs/strategy/FINAL_OPTIMUM_STRATEGY.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.75",
+      "symbols": [
+        "XAUUSD",
+        "AUDUSD",
+        "EURJPY",
+        "GBPJPY",
+        "USDJPY"
+      ],
+      "inputs": 15,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 1,
+      "expert": "EA_THE5ERS_CHALLENGE_STRATEGY_V2",
+      "class": "P3102_CThe5ersV2",
+      "magic": 3102,
+      "title": "The5ers Challenge V2 - M1 momentum reversion + daily state machine",
+      "doc": "docs/prop_firm/THE5ERS-CHALLENGE-STRATEGY-V2.md",
+      "timeframe": "PERIOD_M1",
+      "risk_pct": "0.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 21,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 2,
+      "expert": "EA_THE5ERS_CHALLENGE_OPTIMIZATION",
+      "class": "P3103_CChallengeOptimization",
+      "magic": 3103,
+      "title": "The5ers optimization - non-market-failure elimination + Route A router",
+      "doc": "docs/prop_firm/THE5ERS-CHALLENGE-OPTIMIZATION.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 20,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 3,
+      "expert": "EA_THE5ERS_2_5K_CHALLENGE_PLAN",
+      "class": "P3104_CChallengePlan25K",
+      "magic": 3104,
+      "title": "The5ers $2,500 challenge plan - Route A with spread-median and cost gates",
+      "doc": "docs/prop_firm/THE5ERS-2.5K-CHALLENGE-PLAN.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 30,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 4,
+      "expert": "EA_THE5ERS_CHALLENGE_V2_REVALIDATION",
+      "class": "P3105_CChallengeV2Revalidation",
+      "magic": 3105,
+      "title": "The5ers V2 revalidation - Sleeve A plus the compliance harness",
+      "doc": "docs/prop_firm/THE5ERS-CHALLENGE-V2-REVALIDATION.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 24,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 5,
+      "expert": "EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST",
+      "class": "P3106_CPrecodeChecklist",
+      "magic": 3106,
+      "title": "The5ers pre-code checklist - staged compliance gates + paired profiles",
+      "doc": "docs/prop_firm/THE5ERS-END-TO-END-PRECODE-CHECKLIST.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 20,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 6,
+      "expert": "EA_Pr10_Roi_Improvements",
+      "class": "P3112_CPr10RoiImprovements",
+      "magic": 3112,
+      "title": "PR10 ROI improvements - cost-honest M5 fade + gold Donchian(55)",
+      "doc": "docs/strategy/Pr10 Roi Improvements.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "AUDUSD",
+        "USDCAD",
+        "XAUUSD"
+      ],
+      "inputs": 18,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 7,
+      "expert": "EA_THE5ERS_HIGH_STAKES_RESEARCH",
+      "class": "P3107_CHighStakesResearch",
+      "magic": 3107,
+      "title": "The5ers High Stakes research - internal limit ladder + news jurisdiction",
+      "doc": "docs/prop_firm/THE5ERS-HIGH-STAKES-RESEARCH.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 20,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 8,
+      "expert": "EA_THE5ERS_PROPOSAL_REVIEW",
+      "class": "P3108_CProposalReview",
+      "magic": 3108,
+      "title": "The5ers proposal review - corrected profitable-day and cash-risk rules",
+      "doc": "docs/prop_firm/THE5ERS-PROPOSAL-REVIEW.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 18,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 9,
+      "expert": "EA_THE5ERS_STRATEGY_IMPROVEMENT_SUGGESTION_REVIEW",
+      "class": "P3109_CSuggestionReview",
+      "magic": 3109,
+      "title": "Suggestion review - fail-closed release gates over canonical V2 Sleeve A",
+      "doc": "docs/prop_firm/THE5ERS-STRATEGY-IMPROVEMENT-SUGGESTION-REVIEW.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 21,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 10,
+      "expert": "EA_TRIAD_R_HS_CODE_REVIEW",
+      "class": "P3110_CTriadCodeReviewHardened",
+      "magic": 3110,
+      "title": "TRIAD-R code review - hardened runtime controls from the 12 findings",
+      "doc": "docs/strategy/TRIAD_R_HS-CODE-REVIEW.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 15,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 11,
+      "expert": "EA_TRIAD_SURVIVE",
+      "class": "P3111_CTriadSurvive",
+      "magic": 3111,
+      "title": "TRIAD-SURVIVE - three-sleeve portfolio with scored entries and risk caps",
+      "doc": "docs/strategy/TRIAD-SURVIVE.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.24",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "XAUUSD",
+        "GBPJPY",
+        "AUDNZD",
+        "EURGBP",
+        "EURCHF"
+      ],
+      "inputs": 20,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 12,
+      "expert": "EA_progress",
+      "class": "P3113_CProgressFrozenContract",
+      "magic": 3113,
+      "title": "progress.md - the frozen TRIAD-R Sleeve A contract",
+      "doc": "docs/strategy/progress.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 22,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 13,
+      "expert": "EA_prop_fund_challenge_improvement_plan",
+      "class": "P3114_CPropFundImprovementPlan",
+      "magic": 3114,
+      "title": "Prop-fund improvement plan - evidence gates before any live risk",
+      "doc": "docs/prop_firm/prop-fund-challenge-improvement-plan.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 16,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 14,
+      "expert": "EA_strategy_improvements_plan",
+      "class": "P3115_CStrategyImprovementsPlan",
+      "magic": 3115,
+      "title": "Strategy improvements plan - H1 bias filter, news-day counter, stats gate",
+      "doc": "docs/strategy/strategy-improvements-plan.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.4",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 15,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 15,
+      "expert": "EA_STRATEGY_PORTFOLIO_AUDIT",
+      "class": "P3116_CPortfolioAuditRouter",
+      "magic": 3116,
+      "title": "Portfolio audit - three-sleeve session router with per-sleeve R telemetry",
+      "doc": "docs/strategy/STRATEGY-PORTFOLIO-AUDIT.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.24",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD",
+        "AUDNZD",
+        "EURGBP",
+        "GBPJPY"
+      ],
+      "inputs": 14,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 16,
+      "expert": "EA_STRATEGY_ROADMAP",
+      "class": "P3117_CStrategyRoadmap",
+      "magic": 3117,
+      "title": "Strategy roadmap - Track A preservation, Track B fast-track families",
+      "doc": "docs/strategy/STRATEGY-ROADMAP.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.5",
+      "symbols": [
+        "GBPJPY",
+        "EURJPY",
+        "XAUUSD",
+        "XAUUSD",
+        "EURUSD"
+      ],
+      "inputs": 17,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 17,
+      "expert": "EA_studyarena_round1_contestant_b",
+      "class": "P2001_CRound1B",
+      "magic": 2001,
+      "title": "Round 1B - SMC order-block EA with break/retest confirmation",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round1-contestant-b.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 18,
+      "expert": "EA_studyarena_round1_contestant_c",
+      "class": "P2002_CRound1C",
+      "magic": 2002,
+      "title": "Round 1C - multi-timeframe SMC confluence with exposure cap",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round1-contestant-c.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY"
+      ],
+      "inputs": 14,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 19,
+      "expert": "EA_studyarena_round2_contestant_a",
+      "class": "P2003_CRound2A",
+      "magic": 2003,
+      "title": "Round 2A - liquidity-hunting with correlation ripple and z-score reversion",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round2-contestant-a.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "AUDUSD",
+        "USDJPY"
+      ],
+      "inputs": 13,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 20,
+      "expert": "EA_studyarena_round2_contestant_b",
+      "class": "P2004_CRound2B",
+      "magic": 2004,
+      "title": "Round 2B - portfolio of five return engines with graded conviction sizing",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round2-contestant-b.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD",
+        "AUDNZD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 21,
+      "expert": "EA_studyarena_round2_contestant_c",
+      "class": "P2005_CRound2C",
+      "magic": 2005,
+      "title": "Round 2C - SMC pillars: HTF bias, fractal sweep, CHoCH and OB zone",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round2-contestant-c.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 22,
+      "expert": "EA_studyarena_round3_contestant_a__1_",
+      "class": "P2006_CRound3A",
+      "magic": 2006,
+      "title": "Round 3A - three-timeframe cascade with pyramided units and Kelly sizing",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round3-contestant-a (1).md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "GBPJPY"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 23,
+      "expert": "EA_studyarena_round3_contestant_b__1_",
+      "class": "P2007_CRound3B",
+      "magic": 2007,
+      "title": "Round 3B - 17 levers: imbalance entries, MTF stacking, graded ladder exits",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round3-contestant-b (1).md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 24,
+      "expert": "EA_studyarena_round4_contestant_a__1_",
+      "class": "P2008_CRound4A",
+      "magic": 2008,
+      "title": "Round 4A(1) - leverage layer: liquidity sniper, gamma scalp and asymmetric exit",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round4-contestant-a (1).md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "0.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "inputs": 14,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 25,
+      "expert": "EA_studyarena_round4_contestant_b",
+      "class": "P2009_CRound4B",
+      "magic": 2009,
+      "title": "Round 4B - session map portfolio with grid, sweep, pullback and VWAP engines",
+      "doc": "docs/research/study_arena/studyarena-round4-contestant-b.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "AUDNZD",
+        "EURCHF",
+        "GBPJPY",
+        "USDJPY"
+      ],
+      "inputs": 9,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 26,
+      "expert": "EA_studyarena_round4_contestant_b__1_",
+      "class": "P2010_CRound4B2",
+      "magic": 2010,
+      "title": "Round 4B(1) - imbalance engine with correlated heat, meta-labeling and recycling",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round4-contestant-b (1).md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "0.7",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD",
+        "AUDNZD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 27,
+      "expert": "EA_studyarena_round4_contestant_c",
+      "class": "P2011_CRound4C",
+      "magic": 2011,
+      "title": "Round 4C - 24-hour matrix: Asian grid, London Judas swing, NY pullback",
+      "doc": "docs/research/study_arena/studyarena-round4-contestant-c.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.5",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDCAD"
+      ],
+      "inputs": 13,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 28,
+      "expert": "EA_studyarena_round4_contestant_c__1_",
+      "class": "P2012_CRound4C2",
+      "magic": 2012,
+      "title": "Round 4C(1) - 23 levers: regime parameter sets, streaks, EOM harvest, CVD and OB scoring",
+      "doc": "docs_v1/docs/coreIdea/studyarena-round4-contestant-c (1).md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "EURGBP",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 14,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 29,
+      "expert": "EA_studyarena_round4_contestant_d",
+      "class": "P2013_CRound4D",
+      "magic": 2013,
+      "title": "Round 4D - regime router: trend, range and expansion portfolios with exact ladders",
+      "doc": "docs/research/study_arena/studyarena-round4-contestant-d.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "EURJPY",
+        "AUDUSD",
+        "AUDJPY",
+        "EURGBP"
+      ],
+      "inputs": 13,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 30,
+      "expert": "EA_studyarena_round4_contestant_e",
+      "class": "P2014_CRound4E",
+      "magic": 2014,
+      "title": "Round 4E - pair/session map with correlation groups and exact entry steps",
+      "doc": "docs/research/study_arena/studyarena-round4-contestant-e.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "USDCAD",
+        "EURGBP",
+        "AUDNZD"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 31,
+      "expert": "EA_studyarena_round4_contestant_f",
+      "class": "P2015_CRound4F",
+      "magic": 2015,
+      "title": "Round 4F - three sleeves: London break+retest, filtered Asian grid, NY momentum",
+      "doc": "docs/research/study_arena/studyarena-round4-contestant-f.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.2",
+      "symbols": [
+        "GBPUSD",
+        "EURUSD",
+        "GBPJPY",
+        "EURCHF",
+        "EURGBP",
+        "AUDNZD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 32,
+      "expert": "EA_studyarena_round5_contestant_a",
+      "class": "P2016_CRound5A",
+      "magic": 2016,
+      "title": "Round 5A - 60/25/15 portfolio: London sweep, NY continuation, capped reversion basket",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-a.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.8",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "USDCAD",
+        "XAUUSD",
+        "EURGBP",
+        "AUDNZD"
+      ],
+      "inputs": 9,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 33,
+      "expert": "EA_studyarena_round5_contestant_a_2047",
+      "class": "P2047_CRound5A2",
+      "magic": 2047,
+      "title": "Round 5A-2047 - percentile-gated London sweep with the full checklist and 40/40/20 ladder",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-a.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 34,
+      "expert": "EA_studyarena_round5_contestant_b",
+      "class": "P2017_CRound5B",
+      "magic": 2017,
+      "title": "Round 5B - asymmetric runner: 25% at 1.2R, break-even +0.3R, trail the 8R tail",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-b.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 35,
+      "expert": "EA_studyarena_round5_contestant_b_2048",
+      "class": "P2048_CRound5B2",
+      "magic": 2048,
+      "title": "Round 5B-2048 - Contestant E's executable core: 3 equal legs, 0.5% basket, RSI(2) entry",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-b.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURGBP",
+        "AUDNZD",
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 14,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 36,
+      "expert": "EA_studyarena_round5_contestant_c",
+      "class": "P2018_CRound5C",
+      "magic": 2018,
+      "title": "Round 5C - honest-math London sweep with chandelier trail and fuel filter",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-c.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.75",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 37,
+      "expert": "EA_studyarena_round5_contestant_d",
+      "class": "P2019_CRound5D",
+      "magic": 2019,
+      "title": "Round 5D - 3-shift portfolio with an un-blow-up-able equal-lot grid",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-d.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.5",
+      "symbols": [
+        "EURGBP",
+        "AUDNZD",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDCAD"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 38,
+      "expert": "EA_studyarena_round5_contestant_e",
+      "class": "P2020_CRound5E",
+      "magic": 2020,
+      "title": "Round 5E - executable core: 1% per group, 0.5% basket grid and three named setups",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-e.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "USDCAD",
+        "EURGBP",
+        "AUDNZD"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 39,
+      "expert": "EA_studyarena_round5_contestant_f",
+      "class": "P2021_CRound5F",
+      "magic": 2021,
+      "title": "Round 5F - stat-arb gates: ADX, band-width rank, channel check and 8-level ladder",
+      "doc": "docs/research/study_arena/studyarena-round5-contestant-f.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURCHF",
+        "EURGBP",
+        "AUDNZD",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY",
+        "USDCAD"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 40,
+      "expert": "EA_studyarena_round7_contestant_a",
+      "class": "P2022_CRound7A",
+      "magic": 2022,
+      "title": "Round 7A - GER40 cash open gap fade: 20-80 point filter, 1.5x stop, exact gap fill",
+      "doc": "docs/research/study_arena/studyarena-round7-contestant-a.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "GER40",
+        "DE40",
+        "GER30",
+        "DAX"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 41,
+      "expert": "EA_studyarena_round7_contestant_b",
+      "class": "P2023_CRound7B",
+      "magic": 2023,
+      "title": "Round 7B - three sleeves, equity-curve throttle and a 2.5x-ATR runner trail",
+      "doc": "docs/research/study_arena/studyarena-round7-contestant-b.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY",
+        "EURGBP",
+        "AUDNZD",
+        "GER40"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 42,
+      "expert": "EA_studyarena_round7_contestant_c",
+      "class": "P2024_CRound7C",
+      "magic": 2024,
+      "title": "Round 7C - 5% single strategy: 1.5x M15 ATR stop with an hourly chandelier runner",
+      "doc": "docs/research/study_arena/studyarena-round7-contestant-c.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.75",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 43,
+      "expert": "EA_studyarena_round7_contestant_d",
+      "class": "P2025_CRound7D",
+      "magic": 2025,
+      "title": "Round 7D - regime-switched compression breakout with adaptive stops",
+      "doc": "docs/research/study_arena/studyarena-round7-contestant-d.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 44,
+      "expert": "EA_studyarena_round8_contestant_a",
+      "class": "P2026_CRound8A",
+      "magic": 2026,
+      "title": "Round 8A - London sweep-and-reclaim on borrowed capital with a 6% monthly stop",
+      "doc": "docs/research/study_arena/studyarena-round8-contestant-a.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.75",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 45,
+      "expert": "EA_studyarena_round8_contestant_b",
+      "class": "P2027_CRound8B",
+      "magic": 2027,
+      "title": "Round 8B - SOS-3 session-open sweep and reclaim with an A+ free-roll booster",
+      "doc": "docs/research/study_arena/studyarena-round8-contestant-b.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.75",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY",
+        "AUDNZD",
+        "EURGBP"
+      ],
+      "inputs": 9,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 46,
+      "expert": "EA_studyarena_round8_contestant_c",
+      "class": "P2028_CRound8C",
+      "magic": 2028,
+      "title": "Round 8C - immediate close-entry reclaim with a 50/20/30 ladder and 3-loss de-risk",
+      "doc": "docs/research/study_arena/studyarena-round8-contestant-c.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.5",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 47,
+      "expert": "EA_studyarena_round8_contestant_d",
+      "class": "P2029_CRound8D",
+      "magic": 2029,
+      "title": "Round 8D - one trade per day, five attempts a week, strict spread and slope filters",
+      "doc": "docs/research/study_arena/studyarena-round8-contestant-d.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 48,
+      "expert": "EA_studyarena_round10_claude_fable_5_high_reasoning",
+      "class": "P2030_CRound10Fable",
+      "magic": 2030,
+      "title": "Round 10 Fable - M1 session-open sweep scalper with a ruthless 30-minute exit",
+      "doc": "docs/research/study_arena/studyarena-round10-claude-fable-5-high-reasoning.md",
+      "timeframe": "PERIOD_M1",
+      "risk_pct": "0.50",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 49,
+      "expert": "EA_studyarena_round10_claude_opus_5_high_reasoning",
+      "class": "P2031_CRound10Opus",
+      "magic": 2031,
+      "title": "Round 10 Opus - LSR-A cost-gated micro-swing state machine with correlation cap",
+      "doc": "docs/research/study_arena/studyarena-round10-claude-opus-5-high-reasoning.md",
+      "timeframe": "PERIOD_M15",
+      "risk_pct": "1.0",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "AUDUSD",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "GER40",
+        "USDJPY",
+        "US100"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 50,
+      "expert": "EA_studyarena_round10_gemini_3_1_pro_preview_high_reasoning",
+      "class": "P2032_CRound10Gemini",
+      "magic": 2032,
+      "title": "Round 10 Gemini - M1 delta-sweep scalper with volume divergence and tick acceleration",
+      "doc": "docs/research/study_arena/studyarena-round10-gemini-3-1-pro-preview-high-reasoning.md",
+      "timeframe": "PERIOD_M1",
+      "risk_pct": "0.50",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 51,
+      "expert": "EA_studyarena_round10_kimi_k3_high_reasoning",
+      "class": "P2033_CRound10Kimi",
+      "magic": 2033,
+      "title": "Round 10 Kimi - SWEEP-1 multi-session engine with a score gate and drawdown throttle",
+      "doc": "docs/research/study_arena/studyarena-round10-kimi-k3-high-reasoning.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "XAUUSD",
+        "GBPJPY",
+        "AUDNZD",
+        "EURGBP"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 52,
+      "expert": "EA_studyarena_round10_qwen3_8_2_4t_a95b_high_reasoning",
+      "class": "P2034_CRound10Qwen",
+      "magic": 2034,
+      "title": "Round 10 Qwen - SOS-3 stacker: three sessions, 45-minute kill switch, multi-account sizing",
+      "doc": "docs/research/study_arena/studyarena-round10-qwen3-8-2-4t-a95b-high-reasoning.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.75",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "GBPJPY",
+        "USDJPY",
+        "DAX",
+        "US30",
+        "NAS100"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 53,
+      "expert": "EA_studyarena_round11_contestant_a",
+      "class": "P2035_CRound11A",
+      "magic": 2035,
+      "title": "Round 11A - adaptive session sweep-reclaim with session caps and cost governors",
+      "doc": "docs/research/study_arena/studyarena-round11-contestant-a.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "1.0",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 13,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 54,
+      "expert": "EA_studyarena_round11_contestant_b",
+      "class": "P2036_CRound11B",
+      "magic": 2036,
+      "title": "Round 11B - cost-of-business governor with virtual stops and hard-stop camouflage",
+      "doc": "docs/research/study_arena/studyarena-round11-contestant-b.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.75",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 9,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 55,
+      "expert": "EA_studyarena_round11_contestant_c",
+      "class": "P2037_CRound11C",
+      "magic": 2037,
+      "title": "Round 11C - decade-honest risk throttle: halve at -3%, quarter at -5%, month over at -5.5%",
+      "doc": "docs/research/study_arena/studyarena-round11-contestant-c.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.80",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 56,
+      "expert": "EA_studyarena_round11_contestant_d",
+      "class": "P2038_CRound11D",
+      "magic": 2038,
+      "title": "Round 11D - veteran spec: 0.4-0.5% cap, -2% throttle steps and three decorrelated sleeves",
+      "doc": "docs/research/study_arena/studyarena-round11-contestant-d.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.50",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY",
+        "EURGBP",
+        "AUDNZD"
+      ],
+      "inputs": 9,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 57,
+      "expert": "EA_studyarena_round11_contestant_e",
+      "class": "P2039_CRound11E",
+      "magic": 2039,
+      "title": "Round 11E - SWEEP-1 veteran: score gate, DD-tier risk ladder and Friday flat",
+      "doc": "docs/research/study_arena/studyarena-round11-contestant-e.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD",
+        "AUDNZD",
+        "EURGBP"
+      ],
+      "inputs": 11,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 58,
+      "expert": "EA_studyarena_round11_contestant_f",
+      "class": "P2040_CRound11F",
+      "magic": 2040,
+      "title": "Round 11F - TRIAD: one edge, three decorrelated expressions at 0.24% per sleeve",
+      "doc": "docs/research/study_arena/studyarena-round11-contestant-f.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.24",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "XAUUSD",
+        "EURGBP",
+        "AUDNZD",
+        "EURCHF",
+        "DAX",
+        "US30"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 59,
+      "expert": "EA_studyarena_round12_claude_fable_5_high_reasoning",
+      "class": "P2041_CRound12Fable",
+      "magic": 2041,
+      "title": "Round 12 Fable - SWEEP-1 the 10-year machine with six entry gates and flow checks",
+      "doc": "docs/research/study_arena/studyarena-round12-claude-fable-5-high-reasoning.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 60,
+      "expert": "EA_studyarena_round12_contestant_a",
+      "class": "P2042_CRound12A",
+      "magic": 2042,
+      "title": "Round 12A - SWEEP-1 final locked with the 8-point score gate (>= 7/8)",
+      "doc": "docs/research/study_arena/studyarena-round12-contestant-a.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY"
+      ],
+      "inputs": 9,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 61,
+      "expert": "EA_studyarena_round12_contestant_b",
+      "class": "P2043_CRound12B",
+      "magic": 2043,
+      "title": "Round 12B - three-tier DD throttle on top of the programmatic M5 sweep-reclaim",
+      "doc": "docs/research/study_arena/studyarena-round12-contestant-b.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY",
+        "US30",
+        "AUDNZD"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 62,
+      "expert": "EA_studyarena_round12_contestant_c",
+      "class": "P2044_CRound12C",
+      "magic": 2044,
+      "title": "Round 12C - SR-10 survival: ban list, volatility percentile band and 0.70% open-risk cap",
+      "doc": "docs/research/study_arena/studyarena-round12-contestant-c.md",
+      "timeframe": "PERIOD_M1",
+      "risk_pct": "0.50",
+      "symbols": [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "XAUUSD"
+      ],
+      "inputs": 8,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 63,
+      "expert": "EA_studyarena_round12_contestant_f",
+      "class": "P2045_CRound12F",
+      "magic": 2045,
+      "title": "Round 12F - SOS-SWEEP veteran: five gates, one-position correlation rule, 1.2% heat cap",
+      "doc": "docs/research/study_arena/studyarena-round12-contestant-f.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY"
+      ],
+      "inputs": 10,
+      "renamed_enum_values": []
+    },
+    {
+      "index": 64,
+      "expert": "EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning",
+      "class": "P2046_CRound12Qwen",
+      "magic": 2046,
+      "title": "Round 12 Qwen - SWEEP-1 definitive with session flat times and overlap discipline",
+      "doc": "docs/research/study_arena/studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md",
+      "timeframe": "PERIOD_M5",
+      "risk_pct": "0.60",
+      "symbols": [
+        "AUDNZD",
+        "EURGBP",
+        "EURUSD",
+        "GBPUSD",
+        "XAUUSD",
+        "USDJPY",
+        "GBPJPY"
+      ],
+      "inputs": 12,
+      "renamed_enum_values": []
+    }
+  ]
+}
