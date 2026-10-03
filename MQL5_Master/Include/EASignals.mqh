@@ -63,6 +63,33 @@ SIndSet g_eaInd[EA_MAX_SYMBOLS];
 int     g_eaIndCount = 0;
 ENUM_TIMEFRAMES g_eaIndTf = PERIOD_M5;
 
+//--- release ONE slot's handles.  EA_IndCreate() creates all 14 handles and
+//--- only then decides whether the set is usable, so a failing symbol leaves a
+//--- PARTIAL set behind - and because g_eaIndCount is not incremented for it,
+//--- EA_IndReleaseAll() would never reach it.  The portfolio host initialises
+//--- 65 engines in one program (and re-inits on every chart reload), so those
+//--- handles would accumulate until the terminal restarts
+//--- (docs/EA_BUG_AUDIT.md, eleventh pass defect #86).
+void EA_IndReleaseAt(const int i)
+{
+   if(i < 0 || i >= EA_MAX_SYMBOLS) return;
+   if(g_eaInd[i].hAtr       != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAtr);       g_eaInd[i].hAtr       = INVALID_HANDLE; }
+   if(g_eaInd[i].hAtrD1     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAtrD1);     g_eaInd[i].hAtrD1     = INVALID_HANDLE; }
+   if(g_eaInd[i].hAtrH1     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAtrH1);     g_eaInd[i].hAtrH1     = INVALID_HANDLE; }
+   if(g_eaInd[i].hEma20     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hEma20);     g_eaInd[i].hEma20     = INVALID_HANDLE; }
+   if(g_eaInd[i].hEma50     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hEma50);     g_eaInd[i].hEma50     = INVALID_HANDLE; }
+   if(g_eaInd[i].hEma200    != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hEma200);    g_eaInd[i].hEma200    = INVALID_HANDLE; }
+   if(g_eaInd[i].hEmaH1_50  != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hEmaH1_50);  g_eaInd[i].hEmaH1_50  = INVALID_HANDLE; }
+   if(g_eaInd[i].hEmaH1_200 != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hEmaH1_200); g_eaInd[i].hEmaH1_200 = INVALID_HANDLE; }
+   if(g_eaInd[i].hEmaD1_200 != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hEmaD1_200); g_eaInd[i].hEmaD1_200 = INVALID_HANDLE; }
+   if(g_eaInd[i].hRsi14     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hRsi14);     g_eaInd[i].hRsi14     = INVALID_HANDLE; }
+   if(g_eaInd[i].hAdx14     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAdx14);     g_eaInd[i].hAdx14     = INVALID_HANDLE; }
+   if(g_eaInd[i].hAdxD1     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAdxD1);     g_eaInd[i].hAdxD1     = INVALID_HANDLE; }
+   if(g_eaInd[i].hAdxH1     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAdxH1);     g_eaInd[i].hAdxH1     = INVALID_HANDLE; }
+   if(g_eaInd[i].hAdxH4     != INVALID_HANDLE) { IndicatorRelease(g_eaInd[i].hAdxH4);     g_eaInd[i].hAdxH4     = INVALID_HANDLE; }
+   g_eaInd[i].valid = false;
+}
+
 int EA_IndCreate(const string sym, const ENUM_TIMEFRAMES tf)
 {
    if(g_eaIndCount >= EA_MAX_SYMBOLS) return -1;
@@ -100,6 +127,7 @@ int EA_IndCreate(const string sym, const ENUM_TIMEFRAMES tf)
    if(!g_eaInd[i].valid)
    {
       EA_Log(EA_LOG_ERRORS, StringFormat("indicator handles failed for %s (err=%d)", sym, GetLastError()));
+      EA_IndReleaseAt(i);            // free the partial set (see the helper's note)
       return -1;
    }
    g_eaIndCount++;
@@ -108,23 +136,7 @@ int EA_IndCreate(const string sym, const ENUM_TIMEFRAMES tf)
 
 void EA_IndReleaseAll()
 {
-   for(int i = 0; i < g_eaIndCount; i++)
-   {
-      if(g_eaInd[i].hAtr       != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAtr);
-      if(g_eaInd[i].hAtrD1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAtrD1);
-      if(g_eaInd[i].hAtrH1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAtrH1);
-      if(g_eaInd[i].hEma20     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEma20);
-      if(g_eaInd[i].hEma50     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEma50);
-      if(g_eaInd[i].hEma200    != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEma200);
-      if(g_eaInd[i].hEmaH1_50  != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEmaH1_50);
-      if(g_eaInd[i].hEmaH1_200 != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEmaH1_200);
-      if(g_eaInd[i].hEmaD1_200 != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hEmaD1_200);
-      if(g_eaInd[i].hRsi14     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hRsi14);
-      if(g_eaInd[i].hAdx14     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdx14);
-      if(g_eaInd[i].hAdxD1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdxD1);
-      if(g_eaInd[i].hAdxH1     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdxH1);
-      if(g_eaInd[i].hAdxH4     != INVALID_HANDLE) IndicatorRelease(g_eaInd[i].hAdxH4);
-   }
+   for(int i = 0; i < g_eaIndCount; i++) EA_IndReleaseAt(i);
    g_eaIndCount = 0;
 }
 

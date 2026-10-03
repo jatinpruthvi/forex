@@ -136,9 +136,12 @@ def main() -> int:
     check(all(c in strategies for _, c in reg), "registry references a class not in the include")
 
     # 8 - state coverage -------------------------------------------------------------
+    # NOTE: the market-statistics table (g_eaStatSym/g_eaStatUsed) is
+    # deliberately NOT in this list - it is the shared symbol -> slot map of a
+    # program-wide ring pool and must stay global (see block 13, defect #85).
     required = ["g_eaCfg", "g_eaSymbols", "g_eaSymbolCount", "g_eaLastSignalBar",
                 "g_eaInd", "g_eaIndCount", "g_eaIndTf", "g_eaTrack", "g_eaTrackCount",
-                "g_eaStatSym", "g_eaStatUsed", "g_eaNewsTimes", "g_eaNewsCount",
+                "g_eaNewsTimes", "g_eaNewsCount",
                 "g_eaNewsLoadedFile", "g_eaNewsLoadStamp"]
     save = re.search(r"void PortSaveState\(const int i\)(.*?)\n\}", host, re.S)
     load = re.search(r"void PortLoadState\(const int i\)(.*?)\n\}", host, re.S)
@@ -387,6 +390,76 @@ def main() -> int:
     check("ACCOUNT_MARGIN_MODE_RETAIL_HEDGING" in host and
           "HEDGING account required" in host and host.count("return INIT_FAILED;") >= 2,
           "the host must refuse to run on a netting account (identity is by magic)")
+    # 13b - the market-statistics pool is program-wide, keyed by symbol ---------
+    # EASpread's rings are indexed by the slot that g_eaStatSym/g_eaStatUsed assign,
+    # so that table must be ONE global map: a per-engine copy (or a reset before
+    # each engine's init) maps different symbols to the same slot, and the gates
+    # then read another symbol's samples (docs/EA_BUG_AUDIT.md, eleventh pass #85).
+    spread_src = (REPO / "MQL5_Master" / "Include" / "EASpread.mqh").read_text(encoding="utf-8")
+    check("statSym" not in host and "statUsed" not in host,
+          "the host carries a per-engine copy of the market-statistics symbol table "
+          "(defect #85: engines collide on slots and read each other's samples)")
+    clear = re.search(r"void PortClearEngineState\(\)(.*?)\n\}", host, re.S)
+    check(clear is not None and "g_eaStatUsed" not in clear.group(1),
+          "PortClearEngineState wipes the shared market-statistics map before each "
+          "engine's init - every engine would reuse the same slot numbers")
+    check(re.search(r"#define\s+EA_STAT_MAX_SYMBOLS", spread_src) is not None and
+          spread_src.count("g_eaStatSym") >= 2,
+          "EASpread no longer exposes the symbol -> slot map the host relies on")
+    check(all(spread_src.count(n) >= 2 for n in ("g_eaSpPts", "g_eaSpTime", "g_eaSlipR", "g_eaOutR")),
+          "a market-statistics ring is no longer reachable (EASpread changed shape)")
+    check("symbol -> slot map" in host and "defect #85" in host,
+          "the host does not document the shared market-statistics design")
+
+    # 13c - indicator handles: no path may leak them --------------------------------
+    sig_src = (REPO / "MQL5_Master" / "Include" / "EASignals.mqh").read_text(encoding="utf-8")
+    # index() without a guard would crash the verifier and hide the very finding
+    # it is testing for - every lookup below is conditional
+    has_helper = "void EA_IndReleaseAt(const int i)" in sig_src
+    has_create = "int EA_IndCreate" in sig_src and "void EA_IndReleaseAll" in sig_src
+    check(has_helper and has_create,
+          "EA_IndReleaseAt / EA_IndCreate / EA_IndReleaseAll missing from EASignals.mqh")
+    check(has_helper and has_create and
+          sig_src.index("void EA_IndReleaseAt") < sig_src.index("int EA_IndCreate"),
+          "EA_IndReleaseAt must be defined before its first use in EA_IndCreate")
+    if has_create:
+        create_body = sig_src[sig_src.index("int EA_IndCreate"):sig_src.index("void EA_IndReleaseAll")]
+        check("EA_IndReleaseAt(i);" in create_body,
+              "a failed EA_IndCreate leaks its partial handle set (defect #86)")
+        check("EA_IndReleaseAt(i);" in create_body and
+              create_body.index("EA_IndReleaseAt(i);") < create_body.rindex("return -1;"),
+              "EA_IndCreate must free the partial set before returning the failure")
+    oninit_body = host[host.index("int OnInit()"):host.index("//--- one pass over the book")]
+    check("EA_IndReleaseAll();" in oninit_body,
+          "the host does not release the handles of an engine that failed to "
+          "initialise (defect #87)")
+
+    # 13d - every engine global: snapshotted per engine, or program-wide by design
+    # (this is the guard against the #85 class: a program-wide pool must never be
+    # copied into a per-engine snapshot, and per-engine state must not be shared)
+    snap = save.group(1) + load.group(1)
+    shared_ok = {"g_eaExec", "g_eaRisk", "g_eaHaltHandledMagic", "g_eaInitialised",
+                 "g_eaLastLogKey", "g_eaLastLogTime",
+                 "g_eaStatSym", "g_eaStatUsed", "g_eaSpPts", "g_eaSpTime", "g_eaSpSlot",
+                 "g_eaSpSlotDays", "g_eaSpHead", "g_eaSpCount", "g_eaSlipR", "g_eaSlipHead",
+                 "g_eaSlipCount", "g_eaOutR", "g_eaOutHead", "g_eaOutCount"}
+    declared = set()
+    for hdr in sorted(gpe.INCLUDE_DIR.glob("*.mqh")):
+        declared.update(re.findall(r"^(?!\s)(?:[A-Za-z_][\w:]*)\s+(g_ea\w+)\s*(?:\[[^;]*\])?\s*(?:=|;)",
+                                   hdr.read_text(encoding="utf-8"), re.M))
+    check(len(declared) >= 25, f"engine-global scan found only {len(declared)} names")
+    unclassified = sorted(d for d in declared
+                          if d not in shared_ok and not re.search(rf"(?<![\w]){d}\b", snap))
+    check(not unclassified,
+          f"engine global(s) neither snapshotted per engine nor declared program-wide: "
+          f"{unclassified}")
+
+    # 13e - caps must be big enough, and any that still bite must say so ------------
+    check("#define PORT_NEWS_MAX 2048" in host and "g_portNewsWarned" in host and
+          "are kept across engine switches" in host,
+          "news-cache cap too small or silent when it bites (defect #89)")
+    check("max book POSITIONS on one symbol" in host,
+          "InpMaxBookPerSymbol's label must match what the gate counts (positions)")
     # engines that fail closed without a news calendar must be named in the README
     # (they take NO new entries until the CSV exists - an easy "why is nothing
     # trading" trap, and the number of such engines must not drift silently)

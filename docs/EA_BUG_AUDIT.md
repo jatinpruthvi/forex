@@ -515,6 +515,58 @@ headers + both new EAs; `gen_additional_eas.py --check` 65/65; `unittest discove
 tests` 204 ran, 203 pass (one import-loader artifact). **MQL5 compilation remains
 unverified** (no MetaEditor here).
 
+## Eleventh pass — 2026-10-03 (the shared *data* the 65 engines read and write)
+
+The tenth pass followed the shared engine *object*. This pass followed the shared
+**data**: the program-wide pools and caches that the host copies in and out of its
+per-engine snapshots, plus the executor's reach across engines. Five defects came
+out — the first one silently corrupted every statistical gate in the book.
+
+| # | File | Defect | Fix |
+| --- | --- | --- | --- |
+| 85 | `portfolio-EA/gen_portfolio_ea.py` (host snapshots) | The market-statistics rings (spread / fill-slippage / R-outcome in `EASpread.mqh`) are **global arrays indexed by the slot** that `g_eaStatSym`/`g_eaStatUsed` assign — but the host snapshotted that symbol→slot table **per engine** and wiped it before every `EA_Init`. Each engine therefore mapped its own symbols to slots 0,1,2… independently, so every engine wrote its first symbol's samples into the same ring: `EA_SpreadBaseline(EURUSD)` could be computed from XAUUSD samples, and `EA_SymbolSlippageOk` (2 engines) plus every spread-vs-baseline gate (4+ EAs) compared against another symbol's fills. The README claimed the rings were pooled per symbol, which is what the data layout requires. | The symbol→slot table is now **one program-wide map**: removed from `SPortState`, from `PortSaveState`/`PortLoadState`, and from the reset in `PortClearEngineState` (the first engine to touch a symbol owns its slot, everyone reuses it). The verifier's state-coverage list was updated — it used to *require* the broken per-engine copy — and now fails if the host carries one or wipes the map. |
+| 86 | `MQL5_Master/Include/EASignals.mqh` (`EA_IndCreate`) | The function creates all 14 handles and only then decides whether the set is usable. On failure it returned -1 **without** releasing what it had created, and since `g_eaIndCount` is not incremented for a failed slot, `EA_IndReleaseAll()` could never reach it. In the host (65 inits, plus a re-init on every chart reload) those handles accumulate until the terminal restarts. | New `EA_IndReleaseAt(i)` (defined before its first use) releases one slot and marks it invalid; `EA_IndCreate` calls it on the failure path, and `EA_IndReleaseAll()` is now a loop over that helper. |
+| 87 | `portfolio-EA/gen_portfolio_ea.py` (host `OnInit`) | An engine that failed `EA_Init` was skipped with `continue`, and the next engine's `PortClearEngineState()` wipes the indicator registry **without** releasing it — so the handles the failed engine had already created (e.g. all 8 symbols before failing on the ninth) leaked for the life of the terminal. | `EA_IndReleaseAll()` on the failure path before `continue`, keyed to that engine's registry (which is exactly what is still loaded at that point). |
+| 88 | `portfolio-EA/gen_portfolio_ea.py` (input label) | `InpMaxBookPerSymbol` was labelled "max engines holding one symbol" while the gate counts **positions** (`PortCountBookSymbol` → `PortCountBookPositions`); with the `2006` ladder open, one engine can hold several positions on a symbol, so the cap bites earlier than the label promises. | Label corrected to "max book POSITIONS on one symbol" (no behaviour change), and the README's book-guard sentence now says positions too. |
+| 89 | `portfolio-EA/gen_portfolio_ea.py` (`PORT_NEWS_MAX`) | The per-engine news cache is a fixed 512-slot array; a longer red-folder file was **silently trimmed** on every switch, i.e. the fail-closed engines protected less after a switch than before it. Same family as #72: a cap that bites must be visible. | Cap raised to 2 048 events (~1 MB total) and a once-per-engine log line names the engine, the number of events and the cap when it still bites. |
+
+Also confirmed sound in this pass (no change needed) — the highest-severity class a
+65-engines-in-one-program design can have is one engine touching another's money:
+
+* **every** `PositionsTotal()`/`OrdersTotal()` loop in the engine is magic-filtered:
+  `CEAExecutor::CloseAll`, `CancelPending`, `HasPending`, `EA_CountPositions`,
+  `EA_FloatingPl`, `EA_FindPosition`, `EA_OpenRiskMoney`, `EA_GroupRiskPct`,
+  `EA_BasketAvgEntry`, `EA_PendingHygiene`, `EA_SyncTracks` (11 loops, all 11 check
+  `POSITION_MAGIC`/`ORDER_MAGIC` against `g_eaCfg.magic`);
+* `EA_ManagePositions` works off the engine's own `g_eaTrack` table (snapshotted
+  per engine, and re-adopted per magic by `EA_SyncTracks`), so it can never modify
+  a foreign position;
+* the host's `PortScanExposure` only *reads* magic, and `OnDeinit` loads each
+  engine's state before `EA_Deinit`, so handles are released for that engine only;
+* the executor's `Init()` re-runs `SetExpertMagicNumber` and `SetDeviationInPoints`
+  per engine, and `m_retries` is re-derived from that engine's config;
+* the tracker never trades (checked since the ninth pass), and the trading EA still
+  contains no file I/O or drawing: the two file *reads* it can do are the optional
+  news calendar and the tester-only report row, both delivered engine behaviour.
+
+A systematic inventory now backs this: the verifier enumerates every top-level
+`g_ea*` global declared in the five engine headers and fails unless each one is
+either snapshotted per engine or on an explicit program-wide list (executor,
+governor, halt latch, readiness flag, log throttle, the statistics pool). That is
+the guard against the #85 class coming back through a future change.
+
+Verification after this pass: `verify_portfolio.py` **OK - 1 785 checks**
+(+10: shared-map guards, handle-leak guards, the global inventory, the news cap and
+label wording). The verifier itself was hardened while testing these: two checks
+used an unguarded `.index()` and crashed with `ValueError` instead of reporting the
+finding they were testing for (a checker that dies hides the defect). Both controls
+now bite and the checked-in files are green: `check_mql5_source.py` 87 files /
+78 EAs / 92 findings (all pre-existing legacy, 0 on the two new EAs);
+`arity_check.py` 0/0 on all five headers + both EAs; `gen_additional_eas.py
+--check` 65/65; `unittest discover tests` 204 ran, 203 pass (one loader artifact);
+code-only brace/paren/bracket balance verified on every touched file, HEAD vs now.
+**MQL5 compilation remains unverified** (no MetaEditor here).
+
 ## Verification after the fixes
 
 | Check | Result |

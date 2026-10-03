@@ -261,7 +261,9 @@ string PortTagOf(const long magic);       // "P<magic>|" identity prefix
 #include "PortfolioStrategies.mqh"
 
 #define PORT_MAX      @@COUNT@@
-#define PORT_NEWS_MAX 512      // news events cached per strategy (see README)
+#define PORT_NEWS_MAX 2048     // news events cached per strategy (see README);
+                               // 512 could silently drop events of a long
+                               // red-folder file on a switch (defect #89)
 
 //--- portfolio-level inputs ------------------------------------------------
 input double InpRiskScale           = 1.0;    // multiplies every engine's delivered riskPct
@@ -270,7 +272,7 @@ input string InpDisableMagics       = "";     // blacklist: never run these magi
 input string InpKeepDeliveredPolicy = "2006"; // engines that keep their delivered order policy
 input int    InpMaxPerEngine        = 0;      // max open positions per engine (0 = its symbol count)
 input int    InpMaxBookPositions    = 0;      // max positions across ALL engines (0 = off)
-input int    InpMaxBookPerSymbol    = 0;      // max engines holding one symbol (0 = off)
+input int    InpMaxBookPerSymbol    = 0;      // max book POSITIONS on one symbol (0 = off)
 input double InpBookRiskPct         = 0.0;    // max aggregate open risk, % of balance (0 = off)
 input bool   InpQuietInit           = true;   // hide the per-switch 'risk init' log line
 input bool   InpSummary             = true;   // log the init summary
@@ -292,8 +294,13 @@ struct SPortState
    ENUM_TIMEFRAMES indTf;
    SPosTrack      track[EA_MAX_POSITIONS];
    int            trackCount;
-   string         statSym[EA_STAT_MAX_SYMBOLS];
-   bool           statUsed[EA_STAT_MAX_SYMBOLS];
+   //--- NOTE: the market-statistics symbol table is deliberately NOT here.
+   //--- The spread/slippage/outcome rings in EASpread.mqh are indexed by the
+   //--- SLOT that table assigns, so a per-engine copy made every engine map its
+   //--- own symbols to slots 0,1,2... and all 65 engines wrote into the same
+   //--- rings - one symbol's gate then read another symbol's samples
+   //--- (docs/EA_BUG_AUDIT.md, eleventh pass defect #85).  The table is global:
+   //--- the first engine to touch a symbol owns its slot, everybody reuses it.
    datetime       newsStamp;
    string         newsFile;
 };
@@ -312,6 +319,7 @@ bool         g_portAllowed[PORT_MAX];      // passes the switches/whitelist/blac
 datetime     g_portLastBar[PORT_MAX][EA_MAX_SYMBOLS];
 datetime     g_portNews[PORT_MAX][PORT_NEWS_MAX];
 int          g_portNewsCount[PORT_MAX];
+bool         g_portNewsWarned[PORT_MAX];   // cap warning already printed
 int          g_portCount = 0;
 bool         g_portReady = false;
 int          g_portLive = 0;
@@ -345,15 +353,19 @@ void PortSaveState(const int i)
    for(int k = 0; k < EA_MAX_POSITIONS; k++)
       g_portState[i].track[k] = g_eaTrack[k];
 
-   for(int k = 0; k < EA_STAT_MAX_SYMBOLS; k++)
-   {
-      g_portState[i].statSym[k]  = g_eaStatSym[k];
-      g_portState[i].statUsed[k] = g_eaStatUsed[k];
-   }
-
    g_portState[i].newsStamp = g_eaNewsLoadStamp;
    g_portState[i].newsFile  = g_eaNewsLoadedFile;
    int n = (int)MathMin(g_eaNewsCount, PORT_NEWS_MAX);
+   //--- a cap that bites is a cap that must be visible (same rule as the
+   //--- 8-symbol universe cap, defect #72): say it once per engine instead of
+   //--- silently protecting less after a switch (defect #89)
+   if(g_eaNewsCount > PORT_NEWS_MAX && !g_portNewsWarned[i])
+   {
+      g_portNewsWarned[i] = true;
+      PrintFormat("[portfolio] %s: news calendar holds %d blocking events; only the first %d "
+                  "are kept across engine switches - split the calendar file",
+                  g_portName[i], g_eaNewsCount, PORT_NEWS_MAX);
+   }
    g_portNewsCount[i] = n;
    for(int k = 0; k < n; k++)
       g_portNews[i][k] = g_eaNewsTimes[k];
@@ -376,12 +388,6 @@ void PortLoadState(const int i)
    g_eaTrackCount = g_portState[i].trackCount;
    for(int k = 0; k < EA_MAX_POSITIONS; k++)
       g_eaTrack[k] = g_portState[i].track[k];
-
-   for(int k = 0; k < EA_STAT_MAX_SYMBOLS; k++)
-   {
-      g_eaStatSym[k]  = g_portState[i].statSym[k];
-      g_eaStatUsed[k] = g_portState[i].statUsed[k];
-   }
 
    g_eaNewsLoadStamp  = g_portState[i].newsStamp;
    g_eaNewsLoadedFile = g_portState[i].newsFile;
@@ -413,11 +419,10 @@ void PortClearEngineState()
    }
    for(int k = 0; k < EA_MAX_POSITIONS; k++)
       g_eaTrack[k].ticket = 0;
-   for(int k = 0; k < EA_STAT_MAX_SYMBOLS; k++)
-   {
-      g_eaStatSym[k]  = "";
-      g_eaStatUsed[k] = false;
-   }
+   //--- the market-statistics table is NOT cleared here: it is the shared
+   //--- symbol -> slot map of a program-wide ring pool (see SPortState). Wiping
+   //--- it before every engine's init gave each engine the same slot numbers for
+   //--- different symbols, which is defect #85 of the eleventh pass.
 }
 
 //--- the risk governor and executor hold their state privately, but both
@@ -664,6 +669,7 @@ int OnInit()
       g_portAllowed[i] = PortAllowed(i);
       for(int k = 0; k < EA_MAX_SYMBOLS; k++) g_portLastBar[i][k] = 0;
       g_portNewsCount[i] = 0;
+      g_portNewsWarned[i] = false;
    }
 
    int disabled = 0, entriesLive = 0;
@@ -684,6 +690,11 @@ int OnInit()
       {
          PrintFormat("[portfolio] %-45s INIT FAILED (rc=%d, err=%d) - disabled",
                      g_portName[i], rc, GetLastError());
+         //--- free the handles the failed init did create (PortClearEngineState
+         //--- wipes the registry for the next engine without releasing, so an
+         //--- engine that fails on symbol 3 would leak symbols 1-2 until the
+         //--- terminal restarts) - defect #87 of the eleventh pass
+         EA_IndReleaseAll();
          continue;
       }
 

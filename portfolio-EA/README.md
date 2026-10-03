@@ -48,7 +48,7 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      1 775 static checks (freshness, hashes, policy, tags,
+├── verify_portfolio.py      1 785 static checks (freshness, hashes, policy, tags,
 │                              identifier hygiene, capacity, shared-engine state)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
@@ -134,7 +134,8 @@ order** on the symbol — so one order per symbol holds for the whole book. Remo
 Per-engine caps can be lowered with `InpMaxPerEngine`.
 
 Book-level guards (off by default; raise the risk scale and switch them on as you
-prefer): `InpMaxBookPositions`, `InpMaxBookPerSymbol`, `InpBookRiskPct`. They
+prefer): `InpMaxBookPositions` (positions), `InpMaxBookPerSymbol` (positions on
+one symbol), `InpBookRiskPct`. They
 apply to **every** engine, including the one keeping its delivered policy. Context:
 delivered risk sums to **51.5 % of equity** across the engines and EURUSD appears
 in **63 of 65** universes, so an unguarded "all on" demo can put 60+ positions on
@@ -213,7 +214,7 @@ Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 1 775 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 785 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
@@ -231,10 +232,17 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   book resolves to ~476 indicator instances (34 symbol x timeframe pairs x 14
   handles), not 65 x 8 x 14. Expect a slower first init on a fresh terminal and a
   few hundred MB of history/buffers — keep "Max bars in chart" moderate.
-* **Market statistics are pooled.** Spread, fill-slippage and R-outcome rings are
-  keyed by symbol and shared by all engines (they measure the market/broker, not
-  a strategy). Two engines gate on them (`EA_SymbolSlippageOk`); for those, the
-  gate sees the whole book's fills on the symbol.
+* **Market statistics are pooled, one pool per symbol.** Spread, fill-slippage and
+  R-outcome rings are keyed by symbol and shared by all engines (they measure the
+  market/broker, not a strategy). Two engines gate on them (`EA_SymbolSlippageOk`)
+  and several compare the live spread with the pooled baseline; for those, the
+  gate sees the whole book's fills on the symbol. The symbol -> slot map is a
+  single program-wide table (defect #85 of the eleventh pass: per-engine copies
+  made every engine reuse the same slot numbers, so a symbol's baseline could be
+  computed from another symbol's samples).
+* **News calendars are cached per engine, cap 2 048 blocking events.** A longer
+  file is trimmed on a switch and the EA says so in the log (defect #89); 512 used
+  to be the cap and said nothing.
 * **Per-day request budget, deal cursor and trade spacing** are per engine and now
   survive restarts within the same trading day (`EA_<magic>_ReqToday`,
   `EA_<magic>_LastOutDeal`, `EA_<magic>_LastTrade`). 53 engines set
@@ -266,7 +274,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
 | Risk anchors (day/week/month, HWM, halts) | **exact** — magic-keyed GlobalVariables; the day anchor is frozen once per clock day and the rollover runs exactly once, from `Init()` or `OnTick()` |
 | Governor state across the 65 engines | **exact** — `Init()` re-derives every member from that engine's magic-scoped state, so no halt, day lock or spacing stamp leaks to the next engine |
 | Order policy | host override described above; `2006` keeps the delivered ladder |
-| Spread/slippage/outcome rings | **shared on purpose** — symbol/market statistics, not engine state |
+| Spread/slippage/outcome rings | **shared on purpose** — symbol/market statistics, not engine state; one global symbol → slot map (defect #85 fixed) |
 | Per-day request counter | **exact** — persisted per magic (`EA_<magic>_ReqToday` + day stamp) |
 | Deal cursor, trade spacing | **exact** — persisted per magic (`EA_<magic>_LastOutDeal`, `EA_<magic>_LastTrade`) |
 | Account-wide % limits (daily/weekly/monthly DD, HWM, profit target) | **book-wide** — measured on the shared account equity; identical to the single-EA case only when the book runs alone on its account |
@@ -277,7 +285,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
   override + book caps. Enum types of the 6 engines that declare them are
   prefixed like every other per-engine identifier (defect #67).
-* `verify_portfolio.py` — **1 775/1 775 checks pass** (freshness, originals by
+* `verify_portfolio.py` — **1 785/1 785 checks pass** (freshness, originals by
   hash, switches, tags/wrappers, policy override, registry/engines.csv
   completeness, **one-file EA: every strategy inlined verbatim**, **identifier
   hygiene**: every emitted type exists, no top-level name twice, every
@@ -297,6 +305,11 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   **tenth pass** (#78-#84: the daily floor ratcheting to the intraday equity peak,
   the clock-day rollover being swallowed in the host, a halt/day-lock/spacing-stamp
   leaking from one engine to the next, the missing netting-account guard, and a
-  news log that said "inert" while the engine was blocked).
+  news log that said "inert" while the engine was blocked) and **eleventh pass**
+  (#85-#89: the market-statistics symbol→slot map copied per engine, which mixed
+  every engine's samples into the same rings; indicator handles leaked when a
+  symbol's handle creation failed or an engine failed init; a 512-event news cap
+  that trimmed silently; and an input label that said "engines" while the gate
+  counts positions).
   The tracker's parse/accounting/verdict contract is mirrored by
   `tests/test_portfolio_tracker.py` (16 tests).
