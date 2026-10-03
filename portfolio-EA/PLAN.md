@@ -9,8 +9,15 @@ questions below were skipped, so the plan's recommended defaults were applied:
 4) risk/book guards exist but default to faithful (`InpRiskScale = 1.0`, caps 0 =
 off) - set them for the demo phase as you prefer.
 Names per the clarification: trader = `AllEnginesEA.mq5`, tracker = `PortfolioEA.mq5`.
-See README.md for the implemented state and `verify_portfolio.py` (723 checks) for the
+See README.md for the implemented state and `verify_portfolio.py` (728 checks) for the
 evidence.  Items below are kept as the original design record.
+
+**Single-file delivery (2026-10-03).**  The user asked for the EA in MQL5, not a Python
+program: `build/AllEnginesEA.mq5` is now ONE file - all 65 strategies are inlined into
+it, so nothing has to be copied next to it except the shared engine header every
+delivered EA already uses (`MQL5\Include\EACommon.mqh`).  `PortfolioStrategies.mqh` is
+still emitted as the review copy of the same text.  Python remains build-time only:
+it assembles the file and checks it; neither EA calls Python at runtime.
 
 ---
 

@@ -228,6 +228,20 @@ def main() -> int:
         check(forbidden not in host, f"dashboard/file logic leaked into the trader: {forbidden}")
     check('input group "Per-strategy switches' in host, "switch group heading missing")
 
+    # 11 - the EA is ONE file: the strategies are inside it, not a sibling include --
+    check('#include "PortfolioStrategies.mqh"' not in host,
+          "AllEnginesEA.mq5 still #includes the strategies file")
+    check(strategies in host, "the strategy text is not inlined verbatim into the EA")
+    bslash = chr(92)
+    check(host.count("//=== BEGIN inlined PortfolioStrategies.mqh") == 1 and
+          host.count("//=== END inlined PortfolioStrategies.mqh") == 1,
+          "inlined strategy block markers missing")
+    quoted = re.findall(r'^\s*#include\s+"([^"]+)"', host, re.M)
+    check(quoted == [".." + bslash + ".." + bslash + "Include" + bslash + "EACommon.mqh"],
+          f"the EA must need only the shared engine header, found: {quoted}")
+    check(len(re.findall(r"class P\d+_Port\s*:\s*public\s", host)) == 65,
+          "the EA does not carry all 65 strategy wrappers")
+
     # 10 - tracker EA (PortfolioEA.mq5 in src/): read-only, by magic ------------------
     tracker_p = HERE / "src" / "PortfolioEA.mq5"
     check(tracker_p.exists(), "tracker EA missing: src/PortfolioEA.mq5")

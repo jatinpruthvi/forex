@@ -1,11 +1,26 @@
 # portfolio-EA — all 65 engines on one chart + a separate tracker
 
-Two EAs, one boundary:
+Two EAs, both plain MQL5, one boundary:
 
 | EA | File | Chart | Job | Trading |
 | --- | --- | --- | --- | --- |
-| **AllEnginesEA** | `build/AllEnginesEA.mq5` (generated) | 1 chart | runs **all 65 engines** in one program: registry, per-engine state switch, on/off switches, identity tags | yes |
-| **PortfolioEA** | `src/PortfolioEA.mq5` (hand-written) | any chart, or a second chart | **tracks per-engine performance** and writes the report you use to decide what to switch off | **never** (read-only) |
+| **AllEnginesEA** | `build/AllEnginesEA.mq5` | 1 chart | runs **all 65 engines**: registry, per-engine state switch, on/off switches, identity tags | yes |
+| **PortfolioEA** | `src/PortfolioEA.mq5` | any chart, or a second chart | **tracks per-engine performance** and writes the report you use to decide what to switch off | **never** (read-only) |
+
+### What you compile
+
+1. `build/AllEnginesEA.mq5` — **one file**. All 65 strategies are inside it; it
+   needs nothing from this folder next to it, only the shared engine header that
+   the 65 delivered EAs already use:
+   `<data>\MQL5\Include\EACommon.mqh`.
+2. `src/PortfolioEA.mq5` — **one file**, self-contained, needs no header at all.
+
+### Python is build-time only
+
+Nothing in either EA is Python. `gen_portfolio_ea.py` is the *assembly* tool that
+copies the 65 delivered strategies into the EA file (so nobody retypes 12 000
+lines by hand), and `verify_portfolio.py` is the checker. You never need Python to
+compile, install or run the EAs — and MT5 never runs Python.
 
 MT5 allows one EA per chart, so AllEnginesEA is the only way to get a genuinely
 single-chart book; PortfolioEA is the dashboard, deliberately kept out of the
@@ -13,20 +28,22 @@ trading program.
 
 ```
 portfolio-EA/
-├── gen_portfolio_ea.py      reads the 65 delivered EAs + engine (READ-ONLY) -> build/
-├── verify_portfolio.py      723 static checks (freshness, hashes, policy, tags, boundary)
+├── build/AllEnginesEA.mq5   COMPILE THIS - one EA, all 65 strategies inside it
+├── src/PortfolioEA.mq5      COMPILE THIS - the tracker EA (standalone)
+│
 ├── PLAN.md                  the design + the decisions taken (read this first)
-├── src/
-│   └── PortfolioEA.mq5      the tracker EA (independent, no engine include)
+├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
+├── verify_portfolio.py      728 static checks (freshness, hashes, policy, tags, boundary)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
-    ├── AllEnginesEA.mq5              the trading host (one attach)
-    ├── PortfolioStrategies.mqh       65 strategy classes + 65 tag wrappers
+    ├── AllEnginesEA.mq5              the EA (the strategies are inlined)
+    ├── PortfolioStrategies.mqh        review copy of those 65 classes + wrappers
     ├── engines.csv                   magic -> tag -> engine -> switch  (for the tracker)
     ├── STRATEGY_REGISTRY.md          the same table, human-readable
     ├── strategy_registry.csv         and machine-readable
-    ├── portfolio_manifest.json
+    ├── portfolio_manifest.json       per-engine manifest used by the checks
     └── originals.sha256              hashes of every original file read
+```
 ```
 
 ## Nothing original is touched
@@ -129,27 +146,34 @@ Read-only by construction (no `CTrade`, no order functions, verified by
   the exact input name to untick), and draws an optional on-chart panel sorted by
   net.
 
-Install: copy `build/engines.csv` **and** the whole `build/` folder into
-`<data>\MQL5\Files\PortfolioEA\` (for the launcher/templates), put
-`src/PortfolioEA.mq5` in `<data>\MQL5\Experts\` (or any subfolder), compile, and
-attach it to a chart with `InpDaysBack` set to your demo window.
+Install: copy `build/engines.csv` to `<data>\MQL5\Files\PortfolioEA\engines.csv`
+(it is the magic -> name map), put `src/PortfolioEA.mq5` in `<data>\MQL5\Experts\`
+(or any subfolder), compile, and attach it to a chart with `InpDaysBack` set to
+your demo window. Without `engines.csv` the tracker still works — it just shows
+magic numbers instead of engine names.
 
 ## Build and deploy
-
-```bash
-python3 portfolio-EA/gen_portfolio_ea.py        # write build/
-python3 portfolio-EA/verify_portfolio.py        # 723 checks
-```
 
 On Windows/MT5:
 
 1. engine headers already in `<data>\MQL5\Include\` (the 65 EAs need them too);
-2. copy `build/AllEnginesEA.mq5` **and** `build/PortfolioStrategies.mqh` into
-   `<data>\MQL5\Experts\portfolio\` and compile `AllEnginesEA.mq5`;
-3. copy the rest of `build/` (`engines.csv`, registry files) into
-   `<data>\MQL5\Files\PortfolioEA\`;
+2. copy **`build/AllEnginesEA.mq5`** into `<data>\MQL5\Experts\` and compile it
+   (nothing else has to go with it);
+3. copy `build/engines.csv` into `<data>\MQL5\Files\PortfolioEA\`;
 4. attach `AllEnginesEA` to **one** chart (Algo Trading ON) — demo first;
-5. compile + attach `PortfolioEA.mq5` on another chart to watch per-engine results.
+5. compile + attach `src/PortfolioEA.mq5` on another chart to watch per-engine
+   results.
+
+Only if you change a strategy or the host do you need the build tools again:
+
+```bash
+python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
+python3 portfolio-EA/verify_portfolio.py        # 728 checks
+```
+
+If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
+first: re-running the generator overwrites it. Hand edits belong in the delivered
+EA (for logic) or in `gen_portfolio_ea.py` (for the host).
 
 ## Fidelity — exact and not exact
 
@@ -166,12 +190,13 @@ On Windows/MT5:
 
 ## Status
 
-* `gen_portfolio_ea.py` — **run**: 65 engines, 860 inputs as constants, 65 tag
-  wrappers, registry + engines.csv + policy override + book caps.
-* `verify_portfolio.py` — **723/723 checks pass** (freshness, originals by hash,
+* `gen_portfolio_ea.py` — **run**: 65 engines inlined into the single EA file,
+  860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
+  override + book caps.
+* `verify_portfolio.py` — **728/728 checks pass** (freshness, originals by hash,
   switches, tags/wrappers, policy override, registry/engines.csv completeness,
-  **no dashboard or file I/O in the trader**, **no trading API in the tracker**,
-  repo checkers clean).
+  **one-file EA: every strategy inlined verbatim**, **no dashboard or file I/O in
+  the trader**, **no trading API in the tracker**, repo checkers clean).
 * **Not verified: MQL5 compilation** — no MetaEditor on Linux. Compile
   `AllEnginesEA.mq5` and `PortfolioEA.mq5` on Windows; anything the compiler
   reports is fixed in `gen_portfolio_ea.py` or `src/`, never in `build/`.
