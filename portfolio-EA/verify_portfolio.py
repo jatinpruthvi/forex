@@ -215,6 +215,15 @@ def main() -> int:
           "oneEntryAccountWide override missing (multi-symbol needs it off)")
     check('input string InpKeepDeliveredPolicy = "2006"' in host,
           "delivered-policy exception list missing (2006 is the ladder)")
+    # one order per symbol, many symbols: the engine enforces it for strategies
+    # that do not override AllowMultipleOnSymbol(); the host enforces it for the
+    # one that does (2006), unless the engine is in the delivered-policy list
+    check("int PortCountEngineSymbol(const long magic, const string sym)" in host,
+          "per-engine per-symbol hold counter missing")
+    check("if(!PortKeepDelivered(magic) && PortCountEngineSymbol(magic, sym) > 0)" in host,
+          "host does not enforce one-order-per-symbol for the stacking engine")
+    check("if(PortKeepDelivered(magic)) return true;" not in host,
+          "the delivered-policy exemption must not bypass the book caps")
     check("MathMax(1, ctx.openPositions" not in host and
           "g_eaStrategy.AllowMultipleOnSymbol" not in host,
           "the trader must not re-implement the per-symbol rule (the engine has it)")
@@ -224,9 +233,21 @@ def main() -> int:
     # dashboard boundary: the trader draws and writes nothing ---------------------
     for forbidden in ("ObjectCreate", "OBJ_LABEL", "OnChartEvent", "Comment(",
                       "ChartRedraw", "ChartSetString", "FileOpen", "FileWrite",
-                      "FileDelete", "FileMove", "EventSetTimer"):
+                      "FileDelete", "FileMove", "ObjectsTotal", "ObjectSetString",
+                      "StringFormat(\"PORTFOLIO"):
         check(forbidden not in host, f"dashboard/file logic leaked into the trader: {forbidden}")
     check('input group "Per-strategy switches' in host, "switch group heading missing")
+    check("EventSetTimer(1);" in host and "void OnTimer()" in host and
+          "EventKillTimer();" in host,
+          "the chart-symbol tick stream must be backed by the 1s execution timer")
+    check("void PortProcess()" in host and host.count("PortProcess();") == 2,
+          "OnTick and OnTimer must both call PortProcess()")
+    check("g_portState[i].cfg.signalOnNewBarOnly && !PortNewBar(i)" in host,
+          "engines that want every-tick signals must not be new-bar gated")
+    for e in entries:
+        syms = list(e["symbols"])
+        check(len(syms) == len(set(syms)),
+              f"magic {e['magic']} lists a symbol twice: {syms}")
 
     # 11 - the EA is ONE file: the strategies are inside it, not a sibling include --
     check('#include "PortfolioStrategies.mqh"' not in host,
@@ -272,20 +293,88 @@ def main() -> int:
         check("ObjectsTotal(0)" in tracker and "ObjectDelete(0, name)" in tracker,
               "tracker must clean its panel objects on deinit")
         check('g_panelPrefix' in tracker and "PFX_" in tracker, "panel prefix missing")
+        # accounting: entry-side costs belong to the round turn (many brokers
+        # charge commission on the entry deal), and cost-only deal types must
+        # still land in net
+        check("isTrade && entry == DEAL_ENTRY_IN" in tracker and
+              "g_rows[i].pending += money;" in tracker,
+              "tracker drops entry-side commission/swap")
+        check("double pl = money + g_rows[i].pending;" in tracker,
+              "closed-trade P/L does not include the entry-side costs")
+        check("DEAL_ENTRY_OUT_BY" in tracker and "DEAL_ENTRY_INOUT" in tracker,
+              "partial/out-by closes are not counted as closed trades")
+        check("DEAL_TYPE_BUY" in tracker and "DEAL_TYPE_SELL" in tracker,
+              "deal-type filter missing (charge/commission deals must not count as trades)")
+        # verdict order: not enough trades is TOO_FEW, never KEEP/DROP
+        i_too = tracker.index('g_rows[i].verdict = "TOO_FEW";')
+        i_drop = tracker.index('g_rows[i].verdict = "DROP";')
+        check(i_too < i_drop, "TOO_FEW must be decided before DROP")
+        check('g_rows[i].closed == 0' in tracker, "zero-trade engine is not reported as TOO_FEW")
+        check("ArrayResize(g_rows, g_count + 1) != g_count + 1" in tracker,
+              "tracker ignores a failed row allocation")
+        check("bool haveHistory = HistorySelect(" in tracker,
+              "history failure must not wipe the report")
+        check("string CsvText(string s)" in tracker and tracker.count("CsvText(") >= 5,
+              "CSV text fields must be sanitised (a comma would shift columns)")
         # the identity file the tracker expects must be the one we generate
         check("tag" in engines.splitlines()[0] and "switch" in engines.splitlines()[0],
               "engines.csv header does not match what the tracker parses")
 
+    # 12 - identifier hygiene: what an MQL5 compile rejects -------------------------
+    # (a) every `const <type> <name>` must name a type that exists: built-in,
+    #     engine enum, or an enum declared in this very file (defect #67 was a
+    #     prefixed enum type that was never declared under that name)
+    builtin = {"void", "bool", "int", "uint", "long", "ulong", "short", "ushort",
+               "char", "uchar", "double", "float", "string", "datetime", "color"}
+    declared_enums = re.findall(r"^enum\s+(\w+)", strategies, re.M)
+    engine_enums = set()
+    for hdr in sorted(gpe.INCLUDE_DIR.glob("*.mqh")):
+        engine_enums.update(re.findall(r"^\s*enum\s+(\w+)", hdr.read_text(encoding="utf-8"), re.M))
+    check(len(declared_enums) == len(set(declared_enums)),
+          "duplicate enum type name in the combined EA")
+    check(not (set(declared_enums) & engine_enums),
+          f"enum type name clashes with the engine: {sorted(set(declared_enums) & engine_enums)}")
+    for m in re.finditer(r"^const\s+([\w:]+)\s+(\w+)\s*=", strategies, re.M):
+        tname = m.group(1)
+        check(tname in builtin or tname.startswith("ENUM_") or tname in declared_enums,
+              f"const {m.group(2)} declares unknown type {tname}")
+    # (b) one program namespace: no top-level name may be declared twice
+    names = []
+    names += re.findall(r"^(?:#define|class|enum|struct)\s+(\w+)", strategies, re.M)
+    names += re.findall(r"^const\s+[\w:]+\s+(\w+)\s*=", strategies, re.M)
+    names += [m.group(2) for m in
+              re.finditer(r"^(?!const\b)(?:static\s+)?(?:void|bool|int|uint|long|ulong|short|"
+                          r"ushort|char|uchar|double|float|string|datetime|color|ENUM_\w+|[A-Z]\w*)"
+                          r"\s+(\w+)\s*[\[(]", strategies, re.M)]
+    dupes = sorted({n for n in names if names.count(n) > 1})
+    check(not dupes, f"top-level identifier(s) declared twice in the EA: {dupes[:8]}")
+    # (c) every engine's class must configure the magic the registry/tag uses
+    parts = re.split(r"//={66}\n//\| from (\S+)\s+\|\s+magic (\d+)\n", strategies)
+    for i in range(1, len(parts) - 2, 3):
+        blk_name, magic, body = parts[i], int(parts[i + 1]), parts[i + 2]
+        consts = dict(re.findall(r"^const\s+[\w:]+\s+(\w+)\s*=\s*(.+?);\s*$", body, re.M))
+        mm = re.search(r"cfg\.magic\s*=\s*(\w+)\s*;", body)
+        resolved = consts.get(mm.group(1), mm.group(1)) if mm else None
+        check(resolved is not None and resolved.strip().isdigit() and int(resolved) == magic,
+              f"{blk_name}: cfg.magic does not resolve to the registry magic {magic}")
+
     # 11 - repo checkers --------------------------------------------------------------
-    for cmd in (["python3", "scripts/check_mql5_source.py",
-                 "portfolio-EA/build/AllEnginesEA.mq5"],
-                ["python3", "scripts/dev/arity_check.py"]):
+    arity_targets = [str(REPO / "MQL5_Master" / "Include" / h)
+                     for h in ("EACore.mqh", "EASignals.mqh", "EASpread.mqh",
+                               "EATrade.mqh", "EACommon.mqh")]
+    arity_targets += [str(BUILD / "AllEnginesEA.mq5"),
+                      str(HERE / "src" / "PortfolioEA.mq5")]
+    runs = (([ "python3", "scripts/check_mql5_source.py",
+               "portfolio-EA/build/AllEnginesEA.mq5",
+               "portfolio-EA/src/PortfolioEA.mq5"], "0 finding(s)"),
+            (["python3", "scripts/dev/arity_check.py"] + arity_targets,
+             "0 arity finding(s), 0 undefined-name finding(s)"))
+    for cmd, expect in runs:
         r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
         tail = (r.stdout + r.stderr).strip().splitlines()
         summary = tail[-1] if tail else "(no output)"
         check(r.returncode == 0, f"{' '.join(cmd[:2])} failed: {summary}")
-        if cmd[-1].endswith(".mq5"):
-            check("0 finding(s)" in r.stdout, f"checker findings: {summary}")
+        check(expect in r.stdout, f"{' '.join(cmd[:2])}: expected '{expect}' in output, got: {summary}")
 
     return report()
 
@@ -297,7 +386,9 @@ def report() -> int:
             print("  -", f)
         return 1
     print(f"OK - {CHECKS} checks passed")
-    print("     build/ is current | originals untouched (sha256) | 65 classes, 859 inputs")
+    consts = len(re.findall(r"^const ", (BUILD / "PortfolioStrategies.mqh")
+                            .read_text(encoding="utf-8"), re.M))
+    print("     build/ is current | originals untouched (sha256) | 65 classes, %d inputs" % consts)
     print("     registry complete | state coverage complete | repo checkers clean")
     print("     per-strategy switches + tags + registry/docs/engines.csv verified")
     print("     trader boundary (no dashboard/files) + tracker read-only checks verified")

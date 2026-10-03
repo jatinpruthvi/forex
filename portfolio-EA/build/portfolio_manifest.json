@@ -26,7 +26,8 @@
         "USDJPY"
       ],
       "inputs": 15,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 1,
@@ -49,7 +50,8 @@
         "USDJPY"
       ],
       "inputs": 21,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 2,
@@ -72,7 +74,8 @@
         "USDJPY"
       ],
       "inputs": 20,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 3,
@@ -95,7 +98,10 @@
         "USDJPY"
       ],
       "inputs": 30,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": [
+        "ENUM_T5K_PROFILE"
+      ]
     },
     {
       "index": 4,
@@ -118,7 +124,8 @@
         "USDJPY"
       ],
       "inputs": 24,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 5,
@@ -141,7 +148,11 @@
         "USDJPY"
       ],
       "inputs": 20,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": [
+        "ENUM_PHASE25K",
+        "ENUM_RR_PROFILE"
+      ]
     },
     {
       "index": 6,
@@ -166,7 +177,8 @@
         "XAUUSD"
       ],
       "inputs": 18,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 7,
@@ -189,7 +201,10 @@
         "USDJPY"
       ],
       "inputs": 20,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": [
+        "ENUM_HIGH_STAKES_VARIANT"
+      ]
     },
     {
       "index": 8,
@@ -212,7 +227,10 @@
         "USDJPY"
       ],
       "inputs": 18,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": [
+        "ENUM_REVIEW_PHASE"
+      ]
     },
     {
       "index": 9,
@@ -235,7 +253,8 @@
         "USDJPY"
       ],
       "inputs": 21,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 10,
@@ -258,7 +277,10 @@
         "USDJPY"
       ],
       "inputs": 15,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": [
+        "ENUM_REVIEW_PROFILE"
+      ]
     },
     {
       "index": 11,
@@ -287,7 +309,8 @@
         "EURCHF"
       ],
       "inputs": 20,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 12,
@@ -310,7 +333,8 @@
         "USDJPY"
       ],
       "inputs": 22,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 13,
@@ -333,7 +357,8 @@
         "USDJPY"
       ],
       "inputs": 16,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 14,
@@ -356,7 +381,8 @@
         "USDJPY"
       ],
       "inputs": 15,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 15,
@@ -383,7 +409,8 @@
         "GBPJPY"
       ],
       "inputs": 14,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 16,
@@ -404,11 +431,14 @@
         "GBPJPY",
         "EURJPY",
         "XAUUSD",
-        "XAUUSD",
         "EURUSD"
       ],
       "inputs": 17,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": [
+        "ENUM_FAST_FAMILY",
+        "ENUM_ROADMAP_TRACK"
+      ]
     },
     {
       "index": 17,
@@ -431,7 +461,8 @@
         "XAUUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 18,
@@ -454,7 +485,8 @@
         "USDJPY"
       ],
       "inputs": 14,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 19,
@@ -478,7 +510,8 @@
         "USDJPY"
       ],
       "inputs": 13,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 20,
@@ -503,7 +536,8 @@
         "AUDNZD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 21,
@@ -527,7 +561,8 @@
         "XAUUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 22,
@@ -551,7 +586,8 @@
         "GBPJPY"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 23,
@@ -574,7 +610,8 @@
         "XAUUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 24,
@@ -596,7 +633,8 @@
         "GBPUSD"
       ],
       "inputs": 14,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 25,
@@ -623,7 +661,8 @@
         "USDJPY"
       ],
       "inputs": 9,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 26,
@@ -648,7 +687,8 @@
         "AUDNZD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 27,
@@ -674,7 +714,8 @@
         "USDCAD"
       ],
       "inputs": 13,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 28,
@@ -699,7 +740,8 @@
         "XAUUSD"
       ],
       "inputs": 14,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 29,
@@ -726,7 +768,8 @@
         "EURGBP"
       ],
       "inputs": 13,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 30,
@@ -753,7 +796,8 @@
         "AUDNZD"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 31,
@@ -781,7 +825,8 @@
         "XAUUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 32,
@@ -808,7 +853,8 @@
         "AUDNZD"
       ],
       "inputs": 9,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 33,
@@ -830,7 +876,8 @@
         "GBPUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 34,
@@ -854,7 +901,8 @@
         "XAUUSD"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 35,
@@ -880,7 +928,8 @@
         "XAUUSD"
       ],
       "inputs": 14,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 36,
@@ -902,7 +951,8 @@
         "GBPUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 37,
@@ -928,7 +978,8 @@
         "USDCAD"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 38,
@@ -955,7 +1006,8 @@
         "AUDNZD"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 39,
@@ -983,7 +1035,8 @@
         "USDCAD"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 40,
@@ -1007,7 +1060,8 @@
         "DAX"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 41,
@@ -1034,7 +1088,8 @@
         "GER40"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 42,
@@ -1057,7 +1112,8 @@
         "XAUUSD"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 43,
@@ -1080,7 +1136,8 @@
         "XAUUSD"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 44,
@@ -1103,7 +1160,8 @@
         "XAUUSD"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 45,
@@ -1129,7 +1187,8 @@
         "EURGBP"
       ],
       "inputs": 9,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 46,
@@ -1151,7 +1210,8 @@
         "GBPUSD"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 47,
@@ -1173,7 +1233,8 @@
         "GBPUSD"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 48,
@@ -1195,7 +1256,8 @@
         "GBPUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 49,
@@ -1224,7 +1286,8 @@
         "US100"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 50,
@@ -1248,7 +1311,8 @@
         "XAUUSD"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 51,
@@ -1276,7 +1340,8 @@
         "EURGBP"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 52,
@@ -1306,7 +1371,8 @@
         "NAS100"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 53,
@@ -1330,7 +1396,8 @@
         "XAUUSD"
       ],
       "inputs": 13,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 54,
@@ -1354,7 +1421,8 @@
         "XAUUSD"
       ],
       "inputs": 9,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 55,
@@ -1378,7 +1446,8 @@
         "XAUUSD"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 56,
@@ -1404,7 +1473,8 @@
         "AUDNZD"
       ],
       "inputs": 9,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 57,
@@ -1430,7 +1500,8 @@
         "EURGBP"
       ],
       "inputs": 11,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 58,
@@ -1460,7 +1531,8 @@
         "US30"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 59,
@@ -1486,7 +1558,8 @@
         "USDJPY"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 60,
@@ -1512,7 +1585,8 @@
         "USDJPY"
       ],
       "inputs": 9,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 61,
@@ -1538,7 +1612,8 @@
         "AUDNZD"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 62,
@@ -1562,7 +1637,8 @@
         "XAUUSD"
       ],
       "inputs": 8,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 63,
@@ -1588,7 +1664,8 @@
         "USDJPY"
       ],
       "inputs": 10,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     },
     {
       "index": 64,
@@ -1615,7 +1692,8 @@
         "GBPJPY"
       ],
       "inputs": 12,
-      "renamed_enum_values": []
+      "renamed_enum_values": [],
+      "prefixed_enum_types": []
     }
   ]
 }

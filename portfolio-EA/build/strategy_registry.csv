@@ -15,7 +15,7 @@ magic,tag,switch,ea,strategy,timeframe,symbols,risk_pct,source_doc
 3114,P3114|,InpRun_3114,EA_prop_fund_challenge_improvement_plan,PROPFUND_IMPROVEMENT_PLAN,M5,EURUSD;GBPUSD;USDJPY,0.4,docs/prop_firm/prop-fund-challenge-improvement-plan.md
 3115,P3115|,InpRun_3115,EA_strategy_improvements_plan,STRATEGY_IMPROVEMENTS,M5,EURUSD;GBPUSD;USDJPY,0.4,docs/strategy/strategy-improvements-plan.md
 3116,P3116|,InpRun_3116,EA_STRATEGY_PORTFOLIO_AUDIT,PORTFOLIO_AUDIT_ROUTER,M5,EURUSD;GBPUSD;USDJPY;XAUUSD;AUDNZD;EURGBP;GBPJPY,0.24,docs/strategy/STRATEGY-PORTFOLIO-AUDIT.md
-3117,P3117|,InpRun_3117,EA_STRATEGY_ROADMAP,STRATEGY_ROADMAP,M5,GBPJPY;EURJPY;XAUUSD;XAUUSD;EURUSD,1.5,docs/strategy/STRATEGY-ROADMAP.md
+3117,P3117|,InpRun_3117,EA_STRATEGY_ROADMAP,STRATEGY_ROADMAP,M5,GBPJPY;EURJPY;XAUUSD;EURUSD,1.5,docs/strategy/STRATEGY-ROADMAP.md
 2001,P2001|,InpRun_2001,EA_studyarena_round1_contestant_b,R1B_SMC_ORDER_BLOCK,M15,EURUSD;GBPUSD;XAUUSD,1.0,docs_v1/docs/coreIdea/studyarena-round1-contestant-b.md
 2002,P2002|,InpRun_2002,EA_studyarena_round1_contestant_c,R1C_SMC_CONFLUENCE,M15,EURUSD;GBPUSD;USDJPY,1.5,docs_v1/docs/coreIdea/studyarena-round1-contestant-c.md
 2003,P2003|,InpRun_2003,EA_studyarena_round2_contestant_a,R2A_LIQUIDITY_HUNTING,M15,EURUSD;GBPUSD;AUDUSD;USDJPY,1.0,docs_v1/docs/coreIdea/studyarena-round2-contestant-a.md

@@ -55,6 +55,7 @@ struct SEngineRow
    double   maxDd;         // max closed drawdown, account currency
    double   run;           // running sum (working value for the DD curve)
    double   peak;
+   double   pending;       // entry-side costs (commission/swap) of open legs
    int      openPos;
    double   floating;
    string   verdict;
@@ -92,7 +93,11 @@ int EnsureRow(const long magic)
 {
    int i = FindRow(magic);
    if(i >= 0) return i;
-   ArrayResize(g_rows, g_count + 1);
+   if(ArrayResize(g_rows, g_count + 1) != g_count + 1)
+   {
+      PrintFormat("PortfolioEA tracker: out of memory for magic %d", (int)magic);
+      return -1;
+   }
    g_rows[g_count].magic    = magic;
    g_rows[g_count].tag      = "P" + IntegerToString(magic) + "|";
    g_rows[g_count].name     = "magic " + IntegerToString(magic);
@@ -106,6 +111,7 @@ int EnsureRow(const long magic)
    g_rows[g_count].maxDd    = 0.0;
    g_rows[g_count].run      = 0.0;
    g_rows[g_count].peak     = 0.0;
+   g_rows[g_count].pending  = 0.0;
    g_rows[g_count].openPos  = 0;
    g_rows[g_count].floating = 0.0;
    g_rows[g_count].verdict  = "NEW";
@@ -157,6 +163,7 @@ void LoadIdentity()
       long magic = (long)StringToInteger(f[cMagic]);
       if(magic <= 0) continue;
       int idx = EnsureRow(magic);
+      if(idx < 0) { FileClose(h); return; }
       if(cTag < n)        g_rows[idx].tag      = f[cTag];
       if(cEa < n)         g_rows[idx].name     = f[cEa];
       if(cStrategy < n)   g_rows[idx].strategy = f[cStrategy];
@@ -173,24 +180,29 @@ void LoadIdentity()
 //+------------------------------------------------------------------+
 void Refresh()
 {
+   datetime from = (InpDaysBack > 0)
+                   ? TimeCurrent() - (datetime)((long)InpDaysBack * 86400)
+                   : (datetime)0;
+   bool haveHistory = HistorySelect(from, TimeCurrent() + 60);
+   if(!haveHistory)
+      PrintFormat("PortfolioEA tracker: HistorySelect failed (error %d) - open positions only",
+                  GetLastError());
+
    for(int i = 0; i < g_count; i++)
    {
       g_rows[i].net = 0.0; g_rows[i].closed = 0; g_rows[i].wins = 0;
       g_rows[i].losses = 0; g_rows[i].maxDd = 0.0; g_rows[i].run = 0.0;
-      g_rows[i].peak = 0.0; g_rows[i].openPos = 0; g_rows[i].floating = 0.0;
+      g_rows[i].peak = 0.0; g_rows[i].pending = 0.0;
+      g_rows[i].openPos = 0; g_rows[i].floating = 0.0;
       g_rows[i].verdict = "KEEP";
    }
    g_totalNet = 0.0; g_totalFloat = 0.0; g_totalOpen = 0;
 
-   datetime from = (InpDaysBack > 0) ? TimeCurrent() - (datetime)((long)InpDaysBack * 86400) : 0;
-   if(!HistorySelect(from, TimeCurrent() + 60))
-   {
-      PrintFormat("PortfolioEA tracker: HistorySelect failed (error %d)", GetLastError());
-      return;
-   }
-
-   //--- pass 1: closed deals, in time order -> net, trades, win/loss, DD curve
-   int deals = HistoryDealsTotal();
+   //--- pass 1: deals, in time order -> net, trades, win/loss, DD curve.
+   //--- Commission is charged on the entry deal by many brokers, so entry-side
+   //--- money is carried (pending) and folded into the closing deal: net stays
+   //--- exact and the drawdown curve sees each cost exactly once.
+   int deals = haveHistory ? HistoryDealsTotal() : 0;
    for(int d = 0; d < deals; d++)
    {
       ulong t = HistoryDealGetTicket(d);
@@ -203,18 +215,44 @@ void Refresh()
       {
          if(g_identityLoaded && InpRegistryOnly) continue;    // not one of the engines
          i = EnsureRow(magic);
+         if(i < 0) continue;
       }
 
-      if(HistoryDealGetInteger(t, DEAL_ENTRY) == DEAL_ENTRY_IN) continue;
-      double pl = HistoryDealGetDouble(t, DEAL_PROFIT)
-                + HistoryDealGetDouble(t, DEAL_SWAP)
-                + HistoryDealGetDouble(t, DEAL_COMMISSION);
-      g_rows[i].net += pl;
-      g_rows[i].closed++;
-      if(pl > 0.0)      g_rows[i].wins++;
-      else if(pl < 0.0) g_rows[i].losses++;
+      long   dtype = HistoryDealGetInteger(t, DEAL_TYPE);
+      long   entry = HistoryDealGetInteger(t, DEAL_ENTRY);
+      double money = HistoryDealGetDouble(t, DEAL_PROFIT)
+                   + HistoryDealGetDouble(t, DEAL_SWAP)
+                   + HistoryDealGetDouble(t, DEAL_COMMISSION);
+      bool   isTrade = (dtype == DEAL_TYPE_BUY || dtype == DEAL_TYPE_SELL);
 
-      g_rows[i].run += pl;
+      if(isTrade && entry == DEAL_ENTRY_IN)
+      {
+         g_rows[i].pending += money;        // entry commission/swap
+         continue;                          // not a closed trade
+      }
+
+      if(isTrade && (entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY ||
+                     entry == DEAL_ENTRY_INOUT))
+      {
+         double pl = money + g_rows[i].pending;   // whole round turn
+         g_rows[i].pending = 0.0;
+         g_rows[i].net += pl;
+         g_rows[i].closed++;
+         if(pl > 0.0)      g_rows[i].wins++;
+         else if(pl < 0.0) g_rows[i].losses++;
+
+         g_rows[i].run += pl;
+         if(g_rows[i].run > g_rows[i].peak) g_rows[i].peak = g_rows[i].run;
+         double dd = g_rows[i].peak - g_rows[i].run;
+         if(dd > g_rows[i].maxDd) g_rows[i].maxDd = dd;
+         continue;
+      }
+
+      //--- everything else: a commission / charge / interest / dividend deal
+      //--- (money on its own event) or a trade deal with an unexpected entry
+      //--- flag - it lands in net and as one point on the DD curve
+      g_rows[i].net += money;
+      g_rows[i].run += money;
       if(g_rows[i].run > g_rows[i].peak) g_rows[i].peak = g_rows[i].run;
       double dd = g_rows[i].peak - g_rows[i].run;
       if(dd > g_rows[i].maxDd) g_rows[i].maxDd = dd;
@@ -234,6 +272,7 @@ void Refresh()
       {
          if(g_identityLoaded && InpRegistryOnly) continue;
          i = EnsureRow(magic);
+         if(i < 0) continue;
       }
       g_rows[i].openPos++;
       g_rows[i].floating += PositionGetDouble(POSITION_PROFIT)
@@ -247,14 +286,19 @@ void Refresh()
       g_totalFloat += g_rows[i].floating;
       g_totalOpen  += g_rows[i].openPos;
 
-      double ddPct = (g_base > 0.0) ? 100.0 * g_rows[i].maxDd / g_base : 0.0;
-      if(g_rows[i].closed >= InpMinTrades && g_rows[i].net < 0.0)
-         g_rows[i].verdict = "DROP";
-      else if(g_rows[i].closed > 0 &&
-              (g_rows[i].net / g_rows[i].closed <= 0.0 || ddPct >= InpReviewDdPct))
-         g_rows[i].verdict = "REVIEW";
-      else if(g_rows[i].closed < InpMinTrades)
+      double ddPct      = (g_base > 0.0) ? 100.0 * g_rows[i].maxDd / g_base : 0.0;
+      double expectancy = (g_rows[i].closed > 0) ? g_rows[i].net / g_rows[i].closed : 0.0;
+      bool   ddFlag     = (g_base > 0.0 && ddPct >= InpReviewDdPct);
+      if(g_rows[i].closed == 0)
          g_rows[i].verdict = "TOO_FEW";
+      else if(g_rows[i].closed < InpMinTrades)
+         g_rows[i].verdict = ddFlag ? "REVIEW" : "TOO_FEW";
+      else if(g_rows[i].net < 0.0)
+         g_rows[i].verdict = "DROP";
+      else if(expectancy <= 0.0 || ddFlag)
+         g_rows[i].verdict = "REVIEW";
+      else
+         g_rows[i].verdict = "KEEP";
    }
 
    //--- sort: best net first, then most trades
@@ -279,6 +323,16 @@ void Refresh()
 //+------------------------------------------------------------------+
 //| CSV report                                                        |
 //+------------------------------------------------------------------+
+//--- FILE_CSV writes fields verbatim: a comma inside a value would shift every
+//--- column after it, so text that comes from the identity file is sanitised
+string CsvText(string s)
+{
+   StringReplace(s, ",", ";");
+   StringReplace(s, "\r", " ");
+   StringReplace(s, "\n", " ");
+   return s;
+}
+
 void WriteCsv()
 {
    int h = FileOpen(InpReportFile, FILE_WRITE | FILE_CSV | FILE_ANSI, ',');
@@ -295,8 +349,8 @@ void WriteCsv()
       double winPct = (g_rows[i].wins + g_rows[i].losses > 0)
                       ? 100.0 * g_rows[i].wins / (g_rows[i].wins + g_rows[i].losses) : 0.0;
       double ddPct  = (g_base > 0.0) ? 100.0 * g_rows[i].maxDd / g_base : 0.0;
-      FileWrite(h, IntegerToString(g_rows[i].magic), g_rows[i].tag, g_rows[i].name,
-                g_rows[i].strategy, g_rows[i].tf,
+      FileWrite(h, IntegerToString(g_rows[i].magic), CsvText(g_rows[i].tag),
+                CsvText(g_rows[i].name), CsvText(g_rows[i].strategy), CsvText(g_rows[i].tf),
                 DoubleToString(g_rows[i].net, 2), IntegerToString(g_rows[i].closed),
                 IntegerToString(g_rows[i].wins), IntegerToString(g_rows[i].losses),
                 DoubleToString(winPct, 1), DoubleToString(g_rows[i].maxDd, 2),
@@ -330,7 +384,7 @@ void MakeLabel(const string name, const int x, const int y, const string text,
 void DrawPanel()
 {
    const int x = 10, y = 20, dy = 14, size = 9;
-   int shown = (InpPanelRows > 0) ? MathMin(InpPanelRows, g_count) : g_count;
+   int shown = (InpPanelRows > 0) ? (int)MathMin(InpPanelRows, g_count) : g_count;
 
    MakeLabel(g_panelPrefix + "head", x, y,
              StringFormat("PORTFOLIO   net %+.2f   open %d   float %+.2f   [%s]",

@@ -15,7 +15,7 @@ magic,tag,ea,strategy,symbols,timeframe,risk_pct,switch,order_policy,source_doc
 3114,P3114|,EA_prop_fund_challenge_improvement_plan,PROPFUND_IMPROVEMENT_PLAN,EURUSD;GBPUSD;USDJPY,M5,0.4,InpRun_3114,one per symbol, cap = symbol count,docs/prop_firm/prop-fund-challenge-improvement-plan.md
 3115,P3115|,EA_strategy_improvements_plan,STRATEGY_IMPROVEMENTS,EURUSD;GBPUSD;USDJPY,M5,0.4,InpRun_3115,one per symbol, cap = symbol count,docs/strategy/strategy-improvements-plan.md
 3116,P3116|,EA_STRATEGY_PORTFOLIO_AUDIT,PORTFOLIO_AUDIT_ROUTER,EURUSD;GBPUSD;USDJPY;XAUUSD;AUDNZD;EURGBP;GBPJPY,M5,0.24,InpRun_3116,one per symbol, cap = symbol count,docs/strategy/STRATEGY-PORTFOLIO-AUDIT.md
-3117,P3117|,EA_STRATEGY_ROADMAP,STRATEGY_ROADMAP,GBPJPY;EURJPY;XAUUSD;XAUUSD;EURUSD,M5,1.5,InpRun_3117,one per symbol, cap = symbol count,docs/strategy/STRATEGY-ROADMAP.md
+3117,P3117|,EA_STRATEGY_ROADMAP,STRATEGY_ROADMAP,GBPJPY;EURJPY;XAUUSD;EURUSD,M5,1.5,InpRun_3117,one per symbol, cap = symbol count,docs/strategy/STRATEGY-ROADMAP.md
 2001,P2001|,EA_studyarena_round1_contestant_b,R1B_SMC_ORDER_BLOCK,EURUSD;GBPUSD;XAUUSD,M15,1.0,InpRun_2001,one per symbol, cap = symbol count,docs_v1/docs/coreIdea/studyarena-round1-contestant-b.md
 2002,P2002|,EA_studyarena_round1_contestant_c,R1C_SMC_CONFLUENCE,EURUSD;GBPUSD;USDJPY,M15,1.5,InpRun_2002,one per symbol, cap = symbol count,docs_v1/docs/coreIdea/studyarena-round1-contestant-c.md
 2003,P2003|,EA_studyarena_round2_contestant_a,R2A_LIQUIDITY_HUNTING,EURUSD;GBPUSD;AUDUSD;USDJPY,M15,1.0,InpRun_2003,one per symbol, cap = symbol count,docs_v1/docs/coreIdea/studyarena-round2-contestant-a.md

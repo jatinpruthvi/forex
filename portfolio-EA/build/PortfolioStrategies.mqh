@@ -712,7 +712,7 @@ const int                    P3104_InpNewsAfterMin            = 30;
 const double                 P3104_InpQualifyingDayCash       = 12.50;
 const int                    P3104_InpQualifyingDayCount      = 3;
 
-enum ENUM_T5K_PROFILE
+enum P3104_ENUM_T5K_PROFILE
 {
    T5K_ROUTE_A      = 0,  // Route A sweep/reclaim (research module)
    T5K_M1_MOMENTUM  = 1   // M1 Momentum Reversion (active first-challenge module)
@@ -1133,13 +1133,13 @@ const int                    P3106_InpMaxRequestsPerDay       = 20;
 const double                 P3106_InpQualifyingDayCash       = 12.50;
 const int                    P3106_InpQualifyingDayCount      = 3;
 
-enum ENUM_PHASE25K
+enum P3106_ENUM_PHASE25K
 {
    PHASE25K_EVALUATION_1 = 0,  // Phase 1 (10% target)
    PHASE25K_EVALUATION_2 = 1,  // Phase 2 (5% target)
    PHASE25K_FUNDED       = 2   // Funded (capital preservation)
 };
-enum ENUM_RR_PROFILE
+enum P3106_ENUM_RR_PROFILE
 {
    RR_A_040_15 = 0,  // A: 0.40% risk / +1.50R
    RR_B_035_175= 1,  // B: 0.35% risk / +1.75R
@@ -1448,7 +1448,7 @@ const double                 P3107_InpAccountSize             = 2500.0;
 const double                 P3107_InpQualifyingDayCash       = 12.50;
 const int                    P3107_InpQualifyingDayCount      = 3;
 
-enum ENUM_HIGH_STAKES_VARIANT
+enum P3107_ENUM_HIGH_STAKES_VARIANT
 {
    HS_NEW_10PCT     = 0,  // New High Stakes: 10% Phase 1
    HS_CLASSIC_8PCT  = 1   // Classic High Stakes: 8% Phase 1
@@ -1592,7 +1592,7 @@ const int                    P3108_InpFlatBeforeRolloverMin   = 15;
 const string                 P3108_InpNewsFile                = "the5ers_red_news.csv";
 const int                    P3108_InpQualifyingDayCount      = 3;
 
-enum ENUM_REVIEW_PHASE
+enum P3108_ENUM_REVIEW_PHASE
 {
    REVIEW_PHASE_1 = 0,  // Phase 1 (10% / $250)
    REVIEW_PHASE_2 = 1,  // Phase 2 (5% / $125, fresh counter)
@@ -1885,7 +1885,7 @@ const int                    P3110_InpLeaseMinutes            = 10;
 const string                 P3110_InpPriorityOrder           = "EURUSD,GBPUSD,USDJPY";
 const string                 P3110_InpNewsCoverageThrough     = "";
 
-enum ENUM_REVIEW_PROFILE
+enum P3110_ENUM_REVIEW_PROFILE
 {
    REVIEW_RR_A = 0,  // A: 0.40% / +1.50R
    REVIEW_RR_B = 1,  // B: 0.35% / +1.75R
@@ -3113,7 +3113,7 @@ public:
 //| source document: docs/strategy/STRATEGY-ROADMAP.md
 //==================================================================
 //--- EA_STRATEGY_ROADMAP  (magic 3117, Strategy roadmap - Track A preservation, Track B fast-track families)
-const string                 P3117_InpSymbolsToTrade          = "GBPJPY,EURJPY,XAUUSD,XAUUSD,EURUSD";
+const string                 P3117_InpSymbolsToTrade          = "GBPJPY,EURJPY,XAUUSD,EURUSD";
 const double                 P3117_InpRiskPct                 = 1.5;
 const double                 P3117_InpMaxSpreadPoints         = 5.0;
 const double                 P3117_InpDailyLossPct            = 1.0;
@@ -3131,12 +3131,12 @@ const double                 P3117_InpTrackAWickMin           = 0.45;
 const double                 P3117_InpTrackABodyMin           = 0.50;
 const bool                   P3117_InpGoldSwingPersonalTrack  = true;
 
-enum ENUM_ROADMAP_TRACK
+enum P3117_ENUM_ROADMAP_TRACK
 {
    TRACK_A_LONG_TERM = 0,   // Track A: validated relaxed-geometry triad
    TRACK_B_FAST_TRACK= 1    // Track B: fast-track family set
 };
-enum ENUM_FAST_FAMILY
+enum P3117_ENUM_FAST_FAMILY
 {
    FAST_F1_QUIET_FADE   = 0,  // F1 quiet-session range fade
    FAST_F2_FAILED_BREAK = 1,  // F2 failed-breakout reversal (ORB level)

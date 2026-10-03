@@ -15,6 +15,16 @@ Two EAs, both plain MQL5, one boundary:
    `<data>\MQL5\Include\EACommon.mqh`.
 2. `src/PortfolioEA.mq5` — **one file**, self-contained, needs no header at all.
 
+### How it is driven
+
+MT5 delivers `OnTick` only for the **chart's** symbol. The EA therefore does not
+depend on that alone: it processes the book from a **1-second timer** as well
+(`OnTimer` → the same `PortProcess()`), so an engine keeps working while the
+chart symbol is closed (weekend, holiday, index out of session). Engines that
+have exposure are processed on every pass; the rest wake on a new bar of their
+own signal timeframe. Attach it to a liquid, always-on symbol (EURUSD is the
+natural choice) so the tick path stays fast.
+
 ### Python is build-time only
 
 Nothing in either EA is Python. `gen_portfolio_ea.py` is the *assembly* tool that
@@ -33,7 +43,8 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      728 static checks (freshness, hashes, policy, tags, boundary)
+├── verify_portfolio.py      1 739 static checks (freshness, hashes, policy, tags,
+│                              identifier hygiene, both boundaries)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
     ├── AllEnginesEA.mq5              the EA (the strategies are inlined)
@@ -85,7 +96,8 @@ them, so any accidental edit to an original fails verification.
 
 ## Order policy: one position per symbol, many symbols
 
-That rule is **already the engine's behaviour** (`EA_SelectPlan`):
+**Two mechanisms enforce it.** Every delivered engine except one carries the rule
+in `EA_SelectPlan`:
 
 ```cpp
 if(!g_eaStrategy.AllowMultipleOnSymbol())
@@ -108,12 +120,18 @@ maxOpenPositions    = its symbol count   (or InpMaxPerEngine if > 0)
 oneEntryAccountWide = false
 ```
 
-Engines listed in `InpKeepDeliveredPolicy` (**default `"2006"`** — the intentional
-one-symbol ladder) keep their delivered policy. Per-engine caps can be capped
-lower with `InpMaxPerEngine`.
+The one exception is magic **2006** (`R3A_TF_CASCADE`), the only strategy that
+overrides `AllowMultipleOnSymbol()`. For it (and for any engine you add to
+`InpKeepDeliveredPolicy`) the host applies the rule itself: `PortEntryGate`
+refuses a new entry while that engine already has a **position or a resting
+order** on the symbol — so one order per symbol holds for the whole book. Remove
+`2006` from the list to keep its delivered stacking ladder instead.
+
+Per-engine caps can be lowered with `InpMaxPerEngine`.
 
 Book-level guards (off by default; raise the risk scale and switch them on as you
-prefer): `InpMaxBookPositions`, `InpMaxBookPerSymbol`, `InpBookRiskPct`. Context:
+prefer): `InpMaxBookPositions`, `InpMaxBookPerSymbol`, `InpBookRiskPct`. They
+apply to **every** engine, including the one keeping its delivered policy. Context:
 delivered risk sums to **51.5 % of equity** across the engines and EURUSD appears
 in **63 of 65** universes, so an unguarded "all on" demo can put 60+ positions on
 one symbol. For a demo phase that is meant to be *measured*, start with
@@ -138,10 +156,14 @@ keeps managing exposure regardless of the switch — that is the delivered desig
 Read-only by construction (no `CTrade`, no order functions, verified by
 `verify_portfolio.py`). Runs on a timer, groups the account's history by magic:
 
-* net closed P/L, trades, wins/losses, win %, **max closed drawdown per engine**;
+* net closed P/L — the **whole round turn**: entry-side commission/swap is
+  carried to the closing deal, so net, the win/loss split and the drawdown curve
+  agree (defect #69); trades, wins/losses, win %, **max closed drawdown**;
 * open positions and floating P/L per engine;
-* a **verdict** you can act on: `DROP` (≥ `InpMinTrades` and net negative),
-  `REVIEW` (expectancy ≤ 0 or DD ≥ `InpReviewDdPct`), `TOO_FEW`, `KEEP`;
+* a **verdict** you can act on, decided in this order: `TOO_FEW` (fewer than
+  `InpMinTrades` closed trades — a zero-trade engine is never `KEEP`; a big
+  closed drawdown still flags `REVIEW`), `DROP` (enough trades and net
+  negative), `REVIEW` (expectancy ≤ 0 or DD ≥ `InpReviewDdPct`), `KEEP`;
 * writes `MQL5\Files\PortfolioEA\performance.csv` (includes the `switch` column —
   the exact input name to untick), and draws an optional on-chart panel sorted by
   net.
@@ -168,7 +190,7 @@ Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 728 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 739 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
@@ -192,11 +214,18 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
 
 * `gen_portfolio_ea.py` — **run**: 65 engines inlined into the single EA file,
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
-  override + book caps.
-* `verify_portfolio.py` — **728/728 checks pass** (freshness, originals by hash,
-  switches, tags/wrappers, policy override, registry/engines.csv completeness,
-  **one-file EA: every strategy inlined verbatim**, **no dashboard or file I/O in
-  the trader**, **no trading API in the tracker**, repo checkers clean).
+  override + book caps. Enum types of the 6 engines that declare them are
+  prefixed like every other per-engine identifier (defect #67).
+* `verify_portfolio.py` — **1 739/1 739 checks pass** (freshness, originals by
+  hash, switches, tags/wrappers, policy override, registry/engines.csv
+  completeness, **one-file EA: every strategy inlined verbatim**, **identifier
+  hygiene**: every emitted type exists, no top-level name twice, every
+  `cfg.magic` resolves to its registry magic, **no dashboard or file I/O in the
+  trader**, **no trading API in the tracker**, repo checkers clean).
 * **Not verified: MQL5 compilation** — no MetaEditor on Linux. Compile
   `AllEnginesEA.mq5` and `PortfolioEA.mq5` on Windows; anything the compiler
   reports is fixed in `gen_portfolio_ea.py` or `src/`, never in `build/`.
+* Deep-review findings of this round (defects #67–#70, engine halt latch, host
+  timer / per-symbol rule / caps, tracker accounting) are listed in
+  `docs/EA_BUG_AUDIT.md`, "Eighth pass"; the tracker's parse/accounting/verdict
+  contract is mirrored by `tests/test_portfolio_tracker.py` (15 tests).

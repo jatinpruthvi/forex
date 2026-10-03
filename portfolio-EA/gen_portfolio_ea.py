@@ -113,7 +113,27 @@ def strategy_source(name: str) -> str:
 # --------------------------------------------------------------------------
 # transform one EA into a portfolio-friendly block
 # --------------------------------------------------------------------------
-def transform(ea, engine_values: set[str]) -> dict:
+def collect_enum_values(specs) -> dict:
+    """How many of the 65 EAs declare each enum value name.
+
+    Enum values land in one program namespace, so a value used by two EAs
+    must be renamed for both - counting only within one EA would miss it.
+    """
+    counts: dict[str, int] = {}
+    for ea in specs:
+        src = strategy_source(ea.name)
+        for _, body in ENUM_RE.findall(src):
+            for item in re.sub(r"//.*", "", body).split(","):
+                item = item.strip()
+                if not item:
+                    continue
+                v = item.split("=")[0].strip()
+                if IDENT_RE.fullmatch(v):
+                    counts[v] = counts.get(v, 0) + 1
+    return counts
+
+
+def transform(ea, engine_values: set[str], value_counts: dict | None = None) -> dict:
     src = strategy_source(ea.name)
     prefix = f"P{ea.magic}_"
 
@@ -140,8 +160,9 @@ def transform(ea, engine_values: set[str]) -> dict:
     seen: dict[str, int] = {}
     for v in local_values:
         seen[v] = seen.get(v, 0) + 1
+    value_counts = value_counts or {}
     for v in local_values:
-        if v in engine_values or seen[v] > 1:
+        if v in engine_values or seen[v] > 1 or value_counts.get(v, 0) > 1:
             renamed_values[v] = prefix + v
 
     # the delivered layout puts a banner around the inputs; the declarations are
@@ -172,6 +193,11 @@ def transform(ea, engine_values: set[str]) -> dict:
     for v, newv in renamed_values.items():
         id_map[v] = newv
     id_map[cls] = prefix + cls
+    # a local enum type is referenced by its per-EA-prefixed name in the const
+    # block above the class, so the declaration itself has to carry the prefix
+    # too - otherwise the generated EA names a type that does not exist
+    for t in enum_types:
+        id_map[t] = prefix + t
 
     body = rename(body, id_map)
     body = re.sub(r"\n{3,}", "\n\n", body)
@@ -557,10 +583,37 @@ double PortBookRiskPct()
    return 100.0 * risk / base;
 }
 
+//--- positions + working orders THIS engine already has on one symbol.
+//--- The engine's own one-per-symbol gate is skipped by strategies that
+//--- override AllowMultipleOnSymbol() (2006 is the delivered ladder), so the
+//--- host enforces the portfolio rule for every engine that is not in
+//--- InpKeepDeliveredPolicy: one order per symbol, many symbols.
+int PortCountEngineSymbol(const long magic, const string sym)
+{
+   int n = 0;
+   for(int p = PositionsTotal() - 1; p >= 0; p--)
+   {
+      ulong t = PositionGetTicket(p);
+      if(t == 0) continue;
+      if(!PositionSelectByTicket(t)) continue;
+      if((long)PositionGetInteger(POSITION_MAGIC) != magic) continue;
+      if(PositionGetString(POSITION_SYMBOL) == sym) n++;
+   }
+   for(int o = OrdersTotal() - 1; o >= 0; o--)
+   {
+      ulong t = OrderGetTicket(o);
+      if(t == 0) continue;
+      if((long)OrderGetInteger(ORDER_MAGIC) != magic) continue;
+      if(OrderGetString(ORDER_SYMBOL) == sym) n++;
+   }
+   return n;
+}
+
 bool PortEntryGate(const string sym)
 {
    long magic = (long)g_eaCfg.magic;
-   if(PortKeepDelivered(magic)) return true;                     // exempt engine
+   if(!PortKeepDelivered(magic) && PortCountEngineSymbol(magic, sym) > 0)
+      return false;                                            // one order per symbol
    if(InpMaxBookPositions > 0 && PortCountBookPositions() >= InpMaxBookPositions) return false;
    if(InpMaxBookPerSymbol > 0 && PortCountBookSymbol(sym) >= InpMaxBookPerSymbol) return false;
    if(InpBookRiskPct > 0.0 && PortBookRiskPct() >= InpBookRiskPct) return false;
@@ -577,6 +630,7 @@ string PortTagOf(const long magic)
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   g_portLive = 0;
    PortBuildRegistry();
 
    for(int i = 0; i < g_portCount; i++)
@@ -648,12 +702,18 @@ int OnInit()
 
    g_eaInitialised = true;      // engine's global readiness flag
    g_portReady     = true;
+   EventSetTimer(1);            // ticks only arrive for the chart symbol; this
+                                // keeps every engine alive on its own schedule
    PrintFormat("[portfolio] %d/%d strategies live on one chart (%d disabled, risk scale %.2f)",
                g_portLive, g_portCount, disabled, InpRiskScale);
    return INIT_SUCCEEDED;
 }
 
-void OnTick()
+//--- one pass over the book.  Called from OnTick (chart symbol ticks) and from
+//--- a 1-second timer: MT5 only delivers ticks for the CHART symbol, so without
+//--- the timer every engine would go quiet whenever the chart symbol is closed
+//--- (weekend, holiday, index out of session) even though its own market trades.
+void PortProcess()
 {
    if(!g_portReady) return;
 
@@ -663,7 +723,9 @@ void OnTick()
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
-      if(!exposure[i] && !PortNewBar(i)) continue;
+      //--- engines that asked for every-tick signals (cfg.signalOnNewBarOnly
+      //--- is false) are never gated; all 65 delivered engines leave it true
+      if(!exposure[i] && g_portState[i].cfg.signalOnNewBarOnly && !PortNewBar(i)) continue;
 
       PortLoadState(i);
       PortRefreshRiskExec();
@@ -672,21 +734,33 @@ void OnTick()
    }
 }
 
+void OnTick()
+{
+   PortProcess();
+}
+
+void OnTimer()
+{
+   PortProcess();
+}
+
 void OnDeinit(const int reason)
 {
    g_portReady = false;
+   EventKillTimer();
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
       PortLoadState(i);
       EA_Deinit(reason);            // tester: one result row per strategy
+      g_portEnabled[i] = false;
+   }
+   for(int i = 0; i < g_portCount; i++)      // also the disabled/failed engines
       if(g_portStrategy[i] != NULL)
       {
          delete g_portStrategy[i];
          g_portStrategy[i] = NULL;
       }
-      g_portEnabled[i] = false;
-   }
 }
 //+------------------------------------------------------------------+
 '''
@@ -723,8 +797,9 @@ def inline_strategies(host: str, strategies: str) -> str:
 
 def render(engine_values: set[str], specs) -> tuple[str, str, list[dict]]:
     blocks, registry, manifest, wrappers = [], [], [], []
+    value_counts = collect_enum_values(specs)
     for i, ea in enumerate(specs):
-        tr = transform(ea, engine_values)
+        tr = transform(ea, engine_values, value_counts)
         wrappers.append(
             f"//--- portfolio wrapper for {ea.name} (magic {ea.magic}, tag P{ea.magic}|)\n"
             f"class P{ea.magic}_Port : public {tr['class_new']}\n"
@@ -772,6 +847,9 @@ def render(engine_values: set[str], specs) -> tuple[str, str, list[dict]]:
             "symbols": symbols,
             "inputs": len(tr["inputs"]),
             "renamed_enum_values": sorted(tr["renamed_values"]),
+            # enum TYPES are prefixed whenever an engine declares one, because the
+            # per-engine const block above the class names the prefixed type
+            "prefixed_enum_types": sorted(tr["enum_types"]),
         })
 
     header = ("//+------------------------------------------------------------------+\n"

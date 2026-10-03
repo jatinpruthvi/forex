@@ -2973,7 +2973,7 @@ add(
     cls="StrategyRoadmap",
     title="Strategy roadmap - Track A preservation, Track B fast-track families",
     doc="docs/strategy/STRATEGY-ROADMAP.md",
-    common={"symbols": "GBPJPY,EURJPY,XAUUSD,XAUUSD,EURUSD", "risk": "1.5",
+    common={"symbols": "GBPJPY,EURJPY,XAUUSD,EURUSD", "risk": "1.5",
             "spread": "5.0", "daily": "1.0", "totaldd": "10", "target": "10", "maxday": "3"},
     inputs='''enum ENUM_ROADMAP_TRACK
 {
@@ -10036,6 +10036,15 @@ def main() -> int:
                 dead.append(m.group(1))
         if dead:
             print(f"DEAD INPUT {ea.name}: {', '.join(dead)}")
+            problems += 1
+        #--- positive control: a universe must list every symbol once.  A
+        #--- duplicated symbol (found in EA_STRATEGY_ROADMAP: XAUUSD twice)
+        #--- silently wastes an indicator set and inflates the position cap the
+        #--- portfolio host derives from the symbol count.
+        syms = [x.strip() for x in str(ea.common.get("symbols", "")).split(",") if x.strip()]
+        dups = sorted({x for x in syms if syms.count(x) > 1})
+        if dups:
+            print(f"DUPLICATE SYMBOL {ea.name}: {', '.join(dups)}")
             problems += 1
         if args.check:
             if not target.is_file():

@@ -751,7 +751,7 @@ const int                    P3104_InpNewsAfterMin            = 30;
 const double                 P3104_InpQualifyingDayCash       = 12.50;
 const int                    P3104_InpQualifyingDayCount      = 3;
 
-enum ENUM_T5K_PROFILE
+enum P3104_ENUM_T5K_PROFILE
 {
    T5K_ROUTE_A      = 0,  // Route A sweep/reclaim (research module)
    T5K_M1_MOMENTUM  = 1   // M1 Momentum Reversion (active first-challenge module)
@@ -1172,13 +1172,13 @@ const int                    P3106_InpMaxRequestsPerDay       = 20;
 const double                 P3106_InpQualifyingDayCash       = 12.50;
 const int                    P3106_InpQualifyingDayCount      = 3;
 
-enum ENUM_PHASE25K
+enum P3106_ENUM_PHASE25K
 {
    PHASE25K_EVALUATION_1 = 0,  // Phase 1 (10% target)
    PHASE25K_EVALUATION_2 = 1,  // Phase 2 (5% target)
    PHASE25K_FUNDED       = 2   // Funded (capital preservation)
 };
-enum ENUM_RR_PROFILE
+enum P3106_ENUM_RR_PROFILE
 {
    RR_A_040_15 = 0,  // A: 0.40% risk / +1.50R
    RR_B_035_175= 1,  // B: 0.35% risk / +1.75R
@@ -1487,7 +1487,7 @@ const double                 P3107_InpAccountSize             = 2500.0;
 const double                 P3107_InpQualifyingDayCash       = 12.50;
 const int                    P3107_InpQualifyingDayCount      = 3;
 
-enum ENUM_HIGH_STAKES_VARIANT
+enum P3107_ENUM_HIGH_STAKES_VARIANT
 {
    HS_NEW_10PCT     = 0,  // New High Stakes: 10% Phase 1
    HS_CLASSIC_8PCT  = 1   // Classic High Stakes: 8% Phase 1
@@ -1631,7 +1631,7 @@ const int                    P3108_InpFlatBeforeRolloverMin   = 15;
 const string                 P3108_InpNewsFile                = "the5ers_red_news.csv";
 const int                    P3108_InpQualifyingDayCount      = 3;
 
-enum ENUM_REVIEW_PHASE
+enum P3108_ENUM_REVIEW_PHASE
 {
    REVIEW_PHASE_1 = 0,  // Phase 1 (10% / $250)
    REVIEW_PHASE_2 = 1,  // Phase 2 (5% / $125, fresh counter)
@@ -1924,7 +1924,7 @@ const int                    P3110_InpLeaseMinutes            = 10;
 const string                 P3110_InpPriorityOrder           = "EURUSD,GBPUSD,USDJPY";
 const string                 P3110_InpNewsCoverageThrough     = "";
 
-enum ENUM_REVIEW_PROFILE
+enum P3110_ENUM_REVIEW_PROFILE
 {
    REVIEW_RR_A = 0,  // A: 0.40% / +1.50R
    REVIEW_RR_B = 1,  // B: 0.35% / +1.75R
@@ -3152,7 +3152,7 @@ public:
 //| source document: docs/strategy/STRATEGY-ROADMAP.md
 //==================================================================
 //--- EA_STRATEGY_ROADMAP  (magic 3117, Strategy roadmap - Track A preservation, Track B fast-track families)
-const string                 P3117_InpSymbolsToTrade          = "GBPJPY,EURJPY,XAUUSD,XAUUSD,EURUSD";
+const string                 P3117_InpSymbolsToTrade          = "GBPJPY,EURJPY,XAUUSD,EURUSD";
 const double                 P3117_InpRiskPct                 = 1.5;
 const double                 P3117_InpMaxSpreadPoints         = 5.0;
 const double                 P3117_InpDailyLossPct            = 1.0;
@@ -3170,12 +3170,12 @@ const double                 P3117_InpTrackAWickMin           = 0.45;
 const double                 P3117_InpTrackABodyMin           = 0.50;
 const bool                   P3117_InpGoldSwingPersonalTrack  = true;
 
-enum ENUM_ROADMAP_TRACK
+enum P3117_ENUM_ROADMAP_TRACK
 {
    TRACK_A_LONG_TERM = 0,   // Track A: validated relaxed-geometry triad
    TRACK_B_FAST_TRACK= 1    // Track B: fast-track family set
 };
-enum ENUM_FAST_FAMILY
+enum P3117_ENUM_FAST_FAMILY
 {
    FAST_F1_QUIET_FADE   = 0,  // F1 quiet-session range fade
    FAST_F2_FAILED_BREAK = 1,  // F2 failed-breakout reversal (ORB level)
@@ -12007,7 +12007,7 @@ input bool InpRun_3113 = true; // 3113 | TRIAD_R_FROZEN | EURUSD,GBPUSD,USDJPY M
 input bool InpRun_3114 = true; // 3114 | PROPFUND_IMPROVEMENT_PLAN | EURUSD,GBPUSD,USDJPY M5
 input bool InpRun_3115 = true; // 3115 | STRATEGY_IMPROVEMENTS | EURUSD,GBPUSD,USDJPY M5
 input bool InpRun_3116 = true; // 3116 | PORTFOLIO_AUDIT_ROUTER | EURUSD,GBPUSD,USDJPY,XAUUSD... M5
-input bool InpRun_3117 = true; // 3117 | STRATEGY_ROADMAP | GBPJPY,EURJPY,XAUUSD,XAUUSD... M5
+input bool InpRun_3117 = true; // 3117 | STRATEGY_ROADMAP | GBPJPY,EURJPY,XAUUSD,EURUSD M5
 input bool InpRun_2001 = true; // 2001 | R1B_SMC_ORDER_BLOCK | EURUSD,GBPUSD,XAUUSD M15
 input bool InpRun_2002 = true; // 2002 | R1C_SMC_CONFLUENCE | EURUSD,GBPUSD,USDJPY M15
 input bool InpRun_2003 = true; // 2003 | R2A_LIQUIDITY_HUNTING | EURUSD,GBPUSD,AUDUSD,USDJPY M15
@@ -12230,7 +12230,7 @@ void PortBuildRegistry()
    g_portMagic[16]      = 3117;
    g_portName[16]       = "EA_STRATEGY_ROADMAP";
    g_portLabel[16]      = "STRATEGY_ROADMAP";
-   g_portSymbolsTxt[16] = "GBPJPY,EURJPY,XAUUSD,XAUUSD,EURUSD";
+   g_portSymbolsTxt[16] = "GBPJPY,EURJPY,XAUUSD,EURUSD";
    g_portTfTxt[16]      = "M5";
    g_portRiskTxt[16]    = "1.5";
    g_portEnableReq[16]  = InpRun_3117;
@@ -12879,10 +12879,37 @@ double PortBookRiskPct()
    return 100.0 * risk / base;
 }
 
+//--- positions + working orders THIS engine already has on one symbol.
+//--- The engine's own one-per-symbol gate is skipped by strategies that
+//--- override AllowMultipleOnSymbol() (2006 is the delivered ladder), so the
+//--- host enforces the portfolio rule for every engine that is not in
+//--- InpKeepDeliveredPolicy: one order per symbol, many symbols.
+int PortCountEngineSymbol(const long magic, const string sym)
+{
+   int n = 0;
+   for(int p = PositionsTotal() - 1; p >= 0; p--)
+   {
+      ulong t = PositionGetTicket(p);
+      if(t == 0) continue;
+      if(!PositionSelectByTicket(t)) continue;
+      if((long)PositionGetInteger(POSITION_MAGIC) != magic) continue;
+      if(PositionGetString(POSITION_SYMBOL) == sym) n++;
+   }
+   for(int o = OrdersTotal() - 1; o >= 0; o--)
+   {
+      ulong t = OrderGetTicket(o);
+      if(t == 0) continue;
+      if((long)OrderGetInteger(ORDER_MAGIC) != magic) continue;
+      if(OrderGetString(ORDER_SYMBOL) == sym) n++;
+   }
+   return n;
+}
+
 bool PortEntryGate(const string sym)
 {
    long magic = (long)g_eaCfg.magic;
-   if(PortKeepDelivered(magic)) return true;                     // exempt engine
+   if(!PortKeepDelivered(magic) && PortCountEngineSymbol(magic, sym) > 0)
+      return false;                                            // one order per symbol
    if(InpMaxBookPositions > 0 && PortCountBookPositions() >= InpMaxBookPositions) return false;
    if(InpMaxBookPerSymbol > 0 && PortCountBookSymbol(sym) >= InpMaxBookPerSymbol) return false;
    if(InpBookRiskPct > 0.0 && PortBookRiskPct() >= InpBookRiskPct) return false;
@@ -12899,6 +12926,7 @@ string PortTagOf(const long magic)
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   g_portLive = 0;
    PortBuildRegistry();
 
    for(int i = 0; i < g_portCount; i++)
@@ -12970,12 +12998,18 @@ int OnInit()
 
    g_eaInitialised = true;      // engine's global readiness flag
    g_portReady     = true;
+   EventSetTimer(1);            // ticks only arrive for the chart symbol; this
+                                // keeps every engine alive on its own schedule
    PrintFormat("[portfolio] %d/%d strategies live on one chart (%d disabled, risk scale %.2f)",
                g_portLive, g_portCount, disabled, InpRiskScale);
    return INIT_SUCCEEDED;
 }
 
-void OnTick()
+//--- one pass over the book.  Called from OnTick (chart symbol ticks) and from
+//--- a 1-second timer: MT5 only delivers ticks for the CHART symbol, so without
+//--- the timer every engine would go quiet whenever the chart symbol is closed
+//--- (weekend, holiday, index out of session) even though its own market trades.
+void PortProcess()
 {
    if(!g_portReady) return;
 
@@ -12985,7 +13019,9 @@ void OnTick()
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
-      if(!exposure[i] && !PortNewBar(i)) continue;
+      //--- engines that asked for every-tick signals (cfg.signalOnNewBarOnly
+      //--- is false) are never gated; all 65 delivered engines leave it true
+      if(!exposure[i] && g_portState[i].cfg.signalOnNewBarOnly && !PortNewBar(i)) continue;
 
       PortLoadState(i);
       PortRefreshRiskExec();
@@ -12994,20 +13030,32 @@ void OnTick()
    }
 }
 
+void OnTick()
+{
+   PortProcess();
+}
+
+void OnTimer()
+{
+   PortProcess();
+}
+
 void OnDeinit(const int reason)
 {
    g_portReady = false;
+   EventKillTimer();
    for(int i = 0; i < g_portCount; i++)
    {
       if(!g_portEnabled[i]) continue;
       PortLoadState(i);
       EA_Deinit(reason);            // tester: one result row per strategy
+      g_portEnabled[i] = false;
+   }
+   for(int i = 0; i < g_portCount; i++)      // also the disabled/failed engines
       if(g_portStrategy[i] != NULL)
       {
          delete g_portStrategy[i];
          g_portStrategy[i] = NULL;
       }
-      g_portEnabled[i] = false;
-   }
 }
 //+------------------------------------------------------------------+

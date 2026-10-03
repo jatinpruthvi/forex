@@ -9,8 +9,16 @@ questions below were skipped, so the plan's recommended defaults were applied:
 4) risk/book guards exist but default to faithful (`InpRiskScale = 1.0`, caps 0 =
 off) - set them for the demo phase as you prefer.
 Names per the clarification: trader = `AllEnginesEA.mq5`, tracker = `PortfolioEA.mq5`.
-See README.md for the implemented state and `verify_portfolio.py` (728 checks) for the
+See README.md for the implemented state and `verify_portfolio.py` (1 739 checks) for the
 evidence.  Items below are kept as the original design record.
+
+**Deep review (2026-10-03).**  Read line by line after the split: 4 real defects found and
+fixed (see `docs/EA_BUG_AUDIT.md`, eighth pass) - the generated EA named 8 enum types it
+never declared (#67, a compile error), the engine's halt-flatten latch was shared across
+engines in one program (#68), the tracker dropped entry-side commission from net (#69), and
+magic 3117 listed XAUUSD twice (#70).  Also: 1-second execution timer (chart-symbol ticks are
+not enough), host-enforced one-order-per-symbol for the stacking engine, book caps apply to
+every engine, engine halt/tick fidelity guards, tracker verdict order and CSV hardening.
 
 **Single-file delivery (2026-10-03).**  The user asked for the EA in MQL5, not a Python
 program: `build/AllEnginesEA.mq5` is now ONE file - all 65 strategies are inlined into

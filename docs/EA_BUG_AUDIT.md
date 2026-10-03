@@ -383,6 +383,42 @@ Related tooling added in the same pass (no EA logic touched):
 * `portfolio-EA/*` — generated one-chart host for all 65 strategies; originals
   hashed and re-verified as unmodified.
 
+## Eighth pass — 2026-10-03 (the two-EA split, read line by line)
+
+The user asked for a deep check of the new two-EA build (trading EA + tracker).
+Four real defects came out of it; two of them would have stopped the EA from
+compiling or made the delivered universe wrong, so the pass paid for itself.
+
+| # | File | Defect | Fix |
+| --- | --- | --- | --- |
+| 67 | `portfolio-EA/gen_portfolio_ea.py` (visible in `build/AllEnginesEA.mq5`) | The transform prefixed an EA-local **enum type** in the generated `const` declarations (`const P3104_ENUM_T5K_PROFILE P3104_InpProfile = …;`) but never renamed the `enum` declaration itself, which stayed `enum ENUM_T5K_PROFILE`. 8 occurrences in 6 engines (3104, 3106 ×2, 3107, 3108, 3110, 3117 ×2) named a type that does not exist — an outright **compile error** in the generated EA. | Enum type names now join the per-EA rename map (declaration and every use move together). The verifier gained an *identifier-hygiene* block: every `const` type must be a built-in, an engine enum, or an enum declared in the same file; no top-level name may be declared twice; every class's `cfg.magic` must resolve through its consts to the registry magic. |
+| 68 | `MQL5_Master/Include/EACommon.mqh` (`EA_Tick`, halt block) | `static bool haltHandled` was a **function-level static**, which is one variable per program. The delivered EAs are one program per magic, but the portfolio host runs all 65 in one program: once one engine fired its halt-flatten, a second halted engine in the same pass was skipped forever, so its positions were never flattened. 8 THE5ERS engines set `flattenOnHalt`. | Replaced with the magic-keyed global `g_eaHaltHandledMagic` (identical semantics for a single-EA program). This is a shared-engine fix, so all 65 delivered EAs and the host get it at once. |
+| 69 | `portfolio-EA/src/PortfolioEA.mq5` (tracker, deal accounting) | Net P/L counted only closing deals, so **entry-side commission/swap was dropped**; the round-turn costs were then folded into the drawdown curve only, making `net`, the win/loss split and the DD curve mutually inconsistent. A second pass of the same code double-counted commission-style deals (in net *and* in the carried bucket). | Entry costs are carried (`pending`) and land with the closing deal, so `net`, the win/loss split and the curve all include the whole round turn exactly once; commission/charge/interest/dividend deals are their own event; `DEAL_TYPE_BUY/SELL` is required for a deal to count as a trade. `tests/test_portfolio_tracker.py` mirrors the rule (and caught the second pass of the bug). |
+| 70 | `scripts/gen_additional_eas.py` (spec for `EA_STRATEGY_ROADMAP.mq5`, magic 3117) | The delivered universe listed **XAUUSD twice** (`"GBPJPY,EURJPY,XAUUSD,XAUUSD,EURUSD"`). `EA_ParseSymbols` keeps duplicates, so the EA parsed the symbol twice, created a duplicate indicator set and made the host's position cap one too high. | Deduplicated at the source of truth, regenerated the 65, and the generator now fails on any duplicated symbol in a universe (`DUPLICATE SYMBOL <ea>`), the same way it fails on a dead input. |
+
+Also fixed in the same pass (host runtime + report quality, no delivered strategy
+logic touched):
+
+* the trader now runs `PortProcess()` from a **1-second timer** as well as from
+  `OnTick` — MT5 delivers ticks only for the chart symbol, so without it every
+  engine went quiet whenever the chart symbol was closed (weekend, holiday,
+  index out of session) while its own market traded;
+* the host enforces **one order per symbol** (positions + resting orders) for
+  every engine that is not in `InpKeepDeliveredPolicy`; the delivered ladder
+  (2006) is the only strategy that overrides `AllowMultipleOnSymbol()`, so
+  without the host rule it would have broken the portfolio's per-symbol rule;
+* the book caps (`InpMaxBookPositions` / `InpMaxBookPerSymbol` / `InpBookRiskPct`)
+  now apply to *every* engine — previously the `InpKeepDeliveredPolicy` exemption
+  skipped them too, which made a configured cap silently ineffective;
+* engines that set `cfg.signalOnNewBarOnly = false` are no longer new-bar gated
+  (all 65 leave it `true`, so this is a guard, not a behaviour change);
+* `OnDeinit` deletes every strategy object (disabled/failed engines included) and
+  `OnInit` resets the live counter, so a parameter change cannot leak objects or
+  inflate the summary;
+* the tracker decides `TOO_FEW` before `DROP`/`KEEP` (a zero-trade engine used to
+  be reported as `KEEP`), keeps its last good report when `HistorySelect` fails,
+  checks `ArrayResize`, casts `MathMin`, and sanitises commas in CSV text fields.
+
 ## Verification after the fixes
 
 | Check | Result |

@@ -523,6 +523,12 @@ int EA_CountPendings(const string sym)
    return n;
 }
 
+//--- one halt-flatten per engine.  The delivered EAs are one program per
+//--- magic, but the portfolio host runs all 65 in one program, so the latch
+//--- is keyed by magic: a shared static would let a second halted engine
+//--- skip its flatten because the first one already fired.
+long g_eaHaltHandledMagic = 0;
+
 //+------------------------------------------------------------------+
 //| Main tick                                                        |
 //+------------------------------------------------------------------+
@@ -535,11 +541,10 @@ void EA_Tick()
    //--- a halt cancels every entry and closes exposure (kill switch)
    if(g_eaCfg.flattenOnHalt)
    {
-      static bool haltHandled = false;
-      if(!g_eaRisk.Halted()) haltHandled = false;
-      else if(!haltHandled)
+      if(!g_eaRisk.Halted()) g_eaHaltHandledMagic = 0;
+      else if(g_eaHaltHandledMagic != (long)g_eaCfg.magic)
       {
-         haltHandled = true;
+         g_eaHaltHandledMagic = (long)g_eaCfg.magic;
          EA_Log(EA_LOG_EVENTS, "halt: cancelling entries and flattening (" + g_eaRisk.HaltReason() + ")", true);
          EA_FlattenAll("halt flatten");
       }
