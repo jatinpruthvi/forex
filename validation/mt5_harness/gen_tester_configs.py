@@ -114,6 +114,9 @@ def main() -> int:
     ap.add_argument("--leverage", default="1:100")
     ap.add_argument("--model", default="1",
                     help="0 every tick, 1 1-min OHLC (fast sweep), 2 open prices, 4 real ticks (finalists)")
+    ap.add_argument("--report-dir", default="Reports\\EA_Harness",
+                    help="tester report folder, relative to the terminal data folder "
+                         "(per MetaQuotes docs) or an absolute path")
     ap.add_argument("--use-set", action="store_true",
                     help="also pass ExpertParameters=<set file> (needs a recent terminal build)")
     ap.add_argument("--only", default="", help="comma-separated EA name substrings to include")
@@ -157,7 +160,7 @@ def main() -> int:
             "Currency=USD",
             f"Leverage={args.leverage}",
             "ReplaceReport=1",
-            f"Report={(out / 'reports' / (ea.name + '.htm')).as_posix()}",
+            f"Report={args.report_dir}\\{ea.name}",
             "ShutdownTerminal=1",
         ]
         if args.use_set:
@@ -191,7 +194,8 @@ def main() -> int:
            '}',
            'Write-Host ""',
            'Write-Host ("done: {0} configs, {1} non-zero exits" -f $configs.Count, $failed)',
-           'Write-Host "results: %APPDATA%\\MetaQuotes\\Terminal\\Common\\Files\\EA_TestReports"',
+           'Write-Host "result rows: %APPDATA%\\MetaQuotes\\Terminal\\Common\\Files\\EA_TestReports"',
+           'Write-Host "full reports: %APPDATA%\\MetaQuotes\\Terminal\\<instance>\\' + str(args.report_dir).replace('\\', '\\') + ' (for compare_results.py)"',
            'Write-Host "next:    python3 validation/mt5_harness/parse_results.py"']
     (out / "run_all.ps1").write_text("\n".join(ps1) + "\n", encoding="utf-8")
 
@@ -226,6 +230,7 @@ def main() -> int:
         for n in index_only:
             print(f"        {n}")
     print(f"     universes need {len(pre)} distinct symbols (see symbols_preflight.txt)")
+    print(f"     tester reports -> <terminal data folder>\\{args.report_dir}\\<EA> (feeds compare_results.py)")
     print(f"     next: run {out / 'run_all.ps1'} on the Windows machine")
     return 0
 

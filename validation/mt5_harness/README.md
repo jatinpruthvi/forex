@@ -77,7 +77,33 @@ PF &lt; 1.10, DD ≥ 10 %, expectancy ≤ 0. All overridable:
 python3 validation/mt5_harness/parse_results.py --min-trades 30 --min-pf 1.2 --max-dd 15
 ```
 
-## 5. Running the EAs for real — one attach, not 65
+## 5. Compare the EAs (which are additive, which are duplicates)
+
+```bash
+# full comparison, from the tester reports the sweep already wrote:
+python3 validation/mt5_harness/compare_results.py \
+    --reports "<terminal data folder>\Reports\EA_Harness"
+
+# aggregate-only fallback, if you only kept the result rows:
+python3 validation/mt5_harness/compare_results.py --results "<...>\Common\Files\EA_TestReports"
+```
+
+`compare_results.py` produces `out/comparison.md` plus three CSVs:
+
+* **Pairwise correlation** of daily PnL (over each pair's common span, missing day =
+  no trade = 0; `--min-overlap` controls how many days are required, default 20).
+* **Redundancy list** — pairs correlated above `--corr` (default 0.60) that also
+  trade the same symbol: these duplicate risk instead of diversifying it. The
+  higher-net member is proposed as the keeper.
+* **Combined portfolio** — equal-weight and vol-scaled (each EA scaled to the
+  median daily volatility) with net, max drawdown and Sharpe, plus per-EA
+  "correlation to the book".
+* **Leave-one-out** — the book's net/DD/Sharpe with each EA removed, so you can
+  see which EAs actually earn their slot.
+
+Verify the maths any time (no MT5 needed): `compare_results.py --selftest`.
+
+## 6. Running the EAs for real — one attach, not 65
 
 Validation is chart-free (above). *Running* them is the part where MT5's
 one-EA-per-chart rule bites, so the same folder also generates a launcher:

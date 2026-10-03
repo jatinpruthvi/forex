@@ -80,6 +80,22 @@ python3 validation/mt5_harness/gen_tester_configs.py --model 4 \
 (Each extra config is just a copy with a different `Symbol=`; the manifest lists
 every EA's universe.)
 
+## Stage 2b — compare the EAs against each other
+
+A sweep tells you which EAs work. It does **not** tell you which ones belong in one
+book: three EAs on the same symbol with the same session produce the same risk
+three times. `validation/mt5_harness/compare_results.py` answers that from the
+tester reports the sweep already writes:
+
+* pairwise **daily-PnL correlation** and a **redundancy list** (correlated pairs on
+  a shared symbol — keep the better one, or halve both);
+* **combined portfolio** net / max DD / Sharpe, equal-weight and vol-scaled;
+* **leave-one-out** table: what the book looks like without each EA.
+
+```bash
+python3 validation/mt5_harness/compare_results.py --reports "<data>\Reports\EA_Harness"
+```
+
 ## Stage 3 — forward/demo deployment without attaching 65 EAs
 
 Attaching 65 EAs by hand is the pain this stage removes. Two ways, in order of
