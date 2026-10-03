@@ -48,7 +48,7 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      1 785 static checks (freshness, hashes, policy, tags,
+├── verify_portfolio.py      1 796 static checks (freshness, hashes, policy, tags,
 │                              identifier hygiene, capacity, shared-engine state)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
@@ -210,11 +210,19 @@ On Windows/MT5:
 5. compile + attach `src/PortfolioEA.mq5` on another chart to watch per-engine
    results.
 
+**First step on Windows: compile.** Nothing here has been through the MQL5
+compiler yet (no MetaEditor on Linux), so run Stage 0 of
+`docs/EA_VALIDATION_PLAYBOOK.md` — `validation\mt5_harness\compile_all.ps1`
+compiles the 65 EAs, this host EA and the tracker in one command and prints a
+per-file error/warning summary. Any error: fix it at the source of truth
+(`MQL5_Master\Include\` for the engine, `gen_portfolio_ea.py` for the host,
+`portfolio-EA\src` for the tracker), never in the generated file.
+
 Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 1 785 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 796 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
@@ -285,7 +293,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
   override + book caps. Enum types of the 6 engines that declare them are
   prefixed like every other per-engine identifier (defect #67).
-* `verify_portfolio.py` — **1 785/1 785 checks pass** (freshness, originals by
+* `verify_portfolio.py` — **1 796/1 796 checks pass** (freshness, originals by
   hash, switches, tags/wrappers, policy override, registry/engines.csv
   completeness, **one-file EA: every strategy inlined verbatim**, **identifier
   hygiene**: every emitted type exists, no top-level name twice, every

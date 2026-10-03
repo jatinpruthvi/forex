@@ -166,7 +166,7 @@ void LoadIdentity()
    int h = FileOpen(InpIdentityFile, FILE_READ | FILE_TXT | FILE_ANSI);
    if(h == INVALID_HANDLE)
    {
-      PrintFormat("PortfolioEA tracker: %s not found (error %d) - engines will be shown by magic "
+      PrintFormat("PortfolioEA tracker: %s not found (error %d) - engines will be shown by magic " +
                   "only.  Copy portfolio-EA/build/engines.csv into MQL5\\Files\\PortfolioEA\\.",
                   InpIdentityFile, GetLastError());
       return;
@@ -379,7 +379,7 @@ void WriteCsv()
    int h = FileOpen(InpReportFile, FILE_WRITE | FILE_CSV | FILE_ANSI, ',');
    if(h == INVALID_HANDLE)
    {
-      PrintFormat("PortfolioEA tracker: cannot write %s (error %d) - create "
+      PrintFormat("PortfolioEA tracker: cannot write %s (error %d) - create " +
                   "MQL5\\Files\\PortfolioEA if this persists", InpReportFile, GetLastError());
       return;
    }
@@ -483,7 +483,7 @@ int OnInit()
    LoadIdentity();
    EventSetTimer((int)MathMax(1, InpRefreshSec));
    Refresh();
-   PrintFormat("PortfolioEA tracker running: %d engine(s), DD base %.2f.  Switch engines in "
+   PrintFormat("PortfolioEA tracker running: %d engine(s), DD base %.2f.  Switch engines in " +
                "AllEnginesEA via InpRun_<magic>.", g_count, g_base);
    return INIT_SUCCEEDED;
 }

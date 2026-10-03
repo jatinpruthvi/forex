@@ -555,8 +555,21 @@ either snapshotted per engine or on an explicit program-wide list (executor,
 governor, halt latch, readiness flag, log throttle, the statistics pool). That is
 the guard against the #85 class coming back through a future change.
 
-Verification after this pass: `verify_portfolio.py` **OK - 1 785 checks**
-(+10: shared-map guards, handle-leak guards, the global inventory, the news cap and
+Post-pass hardening (compile pre-flight, same day): the **one construct the
+Linux side could never verify** is now gone from everything the compiler will
+see. Multi-line messages had been written as two adjacent string literals (14
+sites: 5 in the host template, 5 in `EACommon.mqh`, 1 in `EACore.mqh`, 3 in the
+tracker). Implicit concatenation of string literals is standard C but is not
+documented for MQL5, and a first Windows compile is the wrong place to find out,
+so every site is now joined with an explicit `+` and `verify_portfolio.py` **bans
+adjacency outright** in the host, the tracker and all five headers (0 remaining).
+`validation/mt5_harness/compile_all.ps1` was added: one command compiles the 65
+EAs + `AllEnginesEA` + `PortfolioEA` with `metaeditor64.exe /log` and prints a
+per-file error/warning summary (exit 1 on error, 2 when the files are not in the
+`MQL5` folder yet) - Stage 0 of the validation playbook now points at it.
+
+Verification after this pass: `verify_portfolio.py` **OK - 1 796 checks**
+(+21: shared-map guards, handle-leak guards, the global inventory, the news cap and
 label wording). The verifier itself was hardened while testing these: two checks
 used an unguarded `.index()` and crashed with `ValueError` instead of reporting the
 finding they were testing for (a checker that dies hides the defect). Both controls

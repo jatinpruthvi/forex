@@ -532,7 +532,7 @@ void EA_LoadNewsCache()
       //--- and calling that "inert" would send the user hunting for a strategy
       //--- bug instead of copying the file (docs/EA_BUG_AUDIT.md, tenth pass)
       if(g_eaCfg.newsFailClosed)
-         EA_Log(EA_LOG_ERRORS, StringFormat("news file '%s' not found (error %d) - FAIL CLOSED: "
+         EA_Log(EA_LOG_ERRORS, StringFormat("news file '%s' not found (error %d) - FAIL CLOSED: " +
                 "no new entries until the calendar is in MQL5\\Files",
                 g_eaCfg.newsFile, GetLastError()));   // once per engine per hour (load cache)
       else

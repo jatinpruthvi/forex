@@ -460,6 +460,20 @@ def main() -> int:
           "news-cache cap too small or silent when it bites (defect #89)")
     check("max book POSITIONS on one symbol" in host,
           "InpMaxBookPerSymbol's label must match what the gate counts (positions)")
+
+    # 13f - syntax portability: NO adjacent string literals -------------------
+    # MQL5's acceptance of implicitly concatenated string literals is the one
+    # construct this repository could never verify (no compiler here), so it is
+    # banned outright: every multi-line message is joined with an explicit '+'.
+    # (Found in 14 places across the host template, the headers and the tracker.)
+    adj = re.compile(r'"[^"\n]*"\s*\n\s*"')
+    for path, text in ((BUILD / "AllEnginesEA.mq5", host),
+                       (HERE / "src" / "PortfolioEA.mq5", tracker),
+                       *((h, h.read_text(encoding="utf-8")) for h in
+                         sorted((REPO / "MQL5_Master" / "Include").glob("*.mqh")))):
+        check(not adj.search(text),
+              f"{path}: adjacent string literal(s) left - unverified by any compiler, "
+              f"join with '+'")
     # engines that fail closed without a news calendar must be named in the README
     # (they take NO new entries until the CSV exists - an easy "why is nothing
     # trading" trap, and the number of such engines must not drift silently)

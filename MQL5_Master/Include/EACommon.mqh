@@ -110,7 +110,7 @@ int EA_ParseSymbols(const string csv)
             skipped += (StringLen(skipped) > 0 ? "," : "") + s;
       }
       if(StringLen(skipped) > 0)
-         EA_Log(EA_LOG_ERRORS, StringFormat("universe lists %d symbols but this engine trades at "
+         EA_Log(EA_LOG_ERRORS, StringFormat("universe lists %d symbols but this engine trades at " +
                 "most %d - never traded: %s", seen, EA_MAX_SYMBOLS, skipped));
    }
    g_eaSymbolCount = used;
@@ -280,14 +280,14 @@ void EA_TestReport()
       return;
    }
    FileWriteString(h,
-      "strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,"
-      "trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,"
-      "profit_factor,expected_payoff,equity_dd_pct,balance_dd_pct,"
+      "strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct," +
+      "trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss," +
+      "profit_factor,expected_payoff,equity_dd_pct,balance_dd_pct," +
       "recovery_factor,sharpe,min_lots,max_lots,end_time\r\n");
    FileWriteString(h, StringFormat(
-      "%s,%I64d,%s,\"%s\",%s,%s,%.3f,"
-      "%d,%d,%d,%.2f,%.2f,%.2f,"
-      "%.3f,%.3f,%.3f,%.3f,"
+      "%s,%I64d,%s,\"%s\",%s,%s,%.3f," +
+      "%d,%d,%d,%.2f,%.2f,%.2f," +
+      "%.3f,%.3f,%.3f,%.3f," +
       "%.3f,%.3f,%.2f,%.2f,%s\r\n",
       g_eaCfg.strategyName, (long)g_eaCfg.magic, MQLInfoString(MQL_PROGRAM_NAME),
       g_eaCfg.symbols, _Symbol, EnumToString(g_eaCfg.signalTimeframe), g_eaCfg.riskPct,

@@ -362,7 +362,7 @@ void PortSaveState(const int i)
    if(g_eaNewsCount > PORT_NEWS_MAX && !g_portNewsWarned[i])
    {
       g_portNewsWarned[i] = true;
-      PrintFormat("[portfolio] %s: news calendar holds %d blocking events; only the first %d "
+      PrintFormat("[portfolio] %s: news calendar holds %d blocking events; only the first %d " +
                   "are kept across engine switches - split the calendar file",
                   g_portName[i], g_eaNewsCount, PORT_NEWS_MAX);
    }
@@ -657,8 +657,8 @@ int OnInit()
    //--- program cannot account for (docs/EA_BUG_AUDIT.md, tenth pass).
    if((ENUM_ACCOUNT_MARGIN_MODE)AccountInfoInteger(ACCOUNT_MARGIN_MODE) != ACCOUNT_MARGIN_MODE_RETAIL_HEDGING)
    {
-      Print("[portfolio] HEDGING account required: engines are told apart by magic, and a netting "
-            "account merges positions on the same symbol (magic and per-engine P/L are lost). "
+      Print("[portfolio] HEDGING account required: engines are told apart by magic, and a netting " +
+            "account merges positions on the same symbol (magic and per-engine P/L are lost). " +
             "Use a hedging account, or run the individual EAs one chart at a time on netting.");
       return INIT_FAILED;
    }
@@ -718,13 +718,13 @@ int OnInit()
       if(g_portAllowed[i]) entriesLive++;
 
       if(InpSummary)
-         PrintFormat("[portfolio] %-45s ready  magic=%-5s tag=%-6s %s %s risk=%.3f%% "
+         PrintFormat("[portfolio] %-45s ready  magic=%-5s tag=%-6s %s %s risk=%.3f%% " +
                      "maxOpen=%d oneEntryAccountWide=%s%s%s",
                      g_portName[i], IntegerToString(g_portMagic[i]), PortTagOf(g_portMagic[i]),
                      g_portSymbolsTxt[i], g_portTfTxt[i], g_eaCfg.riskPct,
                      g_eaCfg.maxOpenPositions, g_eaCfg.oneEntryAccountWide ? "true" : "false",
                      PortKeepDelivered(g_portMagic[i]) ? " (delivered policy kept)" : "",
-                     g_portAllowed[i] ? "" : StringFormat(" - SWITCHED OFF (switch=%s%s%s): "
+                     g_portAllowed[i] ? "" : StringFormat(" - SWITCHED OFF (switch=%s%s%s): " +
                                                           "no new entries, exits still managed",
                                                           g_portEnableReq[i] ? "on" : "off",
                                                           StringLen(InpOnlyMagics) ? " list=" + InpOnlyMagics : "",
@@ -743,7 +743,7 @@ int OnInit()
    g_portReady     = true;
    EventSetTimer(1);            // ticks only arrive for the chart symbol; this
                                 // keeps every engine alive on its own schedule
-   PrintFormat("[portfolio] %d/%d engines live on one chart, %d open for new entries "
+   PrintFormat("[portfolio] %d/%d engines live on one chart, %d open for new entries " +
                "(%d switched off, risk scale %.2f)", g_portLive, g_portCount, entriesLive,
                disabled, InpRiskScale);
    return INIT_SUCCEEDED;

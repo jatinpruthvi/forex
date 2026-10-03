@@ -15,20 +15,31 @@ Everything described here is implemented in
 
 ## Stage 0 — compile everything (5 minutes)
 
-Compile the folder once (MetaEditor 64 CLI) and treat any error as a stop:
+**This is the first thing to run on Windows**, and the one verification the
+repository's static audit **cannot** do on Linux (see `docs/EA_BUG_AUDIT.md` →
+Known limitations): nothing in the delivery has ever been through the MQL5
+compiler. Treat any error as a stop and send the log.
+
+One command compiles all 67 programs — the 65 delivered EAs, `AllEnginesEA` and
+`PortfolioEA` — and prints a per-file error/warning line plus a total:
 
 ```powershell
-$me = "C:\Program Files\Fusion Markets MetaTrader 5\metaeditor64.exe"
-Get-ChildItem "<repo>\MQL5_Master\Experts\additionalEAs\*.mq5" | ForEach-Object {
-    & $me /compile:"$($_.FullName)" /log
-}
-Get-ChildItem "<repo>\MQL5_Master\Experts\additionalEAs\*.log" |
-    Select-String -Pattern ": error" -List   # must print nothing
+# after copying the EA into <data>\MQL5\Experts\ (see portfolio-EA/README.md)
+.\validation\mt5_harness\compile_all.ps1 -Mql5 "C:\Users\you\AppData\Roaming\MetaQuotes\Terminal\<ID>\MQL5"
 ```
 
-This is the one verification the repository's static audit **cannot** do on
-Linux (see `docs/EA_BUG_AUDIT.md` → Known limitations). The sweep below re-checks
-it indirectly: an EA that fails to compile produces **no result row**.
+Exit code 0 = every file compiled (`/log` written by MetaEditor); exit 1 = at
+least one error, with the first errors printed; exit 2 = the files are not in
+that `MQL5` folder yet. `metaeditor64.exe` is auto-detected under
+`C:\Program Files` / `%LOCALAPPDATA%\Programs`, or pass `-MetaEditor`.
+
+The safety net for a missed compile is the sweep below: an EA that fails to
+compile produces **no result row**, and the summary lists the EAs with no row.
+
+Multi-line messages in the delivery are written as explicit `"a " + "b"`
+concatenation, never as two adjacent literals: adjacency is the one MQL5
+construct the Linux side could not verify, so the verifier now bans it outright
+(0 occurrences in the host, the tracker and all five headers).
 
 ## Stage 1 — headless sweep of all 65 (the answer to "how do I even run 65?")
 
