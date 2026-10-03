@@ -91,10 +91,10 @@ int EA_ParseSymbols(const string csv)
       }
       g_eaSymbols[used++] = brokerName;
    }
-   //--- loud, not silent: EA_MAX_SYMBOLS is a hard cap, and 4 delivered EAs ship
-   //--- 9-10 symbols, so their tail is never traded (see docs/EA_BUG_AUDIT.md,
-   //--- eighth pass).  The universe itself is a strategy decision - this only
-   //--- makes the truncation visible instead of silent.
+   //--- loud, not silent: EA_MAX_SYMBOLS is a hard cap.  It fits every delivered
+   //--- universe since the owner's #72 decision (10 >= the widest, 10), but a
+   //--- future universe could still be wider - truncation must never be silent
+   //--- (see docs/EA_BUG_AUDIT.md, eighth pass + eleventh-pass follow-up).
    if(used == EA_MAX_SYMBOLS)
    {
       string skipped = "";

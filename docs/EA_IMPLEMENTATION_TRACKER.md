@@ -263,14 +263,15 @@ forex/
   separate read-only `portfolio-EA/src/PortfolioEA.mq5` tracker (per-engine net/DD/win%/verdict
   -> `MQL5\Files\PortfolioEA\performance.csv` + panel).  The trader contains no dashboard or
   file I/O at all; the 65 strategies are inlined into `build/AllEnginesEA.mq5`, so the EA is
-  one file to compile; `verify_portfolio.py` (1 785 checks) enforces both boundaries, the
+  one file to compile; `verify_portfolio.py` (1 810 checks) enforces both boundaries, the
   single-file property and identifier hygiene (defects #67-#70 of the eighth deep pass:
   a prefixed enum type that was never declared, a halt-flatten latch shared by the 65 engines,
   entry-side commission missing from the tracker's net, and a duplicated symbol in magic 3117 -
   all fixed; the host also gained a 1-second execution timer and enforces one order per symbol).
   The tracker contract is mirrored by `tests/test_portfolio_tracker.py`.
   Ninth deep pass (2026-10-03): a switched-off engine now keeps managing its open trades
-  (only new entries stop), the 8-symbol truncation is logged instead of silent, cost carry is
+  (only new entries stop), the 8-symbol truncation is logged instead of silent (and has since
+  been resolved by raising the cap - see the eleventh-pass follow-up below), cost carry is
   per position, the request budget / loss cursor are magic-scoped GlobalVariables, the market
   statistics table covers the book's 19 symbols, and the tracker creates its report folder.
   Tenth deep pass (2026-10-03) followed the shared engine object the 65 engines run through:
@@ -288,6 +289,14 @@ forex/
   it bites, and `InpMaxBookPerSymbol` is labelled for what it counts (positions). The
   verifier enumerates every engine global and fails unless it is snapshotted per engine
   or on the explicit program-wide list.
+  Eleventh-pass follow-up (2026-10-03, owner decisions implemented): `EA_MAX_SYMBOLS`
+  raised 8 -> 10 so the four widest delivered universes (2034/2040 list 10, 2031/3111
+  list 9) trade in full instead of being silently cut to 8 - their results differ from
+  any earlier backtest by design, and the verifier now fails if a universe outgrows the
+  cap.  The six fail-closed news engines get `MQL5_Master\Scripts\ExportRedNews.mq5`,
+  which writes `MQL5\Files\the5ers_red_news.csv` from the terminal's own economic
+  calendar in the engine's format (plus a hand-fill template and a Stage 0b in the
+  playbook); `compile_all.ps1` compiles it too.
   Not compiled here (no MetaEditor on
   Linux) - compilation is the first step on the Windows machine.
 * **Validation tooling (2026-10-02)** - MT5 allows one EA per chart, so the 65 EAs are validated headlessly instead: `validation/mt5_harness/gen_tester_configs.py` generates one Strategy Tester config and `.set` per EA (read straight from the generator, so configs cannot drift), `run_all.ps1`/`run_all.bat` drive `terminal64.exe /config:` for all 65, every run writes one machine-readable row via the new tester-only `EA_TestReport()` (`EACommon.mqh`; no effect live), and `validation/mt5_harness/parse_results.py` produces a PASS/WARN/FAIL portfolio table plus the list of EAs that produced no row at all (i.e. compile failures). `MQL5_Master/Scripts/UniversePreflight.mq5` reports which of the EAs' symbols the broker actually offers and which index alias it uses, because the engine skips-and-logs unavailable symbols and an inert sleeve otherwise looks like "the EA does not trade". See `docs/EA_VALIDATION_PLAYBOOK.md`. For running the set for real, `MQL5_Master/Scripts/PortfolioLauncher.mq5` + `validation/mt5_harness/gen_launcher.py` reduce "65 manual attaches" to one: the generator stamps a per-EA template (EA + inputs) from a single template saved by the user, and the script opens every chart, attaches each EA, skips what is already running, and writes `MQL5\Files\EA_Launch\launch_status.csv` (START / STOP / DRYRUN, optional group split across terminals).

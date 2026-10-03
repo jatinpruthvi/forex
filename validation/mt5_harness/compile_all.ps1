@@ -42,6 +42,7 @@ Write-Host ""
 # --- what to compile --------------------------------------------------------
 $targets = New-Object System.Collections.Generic.List[System.IO.FileInfo]
 $expected = @()
+$scriptGaps = @()
 
 $additional = Join-Path $Mql5 "Experts\additionalEAs"
 if (Test-Path $additional) {
@@ -57,6 +58,15 @@ foreach ($name in @("AllEnginesEA.mq5", "PortfolioEA.mq5")) {
     else      { $expected += "MQL5\Experts\...\$name" }
 }
 
+# Scripts (optional but recommended): the calendar exporter fills the file the
+# six fail-closed news engines need; the launcher/preflight are the harness tools.
+foreach ($name in @("ExportRedNews.mq5", "PortfolioLauncher.mq5", "UniversePreflight.mq5")) {
+    $hit = Get-ChildItem (Join-Path $Mql5 "Scripts") -Filter $name -ErrorAction SilentlyContinue |
+           Select-Object -First 1
+    if ($hit) { $targets.Add($hit) }
+    else      { $scriptGaps += "MQL5\Scripts\$name" }
+}
+
 if ($targets.Count -eq 0) {
     Write-Host "Nothing to compile.  Copy the files first:"
     $expected | ForEach-Object { Write-Host "  - $_" }
@@ -65,6 +75,11 @@ if ($targets.Count -eq 0) {
 if ($expected.Count -gt 0) {
     Write-Host "Not found yet (will be skipped):"
     $expected | ForEach-Object { Write-Host "  - $_" }
+    Write-Host ""
+}
+if ($scriptGaps.Count -gt 0) {
+    Write-Host "Scripts not copied (optional - only needed for the calendar export / launcher):"
+    $scriptGaps | ForEach-Object { Write-Host "  - $_" }
     Write-Host ""
 }
 

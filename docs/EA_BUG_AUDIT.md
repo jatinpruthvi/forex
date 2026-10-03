@@ -568,7 +568,7 @@ EAs + `AllEnginesEA` + `PortfolioEA` with `metaeditor64.exe /log` and prints a
 per-file error/warning summary (exit 1 on error, 2 when the files are not in the
 `MQL5` folder yet) - Stage 0 of the validation playbook now points at it.
 
-Verification after this pass: `verify_portfolio.py` **OK - 1 796 checks**
+Verification after this pass: `verify_portfolio.py` **OK - 1 810 checks**
 (+21: shared-map guards, handle-leak guards, the global inventory, the news cap and
 label wording). The verifier itself was hardened while testing these: two checks
 used an unguarded `.index()` and crashed with `ValueError` instead of reporting the
@@ -579,6 +579,46 @@ now bite and the checked-in files are green: `check_mql5_source.py` 87 files /
 --check` 65/65; `unittest discover tests` 204 ran, 203 pass (one loader artifact);
 code-only brace/paren/bracket balance verified on every touched file, HEAD vs now.
 **MQL5 compilation remains unverified** (no MetaEditor here).
+
+## Eleventh-pass follow-up — the owner's decisions, implemented
+
+Two findings from the ledger were behaviour decisions rather than bugs; the owner
+asked for both to be implemented.
+
+**1. `EA_MAX_SYMBOLS` 8 → 10 (defect #72).** Four delivered universes are wider
+than the old cap (magics 2034 and 2040 list 10 symbols, 2031 and 3111 list 9), so
+those engines silently traded only their first eight. The cap is now **10**, the
+widest delivered universe, so every engine trades exactly its documented book.
+What this changes: those four engines enter on symbols they never touched before
+(and their per-engine position cap, which defaults to the symbol count, rises from
+8 to 9-10), so **their tester/live results differ from any run made before this
+change** — that is the point of the decision, but it invalidates their older
+backtests. What it does not change: the other 61 engines (their universes are ≤ 8),
+and the safety net — `EA_ParseSymbols` still logs any future universe the cap cuts
+(pass-8 defect #72's logging), and `verify_portfolio.py` now **fails** if a
+delivered universe is wider than the macro, so this can never go silent again.
+Memory cost in the host: `SPortState` grows by two symbol slots and two indicator
+slots per engine (~0.2 MB for all 65), plus `g_portLastBar[65][10]`.
+
+**2. The red-folder calendar (finding #84's consequence).** Six engines fail
+closed without `MQL5\Files\the5ers_red_news.csv`, which is the delivered policy
+(`// bad calendar = no new entries`) but meant "nothing trades" for a user who
+never built the file. The delivery now ships `MQL5_Master\Scripts\ExportRedNews.mq5`:
+a read-only script that exports the terminal's own economic calendar into exactly
+the file and format the engine parses (four comma fields, UTC `date,time`,
+`currency` = the event country's currency, `impact` = `HIGH`), honouring
+`InpDaysBack`/`InpDaysForward`/`InpHighOnly`. It replaces "hand-type a calendar"
+with "compile once, drag onto a chart". A hand-fill template
+(`validation/mt5_harness/files/the5ers_red_news.csv.template`) covers brokers
+without a calendar feed, `compile_all.ps1` compiles the script when it is present,
+and `verify_portfolio.py` checks that the exporter keeps matching the engine's
+parser (Calendar API calls present, right file name, ANSI write, `date,time,cc,HIGH`
+rows), that the template's header matches, and that the README points at the script.
+
+Verification after both: `verify_portfolio.py` **OK - 1 810 checks** (+14: cap
+covers every universe, exporter/template contract, README coupling).  The
+universe note in the report became a success line ("no universe is truncated
+(cap 10 >= widest universe 10, magic 2040)").
 
 ## Verification after the fixes
 

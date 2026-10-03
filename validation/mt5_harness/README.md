@@ -41,6 +41,12 @@ line to whatever alias your broker uses (the preflight script tells you which).
 
 ## 2. Preflight the broker's symbols (MT5, one click)
 
+Before any of that, build the news calendar (Stage 0b): six engines fail closed,
+so without `MQL5\Files\the5ers_red_news.csv` their tester rows show zero trades.
+Compile and run **`MQL5_Master/Scripts/ExportRedNews.mq5`** — it writes that file
+from the terminal's own economic calendar. (`validation/mt5_harness/files/`
+holds a hand-fill template for brokers without a calendar feed.)
+
 Compile and run **`MQL5_Master/Scripts/UniversePreflight.mq5`** once. It reports
 every symbol the 65 EAs need, whether your broker offers it, its spread and
 contract size, and which index aliases exist (GER40 / DE40 / DAX / …). The

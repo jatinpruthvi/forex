@@ -25,7 +25,14 @@
 //| Build / identity                                                 |
 //+------------------------------------------------------------------+
 #define EA_CORE_BUILD_ID      "MQL5_Master_EA_CORE_1.0.0_20261001"
-#define EA_MAX_SYMBOLS        8
+//--- 10 = the widest delivered universe (magics 2034/2040 list 10, 2031/3111
+//--- list 9).  It was 8 until the owner's decision on the eleventh-pass
+//--- finding #72, which truncated those four engines to their first 8
+//--- symbols.  10 keeps every delivered EA trading exactly its documented
+//--- book; EA_ParseSymbols still logs (never silently drops) anything a
+//--- future universe lists beyond it, and the verifier fails if a
+//--- delivered universe is wider than this macro.
+#define EA_MAX_SYMBOLS        10
 #define EA_MAX_POSITIONS      64
 #define EA_MAX_PARTIALS       4
 

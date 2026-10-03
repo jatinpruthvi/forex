@@ -48,7 +48,7 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      1 796 static checks (freshness, hashes, policy, tags,
+├── verify_portfolio.py      1 810 static checks (freshness, hashes, policy, tags,
 │                              identifier hygiene, capacity, shared-engine state)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
@@ -198,16 +198,21 @@ On Windows/MT5:
 2. copy **`build/AllEnginesEA.mq5`** into `<data>\MQL5\Experts\` and compile it
    (nothing else has to go with it);
 3. copy `build/engines.csv` into `<data>\MQL5\Files\PortfolioEA\`;
-4. attach `AllEnginesEA` to **one** chart (Algo Trading ON) — demo first.
-   **Six engines fail closed on news.** 3102, 3104, 3105, 3106, 3107 and 3109 ship
-   the red-folder gate with `newsFailClosed`, so without
-   `MQL5\Files\the5ers_red_news.csv` they log `FAIL CLOSED` and take **no new
-   entries** (the tracker shows them `TOO_FEW` forever). The calendar is one event
-   per row — `date,time,currency,impact`, e.g. `2026.10.02,13:30,USD,HIGH`; times
-   are UTC, impact ≥ 2 or `HIGH` counts, and `currency` is matched against the
-   engine's symbol list (`ALL` = every symbol). Each event blocks a 30-minute
-   window (default) around it. Install the file, or switch those six off;
-5. compile + attach `src/PortfolioEA.mq5` on another chart to watch per-engine
+4. build the news calendar (one minute, once) — **six engines fail closed on news.**
+   3102, 3104, 3105, 3106, 3107 and 3109 ship the red-folder gate with
+   `newsFailClosed`, so without `MQL5\Files\the5ers_red_news.csv` they log
+   `FAIL CLOSED` and take **no new entries** (the tracker shows them `TOO_FEW`
+   forever). Copy `MQL5_Master\Scripts\ExportRedNews.mq5` into
+   `<data>\MQL5\Scripts\`, compile it, drag it onto any chart — it writes that
+   file from the terminal's own economic calendar, already in the engine's format
+   (`date,time,currency,impact`, e.g. `2026.10.02,13:30,USD,HIGH`; UTC times,
+   `HIGH` impact, currency matched against the engine's symbol list, `ALL` =
+   every symbol). Each event blocks a 30-minute window around it and the
+   red-folder engines flatten 15 minutes before it. No calendar at your broker?
+   Fill `validation\mt5_harness\files\the5ers_red_news.csv.template` by hand
+   and copy it to `<data>\MQL5\Files\`, or switch those six off;
+5. attach `AllEnginesEA` to **one** chart (Algo Trading ON) — demo first;
+6. compile + attach `src/PortfolioEA.mq5` on another chart to watch per-engine
    results.
 
 **First step on Windows: compile.** Nothing here has been through the MQL5
@@ -222,7 +227,7 @@ Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 1 796 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 810 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
@@ -231,11 +236,14 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
 
 ## Known limits of a 65-engine program
 
-* **`EA_MAX_SYMBOLS` is 8 per engine.** Four delivered universes list 9-10 symbols
-  (magics 3111, 2031, 2034, 2040); the tail is never traded by the delivered EA
-  either. The engine now logs the names it drops, and `verify_portfolio.py`
-  lists the four. Widening the cap or trimming the universes changes delivered
-  behaviour, so it is left to the owner (say the word and I will do either).
+* **No universe is truncated any more.** `EA_MAX_SYMBOLS` is **10**, which fits
+  the widest delivered universe (magics 2034/2040 list 10; 3111/2031 list 9), so
+  all four engines now trade their full documented book — until this change they
+  were silently cut to 8 symbols (defect #72; the owner chose the cap). Their
+  results therefore differ from any backtest run before this change, and the
+  per-engine position cap (default = symbol count) is 9-10 for them. A future
+  universe wider than 10 is still logged by name, and `verify_portfolio.py` fails
+  the build if one appears.
 * **Indicator memory.** One program shares the terminal's indicator cache, so the
   book resolves to ~476 indicator instances (34 symbol x timeframe pairs x 14
   handles), not 65 x 8 x 14. Expect a slower first init on a fresh terminal and a
@@ -293,7 +301,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
   override + book caps. Enum types of the 6 engines that declare them are
   prefixed like every other per-engine identifier (defect #67).
-* `verify_portfolio.py` — **1 796/1 796 checks pass** (freshness, originals by
+* `verify_portfolio.py` — **1 810/1 810 checks pass** (freshness, originals by
   hash, switches, tags/wrappers, policy override, registry/engines.csv
   completeness, **one-file EA: every strategy inlined verbatim**, **identifier
   hygiene**: every emitted type exists, no top-level name twice, every

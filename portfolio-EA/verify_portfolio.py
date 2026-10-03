@@ -152,6 +152,24 @@ def main() -> int:
                   f"PortSaveState does not save {g}")
             check(re.search(rf"(?<![\w]){g}\b", load.group(1)) is not None,
                   f"PortLoadState does not restore {g}")
+    # 8b - the per-engine symbol cap must cover every delivered universe --------
+    # It was 8 and silently truncated four engines (3111/2031 list 9, 2034/2040
+    # list 10) until the owner's #72 decision raised it to 10 (eleventh-pass
+    # follow-up).  A future universe wider than the cap must fail the build, not
+    # quietly trade a smaller book; EA_ParseSymbols keeps logging at runtime.
+    core_src = (REPO / "MQL5_Master" / "Include" / "EACore.mqh").read_text(encoding="utf-8")
+    sym_cap = int(re.search(r"#define\s+EA_MAX_SYMBOLS\s+(\d+)", core_src).group(1))
+    check(sym_cap >= 10,
+          f"EA_MAX_SYMBOLS is {sym_cap} - the owner's #72 decision needs >= 10 "
+          f"(the widest delivered universe); a later raise is fine, a cut is not")
+    widest = max(len(e["symbols"]) for e in manifest["entries"])
+    check(sym_cap >= widest,
+          f"EA_MAX_SYMBOLS={sym_cap} truncates the widest delivered universe "
+          f"({widest} symbols) - raise the cap or trim the universe")
+    check("never traded: %s" in core_src or "never traded:" in
+          (REPO / "MQL5_Master" / "Include" / "EACommon.mqh").read_text(encoding="utf-8"),
+          "the runtime truncation log must stay (a future universe wider than the cap)")
+
     check("g_eaRisk.Init()" in host and "g_eaExec.Init()" in host,
           "per-switch risk/exec refresh missing")
     check("g_eaIndCount    = 0;" in host or "g_eaIndCount = 0;" in host,
@@ -461,6 +479,40 @@ def main() -> int:
     check("max book POSITIONS on one symbol" in host,
           "InpMaxBookPerSymbol's label must match what the gate counts (positions)")
 
+    # 13g - the red-folder calendar: exporter + template ----------------------
+    # Six engines fail closed without MQL5\Files\the5ers_red_news.csv, so the
+    # delivery ships a script that exports the terminal's own calendar in the
+    # engine's exact format, plus a hand-fill template.  Both must keep matching
+    # the parser in EA_LoadNewsCache (4 comma fields, date+time, UTC, HIGH).
+    exporter_p = REPO / "MQL5_Master" / "Scripts" / "ExportRedNews.mq5"
+    check(exporter_p.exists(), "MQL5_Master/Scripts/ExportRedNews.mq5 missing "
+                               "(the six fail-closed engines need the calendar file)")
+    if exporter_p.exists():
+        ex = exporter_p.read_text(encoding="utf-8")
+        check(all(fn in ex for fn in ("CalendarValueHistory", "CalendarEventById",
+                                      "CalendarCountryById")),
+              "the exporter must read MT5's economic calendar (Calendar* API)")
+        check('InpFile        = "the5ers_red_news.csv"' in ex,
+              "the exporter must default to the file name the engines read")
+        check("CALENDAR_IMPORTANCE_HIGH" in ex, "the exporter must filter by importance")
+        check("FILE_WRITE | FILE_TXT | FILE_ANSI" in ex,
+              "the exporter must write ANSI text (the engine reads FILE_ANSI)")
+        check('StringReplace(stamp, " ", ",")' in ex and
+              'stamp + "," + cc + ",HIGH\\r\\n"' in ex,
+              "the exporter must emit date,time,currency,HIGH rows")
+        check("#include" not in ex, "the exporter must stay self-contained (no engine headers)")
+        check("the5ers_red_news.csv" in ex and "3109" in ex,
+              "the exporter must name the file and the engines that need it")
+    tmpl_p = REPO / "validation" / "mt5_harness" / "files" / "the5ers_red_news.csv.template"
+    check(tmpl_p.exists(), "the hand-fill calendar template is missing")
+    if tmpl_p.exists():
+        t = tmpl_p.read_text(encoding="utf-8")
+        check(t.splitlines()[0].strip() == "date,time,currency,impact",
+              "the template's first line must be the engine's header")
+    readme_txt = (HERE / "README.md").read_text(encoding="utf-8")
+    check("ExportRedNews" in readme_txt,
+          "the portfolio README must point at the calendar exporter")
+
     # 13f - syntax portability: NO adjacent string literals -------------------
     # MQL5's acceptance of implicitly concatenated string literals is the one
     # construct this repository could never verify (no compiler here), so it is
@@ -565,11 +617,12 @@ def report() -> int:
     print("     build/ is current | originals untouched (sha256) | 65 classes, %d inputs" % consts)
     print("     registry complete | state coverage complete | repo checkers clean")
     manifest = json.loads((BUILD / "portfolio_manifest.json").read_text(encoding="utf-8"))
-    truncated = [(e["magic"], len(e["symbols"])) for e in manifest["entries"]
-                 if len(e["symbols"]) > 8]
-    if truncated:
-        print("     NOTE: EA_MAX_SYMBOLS caps an engine at 8 symbols - truncated universes: %s"
-              % ", ".join(f"{m} lists {n}" for m, n in truncated))
+    widest = max((len(e["symbols"]), e["magic"]) for e in manifest["entries"])
+    sym_cap = int(re.search(r"#define\s+EA_MAX_SYMBOLS\s+(\d+)",
+                            (REPO / "MQL5_Master" / "Include" / "EACore.mqh")
+                            .read_text(encoding="utf-8")).group(1))
+    print("     no universe is truncated (cap %d >= widest universe %d, magic %d)"
+          % (sym_cap, widest[0], widest[1]))
     print("     per-strategy switches + tags + registry/docs/engines.csv verified")
     print("     trader boundary (no dashboard/files) + tracker read-only checks verified")
     print("     NOT verified here: MQL5 compilation (needs MetaEditor on Windows)")

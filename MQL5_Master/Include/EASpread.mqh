@@ -23,7 +23,7 @@
 #define EA_SPREAD_MQH
 
 //--- Symbols tracked per program.  One EA per program uses at most
-//--- EA_MAX_SYMBOLS (8) slots; the portfolio host runs 65 engines in one
+//--- EA_MAX_SYMBOLS (10) slots; the portfolio host runs 65 engines in one
 //--- program and the book spans 19 symbols, so 16 slots silently left the last
 //--- symbols without spread/slippage baselines (their gates then fail open).
 //--- 32 covers the book with headroom; the rings cost ~1.5 MB.

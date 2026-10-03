@@ -41,6 +41,31 @@ concatenation, never as two adjacent literals: adjacency is the one MQL5
 construct the Linux side could not verify, so the verifier now bans it outright
 (0 occurrences in the host, the tracker and all five headers).
 
+## Stage 0b — build the news calendar (once)
+
+Six delivered engines (3102, 3104, 3105, 3106, 3107, 3109) ship the red-folder
+gate **fail-closed**: without `MQL5\Files\the5ers_red_news.csv` they take no new
+entries at all — in the tester that shows up as a FAIL row with zero trades, which
+looks like a broken strategy rather than a missing file.  Build it before Stage 1:
+
+```powershell
+# copy the exporter into the terminal, then (MetaEditor) compile it and run it:
+copy MQL5_Master\Scripts\ExportRedNews.mq5 "<data>\MQL5\Scripts\"
+& $me /compile:"<data>\MQL5\Scripts\ExportRedNews.mq5" /log
+# then drag ExportRedNews onto any chart once - it writes
+#   <data>\MQL5\Files\the5ers_red_news.csv  from the terminal's own calendar
+```
+
+It only reads the economic calendar and writes that one file (never trades).  The
+format is the engine's: `date,time,currency,impact` (`2026.10.02,13:30,USD,HIGH`,
+UTC, `HIGH` or a number ≥ 2, currency matched against the engine's symbol list,
+`ALL` for every symbol).  No calendar at your broker?  The runner-up is the
+hand-fill template `validation\mt5_harness\files\the5ers_red_news.csv.template`;
+the fallback is to untick those six engines.
+
+The Strategy Tester reads the same `MQL5\Files`, so one export serves both the
+sweep and the live/demo charts.
+
 ## Stage 1 — headless sweep of all 65 (the answer to "how do I even run 65?")
 
 ```bash
