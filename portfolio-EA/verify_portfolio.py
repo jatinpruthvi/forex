@@ -740,6 +740,47 @@ def main() -> int:
     check("if(IsCalendarStale())" in nm2 and "blocking new entries (fail closed)" in nm2,
           "the gate must fail closed while the live calendar is stale (calendar upkeep)")
     triad = (REPO / "MQL5_Master" / "Experts" / "Master_Triad_V1.mq5").read_text(encoding="utf-8")
+    # 13l - live news horizon: the terminal calendar is the live source ------
+    # The FF file is "this week" only (Sunday..Saturday), so a gate driven by it
+    # cannot see the next week's releases; the terminal's own calendar carries
+    # every scheduled event NEWS_CAL_FUTURE_DAYS ahead, in server time, with no
+    # WebRequest whitelist.  Guard the source order and the safety rules.
+    check(re.search(r"#define\s+NEWS_CAL_PAST_DAYS\s+2", nm2) is not None and
+          re.search(r"#define\s+NEWS_CAL_FUTURE_DAYS\s+30", nm2) is not None,
+          "NewsManager must define the terminal-calendar window 2/30 days")
+    check("bool      LoadFromTerminalCalendar();" in nm2 and
+          "bool CNewsManager::LoadFromTerminalCalendar()" in nm2,
+          "NewsManager must expose the terminal-calendar source")
+    cal = (nm2[nm2.index("bool CNewsManager::LoadFromTerminalCalendar()"):nm2.index("bool CNewsManager::DownloadAndParse()")]
+           if "bool CNewsManager::LoadFromTerminalCalendar()" in nm2 and "bool CNewsManager::DownloadAndParse()" in nm2 else "")
+    check("if(MQLInfoInteger(MQL_TESTER)) return false;" in cal,
+          "the terminal calendar must refuse in the Strategy Tester (no data there)")
+    check("CalendarValueHistory(values, from, to, NULL, NULL)" in cal and
+          "CalendarEventById(values[i].event_id, ev)" in cal and
+          "ev.importance != CALENDAR_IMPORTANCE_HIGH" in cal,
+          "the calendar loader must keep only red-folder events (the engine's rule)")
+    check("CalendarCountryById(ev.country_id, country)" in cal,
+          "the event's currency must come from its country record")
+    check("fresh[size].server_time = values[i].time;" in cal,
+          "calendar stamps are already server time - stored as-is, never shifted")
+    check("if(kept <= 0) return false;" in cal and "m_events untouched" in cal,
+          "an empty calendar result is a failure and must not wipe the committed list")
+    check("ArrayResize(m_events, kept)" in cal and "FILE_WRITE" not in cal,
+          "commit-on-success; the calendar path must not rewrite the FF CSV")
+    check("m_loadOk = true;" in cal and "m_loadedAt = TimeCurrent();" in cal,
+          "a calendar load must arm the gate and stamp the upkeep clock")
+    check("if(LoadFromTerminalCalendar()) return true;" in nm2 and
+          "terminal calendar unavailable - using the ForexFactory weekly file." in nm2,
+          "live must prefer the calendar, with the FF download as the fallback")
+    check("Strategy Tester - live sources unavailable, loading from CSV." in nm2 and
+          nm2.index("if(LoadFromTerminalCalendar()) return true;") < nm2.index("WebRequest("),
+          "the tester path must go to the CSV, and the calendar must be tried before the download")
+    check("m_events[size].server_time = event_time;" in nm2,
+          "the CSV path must store the SHIFTED server time under the truthful field name")
+    stripped_nm2 = re.sub(r"/\*.*?\*/", "", nm2, flags=re.S)
+    stripped_nm2 = re.sub(r"//[^\n]*", "", stripped_nm2)
+    check("utc_time" not in stripped_nm2,
+          "the NewsEvent field must be named for the frame it holds (server time)")
     check("    if(CheckPointer(NewsManager) != POINTER_INVALID) NewsManager.RefreshIfStale();" in triad,
           "the EA must run the upkeep from its 1-second OnTimer (calendar upkeep)")
     check("NewsManager.RefreshIfStale()" in triad and

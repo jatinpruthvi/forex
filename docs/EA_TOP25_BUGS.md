@@ -47,7 +47,7 @@ a narrower window. `P3` = hygiene.
 | 21 | the resolved server offset is logged once, implausible values are an error |
 | 22 | tracker limits documented (closed-only verdicts; entry-commission edge) |
 
-**Also closed this pass:** the calendar-upkeep finding from the audit (the news module used to load once per chart and never refresh) - see `docs/EA_BUG_AUDIT.md`, "Calendar upkeep".
+**Also closed this pass:** the two news findings from the audit - the calendar used to load once per chart and never refresh, and the live gate could only see the FF file's "this week" horizon; it now maintains itself on the timer and prefers the terminal's own calendar (30 days ahead) with the FF download as fallback.  See `docs/EA_BUG_AUDIT.md`, "Calendar upkeep and live horizon".
 
 **Still owner/Windows-side (nothing to fix in code):** #23 compile,
 #24 tester sweep, #25 demo run.

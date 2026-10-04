@@ -720,9 +720,10 @@ the owner, not defects):
 * ~~`NewsManager` keeps only `impact == "High"` — a case-sensitive comparison~~
   — **FIXED** in the top-25 pass (#7): both load paths trim and lowercase the
   impact before comparing.
-* The FF file is `ff_calendar_thisweek.xml` — "this week" only, so the module
-  cannot see month-end events at all, and `WebRequest` needs the URL whitelisted
-  in terminal options plus a reachable internet connection at init.
+* ~~The FF file is `ff_calendar_thisweek.xml` — "this week" only~~ — **FIXED
+  2026-10-04** (live horizon, below): live mode now prefers the terminal's own
+  calendar, which carries every scheduled event up to `NEWS_CAL_FUTURE_DAYS`
+  ahead; the FF download is the fallback and still needs the URL whitelisted.
 * The struct field is named `utc_time` but holds broker server time (naming
   only; the values are correct for their consumer).
 * The sentinel row `2030.01.01 00:00, ALL, COVERAGE` is only a completeness
@@ -853,10 +854,32 @@ deliberate code leak while ignoring the legacy names in prose. Still unverified:
 **nothing has been compiled** (#23) and no tester sweep has run (#24) - the two
 Windows-side items that remain.
 
-## Calendar upkeep — fixed after the owner's review, 2026-10-04
+## Calendar upkeep and live horizon — fixed after the owner's review, 2026-10-04
 
 The owner asked the right question about the bullet above ("do I have to re-init
-the chart every week?").  No: the module now maintains its own calendar.
+the chart every week?").  No: the module now maintains its own calendar, and the
+live gate no longer depends on the weekly file's seven-day horizon.
+
+**Live horizon.**  `CNewsManager::LoadFromTerminalCalendar()` reads the
+terminal's own economic calendar (`CalendarValueHistory` over
+`NEWS_CAL_PAST_DAYS` = 2 to `NEWS_CAL_FUTURE_DAYS` = 30 days, mirroring the
+engine family's window), keeps `CALENDAR_IMPORTANCE_HIGH` events, takes each
+event's currency from its country record (no resolvable currency → `ALL`, the
+fail-closed reading), and stores `values[i].time` **as-is** — calendar stamps are
+already trade-server time, the frame the gate compares against, so nothing is
+shifted.  `DownloadAndParse()` tries this source first in live mode and falls
+back to the FF download (whose error message and `WebRequest` requirement are
+unchanged); in the Strategy Tester it goes straight to the CSV, because neither
+live source works there.  A calendar that returns values but keeps zero
+high-impact events is treated as a failure so the fallback still runs, and the
+committed event list is only replaced once a load succeeds — a failed attempt
+cannot leave an armed-but-empty gate behind.  When the calendar supplies the
+events the FF CSV is deliberately **not** rewritten (the file's NY-local
+convention must not be mixed with server-time values); `ExportRedNews.mq5`
+remains the way to build a backtest file.
+
+The field name `utc_time` was corrected to `server_time` in the same pass — the
+audit's "naming only" note: the values were always server time.
 
 * `CNewsManager::RefreshIfStale()` is called from the master's 1-second
   `OnTimer` **before** the risk gate, so weekends and breaker-frozen periods
@@ -873,9 +896,10 @@ the chart every week?").  No: the module now maintains its own calendar.
   live-mode concept only: in the tester and in replays `TimeCurrent()` is
   simulated history, so the CSV is simply what it is.
 
-Guarded by 14 new verifier checks (1 878 -> 1 893) and 6 new tests
-(`tests/test_triad_fixes.py`, 22 total), including the weekend scenario and the
-backoff; reverting the two files fails 15 checks and 6 tests.
+Guarded by 27 new verifier checks (1 878 -> 1 906) and 13 new tests
+(`tests/test_triad_fixes.py`, 29 total), including the weekend scenario, the
+backoff, the horizon window and the commit-on-success rule; reverting the two
+files fails 34 checks and 10 tests.
 
 ## Verification after the fixes
 

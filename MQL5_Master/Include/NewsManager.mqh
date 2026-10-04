@@ -12,10 +12,19 @@
 #define NEWS_CSV_REFRESH_HOURS     1    // file mode: re-read the CSV (matches the 65-engine family's hourly stamp)
 #define NEWS_STALE_BLOCK_HOURS    48    // live: block new entries after this long without a successful refresh
 #define NEWS_REFRESH_RETRY_MINUTES 15   // after a FAILED attempt wait this long (never a per-tick retry)
+//--- terminal-calendar window (mirrors the engine family's 2 / 30 days).  The
+//--- FF weekly file only covers Sunday..Saturday, so live gating used to be
+//--- blind to everything beyond the current week; the terminal calendar carries
+//--- every scheduled release weeks ahead and its stamps are already server time.
+#define NEWS_CAL_PAST_DAYS          2
+#define NEWS_CAL_FUTURE_DAYS       30
 
 struct NewsEvent
 {
-    datetime utc_time;
+    //--- broker SERVER time - the frame the gate compares against TimeCurrent().
+    //--- It said `utc_time` while holding server time (audit: naming only, the
+    //--- values were right for their consumer); the name now tells the truth.
+    datetime server_time;
     string   currency;
     string   title;
     string   impact;
@@ -53,6 +62,7 @@ public:
              
     bool      DownloadAndParse();
     bool      LoadFromCSV();
+    bool      LoadFromTerminalCalendar();   // the terminal's own calendar (live only)
     bool      IsNewsBlockActive(string symbol);
     bool      RefreshIfStale();     // called from the EA's OnTimer - re-loads when due
     bool      IsCalendarStale() const;
@@ -231,6 +241,98 @@ long NewsServerShiftSeconds(const datetime nyLocalTime, const int fallbackHours)
 }
 
 //+------------------------------------------------------------------+
+//| Load from the terminal's own economic calendar                     |
+//|                                                                    |
+//| The better LIVE source, and the fix for the audit's horizon note:  |
+//| the FF file is `ff_calendar_thisweek.xml` - Sunday..Saturday only, |
+//| so a gate driven by it cannot see the next week's releases at all. |
+//| The terminal calendar carries every scheduled event NEWS_CAL_       |
+//| FUTURE_DAYS ahead, needs no WebRequest whitelist, and its stamps    |
+//| are already in trade-server time (the frame the gate uses).        |
+//|                                                                    |
+//| Unavailable in the Strategy Tester (the calendar API serves no      |
+//| data there) - the caller falls back to the FF file / CSV.  "Loaded  |
+//| but zero high-impact events" is treated as a failure so the        |
+//| fallback still runs instead of silently arming an empty gate.       |
+//|                                                                    |
+//| When this source supplies the events the FF CSV is deliberately     |
+//| NOT rewritten: Scripts\ExportRedNews.mq5 is the way to build a     |
+//| backtest file, and the file's NY-local convention must not be       |
+//| mixed with server-time values.                                     |
+//+------------------------------------------------------------------+
+bool CNewsManager::LoadFromTerminalCalendar()
+{
+    if(MQLInfoInteger(MQL_TESTER)) return false;      // no calendar data in the tester
+
+    datetime now  = TimeCurrent();
+    datetime from = now - (datetime)((long)NEWS_CAL_PAST_DAYS * 86400);
+    datetime to   = now + (datetime)((long)NEWS_CAL_FUTURE_DAYS * 86400);
+
+    MqlCalendarValue values[];
+    ResetLastError();
+    int n = CalendarValueHistory(values, from, to, NULL, NULL);
+    if(n <= 0)
+    {
+        Print("NEWS MANAGER: terminal calendar returned no values (count ", n,
+              ", err ", GetLastError(), ").");
+        return false;
+    }
+
+    //--- build into a LOCAL list and only commit it on success: a calendar that
+    //--- turns out unusable must not have wiped the events a previous load left
+    //--- in memory (the caller may still fall back, and a failed fallback would
+    //--- otherwise leave an armed-but-empty gate behind)
+    NewsEvent fresh[];
+    int kept = 0, unknownCcy = 0;
+    datetime newest = 0;
+    for(int i = 0; i < n; i++)
+    {
+        MqlCalendarEvent ev;
+        if(!CalendarEventById(values[i].event_id, ev)) continue;
+        if(ev.importance != CALENDAR_IMPORTANCE_HIGH) continue;   // red-folder rule
+
+        string cc = "ALL";
+        MqlCalendarCountry country;
+        if(CalendarCountryById(ev.country_id, country) && StringLen(country.currency) > 0)
+            cc = country.currency;
+        else
+            unknownCcy++;               // no resolvable currency -> ALL (fail closed)
+
+        int size = ArraySize(fresh);
+        ArrayResize(fresh, size + 1);
+        fresh[size].server_time = values[i].time;      // already server time
+        fresh[size].currency    = cc;
+        fresh[size].impact      = "High";
+        fresh[size].title       = ev.name;
+        if(values[i].time > newest) newest = values[i].time;
+        kept++;
+    }
+
+    if(kept <= 0) return false;         // m_events untouched - the caller falls back
+
+    ArrayResize(m_events, kept);
+    for(int i = 0; i < kept; i++)
+    {
+        m_events[i].server_time = fresh[i].server_time;
+        m_events[i].currency    = fresh[i].currency;
+        m_events[i].impact      = fresh[i].impact;
+        m_events[i].title       = fresh[i].title;
+    }
+
+    m_loadOk = true;
+    m_loadedAt = TimeCurrent();
+    m_warnedStale = false;
+    m_warnedNoCalendar = false;
+    m_warnedEmptyWeek = false;
+    if(unknownCcy > 0)
+        Print("NEWS MANAGER WARNING: ", unknownCcy,
+              " event(s) had no resolvable currency and are treated as ALL.");
+    Print("NEWS MANAGER: terminal calendar loaded ", kept, " high-impact event(s), ",
+          TimeToString(now, TIME_DATE), " .. ", TimeToString(newest, TIME_DATE), " (server time).");
+    return true;
+}
+
+//+------------------------------------------------------------------+
 //| Download and Parse XML from ForexFactory                         |
 //+------------------------------------------------------------------+
 bool CNewsManager::DownloadAndParse()
@@ -240,6 +342,19 @@ bool CNewsManager::DownloadAndParse()
         Print("NEWS MANAGER: Live News Download Bypassed (Backtest Mode Active). Attempting to load from CSV.");
         return LoadFromCSV();
     }
+
+    //--- backtests cannot download (WebRequest is unavailable in the tester)
+    //--- and the calendar API has no data there: the CSV is the only source
+    if(MQLInfoInteger(MQL_TESTER))
+    {
+        Print("NEWS MANAGER: Strategy Tester - live sources unavailable, loading from CSV.");
+        return LoadFromCSV();
+    }
+
+    //--- live: the terminal calendar first - it has the horizon the weekly FF
+    //--- file cannot (see LoadFromTerminalCalendar)
+    if(LoadFromTerminalCalendar()) return true;
+    Print("NEWS MANAGER: terminal calendar unavailable - using the ForexFactory weekly file.");
     
     string url="https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
     char post[], result[];
@@ -352,7 +467,7 @@ bool CNewsManager::LoadFromCSV()
         
         int size = ArraySize(m_events);
         ArrayResize(m_events, size + 1);
-        m_events[size].utc_time = event_time;
+        m_events[size].server_time = event_time;
         m_events[size].currency = currency;
         m_events[size].impact = impact;
         m_events[size].title = title;
@@ -437,7 +552,7 @@ bool CNewsManager::IsNewsBlockActive(string symbol)
         if(m_events[i].currency == "ALL" || m_events[i].currency == base || m_events[i].currency == quote || (m_events[i].currency == "USD" && (base == "XAU" || base == "GOLD")))
         {
             // Time distance in seconds
-            long diff = (long)m_events[i].utc_time - (long)current_time;
+            long diff = (long)m_events[i].server_time - (long)current_time;
             
             // If the event is in the future, check if we are within the 'Before' block
             if(diff > 0 && diff <= (m_blockMinutesBefore * 60))

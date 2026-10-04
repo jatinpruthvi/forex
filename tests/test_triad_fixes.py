@@ -400,3 +400,82 @@ class CalendarUpkeepTests(unittest.TestCase):
         self.assertLess(triad.index("NewsManager.RefreshIfStale()"),
                         triad.index("if(!RiskGovernor.IsTradingAllowed()) return;"),
                         "weekend/frozen ticks must still refresh the calendar")
+
+
+# ------------------------------------------------------- news horizon --------
+# The FF file is `ff_calendar_thisweek.xml` - Sunday..Saturday only (the audit's
+# horizon note), so live gating used to be blind to everything beyond the current
+# week.  The fix prefers the terminal's own calendar (all scheduled events,
+# server-time stamps, no WebRequest whitelist) and keeps the FF download as the
+# fallback; the Strategy Tester falls back to the CSV for both.
+
+def _calendar_keep(values):
+    """Mirror of the keep rule in LoadFromTerminalCalendar()."""
+    fresh = []
+    for v in values:
+        if v["importance"] != "HIGH":
+            continue
+        fresh.append({"time": v["time"], "currency": v.get("currency") or "ALL"})
+    return fresh
+
+
+class NewsHorizonTests(unittest.TestCase):
+    def test_the_window_matches_the_engine_family(self):
+        src = _newsman_src()
+        self.assertEqual(_define(src, "NEWS_CAL_PAST_DAYS"), 2)
+        self.assertEqual(_define(src, "NEWS_CAL_FUTURE_DAYS"), 30)
+        now = 1_700_000_000
+        self.assertEqual(now + _define(src, "NEWS_CAL_FUTURE_DAYS") * 86_400, now + 30 * 86_400,
+                         "the horizon must reach well past the FF weekly file")
+
+    def test_only_red_folder_events_are_kept(self):
+        kept = _calendar_keep([{"importance": "HIGH", "currency": "USD", "time": 1},
+                               {"importance": "MEDIUM", "currency": "USD", "time": 2},
+                               {"importance": "LOW", "currency": "USD", "time": 3}])
+        self.assertEqual(len(kept), 1, "only CALENDAR_IMPORTANCE_HIGH may arm the gate")
+
+    def test_an_unresolvable_currency_fails_closed(self):
+        kept = _calendar_keep([{"importance": "HIGH", "currency": None, "time": 1}])
+        self.assertEqual(kept[0]["currency"], "ALL",
+                         "an event with no resolvable currency must block, not be ignored")
+
+    def test_an_empty_calendar_is_a_failure_not_a_quiet_week(self):
+        src = _newsman_src()
+        cal = src[src.index("bool CNewsManager::LoadFromTerminalCalendar()"):
+                  src.index("bool CNewsManager::DownloadAndParse()")]
+        self.assertIn("if(kept <= 0) return false;", cal,
+                      "zero kept events must fall through to the FF/CSV path")
+        self.assertIn("m_events untouched", cal,
+                      "and it must not have wiped the previously committed list")
+        self.assertLess(cal.index("if(kept <= 0) return false;"), cal.index("ArrayResize(m_events, kept)"),
+                        "the commit must happen only after the success check")
+
+    def test_the_calendar_path_stores_server_time_and_never_rewrites_the_csv(self):
+        src = _newsman_src()
+        cal = src[src.index("bool CNewsManager::LoadFromTerminalCalendar()"):
+                  src.index("bool CNewsManager::DownloadAndParse()")]
+        self.assertIn("fresh[size].server_time = values[i].time;", cal,
+                      "calendar stamps are server time already - never shifted")
+        self.assertNotIn("NewsServerShiftSeconds", cal,
+                         "the NY->server shift belongs to the FF path only")
+        self.assertNotIn("FILE_WRITE", cal,
+                         "the calendar path must not rewrite the FF CSV (NY-local convention)")
+        self.assertIn("if(MQLInfoInteger(MQL_TESTER)) return false;", cal,
+                      "no calendar data in the Strategy Tester")
+
+    def test_live_prefers_the_calendar_and_the_tester_goes_to_csv(self):
+        src = _newsman_src()
+        dl = src[src.index("bool CNewsManager::DownloadAndParse()"):
+                 src.index("bool CNewsManager::LoadFromCSV()")]
+        self.assertIn("if(LoadFromTerminalCalendar()) return true;", dl)
+        self.assertLess(dl.index("if(LoadFromTerminalCalendar()) return true;"), dl.index("WebRequest("),
+                        "the calendar must be tried before the weekly download")
+        self.assertIn("Strategy Tester - live sources unavailable, loading from CSV.", dl,
+                      "the tester cannot use either live source")
+
+    def test_the_event_field_is_named_for_the_frame_it_holds(self):
+        src = _newsman_src()
+        code = re.sub(r"//[^\n]*", "", src)
+        self.assertIn("datetime server_time;", code)
+        self.assertNotIn("utc_time", code,
+                         "the values were always server time - the field says so now")
