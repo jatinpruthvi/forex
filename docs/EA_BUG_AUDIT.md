@@ -757,6 +757,49 @@ the derived NY→server shift, and the seconds-precision auto offset), plus a
 positive control that neuters each of the three fixes and confirms the verifier
 fails.
 
+## Top-25 sweep — 2026-10-04 (owner request: "find top 25 high priority bugs")
+
+This pass went where the twelve earlier passes had not: the **second live EA**
+(`Master_Triad_V1.mq5` + `RiskGovernor.mqh` + `ExecutionManager.mqh` +
+`NewsManager.mqh` + `E1_SMC_Core.mqh` - not part of the 65-engine delivery), the
+launcher/preflight scripts, the harness tooling and the clock semantics. The
+ranked list with evidence (file:line) and recommended fixes is
+`docs/EA_TOP25_BUGS.md`; the headline findings:
+
+* **#1 (P0) the auto server-GMT offset is always 0 in the Strategy Tester** -
+  MT5 documents that `TimeGMT()` equals the simulated `TimeTradeServer()` there.
+  Delivered engine **3107** (`EA_THE5ERS_HIGH_STAKES_RESEARCH`) sets
+  `serverOffsetAuto = true`, so every backtest of it shifted the news window,
+  session windows and the London day anchor by the broker offset. Both helpers
+  now refuse the auto path in the tester and use the configured winter/EU-DST
+  rule (plus `tests/test_harness_scripts.py` pinning the policy).
+* **#2 (P0) the launcher matched expert names by substring** while four
+  delivered names are prefixes of another delivered EA (`round4_contestant_b`
+  vs `..._b__1_`, `round4_contestant_c` vs `..._c__1_`, `round5_contestant_a`
+  vs `..._a_2047`, `round5_contestant_b` vs `..._b_2048` - both of each pair in
+  `launch_plan.csv`): one of each pair was skipped as "already running" and
+  `STOP` could close the wrong chart. `ExpertKey()` now normalises path and
+  extension and all three call sites compare exactly.
+* **#3 (P0) the news frame was left set on the calendar fallback** - a calendar
+  that kept nothing left its server frame for the UTC CSV that followed
+  (regression from the previous pass, fixed and tested).
+* **Ten open defects** on the Triad path (risk-governor pending-order type,
+  magic-less heat/exposure, the `DetectLiquiditySweep()` stub, news fail-open
+  and unvalidated parsing, account-unsafe GVs, the breaker/day-rollover
+  contradiction, mirrored-setup asymmetry, chart-timeframe cooldown, dead DXY
+  handle, epoch-mod day start, ATR/range vintage) and four tooling defects
+  (`compile_all.ps1` log-text assumption, `parse_results.py` tie-break,
+  hardcoded preflight universe, synthesised `.tpl` risk) - each with a
+  recommended fix in the list.
+* **Two verification gaps dominate the residual risk**: nothing has been
+  compiled and no tester sweep has run. Five compile-blocking adjacent literals
+  were found in the last two passes, so the class is demonstrably live.
+
+Verification after the three fixes: verifier **OK - 1 846 checks** (new guards
+for the tester auto-offset, the launcher matcher and the news frame reset),
+checker 0 on the 65, arity 0/0, `--check` OK-65, `unittest discover tests` 222
+tests (1 documented pytest-loader artifact).
+
 ## Verification after the fixes
 
 | Check | Result |

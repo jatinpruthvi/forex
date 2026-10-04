@@ -223,7 +223,30 @@ def engine_blocked(event_ref: datetime, now_ref: datetime,
             <= now_ref <= event_ref + timedelta(minutes=after_min))
 
 
+def load_order_frame(calendar_kept: int, csv_first_row: str) -> str:
+    """Mirror of EA_LoadNewsCache's frame handling for the two sources."""
+    frame = "utc"                       # reset at the top of the load
+    if calendar_kept > 0:
+        return "server"                 # calendar supplied the events and returned
+    frame = "utc"                       # CSV path restarts the frame (the fix)
+    if csv_first_row.strip().lower().startswith("#timezone") and "server" in csv_first_row.lower():
+        frame = "server"
+    return frame
+
+
 class EngineGateFrameTests(unittest.TestCase):
+    def test_fallback_resets_the_frame(self):
+        # live, InpNewsCalendar=true, the broker's calendar returns nothing and the
+        # CSV is a hand-written UTC file: the gate must read it as UTC, not keep the
+        # calendar's server frame (that would shift every window by the broker GMT
+        # offset - defect #90 reintroduced through the new source).
+        self.assertEqual(load_order_frame(0, "date,time,currency,impact"), "utc")
+        self.assertEqual(load_order_frame(0, "2026.10.02,13:30,USD,HIGH"), "utc")
+        # an exported file declares its own frame and is honoured
+        self.assertEqual(load_order_frame(0, "#timezone=server,,,"), "server")
+        # a calendar that did supply events wins outright
+        self.assertEqual(load_order_frame(7, "date,time,currency,impact"), "server")
+
     def test_marker_rule(self):
         self.assertEqual(engine_frame("#timezone=server,,,"), "server")
         self.assertEqual(engine_frame("date,time,currency,impact"), "utc")

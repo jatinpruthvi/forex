@@ -580,6 +580,12 @@ def main() -> int:
     check('StringFind(d, "#timezone") == 0' in core and
           'StringFind(d, "server") > 0' in core,
           "the CSV loader must honour the #timezone=server marker")
+    check("if(kept > 0)\n      g_eaNewsServerFrame = true;" in core,
+          "the calendar must not leave its server frame set when it keeps nothing")
+    check("g_eaNewsServerFrame = false;" in
+          core[core.index("void EA_LoadNewsCache()"):core.index("int fh = FileOpen")],
+          "the CSV path must reset the frame before parsing the file (a calendar that "
+          "kept nothing must not leave its server frame set for a UTC CSV)")
     check("FAIL CLOSED" in core and "no calendar events and no CSV file configured" in core,
           "the fail-closed path must survive when neither source exists")
     # the host must offer the switch and set it per engine before the snapshot
@@ -614,6 +620,19 @@ def main() -> int:
     check("long EA_ServerGmtOffsetSeconds()" in core and
           "return (long)TimeTradeServer() - (long)TimeGMT();" in core,
           "the engine's auto server offset must be available at second precision (half-hour zones)")
+    # MT5 documented: in the tester TimeGMT() == simulated TimeTradeServer(), so the
+    # auto difference is always 0.  Both helpers must fall back to the configured rule.
+    check(core.count("g_eaCfg.serverOffsetAuto && !MQLInfoInteger(MQL_TESTER)") == 2,
+          "both server-offset helpers must refuse the auto path inside the Strategy Tester "
+          "(TimeGMT() == TimeTradeServer() there, so it would read 0)")
+    launcher = (REPO / "MQL5_Master" / "Scripts" / "PortfolioLauncher.mq5").read_text(encoding="utf-8")
+    check("string ExpertKey(const string expert)" in launcher and
+          launcher.count("ExpertKey(") >= 4,
+          "the launcher must normalise expert names (path/.ex5) instead of substring matching")
+    check("StringFind(exp, ea) >= 0 || StringFind(ea, exp) >= 0" not in launcher and
+          "StringFind(expert, rows[i].ea) >= 0" not in launcher,
+          "the launcher must not substring-match expert names (four delivered names are "
+          "prefixes of another delivered EA: one of each pair would be skipped)")
     utc_fn = core[core.index("datetime EA_ServerToUtc(const datetime serverTime)"):
                   core.index("datetime EA_UtcToLondon(")]
     check("EA_ServerGmtOffsetSeconds()" in utc_fn,

@@ -48,7 +48,7 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      1 841 static checks (freshness, hashes, policy, tags,
+├── verify_portfolio.py      1 846 static checks (freshness, hashes, policy, tags,
 │                              identifier hygiene, capacity, shared-engine state)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
@@ -231,7 +231,7 @@ Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 1 841 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 846 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
@@ -315,7 +315,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
   override + book caps. Enum types of the 6 engines that declare them are
   prefixed like every other per-engine identifier (defect #67).
-* `verify_portfolio.py` — **1 841/1 841 checks pass** (freshness, originals by
+* `verify_portfolio.py` — **1 846/1 846 checks pass** (freshness, originals by
   hash, switches, tags/wrappers, policy override, registry/engines.csv
   completeness, **one-file EA: every strategy inlined verbatim**, **identifier
   hygiene**: every emitted type exists, no top-level name twice, every

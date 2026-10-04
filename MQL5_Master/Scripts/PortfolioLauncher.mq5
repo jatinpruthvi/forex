@@ -122,13 +122,46 @@ int ReadPlan(SLaunchRow &rows[])
 }
 
 //+------------------------------------------------------------------+
+//| normalise an expert name: drop any folder path and .ex5/.mq5      |
+//| extension, so CHART_EXPERT_NAME compares exactly.                  |
+//|                                                                    |
+//| NOTE: substring matching is NOT safe here.  Four delivered EA      |
+//| names are prefixes of another delivered EA name                    |
+//| (round4_contestant_b vs ..._b__1_, round4_contestant_c vs          |
+//| ..._c__1_, round5_contestant_a vs ..._a_2047, round5_contestant_b  |
+//| vs ..._b_2048 - both of each pair are in the plan), so a           |
+//| substring test would treat the two as the same EA: one of the pair |
+//| would be skipped as "already running" and STOP could close the     |
+//| wrong chart.                                                       |
+//+------------------------------------------------------------------+
+string ExpertKey(const string expert)
+{
+   string k = expert;
+   int cut = StringFind(k, "\\");
+   while(cut >= 0)
+   {
+      k = StringSubstr(k, cut + 1);
+      cut = StringFind(k, "\\");
+   }
+   if(StringLen(k) > 4)
+   {
+      string tail = StringSubstr(k, StringLen(k) - 4);
+      StringToLower(tail);
+      if(tail == ".ex5" || tail == ".mq5") k = StringSubstr(k, 0, StringLen(k) - 4);
+   }
+   return k;
+}
+
+//+------------------------------------------------------------------+
 //| is `expert` the EA named in any plan row?                         |
 //+------------------------------------------------------------------+
 bool ExpertInPlan(const string expert, const SLaunchRow &rows[])
 {
    if(StringLen(expert) == 0) return false;
+   string key = ExpertKey(expert);
+   if(StringLen(key) == 0) return false;
    for(int i = 0; i < ArraySize(rows); i++)
-      if(StringFind(expert, rows[i].ea) >= 0 || StringFind(rows[i].ea, expert) >= 0)
+      if(ExpertKey(rows[i].ea) == key)
          return true;
    return false;
 }
@@ -145,7 +178,7 @@ long FindRunningChart(const string ea, const long exceptId)
       if(id != exceptId)
       {
          string exp = ChartGetString(id, CHART_EXPERT_NAME);
-         if(StringLen(exp) > 0 && (StringFind(exp, ea) >= 0 || StringFind(ea, exp) >= 0))
+         if(StringLen(exp) > 0 && ExpertKey(exp) == ExpertKey(ea))
             return id;
       }
       id = next;
@@ -308,7 +341,7 @@ void OnStart()
                         status = "NO_EXPERT_AFTER_APPLY";
                         failed++;
                      }
-                     else if(StringFind(expert, rows[i].ea) < 0)
+                     else if(ExpertKey(expert) != ExpertKey(rows[i].ea))
                      {
                         status = "ATTACHED_OTHER:" + expert;   // template name path mismatch
                         failed++;

@@ -404,8 +404,14 @@ bool EA_IsEuDst(const datetime utc)
 //--- server clock offset from GMT (hours), DST aware
 int EA_ServerGmtOffsetHours()
 {
-   //--- the doc rule: query MT5 server time, never hard-code the offset
-   if(g_eaCfg.serverOffsetAuto)
+   //--- the doc rule: query MT5 server time, never hard-code the offset.
+   //--- NOT IN THE TESTER: there TimeGMT() is always equal to the simulated
+   //--- TimeTradeServer() (MT5 documented behaviour), so the difference is
+   //--- always 0 and the auto path would silently claim "server == UTC" -
+   //--- shifting every news window, session window and London day anchor by
+   //--- the broker's real offset.  The configured winter/EU-DST path is the
+   //--- only usable one there (the modelled TimeCurrent() IS the broker clock).
+   if(g_eaCfg.serverOffsetAuto && !MQLInfoInteger(MQL_TESTER))
    {
       long diff = (long)TimeTradeServer() - (long)TimeGMT();
       return (int)MathRound((double)diff / 3600.0);
@@ -425,7 +431,9 @@ int EA_ServerGmtOffsetHours()
 //--- the configured path stays whole-hour, exactly as before.
 long EA_ServerGmtOffsetSeconds()
 {
-   if(g_eaCfg.serverOffsetAuto)
+   //--- same tester caveat as EA_ServerGmtOffsetHours(): the two clocks are the
+   //--- same function there, so the live difference would be 0
+   if(g_eaCfg.serverOffsetAuto && !MQLInfoInteger(MQL_TESTER))
       return (long)TimeTradeServer() - (long)TimeGMT();
    return (long)EA_ServerGmtOffsetHours() * 3600;
 }
@@ -598,8 +606,9 @@ bool EA_LoadCalendarNews()
       g_eaNewsTimes[kept] = values[i].time;                     // server time
       kept++;
    }
-   g_eaNewsCount      = kept;
-   g_eaNewsServerFrame = true;                                  // calendar times are server time
+   g_eaNewsCount = kept;
+   if(kept > 0)
+      g_eaNewsServerFrame = true;                               // calendar times are server time
    EA_Log(EA_LOG_EVENTS, StringFormat("economic calendar: %d high-impact event(s) kept for %s",
           kept, g_eaCfg.symbols));
    return (kept > 0);
@@ -634,7 +643,11 @@ void EA_LoadNewsCache()
          EA_Log(EA_LOG_EVENTS, "news: no calendar events - falling back to the CSV file");
    }
 
-   //--- 2. the CSV (also the tester path, and the delivered default)
+   //--- 2. the CSV (also the tester path, and the delivered default).
+   //--- The frame restarts here: a calendar that supplied nothing must not leave
+   //--- its server-time frame set for a CSV that is UTC by default (and a CSV
+   //--- that IS server time says so with its own #timezone marker below).
+   g_eaNewsServerFrame = false;
    if(g_eaCfg.newsFile == "")
    {
       if(g_eaCfg.newsFailClosed)
