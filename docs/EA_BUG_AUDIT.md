@@ -665,16 +665,37 @@ so every hand-written file and every older export behaves exactly as before.
 The frame is cached per engine (`g_eaNewsServerFrame`, part of the snapshot) and
 both consumers derive their "now" from `EA_NewsNowRef()`.
 
-**Defect #91 — `NewsManager.mqh` shifted ForexFactory times by a fixed winter
-offset.** The FF feed stamps events in New York local time. `LoadFromCSV` added
-`m_brokerUtcOffset * 3600` (default 7 = server+2 − NY−5) — calibrated on EST.
-New York observes daylight saving for ~8 months of the year (EDT, UTC−4), during
-which the true offset is one hour smaller, so **the whole summer every blocked
-window sat one hour off the release** — for a 30-minute window that can mean
-missing the event altogether. Fix, at the source: `IsNewYorkDst()` (second
-Sunday of March 02:00 → first Sunday of November 02:00 local, computed with
-`MqlDateTime::day_of_week`) and the offset is reduced by one hour while New York
-is on daylight time. The `m_brokerUtcOffset` input stays the calibration knob.
+**Defect #91 — `NewsManager.mqh` shifted ForexFactory times by a fixed offset.**
+The FF feed stamps events in New York local time. `LoadFromCSV` added a constant
+`m_brokerUtcOffset` hours (default 7 = server+2 − NY−5), calibrated on winter.
+That is only right while the broker's UTC offset and New York's move together.
+On a **fixed-offset** server (no DST, or non-EU DST) it is an hour off for the
+~8 months New York is on daylight time; on the common **EET/EEST** server
+(+2/+3) it is exact in summer but an hour early during the two mismatch weeks
+each year (US DST ~2 weeks ahead of the EU in March, ~a week behind in
+October/November) *and* in winter when the server does not shift, and on a
+**half-hour** server it is wrong by 30 minutes all year. A 30-minute block can
+miss the release entirely. Fix, at the source: `NewsServerShiftSeconds()` now
+derives the shift as `server_offset − ny_offset` for the event's own date, with
+`server_offset` read live from `TimeTradeServer() − TimeGMT()` (the same clocks
+the engine uses) and `ny_offset` from `IsNewYorkDst()` (second Sunday of March
+02:00 → first Sunday of November 02:00 local). `m_brokerUtcOffset` stays as the
+fallback used only when the terminal clocks are unusable. **Self-correction:** a
+first cut of this fix (offset − 1 h while NY is on DST) was itself wrong — on an
+EET/EEST broker it left every summer window an hour early, because the delivered
+constant had been right there. The delivered-constant → derived-shift
+replacement is exact for all four broker models; the corrected reasoning is
+pinned by `tests/test_news_timeframes.py` (see below).
+
+**Engine clock improvement — sub-hour server offsets.** `EA_ServerToUtc` used
+`EA_ServerGmtOffsetHours()`, which rounds `TimeTradeServer() − TimeGMT()` to
+whole hours, so an automatically-detected GMT+5:30 server was treated as +6 and
+every UTC conversion was 30 minutes off. New `EA_ServerGmtOffsetSeconds()`
+returns the exact difference in the auto path (whole-hour in the configured
+path, where the inputs are whole-hour by design) and `EA_ServerToUtc` /
+`EA_ClockToServer` use it. The news gate converts "now" through
+`EA_ServerToUtc`, so this was also a 30-minute error in every news window on
+such a broker.
 
 **Suggestion implemented — a live calendar source with CSV fallback.**
 The engine family was CSV-only, so live gating depended on someone exporting a
@@ -709,11 +730,32 @@ the owner, not defects):
 * The sentinel row `2030.01.01 00:00, ALL, COVERAGE` is only a completeness
   marker; nothing in the engine reads it.
 
+**Verification.** `verify_portfolio.py` **OK - 1 841 checks** (the news guards and
+the Scripts adjacency sweep included), `tests/test_news_timeframes.py` **10 new tests**.
+
+**Tests.** `tests/test_news_timeframes.py` mirrors both translations in Python
+and pins them against real dates: the marker rule and the fail-closed path, the
+#90 scenario (a 16:30 server stamp read as UTC leaves the gate open 25 minutes
+before a 13:30 UTC release and closes it 2.5 h late), the four broker models
+over the year, the real US/EU DST transition dates, the mismatch weeks, and the
+half-hour rounding. It also records why the delivered constant and the first-cut
+DST guess each fail on a different broker model.
+
+**Also fixed while sweeping this path: five implicitly concatenated string
+literals** — three in `Scripts/ExportRedNews.mq5` (introduced by the previous two
+requests) and two in `Scripts/UniversePreflight.mq5`. MQL5 rejects adjacent
+string literals, so both scripts would have failed to compile. The verifier's
+adjacency guard (13f) had covered the host, the tracker, the headers and — since
+the previous pass — the 65 generated EAs, but not `Scripts/`; the sweep now
+covers every authored file (host, tracker, headers, scripts), and a scan of all
+91 MQL5 files in the tree reports zero.
+
 `verify_portfolio.py` gained permanent guards for all of this (calendar source
 with its tester guard, frame flag set, frame-aware gate, `#timezone` marker in
 both loader and exporter, fail-closed path, host wiring order, README coverage,
-and the `IsNewYorkDst` fix), plus a positive control that neuters each of the
-three fixes and confirms the verifier fails.
+the derived NY→server shift, and the seconds-precision auto offset), plus a
+positive control that neuters each of the three fixes and confirms the verifier
+fails.
 
 ## Verification after the fixes
 

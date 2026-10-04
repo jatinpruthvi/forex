@@ -602,10 +602,22 @@ def main() -> int:
     # stamps ForexFactory rows in New York local time and shifted them by a fixed
     # winter-calibrated offset: every blocked window sat an hour off all summer.
     nm = (REPO / "MQL5_Master" / "Include" / "NewsManager.mqh").read_text(encoding="utf-8")
-    check("bool IsNewYorkDst(" in nm and "if(IsNewYorkDst(event_time)) offsetHours -= 1;" in nm,
-          "NewsManager's New York offset must follow US daylight saving (one hour all summer)")
+    check("bool IsNewYorkDst(" in nm and "long NewsServerShiftSeconds(" in nm and
+          "(long)TimeTradeServer() - (long)TimeGMT()" in nm,
+          "NewsManager must read the broker's UTC offset from the terminal clocks (NY DST aware)")
+    check("NewsServerShiftSeconds(event_time, m_brokerUtcOffset)" in nm and
+          "offsetHours -= 1" not in nm,
+          "the New York -> server shift must be the derived one (a fixed DST guess is "
+          "wrong for EET/EEST brokers and for fixed-offset brokers)")
     check("m_brokerUtcOffset" in nm,
-          "NewsManager's broker-offset input must stay the calibration knob")
+          "NewsManager's broker-offset input must stay the fallback knob")
+    check("long EA_ServerGmtOffsetSeconds()" in core and
+          "return (long)TimeTradeServer() - (long)TimeGMT();" in core,
+          "the engine's auto server offset must be available at second precision (half-hour zones)")
+    utc_fn = core[core.index("datetime EA_ServerToUtc(const datetime serverTime)"):
+                  core.index("datetime EA_UtcToLondon(")]
+    check("EA_ServerGmtOffsetSeconds()" in utc_fn,
+          "EA_ServerToUtc must use the second-precision offset (the news gate converts through it)")
 
     # 13f - syntax portability: NO adjacent string literals -------------------
     # MQL5's acceptance of implicitly concatenated string literals is the one
@@ -613,10 +625,13 @@ def main() -> int:
     # banned outright: every multi-line message is joined with an explicit '+'.
     # (Found in 14 places across the host template, the headers and the tracker.)
     adj = re.compile(r'"[^"\n]*"\s*\n\s*"')
-    for path, text in ((BUILD / "AllEnginesEA.mq5", host),
-                       (HERE / "src" / "PortfolioEA.mq5", tracker),
-                       *((h, h.read_text(encoding="utf-8")) for h in
-                         sorted((REPO / "MQL5_Master" / "Include").glob("*.mqh")))):
+    authored = ((BUILD / "AllEnginesEA.mq5", host),
+                (HERE / "src" / "PortfolioEA.mq5", tracker),
+                *((h, h.read_text(encoding="utf-8")) for h in
+                  sorted((REPO / "MQL5_Master" / "Include").glob("*.mqh"))),
+                *((sc, sc.read_text(encoding="utf-8")) for sc in
+                  sorted((REPO / "MQL5_Master" / "Scripts").glob("*.mq5"))))
+    for path, text in authored:
         check(not adj.search(text),
               f"{path}: adjacent string literal(s) left - unverified by any compiler, "
               f"join with '+'")

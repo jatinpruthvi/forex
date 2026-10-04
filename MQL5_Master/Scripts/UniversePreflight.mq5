@@ -22,8 +22,7 @@
 
 //--- union of every universe in the 65 implemented EAs (see
 //--- validation/mt5_harness/out/symbols_preflight.txt)
-input string InpSymbols = "EURUSD;GBPUSD;USDJPY;XAUUSD;AUDUSD;USDCAD;USDCHF;EURGBP;AUDNZD;EURCHF;EURJPY;GBPJPY;AUDJPY;"
-                          "GER40;DE40;GER30;DAX;US30;US100;NAS100";
+input string InpSymbols = "EURUSD;GBPUSD;USDJPY;XAUUSD;AUDUSD;USDCAD;USDCHF;EURGBP;AUDNZD;EURCHF;EURJPY;GBPJPY;AUDJPY;GER40;DE40;GER30;DAX;US30;US100;NAS100";
 
 //--- index aliases to probe even when the list above does not contain them
 input string InpIndexAliases = "GER40;DE40;GER30;DAX;GERMANY40;US30;DJ30;DOW30;US100;NAS100;USTEC;US500;SPX500";
@@ -78,7 +77,7 @@ void OnStart()
                     FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
    if(h == INVALID_HANDLE)
    {
-      Print("could not open Common\\Files\\EA_TestReports\\universe_preflight.csv - "
+      Print("could not open Common\\Files\\EA_TestReports\\universe_preflight.csv - " +
             "results are printed to the Journal only");
    }
    else

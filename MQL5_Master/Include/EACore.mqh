@@ -420,9 +420,19 @@ int EA_ServerGmtOffsetHours()
    return winter;
 }
 
+//--- server clock offset from GMT in SECONDS.  The auto path reads the terminal
+//--- clocks directly, so half-hour server offsets (e.g. GMT+5:30) stay exact;
+//--- the configured path stays whole-hour, exactly as before.
+long EA_ServerGmtOffsetSeconds()
+{
+   if(g_eaCfg.serverOffsetAuto)
+      return (long)TimeTradeServer() - (long)TimeGMT();
+   return (long)EA_ServerGmtOffsetHours() * 3600;
+}
+
 datetime EA_ServerToUtc(const datetime serverTime)
 {
-   return serverTime - (datetime)(EA_ServerGmtOffsetHours() * 3600);
+   return serverTime - (datetime)EA_ServerGmtOffsetSeconds();
 }
 
 datetime EA_UtcToLondon(const datetime utcTime)
@@ -448,7 +458,7 @@ datetime EA_ClockToServer(const datetime clockTime)
    if(g_eaCfg.clock == EA_CLOCK_SERVER) return clockTime;
    // clockTime is London wall time -> subtract London offset -> UTC -> add server offset
    datetime asUtc = clockTime - (datetime)(EA_IsEuDst(clockTime) ? 3600 : 0);
-   return asUtc + (datetime)(EA_ServerGmtOffsetHours() * 3600);
+   return asUtc + (datetime)EA_ServerGmtOffsetSeconds();
 }
 
 //--- minutes since midnight on a datetime

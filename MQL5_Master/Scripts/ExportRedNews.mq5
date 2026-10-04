@@ -95,8 +95,8 @@ void OnStart()
       PrintFormat("ExportRedNews: the economic calendar returned no values (count %d, err %d) for %s .. %s.",
                   n, GetLastError(),
                   TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE));
-      PrintFormat("ExportRedNews: your broker may not carry the MT5 calendar.  Until %s exists, the "
-                  "six fail-closed engines (3102/3104/3105/3106/3107/3109) take NO new entries - "
+      PrintFormat("ExportRedNews: your broker may not carry the MT5 calendar.  Until %s exists, the " +
+                  "six fail-closed engines (3102/3104/3105/3106/3107/3109) take NO new entries - " +
                   "supply the file by hand (format: date,time,currency,impact) or untick them.",
                   InpFile);
       return;
@@ -143,14 +143,14 @@ void OnStart()
    }
    FileClose(h);
 
-   PrintFormat("ExportRedNews: %d blocking event(s) written to MQL5\\Files\\%s in SERVER time "
+   PrintFormat("ExportRedNews: %d blocking event(s) written to MQL5\\Files\\%s in SERVER time " +
                "(window %s .. %s, %d value(s) read, %d event lookup(s) failed).%s",
                written, InpFile,
                TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE),
                n, skipped,
                InpHighOnly ? "" : "  NOTE: high-only filter is OFF - every importance level was written.");
    if(written == 0)
-      PrintFormat("ExportRedNews: no events in the window - widen InpDaysForward, or the calendar has "
+      PrintFormat("ExportRedNews: no events in the window - widen InpDaysForward, or the calendar has " +
                   "nothing to offer for %s .. %s yet.", TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE));
 }
 //+------------------------------------------------------------------+

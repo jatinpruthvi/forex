@@ -21,7 +21,7 @@ private:
     int       m_blockMinutesAfter;
     string    m_csvFileName;
     
-    int       m_brokerUtcOffset; // Broker time offset from ForexFactory (EST/EDT is UTC-5/UTC-4, Broker usually UTC+2/UTC+3)
+    int       m_brokerUtcOffset; // fallback NY -> server shift (winter calibration; used only if the terminal clocks are unusable)
     
     string    ExtractXMLTag(string xml, string tag);
 
@@ -79,17 +79,14 @@ string CNewsManager::ExtractXMLTag(string xml, string tag)
 }
 
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //| US daylight-saving check for a NEW YORK local timestamp           |
 //|                                                                   |
 //| The ForexFactory feed stamps its events in New York local time:   |
 //| EST (UTC-5) in winter, EDT (UTC-4) from the second Sunday of      |
-//| March 02:00 to the first Sunday of November 02:00.  The broker     |
-//| offset input (m_brokerUtcOffset, default 7 = server+2 - NY-5) was  |
-//| calibrated on winter time, so it is an hour too large all summer:  |
-//| every blocked window would sit one hour off the actual release     |
-//| (a 30-minute window can miss the event entirely).                  |
-//| This is why the offset is reduced by one hour while New York is on |
-//| daylight time - see the fix note next to the call site.            |
+//| March 02:00 to the first Sunday of November 02:00.  Every         |
+//| date-based translation of those stamps needs this offset - see    |
+//| NewsServerShiftSeconds() below.                                   |
 //+------------------------------------------------------------------+
 bool IsNewYorkDst(const datetime nyLocalTime)
 {
@@ -113,6 +110,38 @@ bool IsNewYorkDst(const datetime nyLocalTime)
     datetime dstEnd = nov1 + (datetime)(daysToSun2 * 86400);          // first Sunday
 
     return (nyLocalTime >= dstStart && nyLocalTime < dstEnd);
+}
+
+//+------------------------------------------------------------------+
+//| Seconds to add to a New York LOCAL stamp to reach SERVER time     |
+//|                                                                   |
+//|     shift = server_offset - ny_offset                             |
+//|                                                                   |
+//| server_offset = TimeTradeServer() - TimeGMT(): the broker's own   |
+//|   UTC offset, read live from the terminal.  Exact for EET/EEST    |
+//|   servers that follow European DST, for fixed-offset servers and  |
+//|   for half-hour zones (the engine reads the same clocks in        |
+//|   EA_ServerGmtOffsetSeconds()).                                   |
+//| ny_offset = -4 h while New York is on daylight time, -5 h         |
+//|   otherwise, for the EVENT'S OWN date.                            |
+//|                                                                   |
+//| The delivered code added a constant offset calibrated on winter   |
+//| (default 7 h = server+2 - NY-5).  That is only right while the    |
+//| broker's offset and New York's move together: it misses by an     |
+//| hour all summer on a fixed-offset server, and during the weeks    |
+//| where the US and EU change dates differ on an EET/EEST server -   |
+//| a 30-minute window can miss the release entirely.  When the       |
+//| terminal clocks are unusable (|diff| >= 14 h, e.g. a mis-set       |
+//| clock) the calibrated input is the fallback, as before.           |
+//+------------------------------------------------------------------+
+long NewsServerShiftSeconds(const datetime nyLocalTime, const int fallbackHours)
+{
+    long serverMinusGmt = (long)TimeTradeServer() - (long)TimeGMT();
+    if(serverMinusGmt <= -(long)14 * 3600 || serverMinusGmt >= (long)14 * 3600)
+        return (long)fallbackHours * 3600;                  // clocks unusable
+
+    long nyOffsetSeconds = (IsNewYorkDst(nyLocalTime) ? -4 : -5) * (long)3600;
+    return serverMinusGmt - nyOffsetSeconds;
 }
 
 //+------------------------------------------------------------------+
@@ -201,14 +230,12 @@ bool CNewsManager::LoadFromCSV()
         
         datetime event_time = ParseAMPMTime(time_text); // CRITICAL FIX: Handle ForexFactory AM/PM
         
-        // V4 UPGRADE: Align ForexFactory EST/EDT time to Broker Server Time (typically +7 hours)
-        // V5 FIX: the offset was calibrated on EST (winter).  New York observes
-        // daylight saving for ~8 months of the year, during which server-NY is
-        // one hour SMALLER - without this the blocked window missed the release
-        // by an hour all summer.
-        int offsetHours = m_brokerUtcOffset;
-        if(IsNewYorkDst(event_time)) offsetHours -= 1;
-        event_time = event_time + (offsetHours * 3600);
+        // V5 FIX: translate the feed's New York local stamp to the broker's
+        // server clock with the offset read LIVE from the terminal clocks; a
+        // fixed winter calibration is an hour off whenever the broker's UTC
+        // offset and New York's do not move together (see above).
+        long shiftSeconds = NewsServerShiftSeconds(event_time, m_brokerUtcOffset);
+        event_time = (datetime)((long)event_time + shiftSeconds);
         
         int size = ArraySize(m_events);
         ArrayResize(m_events, size + 1);
