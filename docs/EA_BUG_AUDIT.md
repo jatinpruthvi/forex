@@ -672,7 +672,7 @@ That is only right while the broker's UTC offset and New York's move together.
 On a **fixed-offset** server (no DST, or non-EU DST) it is an hour off for the
 ~8 months New York is on daylight time; on the common **EET/EEST** server
 (+2/+3) it is exact in summer but an hour early during the two mismatch weeks
-each year (US DST ~2 weeks ahead of the EU in March, ~a week behind in
+each year (US DST 2-3 weeks ahead of the EU in March, ~a week behind in
 October/November) *and* in winter when the server does not shift, and on a
 **half-hour** server it is wrong by 30 minutes all year. A 30-minute block can
 miss the release entirely. Fix, at the source: `NewsServerShiftSeconds()` now
