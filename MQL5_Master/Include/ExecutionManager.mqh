@@ -4,8 +4,6 @@
 //+------------------------------------------------------------------+
 #property copyright "Master Strategy"
 #property version   "1.00"
-#property strict
-
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
 #include <Trade\OrderInfo.mqh>
@@ -442,7 +440,12 @@ double CExecutionManager::GetDailyATR(string symbol)
 double CExecutionManager::GetDailyRange(string symbol)
 {
     double high[], low[];
-    // Use index 1 (yesterday's completed range)
+    // #15: index 0 IS today's DEVELOPING range - and that is what the caller
+    // wants.  SendDualBracketLimit() asks "is today's travel already past 75% of
+    // a normal day?", so the deliberate vintage pair is:
+    //     today's developing range  (here, index 0)
+    //   vs yesterday's completed ATR (GetDailyATR(), index 1)
+    // The delivered comment claimed index 1, which the code never did.
     if(CopyHigh(symbol, PERIOD_D1, 0, 1, high) > 0 && CopyLow(symbol, PERIOD_D1, 0, 1, low) > 0)
         return (high[0] - low[0]);
     return 0.0;

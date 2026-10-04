@@ -2,8 +2,6 @@
 //|                                                  NewsManager.mqh |
 //|                                  Copyright 2026, Master Strategy |
 //+------------------------------------------------------------------+
-#property strict
-
 struct NewsEvent
 {
     datetime utc_time;
@@ -22,7 +20,14 @@ private:
     string    m_csvFileName;
     
     int       m_brokerUtcOffset; // fallback NY -> server shift (winter calibration; used only if the terminal clocks are unusable)
-    
+
+    //--- #7: a load that produced nothing usable must not read as "no news".
+    //--- The gate fails CLOSED while the calendar is unusable (the EA refuses to
+    //--- init on a failed load; this is the belt-and-braces at the gate).
+    bool      m_loadOk;
+    bool      m_warnedNoCalendar;
+    bool      m_warnedEmptyWeek;
+
     string    ExtractXMLTag(string xml, string tag);
 
 public:
@@ -44,6 +49,9 @@ CNewsManager::CNewsManager(bool enableLive, int minsBefore, int minsAfter, int b
     m_blockMinutesAfter = minsAfter;
     m_brokerUtcOffset = brokerOffsetHours;
     m_csvFileName = csvName;
+    m_loadOk = false;
+    m_warnedNoCalendar = false;
+    m_warnedEmptyWeek = false;
     ArrayResize(m_events, 0);
 }
 
@@ -186,8 +194,13 @@ bool CNewsManager::DownloadAndParse()
         string event_str = StringSubstr(xml, pos, end_pos - pos);
         pos = end_pos;
         
+        // #7: the feed's casing is not a contract.  The delivered exact compare
+        // against "High" silently dropped every row if the feed ever shipped
+        // "HIGH"/"high" - i.e. the news filter would go quietly inert.
         string impact = ExtractXMLTag(event_str, "impact");
-        if(impact != "High") continue; // We only care about RED news
+        string imp = impact;
+        StringTrimLeft(imp); StringTrimRight(imp); StringToLower(imp);
+        if(imp != "high") continue; // RED news only
         
         string date = ExtractXMLTag(event_str, "date");
         string time_str = ExtractXMLTag(event_str, "time");
@@ -212,13 +225,17 @@ bool CNewsManager::DownloadAndParse()
 bool CNewsManager::LoadFromCSV()
 {
     ArrayResize(m_events, 0);
+    m_loadOk = false;
     int handle = FileOpen(m_csvFileName, FILE_READ|FILE_CSV|FILE_ANSI|FILE_SHARE_READ, ',');
     if(handle == INVALID_HANDLE)
     {
-        Print("NEWS ERROR: Cannot load CSV ", m_csvFileName, ". News filtering will be disabled.");
+        Print("NEWS ERROR: cannot load CSV ", m_csvFileName,
+              " - the news gate will FAIL CLOSED (no new entries).");
         return false;
     }
-    
+
+    int rowsSeen = 0, badRows = 0, notHigh = 0;
+
     while(!FileIsEnding(handle))
     {
         string time_text = FileReadString(handle);
@@ -227,8 +244,26 @@ bool CNewsManager::LoadFromCSV()
         string currency = FileReadString(handle);
         string impact = FileReadString(handle);
         string title = FileReadString(handle);
+        rowsSeen++;
+
+        // #7: impact compared case-insensitively (and trimmed); a hand-written
+        // CSV with "HIGH" now behaves, and the 2030 coverage sentinel row
+        // (impact "COVERAGE") is no longer loaded as a blocking event.
+        string imp = impact;
+        StringTrimLeft(imp); StringTrimRight(imp); StringToLower(imp);
+        if(imp != "high") { notHigh++; continue; }
         
         datetime event_time = ParseAMPMTime(time_text); // CRITICAL FIX: Handle ForexFactory AM/PM
+
+        // #8: a changed feed format used to make ParseAMPMTime() return 0 and the
+        // event landed at 1970 + offset - a silent no-op (past events never
+        // block).  Reject anything outside a sane calendar range and count it.
+        if(event_time <= 0 ||
+           event_time < (datetime)D'2000.01.01' || event_time >= (datetime)D'2100.01.01')
+        {
+            badRows++;
+            continue;
+        }
         
         // V5 FIX: translate the feed's New York local stamp to the broker's
         // server clock with the offset read LIVE from the terminal clocks; a
@@ -246,8 +281,20 @@ bool CNewsManager::LoadFromCSV()
     }
     
     FileClose(handle);
-    Print("NEWS MANAGER: Successfully loaded ", ArraySize(m_events), " high-impact events from CSV.");
-    return true;
+
+    //--- fail-closed state (#7): rows that existed but could not be parsed mean
+    //--- the format changed under us - refuse rather than trade blind.  An empty
+    //--- file is also refused; a file with only non-high rows is a legitimate
+    //--- "quiet week" and loads fine with zero events.
+    m_loadOk = (rowsSeen > 0 && badRows == 0);
+    if(badRows > 0)
+        Print("NEWS ERROR: ", badRows, " of ", rowsSeen, " row(s) in ", m_csvFileName,
+              " could not be parsed - the feed format may have changed.  News gate FAILS CLOSED.");
+    if(rowsSeen == 0)
+        Print("NEWS ERROR: ", m_csvFileName, " contains no rows.  News gate FAILS CLOSED.");
+    Print("NEWS MANAGER: loaded ", ArraySize(m_events), " high-impact event(s) from CSV (",
+          notHigh, " non-high row(s) skipped, ", badRows, " unparseable).");
+    return m_loadOk;
 }
 
 //+------------------------------------------------------------------+
@@ -255,7 +302,26 @@ bool CNewsManager::LoadFromCSV()
 //+------------------------------------------------------------------+
 bool CNewsManager::IsNewsBlockActive(string symbol)
 {
-    if(ArraySize(m_events) == 0) return false;
+    // #7: the delivered gate returned false when the event list was empty, so a
+    // failed or unparseable calendar read as "no news" and the EA traded blind.
+    if(!m_loadOk)
+    {
+        if(!m_warnedNoCalendar)
+        {
+            m_warnedNoCalendar = true;
+            Print("NEWS FILTER: no usable calendar loaded - blocking new entries (fail closed).");
+        }
+        return true;
+    }
+    if(ArraySize(m_events) == 0)
+    {
+        if(!m_warnedEmptyWeek)
+        {
+            m_warnedEmptyWeek = true;
+            Print("NEWS FILTER: calendar loaded but contains no high-impact events - no blackout windows.");
+        }
+        return false;
+    }
     
     datetime current_time = TimeCurrent();
     string base = SymbolInfoString(symbol, SYMBOL_CURRENCY_BASE);

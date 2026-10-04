@@ -20,9 +20,14 @@
 #property version   "1.00"
 #property script_show_inputs
 
-//--- union of every universe in the 65 implemented EAs (see
-//--- validation/mt5_harness/out/symbols_preflight.txt)
+//--- union of every universe in the 65 implemented EAs.  KEEP THIS LIST AS THE
+//--- FALLBACK ONLY (#19): the harness writes symbols.txt next to the launch plan
+//--- (validation/mt5_harness/gen_launcher.py runs it out of the same generator
+//--- the configs come from), and the script prefers that file when it is present.
 input string InpSymbols = "EURUSD;GBPUSD;USDJPY;XAUUSD;AUDUSD;USDCAD;USDCHF;EURGBP;AUDNZD;EURCHF;EURJPY;GBPJPY;AUDJPY;GER40;DE40;GER30;DAX;US30;US100;NAS100";
+
+//--- folder under MQL5\Files holding the harness output (launch_plan.csv, symbols.txt)
+input string InpLaunchFolder = "EA_Launch";
 
 //--- index aliases to probe even when the list above does not contain them
 input string InpIndexAliases = "GER40;DE40;GER30;DAX;GERMANY40;US30;DJ30;DOW30;US100;NAS100;USTEC;US500;SPX500";
@@ -83,9 +88,39 @@ void OnStart()
    else
       FileWriteString(h, "symbol,state,spread_points,contract_size,volume_min,volume_step,checked\r\n");
 
+   //--- 0. symbol list: the generated symbols.txt wins when it is present (#19)
+   string list = InpSymbols;
+   string listFile = InpLaunchFolder + "\\symbols.txt";
+   int lf = FileOpen(listFile, FILE_READ | FILE_TXT | FILE_ANSI);
+   if(lf != INVALID_HANDLE)
+   {
+      string loaded = "";
+      while(!FileIsEnding(lf))
+      {
+         string line = FileReadString(lf);
+         StringTrimLeft(line);
+         StringTrimRight(line);
+         if(StringLen(line) == 0) continue;
+         if(StringLen(loaded) > 0) loaded += ";";
+         loaded += line;
+      }
+      FileClose(lf);
+      if(StringLen(loaded) > 0)
+      {
+         list = loaded;
+         int listed = 1;
+         for(int c = 0; c < StringLen(list); c++)
+            if(StringGetCharacter(list, c) == ';') listed++;
+         PrintFormat("symbol list: MQL5\\Files\\%s (%d entries, generated)", listFile, listed);
+      }
+   }
+   else
+      Print("symbol list: BUILTIN snapshot - copy the harness output folder into MQL5\\Files\\",
+            InpLaunchFolder, "\\ (or re-run gen_launcher.py) so symbols.txt keeps this list fresh.");
+
    //--- 1. the union of the EAs' universes
    string parts[];
-   int n = StringSplit(InpSymbols, ';', parts);
+   int n = StringSplit(list, ';', parts);
    int ok = 0, missing = 0;
    for(int i = 0; i < n; i++)
    {

@@ -20,6 +20,41 @@ still matters for decisions.
 `P1` = wrong money/risk behaviour or a silent failure. `P2` = wrong behaviour in
 a narrower window. `P3` = hygiene.
 
+## Status (fix pass of 2026-10-04)
+
+**Fixed at the source, guarded and tested:** #1, #2, #3 (previous pass) and
+**#4–#22** in this pass:
+
+| # | what changed |
+|---|---|
+| 4 | pending orders judged by `order.OrderType()`, not the stale position object |
+| 5 | `DetectLiquiditySweep()` implemented (takeout + reclaim on the same M15 window/indexing as the CHoCH) — **entries are now strictly rarer; re-validate on the tester** |
+| 6 | heat / currency exposure count only this magic's positions and orders |
+| 7 | Triad news gate **fails closed** when the calendar is unusable; impact compared case-insensitively on both load paths; the 2030 coverage sentinel no longer loads as a blocking event |
+| 8 | rows whose timestamp does not parse are rejected and counted; an all-bad or empty file fails the load |
+| 9 | state keys namespaced `MasterTriad_<account>_<magic>_<field>`; day key is the full server date; the pre-upgrade values are adopted once, then the legacy keys are deleted |
+| 10 | daily breaker = rest of the server day; trailing breaker = a real 48 h freeze the day boundary does not lift |
+| 11 | bearish structure search mirrors the bullish one |
+| 12 | attempt cooldown keys on M15 (the setup timeframe), not the chart's |
+| 13 | SMT gate passed as a constructor parameter; the inert case (no DXY symbol) is logged; the dead `m_hDxySmt` handle removed |
+| 14 | `GetDailyRealizedPnL()` uses the server-day boundary and filters by magic |
+| 15 | the daily-range vintage pair is stated truthfully in the code |
+| 16 | `compile_all.ps1` matches the log case-insensitively and requires evidence the compiler ran |
+| 17 | the synthesised-template risk is loud in stdout and in `READ_ME_FIRST.txt` |
+| 18 | equal `end_time` ties broken by file mtime |
+| 19 | `gen_launcher.py` writes `symbols.txt`; `UniversePreflight.mq5` reads it and warns when it falls back to the builtin list |
+| 20 | `#property strict` removed from the four Triad files |
+| 21 | the resolved server offset is logged once, implausible values are an error |
+| 22 | tracker limits documented (closed-only verdicts; entry-commission edge) |
+
+**Still owner/Windows-side (nothing to fix in code):** #23 compile,
+#24 tester sweep, #25 demo run.
+
+**Behaviour changes to be aware of** (all disclosed, none silent): the sweep
+precondition (#5) makes entries rarer; the trailing-DD freeze now really lasts
+48 h (#10); the news gate can block instead of trading blind (#7); the SMT switch
+can now log that it is inert (#13).
+
 ## The list
 
 | # | P | Type | Area | Finding | Evidence | Impact | Action |
@@ -50,9 +85,9 @@ a narrower window. `P3` = hygiene.
 | 24 | P1 | GAP | validation | no Strategy Tester sweep has ever run: no PASS/WARN/FAIL table, the six fail-closed news engines need the Stage 0b calendar file, and the four widened universes' older backtests are invalidated (owner decision) | `docs/EA_VALIDATION_PLAYBOOK.md` Stage 0b/1; `--symbols wide` | all performance decisions (KEEP/REVIEW/DROP, demo switches) are currently blind | Stage 0b calendar for the tester window, then `--symbols wide`, then `parse_results.py` |
 | 25 | P1 | GAP | demo | no demo run with the tracker: the live switches, tracker verdicts/panel and the new live-calendar source are unverified live; 65 engines in one thread (476 indicator handles, 1 s timer) have never been timed | `portfolio-EA/src/PortfolioEA.mq5`, `portfolio-EA/README.md` deploy steps | the switch semantics and the dashboard are the operator's only feedback | demo run on one account, tracker attached, after the compile |
 
-## Fixed in this pass (with verification)
+## Fixed in the first pass (with verification)
 
-Three of the four P0-class items are fixed **at the source**, each with a
+Three of the four P0-class items were fixed **at the source**, each with a
 permanent verifier guard and a regression test:
 
 * **#1 tester auto-offset** — both helpers now refuse the auto path in the tester

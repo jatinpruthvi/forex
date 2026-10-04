@@ -4,8 +4,6 @@
 //+------------------------------------------------------------------+
 #property copyright "Master Strategy"
 #property version   "1.00"
-#property strict
-
 #include "ExecutionManager.mqh"
 
 class CE1SMCCore
@@ -22,8 +20,12 @@ private:
     int               m_hEmaH1;
     int               m_hAtr_D1;
     int               m_hAtr_M15;
-    int               m_hDxySmt;
     int               m_hRsi_DXY;
+    bool              m_useDxySmtGate;
+
+    //--- sweep-tracking key: namespaced by account + magic (#9), like the
+    //--- governor's state - two accounts or two magics no longer collide
+    string            SweepGvName() const;
 
     datetime          m_setupSweepTime;
     datetime          m_lastTradedSweepTime;
@@ -34,7 +36,7 @@ private:
     double            m_setupTP;
 
 public:
-                   CE1SMCCore(CExecutionManager *execManager, CNewsManager *newsManager, string symbol, ulong magic = 777112);
+                   CE1SMCCore(CExecutionManager *execManager, CNewsManager *newsManager, string symbol, ulong magic = 777112, bool useDxySmtGate = false);
                   ~CE1SMCCore();
                   
     // Core Engine Tick
@@ -50,17 +52,24 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                      |
 //+------------------------------------------------------------------+
-CE1SMCCore::CE1SMCCore(CExecutionManager *execManager, CNewsManager *newsManager, string symbol, ulong magic)
+string CE1SMCCore::SweepGvName() const
+{
+    return StringFormat("MasterTriadSweep_%I64d_%I64d_%s",
+                        (long)AccountInfoInteger(ACCOUNT_LOGIN), (long)m_magic, m_symbol);
+}
+
+CE1SMCCore::CE1SMCCore(CExecutionManager *execManager, CNewsManager *newsManager, string symbol, ulong magic, bool useDxySmtGate)
 {
     m_symbol = symbol;
     m_execManager = execManager;
     m_newsManager = newsManager;
     m_magic = magic;
+    m_useDxySmtGate = useDxySmtGate;
     m_tickCount = 0;
     m_lastAttemptTime = 0;
     
-    if(GlobalVariableCheck("MasterTriad_SweepTime_"+symbol))
-        m_lastTradedSweepTime = (datetime)GlobalVariableGet("MasterTriad_SweepTime_"+symbol);
+    if(GlobalVariableCheck(SweepGvName()))
+        m_lastTradedSweepTime = (datetime)GlobalVariableGet(SweepGvName());
     else
         m_lastTradedSweepTime = 0;
     
@@ -72,6 +81,11 @@ CE1SMCCore::CE1SMCCore(CExecutionManager *execManager, CNewsManager *newsManager
     m_hAtr_D1 = iATR(symbol, PERIOD_D1, 14);
     m_hRsi_DXY = iRSI("US Dollar Index", PERIOD_M15, 14, PRICE_CLOSE);
     if(m_hRsi_DXY == INVALID_HANDLE) m_hRsi_DXY = iRSI("DXY", PERIOD_M15, 14, PRICE_CLOSE); // Fallback
+    //--- #13: the gate must SAY when it cannot run.  Most brokers carry no DXY
+    //--- symbol, and the delivered code silently did nothing in that case.
+    if(m_useDxySmtGate && m_hRsi_DXY == INVALID_HANDLE)
+        Print("E1 ENGINE WARNING: SMT gate requested but neither 'US Dollar Index' nor 'DXY' ",
+              "exists at this broker - the gate is INERT for ", symbol, ".");
 }
 
 //+------------------------------------------------------------------+
@@ -115,8 +129,7 @@ void CE1SMCCore::OnTickEngine(string symbol, double lotSize)
     // 3.5 V4 UPGRADE: SMT Divergence (Smart Money Tool)
     // If trading EURUSD or GBPUSD, DXY must confirm the structural shift.
     // E.g., if EURUSD sweeps a Low (Bullish setup), DXY must FAIL to sweep its High (Divergence).
-    bool useDxySmtGate = (bool)GlobalVariableGet("MasterTriad_UseDxySmt");
-    if(useDxySmtGate && (symbol == "EURUSD" || symbol == "GBPUSD"))
+    if(m_useDxySmtGate && (symbol == "EURUSD" || symbol == "GBPUSD"))
     {
         // Simple SMT proxy: DXY and EURUSD should be inversely correlated.
         // If EURUSD is making a bullish SMC reversal, DXY RSI should be overbought/exhausted.
@@ -157,7 +170,9 @@ void CE1SMCCore::OnTickEngine(string symbol, double lotSize)
     if(HasActiveSetup(symbol)) return;
     
     // CRITICAL FIX: Add a cooldown timer to prevent infinite terminal spam if execution is rejected by broker!
-    datetime currentCandleTime = (datetime)SeriesInfoInteger(symbol, PERIOD_CURRENT, SERIES_LASTBAR_DATE);
+    //--- #12: PERIOD_CURRENT is the CHART's timeframe - the cooldown changed with
+    //--- the chart the EA was attached to.  The setups are built on M15.
+    datetime currentCandleTime = (datetime)SeriesInfoInteger(symbol, PERIOD_M15, SERIES_LASTBAR_DATE);
     if(m_lastAttemptTime == currentCandleTime) return; // We already tried (and failed or succeeded) on this candle
     
     // 5. Grade the Setup
@@ -211,7 +226,7 @@ void CE1SMCCore::OnTickEngine(string symbol, double lotSize)
         double actualLotSize = (pointsRisk > 0 && tickValue > 0) ? (riskMoney / (pointsRisk * tickValue)) : 0;
         m_lastAttemptTime = currentCandleTime; // Mark attempt
         m_lastTradedSweepTime = m_setupSweepTime; // Mark this specific structural sweep as traded
-        GlobalVariableSet("MasterTriad_SweepTime_"+symbol, (double)m_lastTradedSweepTime);
+        GlobalVariableSet(SweepGvName(), (double)m_lastTradedSweepTime);
         m_execManager.SendDualBracketLimit(symbol, ORDER_TYPE_BUY_LIMIT, actualLotSize, frontPrice, eqPrice, sl, tp);
     }
     else if(bias == -1) // Sell
@@ -220,7 +235,7 @@ void CE1SMCCore::OnTickEngine(string symbol, double lotSize)
         double actualLotSize = (pointsRisk > 0 && tickValue > 0) ? (riskMoney / (pointsRisk * tickValue)) : 0;
         m_lastAttemptTime = currentCandleTime; // Mark attempt
         m_lastTradedSweepTime = m_setupSweepTime; // Mark this specific structural sweep as traded
-        GlobalVariableSet("MasterTriad_SweepTime_"+symbol, (double)m_lastTradedSweepTime);
+        GlobalVariableSet(SweepGvName(), (double)m_lastTradedSweepTime);
         m_execManager.SendDualBracketLimit(symbol, ORDER_TYPE_SELL_LIMIT, actualLotSize, frontPrice, eqPrice, sl, tp);
     }
 }
@@ -264,11 +279,57 @@ int CE1SMCCore::GetTrendBias(string symbol)
 }
 
 //+------------------------------------------------------------------+
-//| Detect Liquidity Sweep                                           |
+//| Detect Liquidity Sweep - liquidity sweep precondition (#5)        |
+//|                                                                   |
+//| The delivered version returned true unconditionally, so the        |
+//| documented entry precondition ("price sweeps liquidity, then       |
+//| reclaims it") never ran - entries fired on the M15 CHoCH alone.    |
+//|                                                                    |
+//| The rule below uses the SAME 60-bar M15 window and the same        |
+//| indexing as DetectM15CHoCH(), so both functions agree on which     |
+//| bar is the sweep:                                                  |
+//|   * bars 1..49  - the sweep candidate (the extreme the CHoCH path  |
+//|                   also selects: most recent extreme on ties)       |
+//|   * bars 50..59 - the prior liquidity the sweep must take out      |
+//|   * the sweep candle must CLOSE back inside (reclaim), i.e. the    |
+//|     breakdown failed - that failure is the liquidity grab          |
+//|                                                                    |
+//| This makes entries strictly rarer than the stub did (a real        |
+//| precondition), which is a behaviour change by design and must be   |
+//| re-validated on the strategy tester before live use.               |
 //+------------------------------------------------------------------+
 bool CE1SMCCore::DetectLiquiditySweep(string symbol, int bias)
 {
-    return true; 
+    if(bias != 1 && bias != -1) return false;
+
+    MqlRates r[];
+    if(CopyRates(symbol, PERIOD_M15, 1, 60, r) < 60) return false;   // need the full window
+
+    double priorExtreme = (bias == 1) ? r[50].low : r[50].high;
+    for(int i = 51; i < 60; i++)
+        priorExtreme = (bias == 1) ? MathMin(priorExtreme, r[i].low)
+                                   : MathMax(priorExtreme, r[i].high);
+
+    int    sweepIdx   = -1;
+    double sweepPrice = (bias == 1) ? r[1].low : r[1].high;
+    for(int i = 1; i < 50; i++)
+    {
+        if(bias == 1 && r[i].low  <= sweepPrice) { sweepPrice = r[i].low;  sweepIdx = i; }
+        if(bias == -1 && r[i].high >= sweepPrice) { sweepPrice = r[i].high; sweepIdx = i; }
+    }
+    if(sweepIdx < 0) return false;
+
+    if(bias == 1)
+    {
+        if(sweepPrice >= priorExtreme) return false;      // never took out prior liquidity
+        if(r[sweepIdx].close <= priorExtreme) return false; // breakdown held: not a sweep
+    }
+    else
+    {
+        if(sweepPrice <= priorExtreme) return false;
+        if(r[sweepIdx].close >= priorExtreme) return false;
+    }
+    return true;
 }
 
 bool CE1SMCCore::DetectM15CHoCH(string symbol, int bias)
@@ -372,16 +433,18 @@ bool CE1SMCCore::DetectM15CHoCH(string symbol, int bias)
             }
         }
         
-        // 2. Find the structural Swing Low that occurred AFTER the sweep
+        // 2. Find the structural extreme AFTER the sweep (mirror of the bullish
+        // path, #11: the delivered version took the first fractal swing low on
+        // the sell side and the window maximum on the buy side, so identical
+        // setups were detected differently by direction)
         int swingLowIdx = -1;
         double swingLow = 0;
         for(int i = sweepIdx + 1; i < 55; i++)
         {
-            if(rates[i].low < rates[i-1].low && rates[i].low < rates[i+1].low)
+            if(swingLowIdx == -1 || rates[i].low < swingLow)
             {
                 swingLow = rates[i].low;
                 swingLowIdx = i;
-                break; // Found the immediate swing low after the sweep
             }
         }
         

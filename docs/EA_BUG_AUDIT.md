@@ -800,6 +800,60 @@ for the tester auto-offset, the launcher matcher and the news frame reset),
 checker 0 on the 65, arity 0/0, `--check` OK-65, `unittest discover tests` 222
 tests (1 documented pytest-loader artifact).
 
+## Top-25 fix pass — 2026-10-04 (owner: "fix all suggested bugs")
+
+Every code-side item of `docs/EA_TOP25_BUGS.md` is fixed at the source, each with
+a permanent verifier guard (the verifier grew 1 846 -> 1 878 checks, +32) and a
+regression test. The three
+P0-class items (#1 tester auto-offset, #2 launcher name matching, #3 news frame
+on the calendar fallback) were fixed in the preceding pass; this pass closed
+**#4–#22**.
+
+**Risk governor** (`RiskGovernor.mqh`): pending orders are judged by their own
+type, not the stale position object (#4); heat and currency exposure count only
+this magic (#6); state keys are namespaced by account+magic with a one-time
+adoption of the pre-upgrade values, then the legacy keys are deleted (#9); the
+day key is the full server date, so the same day-of-year a year apart is a new
+day (#9); the daily breaker freezes the rest of the server day while the
+trailing-DD breaker really lasts 48 h and is not lifted at midnight (#10);
+`GetDailyRealizedPnL()` uses the server-day boundary and filters by magic (#14).
+
+**Strategies** (`E1_SMC_Core.mqh`): `DetectLiquiditySweep()` is implemented on the
+same 60-bar M15 window and indexing as the CHoCH detector (bars 1-49 candidate,
+50-59 prior liquidity, takeout + close-back reclaim) (#5) - a deliberate
+behaviour change: entries are strictly rarer than the always-true stub; the
+bearish structure search mirrors the bullish one (#11); the attempt cooldown keys
+on M15 rather than the chart timeframe (#12); the SMT gate is a constructor
+parameter, the inert case (no DXY symbol at the broker) is logged, and the dead
+handle is gone (#13); the traded-sweep key is namespaced like the governor state.
+
+**News** (`NewsManager.mqh`): impact is compared case-insensitively on both load
+paths and the 2030 coverage sentinel no longer loads as a blocking event (#7);
+rows whose timestamp does not parse are rejected and counted, and an empty or
+all-bad file fails the load (#8); the gate fails CLOSED while the calendar is
+unusable and logs a quiet week instead of passing silently (#7).
+
+**Harness and scripts**: `compile_all.ps1` no longer hinges on one exact log
+string - case-insensitive matching plus positive evidence that the compiler
+actually ran (#16); a synthesised-template risk warning is loud in stdout and in
+`READ_ME_FIRST.txt` (#17); `parse_results.py` breaks equal `end_time` ties by file
+mtime and gained `--out` (#18); `gen_launcher.py` writes `symbols.txt` (the union
+of every universe) and `UniversePreflight.mq5` reads it, warning loudly when it
+falls back to the builtin snapshot (#19); the MQL4-only `#property strict` is
+gone from the four Triad files (#20); the resolved server GMT offset is logged
+once and an implausible value is an error (#21); the tracker's closed-only
+verdict semantics and the entry-commission edge are documented (#22).
+
+**Verification.** `verify_portfolio.py` **OK - 1 878** (+32 checks for this pass);
+`tests/test_triad_fixes.py` (16 tests) mirrors the fixed rules and pins them
+against the defects they replace, including the real tools for the mtime
+tie-break and `symbols.txt`; the full suite is 238 tests (1 documented
+pytest-loader artifact). A positive control that reverts all ten fixed files
+fails the verifier with **36 checks** (31 named guards + 5 source-fingerprint checks); the guard for #9 also fails on a
+deliberate code leak while ignoring the legacy names in prose. Still unverified:
+**nothing has been compiled** (#23) and no tester sweep has run (#24) - the two
+Windows-side items that remain.
+
 ## Verification after the fixes
 
 | Check | Result |

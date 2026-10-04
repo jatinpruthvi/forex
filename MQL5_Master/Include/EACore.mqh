@@ -401,6 +401,27 @@ bool EA_IsEuDst(const datetime utc)
    return (utc >= dstStart && utc < dstEnd);
 }
 
+//--- live server-minus-GMT in seconds, read from the terminal clocks, logged once
+//--- (#21).  The auto path depends on the VPS's own clock/timezone settings, so a
+//--- mis-set machine would shift every session/news window with no symptom.  One
+//--- line at the first use makes it visible; an implausible value is an error.
+long EA_LiveServerGmtSeconds()
+{
+   static bool s_logged = false;
+   long diff = (long)TimeTradeServer() - (long)TimeGMT();
+   if(!s_logged)
+   {
+      s_logged = true;
+      double hours = (double)diff / 3600.0;
+      EA_Log(EA_LOG_EVENTS, StringFormat("server clock: GMT%+.2f h read from the terminal clocks (auto)",
+             hours));
+      if(diff <= -(long)14 * 3600 || diff >= (long)14 * 3600)
+         EA_Log(EA_LOG_ERRORS, StringFormat("server clock: implausible GMT offset %+.2f h - check the " +
+                "VPS clock and timezone; sessions and news windows depend on it", hours));
+   }
+   return diff;
+}
+
 //--- server clock offset from GMT (hours), DST aware
 int EA_ServerGmtOffsetHours()
 {
@@ -412,10 +433,7 @@ int EA_ServerGmtOffsetHours()
    //--- the broker's real offset.  The configured winter/EU-DST path is the
    //--- only usable one there (the modelled TimeCurrent() IS the broker clock).
    if(g_eaCfg.serverOffsetAuto && !MQLInfoInteger(MQL_TESTER))
-   {
-      long diff = (long)TimeTradeServer() - (long)TimeGMT();
-      return (int)MathRound((double)diff / 3600.0);
-   }
+      return (int)MathRound((double)EA_LiveServerGmtSeconds() / 3600.0);
    int winter = g_eaCfg.serverWinterGmtOffset;
    if(!g_eaCfg.serverFollowsEuDst) return winter;
    // first approximation: assume winter offset, then refine once
@@ -434,7 +452,7 @@ long EA_ServerGmtOffsetSeconds()
    //--- same tester caveat as EA_ServerGmtOffsetHours(): the two clocks are the
    //--- same function there, so the live difference would be 0
    if(g_eaCfg.serverOffsetAuto && !MQLInfoInteger(MQL_TESTER))
-      return (long)TimeTradeServer() - (long)TimeGMT();
+      return EA_LiveServerGmtSeconds();
    return (long)EA_ServerGmtOffsetHours() * 3600;
 }
 

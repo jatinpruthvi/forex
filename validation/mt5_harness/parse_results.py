@@ -50,6 +50,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dir", default="", help="folder holding the EA_TestReports CSVs")
     ap.add_argument("--manifest", default="", help="manifest.json written by gen_tester_configs.py")
+    ap.add_argument("--out", default="", help="output folder (default validation/mt5_harness/out)")
     ap.add_argument("--min-trades", type=int, default=20)
     ap.add_argument("--warn-trades", type=int, default=40)
     ap.add_argument("--min-pf", type=float, default=1.10)
@@ -87,9 +88,11 @@ def main() -> int:
 
     rows, unknown = [], []
     for f in sorted(src.glob("*.csv")):
+        mtime = f.stat().st_mtime
         with f.open(newline="", encoding="utf-8", errors="replace") as fh:
             for rec in csv.DictReader(fh):
                 rec["_file"] = f.name
+                rec["_mtime"] = mtime        # tie-break: a re-run writes a newer file
                 rec["_ea"] = resolve(rec)
                 if manifest and rec["_ea"] not in manifest:
                     unknown.append(rec["_ea"])
@@ -117,12 +120,16 @@ def main() -> int:
     # per EA.  A multi-symbol sweep (--symbols wide|all in gen_tester_configs.py)
     # runs the same EA on several symbols, and those rows must NOT collapse into
     # one: each is a different book.  A re-run of the same (EA, symbol) keeps the
-    # newest end_time, as before.
+    # newest end_time; an exact tie keeps the newer file (mtime).
+    # newest end_time wins; on an exact tie the file with the newer mtime wins
+    # (the delivered rule kept the alphabetically later FILE name, so a stale
+    # result could win a tie)
     best: dict[tuple[str, str], dict] = {}
     for rec in rows:
         key = (rec["_ea"], str(rec.get("test_symbol", "")))
         prev = best.get(key)
-        if prev is None or rec.get("end_time", "") >= prev.get("end_time", ""):
+        if prev is None or ((rec.get("end_time", ""), rec.get("_mtime", 0.0)) >=
+                            (prev.get("end_time", ""), prev.get("_mtime", 0.0))):
             best[key] = rec
 
     table = []
@@ -157,7 +164,7 @@ def main() -> int:
     table.sort(key=lambda r: (order[r["verdict"]], r["net_profit"]))
     table = [{"#": i + 1, **r} for i, r in enumerate(table)]
 
-    out = HARNESS / "out"
+    out = Path(args.out) if args.out else (HARNESS / "out")
     out.mkdir(parents=True, exist_ok=True)
     cols = list(table[0].keys()) if table else ["#"]
     with (out / "portfolio_summary.csv").open("w", newline="", encoding="utf-8") as fh:

@@ -5,8 +5,6 @@
 #property copyright "Master Strategy"
 #property link      ""
 #property version   "1.00"
-#property strict
-
 //--- Master Includes
 #include "..\Include\RiskGovernor.mqh"
 #include "..\Include\ExecutionManager.mqh"
@@ -19,7 +17,7 @@ input double InpBaseRiskPct = 0.005; // 0.5% Base Risk (Track A Eval / Track B F
 input bool   InpUseDxySmtGate = true; // Use Native DXY SMT Divergence Gate
 input bool   InpEnableLiveNews = true; // V4 Upgrade: Download Live News from ForexFactory
 input ulong InpMagicNumber = 777112; // EA Magic Number
-input int    InpBrokerOffset = 7; // Hours difference between Broker Server and EST/EDT
+input int    InpBrokerOffset = 7; // Fallback NY->server shift (hours) if the terminal clocks are unusable
 
 //--- V4 Upgrade: Institutional Lifecycle Gates
 enum ENUM_LIFECYCLE_LOCK
@@ -95,8 +93,6 @@ int OnInit()
         return(INIT_FAILED);
     }
     
-    GlobalVariableSet("MasterTriad_UseDxySmt", (double)InpUseDxySmtGate);
-    
     ArrayResize(ExecManagers, TotalSymbols);
     ArrayResize(E1Cores, TotalSymbols);
     
@@ -106,7 +102,8 @@ int OnInit()
         SymbolSelect(TargetSymbols[i], true);
         
         ExecManagers[i] = new CExecutionManager(TargetSymbols[i], InpMagicNumber); 
-        E1Cores[i] = new CE1SMCCore(ExecManagers[i], NewsManager, TargetSymbols[i], InpMagicNumber);
+        E1Cores[i] = new CE1SMCCore(ExecManagers[i], NewsManager, TargetSymbols[i], InpMagicNumber,
+                                     InpUseDxySmtGate);
         Print("✓ Initialized engines for: ", TargetSymbols[i]);
     }
     

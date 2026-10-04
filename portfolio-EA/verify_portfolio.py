@@ -617,14 +617,18 @@ def main() -> int:
           "wrong for EET/EEST brokers and for fixed-offset brokers)")
     check("m_brokerUtcOffset" in nm,
           "NewsManager's broker-offset input must stay the fallback knob")
-    check("long EA_ServerGmtOffsetSeconds()" in core and
-          "return (long)TimeTradeServer() - (long)TimeGMT();" in core,
+    check("long EA_ServerGmtOffsetSeconds()" in core,
           "the engine's auto server offset must be available at second precision (half-hour zones)")
     # MT5 documented: in the tester TimeGMT() == simulated TimeTradeServer(), so the
     # auto difference is always 0.  Both helpers must fall back to the configured rule.
     check(core.count("g_eaCfg.serverOffsetAuto && !MQLInfoInteger(MQL_TESTER)") == 2,
           "both server-offset helpers must refuse the auto path inside the Strategy Tester "
           "(TimeGMT() == TimeTradeServer() there, so it would read 0)")
+    check("long EA_LiveServerGmtSeconds()" in core and
+          core.count("EA_LiveServerGmtSeconds()") >= 3,
+          "the live server-GMT read must be one logged helper (#21) used by both offset paths")
+    check("server clock: GMT" in core and "implausible GMT offset" in core,
+          "the resolved server offset must be logged once, with an implausible value flagged")
     launcher = (REPO / "MQL5_Master" / "Scripts" / "PortfolioLauncher.mq5").read_text(encoding="utf-8")
     check("string ExpertKey(const string expert)" in launcher and
           launcher.count("ExpertKey(") >= 4,
@@ -637,6 +641,98 @@ def main() -> int:
                   core.index("datetime EA_UtcToLondon(")]
     check("EA_ServerGmtOffsetSeconds()" in utc_fn,
           "EA_ServerToUtc must use the second-precision offset (the news gate converts through it)")
+
+    # 13j - top-25 sweep: the open findings, closed --------------------------
+    # Each check pins one fix from docs/EA_TOP25_BUGS.md so the defect cannot
+    # silently return.  The Triad set is a second live EA (Master_Triad_V1) and is
+    # NOT part of the 65-engine delivery - it is compiled separately.
+    rg = (REPO / "MQL5_Master" / "Include" / "RiskGovernor.mqh").read_text(encoding="utf-8")
+    check("#define FREEZE_TRAILING_HOURS  48" in rg,
+          "the trailing-DD freeze must be its own 48h window (#10)")
+    check("m_dailyFreezeDay" in rg and "m_trailingFreezeUntil" in rg and
+          "m_breakerResetTime" not in rg,
+          "the two breakers must not share one reset timestamp (#10)")
+    ctor = rg[rg.index("CRiskGovernor::CRiskGovernor(ulong magic)"):rg.index("CRiskGovernor::~CRiskGovernor()")]
+    outside_ctor = rg.replace(ctor, "")
+    # strip comments: the legacy names are named in the upgrade prose on purpose
+    outside_code = re.sub(r"/\*.*?\*/", "", outside_ctor, flags=re.S)
+    outside_code = re.sub(r"//[^\n]*", "", outside_code)
+    legacy_leaks = [k for k in ("MasterTriad_PeakEquity", "MasterTriad_BreakerTime",
+                                "MasterTriad_LastDay", "MasterTriad_InitialBalance")
+                    if k in outside_code]
+    check('GlobalVariableCheck(GvKey("PeakEquity"))' in ctor and rg.count("GvKey(") >= 8 and
+          'GlobalVariableDel("MasterTriad_PeakEquity");' in ctor and
+          "adopted the pre-upgrade peak equity anchor" in ctor and not legacy_leaks,
+          "governor state must be namespaced by account + magic (#9); the legacy keys "
+          "may appear only in the constructor's one-time upgrade/cleanup"
+          + (" - leaked: " + ", ".join(legacy_leaks) if legacy_leaks else ""))
+    check("dt.hour = 0; dt.min = 0; dt.sec = 0;" in rg and
+          "TimeCurrent() % PeriodSeconds(PERIOD_D1)" not in rg,
+          "the daily anchor must use the server-day boundary, not an epoch modulo (#14)")
+    check(rg.count(".Magic() != m_magic") >= 4,
+          "heat/exposure must count only this magic's positions and orders (#6)")
+    expo = rg[rg.index("2. Sum Pending Orders (CRITICAL"):rg.index("return exposure;")]
+    check("order.OrderType()" in expo and "m_position.PositionType()" not in expo,
+          "a pending order's risk-free test must use the ORDER's own type (#4)")
+    daily = rg[rg.index("double CRiskGovernor::GetDailyRealizedPnL()"):rg.index("void CRiskGovernor::CloseAllPositions()")]
+    check("StartOfServerDay()" in daily and "DEAL_MAGIC" in daily and "DEAL_ENTRY_OUT_BY" in daily,
+          "GetDailyRealizedPnL must use the server day start and filter by magic (#14)")
+
+    e1 = (REPO / "MQL5_Master" / "Include" / "E1_SMC_Core.mqh").read_text(encoding="utf-8")
+    sweep = e1[e1.index("bool CE1SMCCore::DetectLiquiditySweep("):e1.index("bool CE1SMCCore::DetectM15CHoCH(")]
+    check("CopyRates(symbol, PERIOD_M15, 1, 60, r)" in sweep and
+          "priorExtreme" in sweep and sweep.count("return false") >= 3,
+          "DetectLiquiditySweep must implement the sweep precondition, not just return true (#5)")
+    check("PERIOD_M15, SERIES_LASTBAR_DATE" in e1 and "PERIOD_CURRENT, SERIES_LASTBAR_DATE" not in e1,
+          "the attempt cooldown must key on the setup timeframe, not the chart's (#12)")
+    check("bool useDxySmtGate = false" in e1 and "m_useDxySmtGate" in e1 and
+          'GlobalVariableGet("MasterTriad_UseDxySmt")' not in e1,
+          "the SMT gate must be a constructor parameter, not a global (#13)")
+    check("SMT gate requested but neither" in e1,
+          "the SMT gate must say when it is inert (no DXY symbol) (#13)")
+    check('MasterTriad_SweepTime_' not in e1 and "SweepGvName()" in e1,
+          "the traded-sweep key must be namespaced by account + magic (#9)")
+    bear = e1[e1.index("else if(bias == -1) // Bearish SMC Setup"):]
+    check("if(swingLowIdx == -1 || rates[i].low < swingLow)" in bear,
+          "the bearish structure search must mirror the bullish one (#11)")
+
+    nm2 = (REPO / "MQL5_Master" / "Include" / "NewsManager.mqh").read_text(encoding="utf-8")
+    check("m_loadOk" in nm2 and "return m_loadOk;" in nm2,
+          "NewsManager must report a failed/unparseable load (fail closed) (#7/#8)")
+    check("if(!m_loadOk)" in nm2 and "blocking new entries (fail closed)" in nm2,
+          "the Triad news gate must fail closed when no calendar loaded (#7)")
+    check("if(ArraySize(m_events) == 0)\n    {\n        if(!m_warnedEmptyWeek)" in nm2,
+          "an empty-but-loaded calendar is a quiet week, not a silent pass (#7)")
+    check(nm2.count("StringToLower(imp)") >= 2,
+          "impact must be compared case-insensitively on both load paths (#7)")
+    check("D'2000.01.01'" in nm2 and "D'2100.01.01'" in nm2,
+          "rows whose timestamp does not parse must be rejected and counted (#8)")
+
+    triad = (REPO / "MQL5_Master" / "Experts" / "Master_Triad_V1.mq5").read_text(encoding="utf-8")
+    check("InpUseDxySmtGate" in triad and "CE1SMCCore(ExecManagers[i], NewsManager, TargetSymbols[i], InpMagicNumber," in triad,
+          "the EA must pass the SMT switch into the core (#13)")
+    check("MasterTriad_UseDxySmt" not in triad,
+          "the SMT switch must not travel through a global variable (#13)")
+    for f in ("RiskGovernor.mqh", "ExecutionManager.mqh", "E1_SMC_Core.mqh", "NewsManager.mqh"):
+        src = (REPO / "MQL5_Master" / "Include" / f).read_text(encoding="utf-8")
+        check("#property strict" not in src, f + " still declares the MQL4-only #property strict (#20)")
+    check("#property strict" not in triad, "Master_Triad_V1.mq5 still declares #property strict (#20)")
+    em = (REPO / "MQL5_Master" / "Include" / "ExecutionManager.mqh").read_text(encoding="utf-8")
+    check("today's DEVELOPING range" in em,
+          "the daily-range vintage must be stated truthfully in the code (#15)")
+
+    ps1 = (REPO / "validation" / "mt5_harness" / "compile_all.ps1").read_text(encoding="utf-8")
+    check('": information: result"' not in ps1 and "(?i):\\s*error" in ps1,
+          "compile_all.ps1 must not hinge on one exact log string (#16)")
+    pr = (REPO / "validation" / "mt5_harness" / "parse_results.py").read_text(encoding="utf-8")
+    check("_mtime" in pr and "rec.get(\"_mtime\", 0.0)" in pr,
+          "parse_results must break equal end_time ties by file mtime (#18)")
+    gl = (REPO / "validation" / "mt5_harness" / "gen_launcher.py").read_text(encoding="utf-8")
+    check('out / "symbols.txt"' in gl,
+          "gen_launcher must write the universe union for the preflight (#19)")
+    up = (REPO / "MQL5_Master" / "Scripts" / "UniversePreflight.mq5").read_text(encoding="utf-8")
+    check("symbols.txt" in up and "BUILTIN snapshot" in up,
+          "UniversePreflight must read the generated symbol list, with a loud fallback (#19)")
 
     # 13f - syntax portability: NO adjacent string literals -------------------
     # MQL5's acceptance of implicitly concatenated string literals is the one

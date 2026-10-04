@@ -99,12 +99,21 @@ foreach ($t in $targets) {
         $text = Get-Content $log -Raw -Encoding Unicode -ErrorAction SilentlyContinue
         if (-not $text) { $text = Get-Content $log -Raw -ErrorAction SilentlyContinue }
         if (-not $text) { $text = "" }
-        $result = ([regex]::Matches($text, ": information: result")).Count
-        $errors = ([regex]::Matches($text, ": error")).Count
-        $warnings = ([regex]::Matches($text, ": warning")).Count - 0
-        if ($result -eq 0 -and $errors -eq 0) { $errors = 1 }   # no result line at all = did not compile
+
+        # The exact wording of MetaEditor's command-line log is not verified anywhere
+        # (this environment has no MetaEditor), so do not hinge success on one exact
+        # string.  Match case-insensitively and require positive evidence that the
+        # compiler actually ran - the log names the source file, or carries a
+        # result/summary line, or reports an explicit error count.
+        $errors   = ([regex]::Matches($text, "(?i):\s*error")).Count
+        $warnings = ([regex]::Matches($text, "(?i):\s*warning")).Count
+        $ran = ($text -match [regex]::Escape($t.Name)) -or
+               ($text -match "(?i)information:\s*result") -or
+               ($text -match "(?i)\b\d+\s+errors?\b") -or
+               ($text -match "(?i)errors?:\s*0")
+        if (-not $ran) { $errors = 1 }   # nothing in the log proves a compile happened
     } else {
-        $errors = 1                                             # no log = compile did not run
+        $errors = 1                       # no log = compile did not run
     }
 
     $totalErrors += $errors
