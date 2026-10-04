@@ -142,7 +142,8 @@ def main() -> int:
     required = ["g_eaCfg", "g_eaSymbols", "g_eaSymbolCount", "g_eaLastSignalBar",
                 "g_eaInd", "g_eaIndCount", "g_eaIndTf", "g_eaTrack", "g_eaTrackCount",
                 "g_eaNewsTimes", "g_eaNewsCount",
-                "g_eaNewsLoadedFile", "g_eaNewsLoadStamp"]
+                "g_eaNewsLoadedFile", "g_eaNewsLoadStamp",
+                "g_eaNewsServerFrame"]
     save = re.search(r"void PortSaveState\(const int i\)(.*?)\n\}", host, re.S)
     load = re.search(r"void PortLoadState\(const int i\)(.*?)\n\}", host, re.S)
     check(save is not None and load is not None, "snapshot functions missing")
@@ -548,6 +549,63 @@ def main() -> int:
                 uncovered = sorted(n for n in portfolio_wide if wide_runs.get(n, 0) < 2)
                 check(not uncovered,
                       f"engines with >8 symbols get no extra sweep run: {uncovered}")
+
+    # 13i - news: sources, time frame and the delivered fallbacks --------------
+    # The news gate used to be CSV-only and UTC-only.  Now the terminal's calendar
+    # is preferred live (it has no data in the tester, so the CSV must stay), and
+    # the calendar speaks SERVER time - a frame the CSV has to declare, or every
+    # window would sit a broker-offset away from the real release.
+    core = (REPO / "MQL5_Master" / "Include" / "EACore.mqh").read_text(encoding="utf-8")
+    check("bool                 newsUseCalendar;" in core and
+          "newsUseCalendar        = false;" in core,
+          "SEASettings.newsUseCalendar missing or not defaulting to the delivered false")
+    check("bool EA_LoadCalendarNews()" in core and
+          all(fn in core for fn in ("CalendarValueHistory", "CalendarEventById",
+                                    "CalendarCountryById")),
+          "the engine must be able to load the terminal's economic calendar")
+    cal = core[core.index("bool EA_LoadCalendarNews()"):core.index("void EA_LoadNewsCache()")]
+    check("MQLInfoInteger(MQL_TESTER)" in cal and "return false;" in cal,
+          "the calendar loader must refuse in the Strategy Tester (the API has no data there)")
+    check("CALENDAR_IMPORTANCE_HIGH" in cal,
+          "the calendar loader must keep the red-folder (high-impact) rule")
+    check("StringFind(g_eaCfg.symbols, cc) < 0" in cal,
+          "the calendar loader must apply the same currency filter as the CSV path")
+    check("g_eaNewsServerFrame = true;" in cal,
+          "calendar times are server time - the frame flag must be set")
+    check("datetime EA_NewsNowRef()" in core and core.count("EA_NewsNowRef()") >= 3,
+          "both gate consumers must use the frame-aware \"now\"")
+    gate = core[core.index("bool EA_NewsBlocked()"):core.index("//| Evidence ledger")]
+    check("EA_NewsNowRef()" in gate and "EA_ServerToUtc(TimeTradeServer())" not in gate,
+          "EA_NewsBlocked still converts to UTC unconditionally")
+    check('StringFind(d, "#timezone") == 0' in core and
+          'StringFind(d, "server") > 0' in core,
+          "the CSV loader must honour the #timezone=server marker")
+    check("FAIL CLOSED" in core and "no calendar events and no CSV file configured" in core,
+          "the fail-closed path must survive when neither source exists")
+    # the host must offer the switch and set it per engine before the snapshot
+    check("input bool   InpNewsCalendar" in host and
+          "g_eaCfg.newsUseCalendar = InpNewsCalendar;" in host,
+          "the host must let the book use the terminal calendar (InpNewsCalendar)")
+    check(host.index("g_eaCfg.newsUseCalendar = InpNewsCalendar;") <
+          host.index("PortSaveState(i);"),
+          "the news flag must be set before the engine state is snapshotted")
+    # the exporter must declare the server frame and not convert the times
+    exp = (REPO / "MQL5_Master" / "Scripts" / "ExportRedNews.mq5").read_text(encoding="utf-8")
+    check('FileWriteString(h, "#timezone=server,,,\\r\\n");' in exp,
+          "the exporter must declare its frame (server) on the first line")
+    check("g_eaNewsTimes[kept] = values[i].time;" in core,
+          "calendar values must be stored as-is (server frame)")
+    readme_news = (HERE / "README.md").read_text(encoding="utf-8")
+    check("InpNewsCalendar" in readme_news and "ExportRedNews" in readme_news,
+          "the README must document both news sources")
+    # the OTHER news module in the tree (NewsManager.mqh, used by Master_Triad_V1)
+    # stamps ForexFactory rows in New York local time and shifted them by a fixed
+    # winter-calibrated offset: every blocked window sat an hour off all summer.
+    nm = (REPO / "MQL5_Master" / "Include" / "NewsManager.mqh").read_text(encoding="utf-8")
+    check("bool IsNewYorkDst(" in nm and "if(IsNewYorkDst(event_time)) offsetHours -= 1;" in nm,
+          "NewsManager's New York offset must follow US daylight saving (one hour all summer)")
+    check("m_brokerUtcOffset" in nm,
+          "NewsManager's broker-offset input must stay the calibration knob")
 
     # 13f - syntax portability: NO adjacent string literals -------------------
     # MQL5's acceptance of implicitly concatenated string literals is the one

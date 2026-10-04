@@ -20,8 +20,12 @@
 //|   * one event per row, four comma-separated fields;                |
 //|   * 'date' is YYYY.MM.DD and 'time' is HH:MM - the engine feeds    |
 //|     the two fields to StringToTime() as one timestamp;             |
-//|   * times are UTC (MT5 calendar values are UTC; the engine         |
-//|     converts "now" to UTC before comparing);                       |
+//|   * times are SERVER time - that is the MT5 calendar's own         |
+//|     convention (its API returns trade-server time).  The file      |
+//|     therefore starts with the marker row                          |
+//|         #timezone=server,,,                                        |
+//|     so the engine compares in the same frame.  A CSV *without*     |
+//|     that marker keeps the delivered meaning: UTC;                  |
 //|   * 'impact' must read HIGH (or a number >= 2);                    |
 //|   * 'currency' is matched against the EA's symbol list, so USD     |
 //|     events block EURUSD/USDJPY/... engines; ALL blocks any symbol; |
@@ -105,7 +109,11 @@ void OnStart()
       return;
    }
 
-   //--- header: the engine skips a row it cannot turn into a timestamp
+   //--- frame marker first: MT5 calendar times are SERVER time, and the engine
+   //--- must compare them against the server clock, not the UTC-converted one.
+   //--- The three empty fields keep the 4-field row structure the engine's
+   //--- parser relies on; a row without a parseable timestamp is skipped.
+   FileWriteString(h, "#timezone=server,,,\r\n");
    FileWriteString(h, "date,time,currency,impact\r\n");
 
    int written = 0, skipped = 0;
@@ -135,8 +143,8 @@ void OnStart()
    }
    FileClose(h);
 
-   PrintFormat("ExportRedNews: %d blocking event(s) written to MQL5\\Files\\%s (window %s .. %s, "
-               "%d value(s) read, %d event lookup(s) failed).%s",
+   PrintFormat("ExportRedNews: %d blocking event(s) written to MQL5\\Files\\%s in SERVER time "
+               "(window %s .. %s, %d value(s) read, %d event lookup(s) failed).%s",
                written, InpFile,
                TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE),
                n, skipped,

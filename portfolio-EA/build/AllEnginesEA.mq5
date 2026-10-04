@@ -11988,7 +11988,9 @@ input int    InpMaxBookPositions    = 0;      // max positions across ALL engine
 input int    InpMaxBookPerSymbol    = 0;      // max book POSITIONS on one symbol (0 = off)
 input double InpBookRiskPct         = 0.0;    // max aggregate open risk, % of balance (0 = off)
 input bool   InpQuietInit           = true;   // hide the per-switch 'risk init' log line
-input bool   InpSummary             = true;   // log the init summary
+input bool   InpNewsCalendar        = true;   // engines with a news gate read the terminal
+                                              // calendar live (no CSV needed; the tester
+                                              // always uses the CSV - it has no calendar)
 
 //--- per-strategy switches (magic = strategy) ------------------------------
 //--- After demo testing, untick a strategy here to disable it - no recompile.
@@ -12080,6 +12082,7 @@ struct SPortState
    //--- the first engine to touch a symbol owns its slot, everybody reuses it.
    datetime       newsStamp;
    string         newsFile;
+   bool           newsServerFrame;   // time frame of the cached news times
 };
 
 SPortState   g_portState[PORT_MAX];
@@ -12651,6 +12654,7 @@ void PortSaveState(const int i)
 
    g_portState[i].newsStamp = g_eaNewsLoadStamp;
    g_portState[i].newsFile  = g_eaNewsLoadedFile;
+   g_portState[i].newsServerFrame = g_eaNewsServerFrame;
    int n = (int)MathMin(g_eaNewsCount, PORT_NEWS_MAX);
    //--- a cap that bites is a cap that must be visible (same rule as the
    //--- 8-symbol universe cap, defect #72): say it once per engine instead of
@@ -12687,6 +12691,7 @@ void PortLoadState(const int i)
 
    g_eaNewsLoadStamp  = g_portState[i].newsStamp;
    g_eaNewsLoadedFile = g_portState[i].newsFile;
+   g_eaNewsServerFrame = g_portState[i].newsServerFrame;
    g_eaNewsCount      = g_portNewsCount[i];
    ArrayResize(g_eaNewsTimes, g_eaNewsCount);
    for(int k = 0; k < g_eaNewsCount; k++)
@@ -12706,6 +12711,7 @@ void PortClearEngineState()
    g_eaNewsCount   = 0;
    g_eaNewsLoadedFile = "";
    g_eaNewsLoadStamp  = 0;
+   g_eaNewsServerFrame = false;
    g_eaStrategy    = NULL;
    ArrayResize(g_eaNewsTimes, 0);
    for(int k = 0; k < EA_MAX_SYMBOLS; k++)
@@ -12995,6 +13001,13 @@ int OnInit()
       }
 
       g_eaCfg.riskPct *= InpRiskScale;          // portfolio-level scaling only
+
+      //--- news: prefer the terminal's own economic calendar (server time, live
+      //--- only) over the per-engine CSV.  This frees the six fail-closed engines
+      //--- from needing MQL5\Files\the5ers_red_news.csv at all; in the Strategy
+      //--- Tester the calendar has no data, so the loader falls back to the CSV
+      //--- and the delivered fail-closed rule still applies there.
+      g_eaCfg.newsUseCalendar = InpNewsCalendar;
 
       //--- order policy: one position per SYMBOL (engine-enforced), as many
       //--- symbols as the engine trades.  46 of the delivered engines cap

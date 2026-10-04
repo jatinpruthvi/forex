@@ -639,6 +639,82 @@ covers every universe, exporter/template contract, README coupling).  The
 universe note in the report became a success line ("no universe is truncated
 (cap 10 >= widest universe 10, magic 2040)").
 
+## News path — 2026-10-04 (owner request: check the news functionality)
+
+Scope: everything in the delivery that reads an economic calendar. There are
+**two** implementations plus one exporter:
+
+| Path | Where | Times | Source |
+|---|---|---|---|
+| Engine CSV gate (6 of the 65 engines: 3102, 3104, 3105, 3106, 3107, 3109, all fail-closed) | `MQL5_Master/Include/EACore.mqh`, `EA_LoadNewsCache` / `EA_NewsBlocked` / `EA_NewsMinutesToNext` | **UTC** (contract comment, read by `EA_ServerToUtc`) | `MQL5\Files\the5ers_red_news.csv` |
+| `CNewsManager` (Master_Triad_V1, E1_SMC_Core) | `MQL5_Master/Include/NewsManager.mqh` | **New York local**, shifted by a fixed broker offset | ForexFactory XML over `WebRequest` |
+| Exporter | `MQL5_Master/Scripts/ExportRedNews.mq5` | MT5 calendar = **server time** | terminal's own calendar |
+
+**Defect #90 — the exporter wrote server-time rows into a UTC contract.**
+`CalendarValueHistory` / `CalendarValueLast` return trade-server time, that is
+their documented convention. The committed exporter wrote `values[i].time`
+straight into `date,time,...`, while the gate compares the row against
+`EA_ServerToUtc(TimeTradeServer())`. With a GMT+3 broker every one of the six
+engines' news windows (30 min before / 30 min after, flatten 15 min before)
+therefore fired three hours away from the real release — the window could miss
+the event entirely. Fix, at the source: the CSV can now **declare its frame**.
+The loader honours a first-row marker `#timezone=server,,,` (three empty fields
+so the 4-field row structure the parser relies on stays aligned), and the
+exporter writes it. A file without the marker keeps the delivered UTC meaning,
+so every hand-written file and every older export behaves exactly as before.
+The frame is cached per engine (`g_eaNewsServerFrame`, part of the snapshot) and
+both consumers derive their "now" from `EA_NewsNowRef()`.
+
+**Defect #91 — `NewsManager.mqh` shifted ForexFactory times by a fixed winter
+offset.** The FF feed stamps events in New York local time. `LoadFromCSV` added
+`m_brokerUtcOffset * 3600` (default 7 = server+2 − NY−5) — calibrated on EST.
+New York observes daylight saving for ~8 months of the year (EDT, UTC−4), during
+which the true offset is one hour smaller, so **the whole summer every blocked
+window sat one hour off the release** — for a 30-minute window that can mean
+missing the event altogether. Fix, at the source: `IsNewYorkDst()` (second
+Sunday of March 02:00 → first Sunday of November 02:00 local, computed with
+`MqlDateTime::day_of_week`) and the offset is reduced by one hour while New York
+is on daylight time. The `m_brokerUtcOffset` input stays the calibration knob.
+
+**Suggestion implemented — a live calendar source with CSV fallback.**
+The engine family was CSV-only, so live gating depended on someone exporting a
+file. `SEASettings.newsUseCalendar` (new, default **false** = delivered
+behaviour preserved for the 65; the portfolio host sets it from
+`InpNewsCalendar`, default true) makes the loader prefer the terminal's own
+calendar: `EA_LoadCalendarNews()` pulls `CalendarValueHistory` for the engine
+symbols, keeps `CALENDAR_IMPORTANCE_HIGH` (red folder) and the same currency
+filter as the CSV path, and stores the values un-converted with the frame flag
+set. The calendar API **has no data in the Strategy Tester** (returns 0; error
+4014) — a calendar-only design would leave the six fail-closed engines with no
+entries in every backtest — so the loader refuses in the tester
+(`MQLInfoInteger(MQL_TESTER)`) and falls back to the CSV, and with neither
+source the delivered `FAIL CLOSED` policy is unchanged.
+
+**Findings reported, deliberately not changed** (behaviour/naming choices for
+the owner, not defects):
+
+* `NewsManager` loads once at init (`DownloadAndParse` in the constructor path)
+  and never refreshes — a chart left running across a weekend keeps last week's
+  file. The engine's CSV gate re-reads at most once an hour; the same stamp
+  would be a one-line change if wanted.
+* `NewsManager` keeps only `impact == "High"` — a **case-sensitive** comparison.
+  A feed that writes `HIGH`, `high` or `High impact` silently loads **zero**
+  events. The engine's CSV path uses a case-insensitive substring plus a numeric
+  `>= 2` fallback; matching that would remove the failure mode.
+* The FF file is `ff_calendar_thisweek.xml` — "this week" only, so the module
+  cannot see month-end events at all, and `WebRequest` needs the URL whitelisted
+  in terminal options plus a reachable internet connection at init.
+* The struct field is named `utc_time` but holds broker server time (naming
+  only; the values are correct for their consumer).
+* The sentinel row `2030.01.01 00:00, ALL, COVERAGE` is only a completeness
+  marker; nothing in the engine reads it.
+
+`verify_portfolio.py` gained permanent guards for all of this (calendar source
+with its tester guard, frame flag set, frame-aware gate, `#timezone` marker in
+both loader and exporter, fail-closed path, host wiring order, README coverage,
+and the `IsNewYorkDst` fix), plus a positive control that neuters each of the
+three fixes and confirms the verifier fails.
+
 ## Verification after the fixes
 
 | Check | Result |

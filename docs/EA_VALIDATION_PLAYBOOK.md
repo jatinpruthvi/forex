@@ -44,9 +44,12 @@ construct the Linux side could not verify, so the verifier now bans it outright
 ## Stage 0b — build the news calendar (once)
 
 Six delivered engines (3102, 3104, 3105, 3106, 3107, 3109) ship the red-folder
-gate **fail-closed**: without `MQL5\Files\the5ers_red_news.csv` they take no new
-entries at all — in the tester that shows up as a FAIL row with zero trades, which
-looks like a broken strategy rather than a missing file.  Build it before Stage 1:
+gate **fail-closed**: without a calendar source they take no new entries at all —
+in the tester that shows up as a FAIL row with zero trades, which looks like a
+broken strategy rather than a missing file.  **Live** they now read MT5's own
+economic calendar (`InpNewsCalendar` in the portfolio EA), but the **Strategy
+Tester has no calendar data** (the API returns 0 / error 4014 there), so a sweep
+still needs the file.  Build it before Stage 1:
 
 ```powershell
 # copy the exporter into the terminal, then (MetaEditor) compile it and run it:
@@ -60,6 +63,10 @@ It only reads the economic calendar and writes that one file (never trades).  Th
 format is the engine's: `date,time,currency,impact` (`2026.10.02,13:30,USD,HIGH`,
 UTC, `HIGH` or a number ≥ 2, currency matched against the engine's symbol list,
 `ALL` for every symbol).
+
+The file starts with a `#timezone=server` marker because MT5 calendar times are
+**server time** (not UTC); the engine follows the marker, and a hand-written file
+without it keeps the delivered UTC meaning.  Do not mix the two.
 
 **Cover your tester window, not just "now".**  The sweep below runs a fixed range
 (the generated configs default to `2025.01.01 .. 2026.09.30`).  Set the script's

@@ -2,8 +2,13 @@ date,time,currency,impact
 # Copy to  <data>\MQL5\Files\the5ers_red_news.csv  and fill in the events you
 # want the news gate to block, ONE per row, oldest first.
 #
-#   date      YYYY.MM.DD          (UTC - MT5 calendar times are UTC)
-#   time      HH:MM              (24h, UTC)
+#   date      YYYY.MM.DD          (default frame: UTC - see below)
+#   time      HH:MM              (24h)
+#
+# TIMES: this template is UTC (the delivered convention).  A file produced by
+# MQL5_Master\Scripts\ExportRedNews.mq5 carries its own frame marker as the
+# first line -  #timezone=server,,,  - because the MT5 calendar speaks server
+# time.  Do not copy that marker into a UTC file, and do not mix the two.
 #   currency  USD / EUR / GBP / ALL ...   matched against the EA's symbol list,
 #             so USD blocks EURUSD, USDJPY, XAUUSD...; ALL blocks every symbol
 #   impact    HIGH               (or a number >= 2; anything else is ignored)

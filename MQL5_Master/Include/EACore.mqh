@@ -144,6 +144,7 @@ struct SEASettings
    //--- safety
    bool                 newsFilter;
    bool                 newsFailClosed;        // no usable calendar -> refuse new entries
+   bool                 newsUseCalendar;       // prefer the terminal's economic calendar (live)
    string               newsFile;              // MQL5/Files/<name>.csv
    int                  newsBeforeMin;
    int                  newsAfterMin;
@@ -220,6 +221,7 @@ struct SEASettings
       timeStopUnlessR        = 0.0;
       newsFilter             = false;
       newsFailClosed         = false;
+      newsUseCalendar        = false;
       newsFile               = "";
       newsBeforeMin          = 30;
       newsAfterMin           = 30;
@@ -512,24 +514,124 @@ void EA_Log(const int level, const string msg, const bool throttleSeconds = fals
 }
 
 //+------------------------------------------------------------------+
-//| News blackout (optional CSV in MQL5/Files)                       |
-//| Format:  date,time,currency,impact    e.g. 2026.10.02,13:30,USD,HIGH
-//| Impact >= 2 (or "HIGH") blocks the configured window.            |
+//| News blackout - CSV file and/or the terminal's economic calendar |
+//|                                                                  |
+//| Two sources, in one cache (the gate reads g_eaNewsTimes only):    |
+//|  1. the terminal's own calendar (cfg.newsUseCalendar, live only - |
+//|     the Strategy Tester has no calendar data, so backtests use   |
+//|     the file), and                                             |
+//|  2. a CSV in MQL5/Files:  date,time,currency,impact              |
+//|     e.g. 2026.10.02,13:30,USD,HIGH  (impact >= 2 or "HIGH")     |
+//|                                                                  |
+//| TIME FRAME: by contract the CSV times are UTC (the gate converts |
+//| "now" with EA_ServerToUtc).  Times taken from the terminal        |
+//| calendar are SERVER time (that is the calendar API's own         |
+//| convention), so a CSV produced by MQL5_Master\Scripts\           |
+//| ExportRedNews.mq5 declares its frame with a first-row marker:     |
+//|     #timezone=server,,,                                          |
+//| (the three empty fields keep the 4-field row structure the       |
+//| parser relies on).  A file without the marker is UTC, exactly as  |
+//| the delivered engines always read it.                            |
 //+------------------------------------------------------------------+
 datetime g_eaNewsTimes[];
 int      g_eaNewsCount = 0;
 string   g_eaNewsLoadedFile = "";
 datetime g_eaNewsLoadStamp = 0;
+bool     g_eaNewsServerFrame = false;   // times are broker server time, not UTC
+
+//--- how far around "now" the live calendar is queried
+#define EA_NEWS_CAL_PAST_DAYS    2
+#define EA_NEWS_CAL_FUTURE_DAYS 30
+
+//--- "now" expressed in the frame the loaded times use
+datetime EA_NewsNowRef()
+{
+   return g_eaNewsServerFrame ? TimeTradeServer() : EA_ServerToUtc(TimeTradeServer());
+}
+
+//--- load high-impact events for this engine's symbols from the terminal's own
+//--- economic calendar.  Returns false when there is nothing to load - which is
+//--- also ALWAYS the case inside the Strategy Tester (the calendar API has no
+//--- data there, returns 0/error 4014), so the caller falls back to the CSV.
+bool EA_LoadCalendarNews()
+{
+   if(MQLInfoInteger(MQL_TESTER)) return false;
+
+   datetime now = TimeTradeServer();
+   datetime from = now - (datetime)((long)EA_NEWS_CAL_PAST_DAYS * 86400);
+   datetime to   = now + (datetime)((long)EA_NEWS_CAL_FUTURE_DAYS * 86400);
+
+   MqlCalendarValue values[];
+   ResetLastError();
+   int n = CalendarValueHistory(values, from, to, NULL, NULL);
+   if(n <= 0)
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("economic calendar: no events for %s..%s (count %d, err %d)",
+             TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE), n, GetLastError()));
+      return false;
+   }
+
+   int kept = 0;
+   for(int i = 0; i < n; i++)
+   {
+      MqlCalendarEvent ev;
+      if(!CalendarEventById(values[i].event_id, ev)) continue;
+      if(ev.importance != CALENDAR_IMPORTANCE_HIGH) continue;   // red-folder rule
+
+      string cc = "ALL";
+      MqlCalendarCountry country;
+      if(CalendarCountryById(ev.country_id, country) && StringLen(country.currency) > 0)
+         cc = country.currency;
+      if(cc != "" && cc != "ALL" && StringFind(g_eaCfg.symbols, cc) < 0) continue;
+
+      ArrayResize(g_eaNewsTimes, kept + 1, 32);
+      g_eaNewsTimes[kept] = values[i].time;                     // server time
+      kept++;
+   }
+   g_eaNewsCount      = kept;
+   g_eaNewsServerFrame = true;                                  // calendar times are server time
+   EA_Log(EA_LOG_EVENTS, StringFormat("economic calendar: %d high-impact event(s) kept for %s",
+          kept, g_eaCfg.symbols));
+   return (kept > 0);
+}
 
 void EA_LoadNewsCache()
 {
-   if(!g_eaCfg.newsFilter || g_eaCfg.newsFile == "") return;
-   if(g_eaNewsLoadedFile == g_eaCfg.newsFile && TimeTradeServer() - g_eaNewsLoadStamp < 3600) return;
+   if(!g_eaCfg.newsFilter) return;
+   if(g_eaCfg.newsFile == "" && !g_eaCfg.newsUseCalendar) return;
 
-   g_eaNewsLoadedFile = g_eaCfg.newsFile;
-   g_eaNewsLoadStamp  = TimeTradeServer();
-   g_eaNewsCount      = 0;
+   //--- the cache key is what actually supplies the events, so switching source
+   //--- (or no CSV at all) still reloads on the hourly stamp and never per tick
+   string sourceKey = (g_eaCfg.newsUseCalendar && !MQLInfoInteger(MQL_TESTER))
+                      ? "<terminal calendar>" : g_eaCfg.newsFile;
+   if(g_eaNewsLoadedFile == sourceKey && TimeTradeServer() - g_eaNewsLoadStamp < 3600) return;
+
+   g_eaNewsLoadedFile  = sourceKey;
+   g_eaNewsLoadStamp   = TimeTradeServer();
+   g_eaNewsCount       = 0;
+   g_eaNewsServerFrame = false;
    ArrayResize(g_eaNewsTimes, 0);
+
+   //--- 1. the terminal's own calendar first (live only - see EA_LoadCalendarNews)
+   if(g_eaCfg.newsUseCalendar)
+   {
+      if(MQLInfoInteger(MQL_TESTER))
+         EA_Log(EA_LOG_EVENTS, "news: the terminal calendar is unavailable in the Strategy Tester - " +
+                "using the CSV file");
+      else if(EA_LoadCalendarNews())
+         return;                       // calendar supplied the events
+      else
+         EA_Log(EA_LOG_EVENTS, "news: no calendar events - falling back to the CSV file");
+   }
+
+   //--- 2. the CSV (also the tester path, and the delivered default)
+   if(g_eaCfg.newsFile == "")
+   {
+      if(g_eaCfg.newsFailClosed)
+         EA_Log(EA_LOG_ERRORS, "news: no calendar events and no CSV file configured - " +
+                "FAIL CLOSED: no new entries until one of them is available");
+      return;
+   }
 
    int fh = FileOpen(g_eaCfg.newsFile, FILE_READ | FILE_CSV | FILE_ANSI, ',');
    if(fh == INVALID_HANDLE)
@@ -553,6 +655,13 @@ void EA_LoadNewsCache()
       string t  = FileReadString(fh);
       string cc = FileReadString(fh);
       string im = FileReadString(fh);
+      //--- frame marker written by ExportRedNews.mq5: "#timezone=server,,,"
+      //--- (three empty fields so the 4-field row structure stays aligned)
+      if(StringFind(d, "#timezone") == 0)
+      {
+         if(StringFind(d, "server") > 0) g_eaNewsServerFrame = true;
+         continue;
+      }
       if(d == "" || t == "") continue;
       if(StringFind(im, "HIGH") < 0 && StringFind(im, "High") < 0 && StringToInteger(im) < 2) continue;
       if(cc != "" && cc != "ALL" && StringFind(g_eaCfg.symbols, cc) < 0) continue;
@@ -570,11 +679,11 @@ int EA_NewsMinutesToNext()
    if(!g_eaCfg.newsFilter) return -1;
    EA_LoadNewsCache();
    if(g_eaNewsCount == 0) return -1;
-   datetime nowUtc = EA_ServerToUtc(TimeTradeServer());
+   datetime nowRef = EA_NewsNowRef();       // same frame as the loaded times
    long best = -1;
    for(int i = 0; i < g_eaNewsCount; i++)
    {
-      long secs = (long)g_eaNewsTimes[i] - (long)nowUtc;
+      long secs = (long)g_eaNewsTimes[i] - (long)nowRef;
       if(secs < 0) continue;
       if(best < 0 || secs < best) best = secs;
    }
@@ -587,12 +696,12 @@ bool EA_NewsBlocked()
    if(!g_eaCfg.newsFilter) return false;
    EA_LoadNewsCache();
    if(g_eaNewsCount == 0) return g_eaCfg.newsFailClosed;   // fail closed without a calendar
-   datetime nowUtc = EA_ServerToUtc(TimeTradeServer());
+   datetime nowRef = EA_NewsNowRef();       // same frame as the loaded times
    for(int i = 0; i < g_eaNewsCount; i++)
    {
       datetime t = g_eaNewsTimes[i];
-      if(nowUtc >= t - (datetime)(g_eaCfg.newsBeforeMin * 60) &&
-         nowUtc <= t + (datetime)(g_eaCfg.newsAfterMin * 60))
+      if(nowRef >= t - (datetime)(g_eaCfg.newsBeforeMin * 60) &&
+         nowRef <= t + (datetime)(g_eaCfg.newsAfterMin * 60))
          return true;
    }
    return false;

@@ -79,6 +79,43 @@ string CNewsManager::ExtractXMLTag(string xml, string tag)
 }
 
 //+------------------------------------------------------------------+
+//| US daylight-saving check for a NEW YORK local timestamp           |
+//|                                                                   |
+//| The ForexFactory feed stamps its events in New York local time:   |
+//| EST (UTC-5) in winter, EDT (UTC-4) from the second Sunday of      |
+//| March 02:00 to the first Sunday of November 02:00.  The broker     |
+//| offset input (m_brokerUtcOffset, default 7 = server+2 - NY-5) was  |
+//| calibrated on winter time, so it is an hour too large all summer:  |
+//| every blocked window would sit one hour off the actual release     |
+//| (a 30-minute window can miss the event entirely).                  |
+//| This is why the offset is reduced by one hour while New York is on |
+//| daylight time - see the fix note next to the call site.            |
+//+------------------------------------------------------------------+
+bool IsNewYorkDst(const datetime nyLocalTime)
+{
+    MqlDateTime dt;
+    if(!TimeToStruct(nyLocalTime, dt)) return false;
+
+    MqlDateTime m;
+    m.year = dt.year; m.mon = 3; m.day = 1; m.hour = 2; m.min = 0; m.sec = 0;
+    datetime mar1 = StructToTime(m);
+    MqlDateTime md;
+    TimeToStruct(mar1, md);
+    int daysToSun = (7 - md.day_of_week) % 7;          // day_of_week: 0 = Sunday
+    datetime dstStart = mar1 + (datetime)((daysToSun + 7) * 86400);   // second Sunday
+
+    MqlDateTime n;
+    n.year = dt.year; n.mon = 11; n.day = 1; n.hour = 2; n.min = 0; n.sec = 0;
+    datetime nov1 = StructToTime(n);
+    MqlDateTime nd;
+    TimeToStruct(nov1, nd);
+    int daysToSun2 = (7 - nd.day_of_week) % 7;
+    datetime dstEnd = nov1 + (datetime)(daysToSun2 * 86400);          // first Sunday
+
+    return (nyLocalTime >= dstStart && nyLocalTime < dstEnd);
+}
+
+//+------------------------------------------------------------------+
 //| Download and Parse XML from ForexFactory                         |
 //+------------------------------------------------------------------+
 bool CNewsManager::DownloadAndParse()
@@ -165,7 +202,13 @@ bool CNewsManager::LoadFromCSV()
         datetime event_time = ParseAMPMTime(time_text); // CRITICAL FIX: Handle ForexFactory AM/PM
         
         // V4 UPGRADE: Align ForexFactory EST/EDT time to Broker Server Time (typically +7 hours)
-        event_time = event_time + (m_brokerUtcOffset * 3600);
+        // V5 FIX: the offset was calibrated on EST (winter).  New York observes
+        // daylight saving for ~8 months of the year, during which server-NY is
+        // one hour SMALLER - without this the blocked window missed the release
+        // by an hour all summer.
+        int offsetHours = m_brokerUtcOffset;
+        if(IsNewYorkDst(event_time)) offsetHours -= 1;
+        event_time = event_time + (offsetHours * 3600);
         
         int size = ArraySize(m_events);
         ArrayResize(m_events, size + 1);

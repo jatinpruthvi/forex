@@ -48,7 +48,7 @@ portfolio-EA/
 │
 ├── PLAN.md                  the design + the decisions taken (read this first)
 ├── gen_portfolio_ea.py      build tool: delivered 65 EAs -> the one EA file
-├── verify_portfolio.py      1 816 static checks (freshness, hashes, policy, tags,
+├── verify_portfolio.py      1 833 static checks (freshness, hashes, policy, tags,
 │                              identifier hygiene, capacity, shared-engine state)
 ├── README.md
 └── build/                   GENERATED - do not hand-edit
@@ -198,19 +198,23 @@ On Windows/MT5:
 2. copy **`build/AllEnginesEA.mq5`** into `<data>\MQL5\Experts\` and compile it
    (nothing else has to go with it);
 3. copy `build/engines.csv` into `<data>\MQL5\Files\PortfolioEA\`;
-4. build the news calendar (one minute, once) — **six engines fail closed on news.**
-   3102, 3104, 3105, 3106, 3107 and 3109 ship the red-folder gate with
-   `newsFailClosed`, so without `MQL5\Files\the5ers_red_news.csv` they log
-   `FAIL CLOSED` and take **no new entries** (the tracker shows them `TOO_FEW`
-   forever). Copy `MQL5_Master\Scripts\ExportRedNews.mq5` into
-   `<data>\MQL5\Scripts\`, compile it, drag it onto any chart — it writes that
-   file from the terminal's own economic calendar, already in the engine's format
-   (`date,time,currency,impact`, e.g. `2026.10.02,13:30,USD,HIGH`; UTC times,
-   `HIGH` impact, currency matched against the engine's symbol list, `ALL` =
-   every symbol). Each event blocks a 30-minute window around it and the
-   red-folder engines flatten 15 minutes before it. No calendar at your broker?
-   Fill `validation\mt5_harness\files\the5ers_red_news.csv.template` by hand
-   and copy it to `<data>\MQL5\Files\`, or switch those six off;
+4. news (optional — the EA now reads the terminal's own calendar). Six engines
+   (3102, 3104, 3105, 3106, 3107, 3109) ship the red-folder gate **fail closed**:
+   bad or absent calendar = no new entries (the delivered policy).
+   With `InpNewsCalendar = true` (the default) they read **MT5's own economic
+   calendar live**, so no file is needed and they trade from the first tick; the
+   calendar has no data in the Strategy Tester, so backtests still use each
+   engine's CSV. If you prefer the file (a hand-curated list, or your broker has
+   no calendar feed), set `InpNewsCalendar = false` and run
+   `MQL5_Master\Scripts\ExportRedNews.mq5` once — it writes
+   `MQL5\Files\the5ers_red_news.csv` in the engine's format
+   (`date,time,currency,impact`, e.g. `2026.10.02,13:30,USD,HIGH`; the file
+   declares its own time frame with a `#timezone=server` marker, because MT5
+   calendar times are server time; a hand-written file without that marker is
+   read as UTC, exactly as the delivered engines always did). Each event blocks a
+   30-minute window around it and the red-folder engines flatten 15 minutes
+   before it. No calendar *and* no file ⇒ the six stay in `FAIL CLOSED`
+   (delivered policy) and show `TOO_FEW` in the tracker;
 5. attach `AllEnginesEA` to **one** chart (Algo Trading ON) — demo first;
 6. compile + attach `src/PortfolioEA.mq5` on another chart to watch per-engine
    results.
@@ -227,7 +231,7 @@ Only if you change a strategy or the host do you need the build tools again:
 
 ```bash
 python3 portfolio-EA/gen_portfolio_ea.py        # rewrite the compiled EA file
-python3 portfolio-EA/verify_portfolio.py        # 1 816 checks
+python3 portfolio-EA/verify_portfolio.py        # 1 833 checks
 ```
 
 If you hand-edit `build/AllEnginesEA.mq5`, keep the edited copy somewhere else
@@ -278,8 +282,14 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   same margin, and the book caps (`InpMaxBookPositions`, `InpMaxBookPerSymbol`,
   `InpBookRiskPct`) are the only aggregate limits; fund the demo account for the
   whole book, not for one engine.
-* **Six engines need the red-folder calendar** (see the deploy step): fail-closed
-  by design in the delivered EAs.
+* **News.** `InpNewsCalendar = true` (host default) makes every news-gated engine
+  read the terminal's calendar live — no CSV, no WebRequest permission needed —
+  and falls back to the engine's CSV in the Strategy Tester (the calendar API has
+  no data there). The standalone 65 keep their delivered CSV-only behaviour unless
+  they set `cfg.newsUseCalendar` themselves. Time frames are explicit rather than
+  assumed: calendar times are server time, the exported CSV declares that with a
+  `#timezone=server` marker, and a file without the marker is UTC (delivered
+  contract).
 * **The `switch` column of `performance.csv` is the input name to untick**
   (`InpRun_<magic>`), not the live switch state — the trader is deliberately
   single-file and publishes nothing, so the tracker cannot read inputs.
@@ -305,7 +315,7 @@ EA (for logic) or in `gen_portfolio_ea.py` (for the host).
   860 inputs as constants, 65 tag wrappers, registry + engines.csv + policy
   override + book caps. Enum types of the 6 engines that declare them are
   prefixed like every other per-engine identifier (defect #67).
-* `verify_portfolio.py` — **1 816/1 816 checks pass** (freshness, originals by
+* `verify_portfolio.py` — **1 833/1 833 checks pass** (freshness, originals by
   hash, switches, tags/wrappers, policy override, registry/engines.csv
   completeness, **one-file EA: every strategy inlined verbatim**, **identifier
   hygiene**: every emitted type exists, no top-level name twice, every
