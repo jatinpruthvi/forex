@@ -714,21 +714,20 @@ source the delivered `FAIL CLOSED` policy is unchanged.
 **Findings reported, deliberately not changed** (behaviour/naming choices for
 the owner, not defects):
 
-* `NewsManager` loads once at init (`DownloadAndParse` in the constructor path)
-  and never refreshes — a chart left running across a weekend keeps last week's
-  file. The engine's CSV gate re-reads at most once an hour; the same stamp
-  would be a one-line change if wanted.
-* `NewsManager` keeps only `impact == "High"` — a **case-sensitive** comparison.
-  A feed that writes `HIGH`, `high` or `High impact` silently loads **zero**
-  events. The engine's CSV path uses a case-insensitive substring plus a numeric
-  `>= 2` fallback; matching that would remove the failure mode.
+* ~~`NewsManager` loads once at init and never refreshes~~ — **FIXED 2026-10-04**
+  (calendar upkeep, below): the master's timer now re-loads on an interval and a
+  live calendar that cannot be refreshed fails closed.
+* ~~`NewsManager` keeps only `impact == "High"` — a case-sensitive comparison~~
+  — **FIXED** in the top-25 pass (#7): both load paths trim and lowercase the
+  impact before comparing.
 * The FF file is `ff_calendar_thisweek.xml` — "this week" only, so the module
   cannot see month-end events at all, and `WebRequest` needs the URL whitelisted
   in terminal options plus a reachable internet connection at init.
 * The struct field is named `utc_time` but holds broker server time (naming
   only; the values are correct for their consumer).
 * The sentinel row `2030.01.01 00:00, ALL, COVERAGE` is only a completeness
-  marker; nothing in the engine reads it.
+  marker; **it no longer loads as a blocking event** (top-25 #7 - the impact
+  field is `COVERAGE`, not `High`).
 
 **Verification.** `verify_portfolio.py` **OK - 1 841 checks** (the news guards and
 the Scripts adjacency sweep included), `tests/test_news_timeframes.py` **10 new tests**.
@@ -853,6 +852,30 @@ fails the verifier with **36 checks** (31 named guards + 5 source-fingerprint ch
 deliberate code leak while ignoring the legacy names in prose. Still unverified:
 **nothing has been compiled** (#23) and no tester sweep has run (#24) - the two
 Windows-side items that remain.
+
+## Calendar upkeep — fixed after the owner's review, 2026-10-04
+
+The owner asked the right question about the bullet above ("do I have to re-init
+the chart every week?").  No: the module now maintains its own calendar.
+
+* `CNewsManager::RefreshIfStale()` is called from the master's 1-second
+  `OnTimer` **before** the risk gate, so weekends and breaker-frozen periods
+  still refresh.  It is interval-gated, never per tick: live mode re-downloads
+  every `NEWS_LIVE_REFRESH_HOURS` (6), file mode re-reads the CSV every
+  `NEWS_CSV_REFRESH_HOURS` (1 — the same hourly stamp the 65-engine family
+  uses).
+* A failed refresh backs off `NEWS_REFRESH_RETRY_MINUTES` (15) — a
+  non-whitelisted `WebRequest` URL or a dead connection cannot become a
+  per-second retry loop.  The previous file is kept.
+* If the newest successful load is older than `NEWS_STALE_BLOCK_HOURS` (48) in
+  **live** mode, the gate FAILS CLOSED (no new entries) until a refresh
+  succeeds — the same policy as an unusable load (#7).  Staleness is a
+  live-mode concept only: in the tester and in replays `TimeCurrent()` is
+  simulated history, so the CSV is simply what it is.
+
+Guarded by 14 new verifier checks (1 878 -> 1 893) and 6 new tests
+(`tests/test_triad_fixes.py`, 22 total), including the weekend scenario and the
+backoff; reverting the two files fails 15 checks and 6 tests.
 
 ## Verification after the fixes
 

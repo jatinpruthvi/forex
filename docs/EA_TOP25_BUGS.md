@@ -47,6 +47,8 @@ a narrower window. `P3` = hygiene.
 | 21 | the resolved server offset is logged once, implausible values are an error |
 | 22 | tracker limits documented (closed-only verdicts; entry-commission edge) |
 
+**Also closed this pass:** the calendar-upkeep finding from the audit (the news module used to load once per chart and never refresh) - see `docs/EA_BUG_AUDIT.md`, "Calendar upkeep".
+
 **Still owner/Windows-side (nothing to fix in code):** #23 compile,
 #24 tester sweep, #25 demo run.
 

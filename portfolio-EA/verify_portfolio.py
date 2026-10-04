@@ -708,7 +708,46 @@ def main() -> int:
     check("D'2000.01.01'" in nm2 and "D'2100.01.01'" in nm2,
           "rows whose timestamp does not parse must be rejected and counted (#8)")
 
+    # 13k - calendar upkeep: the calendar must not sit unread for a week -----
+    # The delivered module loaded the calendar once, in the init path, and never
+    # again: a chart left running across a weekend kept last week's file while the
+    # new week's red news went unseen.  Guard the fix and the anti-abuse rules.
+    for const, value in (("NEWS_LIVE_REFRESH_HOURS", "6"), ("NEWS_CSV_REFRESH_HOURS", "1"),
+                         ("NEWS_STALE_BLOCK_HOURS", "48"), ("NEWS_REFRESH_RETRY_MINUTES", "15")):
+        check(re.search(r"#define\s+" + const + r"\s+" + value + r"\b", nm2) is not None,
+              f"NewsManager must define {const} = {value} (calendar upkeep)")
+    check("bool      RefreshIfStale();" in nm2 and "bool CNewsManager::RefreshIfStale()" in nm2,
+          "NewsManager must expose the periodic refresh (calendar upkeep)")
+    check("bool      IsCalendarStale() const;" in nm2 and "bool CNewsManager::IsCalendarStale() const" in nm2,
+          "NewsManager must expose the staleness test the gate uses (calendar upkeep)")
+    check("GetPointer" not in nm2,  # sanity: no pointer noise crept into the module
+          "NewsManager must stay a plain class (calendar upkeep)")
+    rf = (nm2[nm2.index("bool CNewsManager::RefreshIfStale()"):nm2.index("bool CNewsManager::IsCalendarStale()")]
+          if "bool CNewsManager::RefreshIfStale()" in nm2 and "bool CNewsManager::IsCalendarStale()" in nm2 else "")
+    check("NEWS_LIVE_REFRESH_HOURS : NEWS_CSV_REFRESH_HOURS" in rf and "* 3600" in rf and
+          "< interval) return m_loadOk" in rf,
+          "the refresh must be interval-gated, not called per tick (calendar upkeep)")
+    check("* 60)" in rf and "m_lastAttemptAt" in rf,
+          "a failed refresh must back off instead of retrying every tick (calendar upkeep)")
+    check("DownloadAndParse()" in rf and "LoadFromCSV()" in rf,
+          "live mode re-downloads; file mode re-reads the CSV in place (calendar upkeep)")
+    check("m_loadedAt = TimeCurrent();" in nm2 and "m_warnedStale = false;" in nm2,
+          "a good load must stamp the upkeep clock and reset the one-shot warning (calendar upkeep)")
+    stale = (nm2[nm2.index("bool CNewsManager::IsCalendarStale() const"):nm2.index("bool CNewsManager::IsNewsBlockActive")]
+             if "bool CNewsManager::IsCalendarStale() const" in nm2 and "bool CNewsManager::IsNewsBlockActive" in nm2 else "")
+    check("if(!m_liveEnabled" in stale,
+          "staleness is a live-mode concept - the tester replays simulated time (calendar upkeep)")
+    check("if(IsCalendarStale())" in nm2 and "blocking new entries (fail closed)" in nm2,
+          "the gate must fail closed while the live calendar is stale (calendar upkeep)")
     triad = (REPO / "MQL5_Master" / "Experts" / "Master_Triad_V1.mq5").read_text(encoding="utf-8")
+    check("    if(CheckPointer(NewsManager) != POINTER_INVALID) NewsManager.RefreshIfStale();" in triad,
+          "the EA must run the upkeep from its 1-second OnTimer (calendar upkeep)")
+    check("NewsManager.RefreshIfStale()" in triad and
+          "if(!RiskGovernor.IsTradingAllowed()) return;" in triad and
+          triad.index("NewsManager.RefreshIfStale()") <
+          triad.index("if(!RiskGovernor.IsTradingAllowed()) return;"),
+          "the upkeep must run BEFORE the risk gate, so frozen/weekend ticks still refresh (calendar upkeep)")
+
     check("InpUseDxySmtGate" in triad and "CE1SMCCore(ExecManagers[i], NewsManager, TargetSymbols[i], InpMagicNumber," in triad,
           "the EA must pass the SMT switch into the core (#13)")
     check("MasterTriad_UseDxySmt" not in triad,

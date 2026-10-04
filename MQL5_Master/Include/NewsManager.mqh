@@ -2,6 +2,17 @@
 //|                                                  NewsManager.mqh |
 //|                                  Copyright 2026, Master Strategy |
 //+------------------------------------------------------------------+
+//--- Calendar upkeep.  The delivered module loaded the calendar ONCE, in the
+//--- init path, and never again: a chart left running across a weekend kept
+//--- last week's file while the new week's red news went unseen (past events
+//--- never block).  RefreshIfStale() is called from the EA's 1-second OnTimer
+//--- and re-loads the calendar at most once per interval; if the live download
+//--- cannot be refreshed for NEWS_STALE_BLOCK_HOURS the gate FAILS CLOSED.
+#define NEWS_LIVE_REFRESH_HOURS    6    // live: re-download the FF file at most this often
+#define NEWS_CSV_REFRESH_HOURS     1    // file mode: re-read the CSV (matches the 65-engine family's hourly stamp)
+#define NEWS_STALE_BLOCK_HOURS    48    // live: block new entries after this long without a successful refresh
+#define NEWS_REFRESH_RETRY_MINUTES 15   // after a FAILED attempt wait this long (never a per-tick retry)
+
 struct NewsEvent
 {
     datetime utc_time;
@@ -28,6 +39,12 @@ private:
     bool      m_warnedNoCalendar;
     bool      m_warnedEmptyWeek;
 
+    //--- calendar upkeep: when the last good load happened, when the last
+    //--- attempt happened (backoff), and whether the staleness warning printed
+    datetime  m_loadedAt;
+    datetime  m_lastAttemptAt;
+    bool      m_warnedStale;
+
     string    ExtractXMLTag(string xml, string tag);
 
 public:
@@ -37,7 +54,65 @@ public:
     bool      DownloadAndParse();
     bool      LoadFromCSV();
     bool      IsNewsBlockActive(string symbol);
+    bool      RefreshIfStale();     // called from the EA's OnTimer - re-loads when due
+    bool      IsCalendarStale() const;
 };
+
+//+------------------------------------------------------------------+
+//| Calendar upkeep - why this exists                                 |
+//|                                                                   |
+//| "Live" is only live if it is fresh.  The FF feed is rewritten     |
+//| every week (and corrected during the week), so a file that is     |
+//| never re-read silently ages into a filter that blocks nothing -   |
+//| the worst failure mode for a news gate, because it looks fine.    |
+//|                                                                   |
+//|   * live mode  - re-download from the feed every                  |
+//|       NEWS_LIVE_REFRESH_HOURS; after a failed attempt wait        |
+//|       NEWS_REFRESH_RETRY_MINUTES before trying again              |
+//|   * file mode  - re-read the CSV every NEWS_CSV_REFRESH_HOURS so  |
+//|       a scheduled refresh of the file needs no re-init either     |
+//|   * stale      - live only: once the newest successful load is    |
+//|       older than NEWS_STALE_BLOCK_HOURS the gate FAILS CLOSED     |
+//|       until a refresh succeeds (same policy as #7 for a bad load) |
+//|                                                                   |
+//| File mode never goes stale on the wall clock: in the tester (and  |
+//| a replay) TimeCurrent() is simulated history, so the file is what |
+//| it is.                                                            |
+//+------------------------------------------------------------------+
+bool CNewsManager::RefreshIfStale()
+{
+    if(m_loadedAt <= 0) return m_loadOk;   // nothing ever loaded - init handles that
+
+    long interval = (long)(m_liveEnabled ? NEWS_LIVE_REFRESH_HOURS : NEWS_CSV_REFRESH_HOURS) * 3600;
+    if((long)TimeCurrent() - (long)m_loadedAt < interval) return m_loadOk;
+
+    //--- backoff: a failing endpoint (WebRequest not whitelisted, no network)
+    //--- must not be retried on every timer tick
+    if(m_lastAttemptAt > 0 &&
+       (long)TimeCurrent() - (long)m_lastAttemptAt < (long)NEWS_REFRESH_RETRY_MINUTES * 60)
+        return m_loadOk;
+    m_lastAttemptAt = TimeCurrent();
+
+    if(m_liveEnabled)
+    {
+        Print("NEWS MANAGER: refreshing the live calendar (last successful load ",
+              TimeToString(m_loadedAt), ").");
+        bool ok = DownloadAndParse();
+        if(!ok)
+            Print("NEWS ERROR: live calendar refresh failed - keeping the previous file; ",
+                  "entries will FAIL CLOSED once it is ", NEWS_STALE_BLOCK_HOURS, "h old.");
+        return ok;
+    }
+    return LoadFromCSV();                  // file mode: pick up an updated CSV in place
+}
+
+bool CNewsManager::IsCalendarStale() const
+{
+    //--- live only - see the header comment; CSVs are replayed against simulated time
+    if(!m_liveEnabled || !m_loadOk || m_loadedAt <= 0) return false;
+    return ((long)TimeCurrent() - (long)m_loadedAt) >= (long)NEWS_STALE_BLOCK_HOURS * 3600;
+}
+
 
 //+------------------------------------------------------------------+
 //| Constructor                                                      |
@@ -52,6 +127,9 @@ CNewsManager::CNewsManager(bool enableLive, int minsBefore, int minsAfter, int b
     m_loadOk = false;
     m_warnedNoCalendar = false;
     m_warnedEmptyWeek = false;
+    m_loadedAt = 0;
+    m_lastAttemptAt = 0;
+    m_warnedStale = false;
     ArrayResize(m_events, 0);
 }
 
@@ -287,6 +365,14 @@ bool CNewsManager::LoadFromCSV()
     //--- file is also refused; a file with only non-high rows is a legitimate
     //--- "quiet week" and loads fine with zero events.
     m_loadOk = (rowsSeen > 0 && badRows == 0);
+    if(m_loadOk)
+    {
+        //--- a good load resets the upkeep clock and the one-shot warnings
+        m_loadedAt = TimeCurrent();
+        m_warnedStale = false;
+        m_warnedNoCalendar = false;
+        m_warnedEmptyWeek = false;
+    }
     if(badRows > 0)
         Print("NEWS ERROR: ", badRows, " of ", rowsSeen, " row(s) in ", m_csvFileName,
               " could not be parsed - the feed format may have changed.  News gate FAILS CLOSED.");
@@ -310,6 +396,18 @@ bool CNewsManager::IsNewsBlockActive(string symbol)
         {
             m_warnedNoCalendar = true;
             Print("NEWS FILTER: no usable calendar loaded - blocking new entries (fail closed).");
+        }
+        return true;
+    }
+    if(IsCalendarStale())
+    {
+        //--- live file aged past the block threshold without a successful refresh:
+        //--- blocking is the same policy as an unusable load (#7)
+        if(!m_warnedStale)
+        {
+            m_warnedStale = true;
+            Print("NEWS FILTER: the live calendar is older than ", NEWS_STALE_BLOCK_HOURS,
+                  "h and could not be refreshed - blocking new entries (fail closed).");
         }
         return true;
     }

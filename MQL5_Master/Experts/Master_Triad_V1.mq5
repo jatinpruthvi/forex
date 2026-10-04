@@ -137,6 +137,15 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTimer()
 {
+    // --- 0. NEWS CALENDAR UPKEEP ---
+    // The delivered module loaded the calendar once in OnInit and never again,
+    // so a chart left running across a weekend kept last week's file and traded
+    // through the new week's red news.  RefreshIfStale() re-downloads at most
+    // every NEWS_LIVE_REFRESH_HOURS (and re-reads the CSV hourly in file mode);
+    // it runs before the gates below so weekends and frozen periods still keep
+    // the calendar fresh.  If the live refresh keeps failing the gate closes.
+    if(CheckPointer(NewsManager) != POINTER_INVALID) NewsManager.RefreshIfStale();
+
     // --- 1. GLOBAL RISK GOVERNOR GATE ---
     if(!RiskGovernor.IsTradingAllowed()) return;
     

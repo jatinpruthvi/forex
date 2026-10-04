@@ -38,7 +38,7 @@ This module acts as a strict compliance officer. It tracks equity independently 
 Ported directly from your highly advanced V4 framework, this module handles fundamental news filtering.
 *   **Live WebRequest:** On startup, it connects directly to `https://nfs.faireconomy.media` and downloads the ForexFactory XML calendar.
 *   **CSV Caching:** It parses the XML for "High Impact" events and caches them to `triad_red_news.csv`. (If running in Strategy Tester, it bypasses the internet and reads the CSV directly).
-*   **Blackout Zones (updated 2026-10-04):** if no usable calendar loaded at all, the gate **fails closed** (no new entries) instead of trading blind; a loaded week with no high-impact events is not a blackout; impact is matched case-insensitively.
+*   **Blackout Zones (updated 2026-10-04):** if no usable calendar loaded at all, the gate **fails closed** (no new entries) instead of trading blind; a loaded week with no high-impact events is not a blackout; impact is matched case-insensitively.  The calendar maintains itself: the 1-second timer re-downloads the live file every 6 h (or re-reads the CSV hourly), a failed refresh backs off 15 min, and a live file that cannot be refreshed for 48 h fails closed too.
 *   **Blackout Zones:** When `E1_SMC_Core` wants to take a trade, the NewsManager blocks it if we are within 30 minutes before or 15 minutes after a Red News event for the traded currency (or USD).
 
 ### D. `E1_SMC_Core.mqh` (The Smart Money Brain)

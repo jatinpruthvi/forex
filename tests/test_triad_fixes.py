@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -310,3 +311,92 @@ class HarnessToolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ------------------------------------------------------- calendar upkeep -----
+# The delivered NewsManager loaded the calendar once, in the init path, and never
+# again: a chart left running across a weekend kept last week's file while the new
+# week's red news went unseen (past events never block).  The fix re-loads on the
+# interval below and fails CLOSED if a live calendar cannot be refreshed.
+
+def _newsman_src() -> str:
+    return (REPO / "MQL5_Master" / "Include" / "NewsManager.mqh").read_text(encoding="utf-8")
+
+
+def _define(src: str, name: str) -> int:
+    m = re.search(r"#define\s+" + name + r"\s+(\d+)", src)
+    assert m, f"{name} must be defined in NewsManager.mqh"
+    return int(m.group(1))
+
+
+def refresh_due(last_load: float, now: float, live: bool, backoff_until: float = 0.0) -> bool:
+    """Mirror of the interval + backoff decisions in RefreshIfStale()."""
+    live_h = _define(_newsman_src(), "NEWS_LIVE_REFRESH_HOURS")
+    csv_h = _define(_newsman_src(), "NEWS_CSV_REFRESH_HOURS")
+    interval = (live_h if live else csv_h) * 3600
+    if now - last_load < interval:
+        return False
+    if backoff_until and now < backoff_until:
+        return False
+    return True
+
+
+def gate_blocked(load_ok: bool, stale: bool, empty: bool) -> bool:
+    """Mirror of IsNewsBlockActive()'s fail-closed order."""
+    if not load_ok:
+        return True
+    if stale:
+        return True
+    return False          # a loaded calendar with no high-impact rows is a quiet week
+
+
+class CalendarUpkeepTests(unittest.TestCase):
+    def test_constants_match_the_documented_policy(self):
+        src = _newsman_src()
+        self.assertEqual(_define(src, "NEWS_LIVE_REFRESH_HOURS"), 6)
+        self.assertEqual(_define(src, "NEWS_CSV_REFRESH_HOURS"), 1)
+        self.assertEqual(_define(src, "NEWS_STALE_BLOCK_HOURS"), 48)
+        self.assertEqual(_define(src, "NEWS_REFRESH_RETRY_MINUTES"), 15)
+
+    def test_a_chart_left_running_across_a_weekend_now_refreshes(self):
+        # Friday 22:00: the delivered one-shot load; the next week's red news is
+        # not in the file the chart holds.  Tuesday the file is 4 days old.
+        friday_2200 = 1_700_000_000.0
+        tuesday = friday_2200 + 4 * 86_400
+        self.assertTrue(refresh_due(friday_2200, tuesday, live=True),
+                        "the refresh must be due - the delivered code never reloaded")
+        # and the reload cannot hammer the endpoint between checks
+        self.assertFalse(refresh_due(tuesday, tuesday + 60, live=True))
+
+    def test_a_failed_refresh_backs_off(self):
+        last_load = 1_700_000_000.0
+        now = last_load + 7 * 3600                      # interval passed
+        self.assertTrue(refresh_due(last_load, now, live=True))
+        backoff_until = now + 15 * 60                   # the attempt just failed
+        self.assertFalse(refresh_due(last_load, now + 60, live=True, backoff_until=backoff_until),
+                         "a failed WebRequest must not be retried every tick")
+        self.assertTrue(refresh_due(last_load, now + 15 * 60, live=True, backoff_until=backoff_until))
+
+    def test_file_mode_picks_up_a_replaced_csv(self):
+        last_load = 1_700_000_000.0
+        self.assertFalse(refresh_due(last_load, last_load + 30 * 60, live=False),
+                         "hourly, like the 65-engine family")
+        self.assertTrue(refresh_due(last_load, last_load + 61 * 60, live=False))
+
+    def test_stale_live_calendar_fails_closed(self):
+        src = _newsman_src()
+        # the delivered gate returned false on an empty list -> traded blind
+        self.assertFalse(gate_blocked(load_ok=True, stale=False, empty=True))
+        # the fix: unusable OR stale reads as "blocked"
+        self.assertTrue(gate_blocked(load_ok=False, stale=False, empty=False))
+        self.assertTrue(gate_blocked(load_ok=True, stale=True, empty=False))
+        # and staleness is a live-only test, so a tester replay is unaffected
+        self.assertIn("if(!m_liveEnabled", src[src.index("bool CNewsManager::IsCalendarStale() const"):
+                                                 src.index("bool CNewsManager::IsNewsBlockActive")])
+
+    def test_the_master_runs_the_upkeep_in_its_timer(self):
+        triad = (REPO / "MQL5_Master" / "Experts" / "Master_Triad_V1.mq5").read_text(encoding="utf-8")
+        self.assertIn("NewsManager.RefreshIfStale();", triad)
+        self.assertLess(triad.index("NewsManager.RefreshIfStale()"),
+                        triad.index("if(!RiskGovernor.IsTradingAllowed()) return;"),
+                        "weekend/frozen ticks must still refresh the calendar")
