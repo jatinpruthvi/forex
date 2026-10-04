@@ -503,6 +503,9 @@ def main() -> int:
         check("#include" not in ex, "the exporter must stay self-contained (no engine headers)")
         check("the5ers_red_news.csv" in ex and "3109" in ex,
               "the exporter must name the file and the engines that need it")
+        check("InpFromDate" in ex and "InpToDate" in ex and "StringToTime(fromStr)" in ex,
+              "the exporter must accept an explicit window (a tester sweep runs fixed "
+              "dates the relative day-window cannot cover)")
     tmpl_p = REPO / "validation" / "mt5_harness" / "files" / "the5ers_red_news.csv.template"
     check(tmpl_p.exists(), "the hand-fill calendar template is missing")
     if tmpl_p.exists():
@@ -512,6 +515,39 @@ def main() -> int:
     readme_txt = (HERE / "README.md").read_text(encoding="utf-8")
     check("ExportRedNews" in readme_txt,
           "the portfolio README must point at the calendar exporter")
+
+    # 13h - the sweep must cover the widened universes -------------------------
+    # EA_MAX_SYMBOLS went 8 -> 10, so four engines trade 9-10 symbols; the
+    # harness runs one symbol per config by default, so gen_tester_configs.py
+    # gained --symbols wide|all.  This runs the generator and proves that every
+    # universe wider than the old cap really does get extra runs (and that the
+    # default stays 65 single-symbol configs, so nothing silently changed).
+    import tempfile as _tmp
+    harness_gen = REPO / "validation" / "mt5_harness" / "gen_tester_configs.py"
+    if harness_gen.exists():
+        with _tmp.TemporaryDirectory() as td:
+            r1 = subprocess.run(["python3", str(harness_gen), "--out", td + "/p"],
+                                cwd=REPO, capture_output=True, text=True)
+            r2 = subprocess.run(["python3", str(harness_gen), "--out", td + "/w",
+                                 "--symbols", "wide"],
+                                cwd=REPO, capture_output=True, text=True)
+            check(r1.returncode == 0 and r2.returncode == 0,
+                  "gen_tester_configs.py failed: " + (r1.stderr or r2.stderr).strip()[-200:])
+            if r1.returncode == 0 and r2.returncode == 0:
+                prim = json.loads((Path(td) / "p" / "manifest.json").read_text(encoding="utf-8"))
+                wide = json.loads((Path(td) / "w" / "manifest.json").read_text(encoding="utf-8"))
+                check(prim["run_count"] == prim["count"] == 65,
+                      f"default sweep must stay one run per EA (got {prim['run_count']})")
+                check(wide["run_count"] > wide["count"],
+                      "the wide sweep adds no runs at all")
+                wide_runs = {e["name"]: len(e["sweep_symbols"]) for e in wide["eas"]}
+                portfolio_wide = {e["expert"] for e in manifest["entries"]
+                                  if len(e["symbols"]) > 8}
+                check(bool(portfolio_wide),
+                      "no universe is wider than 8 - the wide-sweep check has gone stale")
+                uncovered = sorted(n for n in portfolio_wide if wide_runs.get(n, 0) < 2)
+                check(not uncovered,
+                      f"engines with >8 symbols get no extra sweep run: {uncovered}")
 
     # 13f - syntax portability: NO adjacent string literals -------------------
     # MQL5's acceptance of implicitly concatenated string literals is the one

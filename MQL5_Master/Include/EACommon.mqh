@@ -258,7 +258,7 @@ int EA_Init(CEAStrategy *strategy)
 //| opening a single chart.  The file goes to the terminal's COMMON   |
 //| folder (shared across tester agents and NOT wiped with the        |
 //| per-run sandbox):                                                 |
-//|     Common\Files\EA_TestReports\<strategy>_<magic>.csv            |
+//|     Common\Files\EA_TestReports\<strategy>_<magic>_<sym>.csv     |
 //| Read by validation/mt5_harness/parse_results.py.                  |
 //|                                                                  |
 //| Optimization passes are skipped (65 x N rows would be noise); the |
@@ -271,8 +271,12 @@ void EA_TestReport()
 
    string dir = "EA_TestReports";
    FolderCreate(dir, FILE_COMMON);                 // false if it already exists
+   //--- the TEST symbol is part of the file name: a multi-symbol sweep runs the
+   //--- same EA once per universe symbol, and without it every run after the
+   //--- first would overwrite the previous result row (eleventh-pass follow-up,
+   //--- the "wide universe" sweeps enabled by EA_MAX_SYMBOLS = 10)
    string fname = dir + "/" + g_eaCfg.strategyName + "_" +
-                  IntegerToString((long)g_eaCfg.magic) + ".csv";
+                  IntegerToString((long)g_eaCfg.magic) + "_" + _Symbol + ".csv";
    int h = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
    if(h == INVALID_HANDLE)
    {

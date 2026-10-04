@@ -28,6 +28,10 @@
 //|   * a header row is harmless: the engine cannot parse it into a    |
 //|     timestamp and skips it.                                        |
 //|                                                                    |
+//| Window: InpDaysBack/InpDaysForward around "now" by default, or an   |
+//| explicit InpFromDate/InpToDate (YYYY.MM.DD) - use the same dates as |
+//| your tester configs so a sweep sees the same calendar the file has. |
+//|                                                                    |
 //| Install: copy to <data>\MQL5\Scripts\ExportRedNews.mq5, compile in  |
 //| MetaEditor, then drag it onto any chart.  It only READS the         |
 //| calendar and writes one file - it never trades.                    |
@@ -37,8 +41,10 @@
 #property description "Exports high-impact calendar events to MQL5\\Files\\the5ers_red_news.csv"
 #property script_show_inputs
 
-input int    InpDaysBack    = 2;                       // days of past events to include
-input int    InpDaysForward = 45;                      // days of future events to include
+input int    InpDaysBack    = 2;                       // days of past events to include (used when InpFromDate is empty)
+input int    InpDaysForward = 45;                      // days of future events to include (used when InpToDate is empty)
+input string InpFromDate    = "";                      // explicit window start YYYY.MM.DD (e.g. your tester FromDate)
+input string InpToDate      = "";                      // explicit window end   YYYY.MM.DD (e.g. your tester ToDate)
 input bool   InpHighOnly    = true;                    // HIGH importance only (what the engines gate on)
 input string InpFile        = "the5ers_red_news.csv";  // written under MQL5\Files
 
@@ -48,8 +54,34 @@ input string InpFile        = "the5ers_red_news.csv";  // written under MQL5\Fil
 void OnStart()
 {
    datetime now  = TimeTradeServer();
+   //--- explicit window wins: a tester sweep runs a FIXED date range (the
+   //--- generated configs default to 2025.01.01 .. 2026.09.30), and a calendar
+   //--- exported "from now" would not cover it - the fail-closed engines would
+   //--- then block on events the file cannot see (eleventh-pass follow-up)
    datetime from = now - (datetime)((long)MathMax(0, InpDaysBack) * 86400);
    datetime to   = now + (datetime)((long)MathMax(1, InpDaysForward) * 86400);
+   string fromStr = StringTrimLeft(StringTrimRight(InpFromDate));
+   string toStr   = StringTrimLeft(StringTrimRight(InpToDate));
+   if(StringLen(fromStr) > 0)
+   {
+      datetime t = StringToTime(fromStr);
+      if(t > 0) from = t;
+      else PrintFormat("ExportRedNews: InpFromDate '%s' is not YYYY.MM.DD - using the relative window.",
+                       InpFromDate);
+   }
+   if(StringLen(toStr) > 0)
+   {
+      datetime t = StringToTime(toStr);
+      if(t > 0) to = t + 86400;          // the ToDate day itself is included
+      else PrintFormat("ExportRedNews: InpToDate '%s' is not YYYY.MM.DD - using the relative window.",
+                       InpToDate);
+   }
+   if(to <= from)
+   {
+      PrintFormat("ExportRedNews: empty window (%s .. %s) - check InpFromDate/InpToDate.",
+                  TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE));
+      return;
+   }
 
    MqlCalendarValue values[];
    ResetLastError();

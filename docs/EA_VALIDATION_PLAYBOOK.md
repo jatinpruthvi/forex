@@ -59,7 +59,15 @@ copy MQL5_Master\Scripts\ExportRedNews.mq5 "<data>\MQL5\Scripts\"
 It only reads the economic calendar and writes that one file (never trades).  The
 format is the engine's: `date,time,currency,impact` (`2026.10.02,13:30,USD,HIGH`,
 UTC, `HIGH` or a number ≥ 2, currency matched against the engine's symbol list,
-`ALL` for every symbol).  No calendar at your broker?  The runner-up is the
+`ALL` for every symbol).
+
+**Cover your tester window, not just "now".**  The sweep below runs a fixed range
+(the generated configs default to `2025.01.01 .. 2026.09.30`).  Set the script's
+`InpFromDate`/`InpToDate` to those same dates (leave them empty to fall back to
+the relative `InpDaysBack`/`InpDaysForward` window).  A calendar exported "from
+now" would leave the fail-closed engines blind to every historical event in the
+sweep — they would block entries they should not see.  Re-run the export whenever
+you extend the tester window.  No calendar at your broker?  The runner-up is the
 hand-fill template `validation\mt5_harness\files\the5ers_red_news.csv.template`;
 the fallback is to untick those six engines.
 
@@ -67,6 +75,22 @@ The Strategy Tester reads the same `MQL5\Files`, so one export serves both the
 sweep and the live/demo charts.
 
 ## Stage 1 — headless sweep of all 65 (the answer to "how do I even run 65?")
+
+**Sweep mode matters after `EA_MAX_SYMBOLS` went 8 → 10.**  The default sweep runs
+one symbol per EA (65 configs, unchanged).  Four engines now trade 9–10 symbols,
+so their faithful coverage is the wide sweep:
+
+```bash
+python3 validation/mt5_harness/gen_tester_configs.py --symbols wide   # 71 configs: +6 runs
+python3 validation/mt5_harness/gen_tester_configs.py --symbols all    # one run per (EA, symbol)
+```
+
+`wide` adds exactly the symbols the old cap used to truncate (magics
+2031/2034/3111/2040 in the portfolio = the four engines above; `verify_portfolio.py`
+proves the coverage on every run).  Each multi-symbol run writes its own result row
+— the tester report file now carries the test symbol in its name
+(`<strategy>_<magic>_<symbol>.csv`) — and `parse_results.py` reports one row per
+**(EA, symbol)** instead of collapsing them into one.
 
 ```bash
 python3 validation/mt5_harness/gen_tester_configs.py \

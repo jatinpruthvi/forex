@@ -113,16 +113,20 @@ def main() -> int:
             return "WARN"
         return "PASS"
 
-    # one row per EA (a re-run overwrites; keep the newest by end_time)
-    best: dict[str, dict] = {}
+    # one row per (EA, test symbol).  A single-symbol sweep is unchanged: one run
+    # per EA.  A multi-symbol sweep (--symbols wide|all in gen_tester_configs.py)
+    # runs the same EA on several symbols, and those rows must NOT collapse into
+    # one: each is a different book.  A re-run of the same (EA, symbol) keeps the
+    # newest end_time, as before.
+    best: dict[tuple[str, str], dict] = {}
     for rec in rows:
-        key = rec["_ea"]
+        key = (rec["_ea"], str(rec.get("test_symbol", "")))
         prev = best.get(key)
         if prev is None or rec.get("end_time", "") >= prev.get("end_time", ""):
             best[key] = rec
 
     table = []
-    for key, rec in best.items():
+    for (key, _sym), rec in best.items():
         meta = manifest.get(key, {})
         table.append({
             "expert_key": key,
@@ -146,7 +150,9 @@ def main() -> int:
             "verdict": verdict(rec),
         })
 
-    missing = [n for n in expected if n not in best]
+    covered = {key for key, _s in best}
+    missing = [n for n in expected if n not in covered]
+    multi = sorted({key for key, _s in best if sum(1 for k, _s2 in best if k == key) > 1})
     order = {"FAIL": 0, "WARN": 1, "PASS": 2}
     table.sort(key=lambda r: (order[r["verdict"]], r["net_profit"]))
     table = [{"#": i + 1, **r} for i, r in enumerate(table)]
@@ -164,7 +170,9 @@ def main() -> int:
           f"Source folder: `{src}`",
           f"EAs with a result row: **{len(table)}** of {len(expected) or '?'} "
           f"| PASS {counts['PASS']} · WARN {counts['WARN']} · FAIL {counts['FAIL']}",
-          f"Missing results (no row at all): **{len(missing)}**", ""]
+          f"Missing results (no row at all): **{len(missing)}**",
+          f"Multi-symbol sweeps: **{len(multi)}** engine(s) with more than one symbol row"
+          + (f" — {', '.join('`%s`' % m for m in multi)}" if multi else ""), ""]
     if missing:
         md += ["EAs that produced no result (compile failure, crash, or never deinitialised):", ""]
         md += [f"* `{m}`" for m in missing] + [""]
@@ -182,6 +190,9 @@ def main() -> int:
     (out / "portfolio_summary.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 
     print(f"read {len(rows)} result row(s) from {src}")
+    if multi:
+        print(f"  multi-symbol: {len(multi)} engine(s) reported on more than one symbol "
+              f"-> {len(table)} row(s) total")
     print(f"  PASS {counts['PASS']} | WARN {counts['WARN']} | FAIL {counts['FAIL']} | missing {len(missing)}")
     if missing:
         print("  no result row:", ", ".join(missing[:10]) + (" ..." if len(missing) > 10 else ""))

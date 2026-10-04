@@ -82,6 +82,31 @@ def symbols_of(ea) -> list[str]:
     return [s.strip() for s in ea.common.get("symbols", "EURUSD").split(",") if s.strip()]
 
 
+# the cap that used to silently truncate four universes (defect #72, raised to
+# 10 in the eleventh-pass follow-up): "--symbols wide" sweeps exactly the
+# symbols that cap used to drop, so those engines get faithful coverage again
+OLD_SYMBOL_CAP = 8
+
+
+def sweep_symbols(ea, mode: str) -> list[str]:
+    """Symbols one EA must be swept on.
+
+    primary - just the representative symbol (the original 65-run sweep)
+    wide    - primary + every universe symbol beyond the old 8-symbol cap
+              (the coverage the cap change restored: magics 2031/3111 get one
+              extra run, 2034/2040 get two)
+    all     - every symbol of the universe, primary first
+    """
+    syms = symbols_of(ea)
+    prim = primary_symbol(ea)
+    if mode == "all":
+        rest = [s for s in syms if s != prim]
+        return [prim] + rest
+    if mode == "wide":
+        return [prim] + [s for s in syms[OLD_SYMBOL_CAP:] if s != prim]
+    return [prim]
+
+
 def primary_symbol(ea) -> str:
     if ea.name in SYMBOL_OVERRIDES:
         return SYMBOL_OVERRIDES[ea.name]
@@ -108,6 +133,10 @@ def main() -> int:
     ap.add_argument("--terminal", default=r"C:\Program Files\MetaTrader 5\terminal64.exe",
                     help="path to terminal64.exe (used in run_all scripts)")
     ap.add_argument("--out", default=str(REPO / "validation" / "mt5_harness" / "out"))
+    ap.add_argument("--symbols", choices=("primary", "wide", "all"), default="primary",
+                    help="primary = one run per EA (default); wide = also sweep the symbols the "
+                         "old 8-symbol cap used to truncate (the four wide universes); "
+                         "all = one run per (EA, universe symbol)")
     ap.add_argument("--from", dest="date_from", default="2025.01.01", help="tester FromDate (YYYY.MM.DD)")
     ap.add_argument("--to", dest="date_to", default="2026.09.30", help="tester ToDate (YYYY.MM.DD)")
     ap.add_argument("--deposit", default="10000")
@@ -143,34 +172,40 @@ def main() -> int:
             return 2
         magics[ea.magic] = ea.name
 
-        sym, tf = primary_symbol(ea), timeframe_of(ea)
+        tf = timeframe_of(ea)
         universe.update(symbols_of(ea))
+        runs = sweep_symbols(ea, args.symbols)
+        sym = runs[0]
 
-        ini = [
-            "[Tester]",
-            f"Expert={ea.name}",
-            f"Symbol={sym}",
-            f"Period={tf}",
-            f"Model={args.model}",
-            f"FromDate={args.date_from}",
-            f"ToDate={args.date_to}",
-            "Optimization=0",
-            "Visual=0",
-            f"Deposit={args.deposit}",
-            "Currency=USD",
-            f"Leverage={args.leverage}",
-            "ReplaceReport=1",
-            f"Report={args.report_dir}\\{ea.name}",
-            "ShutdownTerminal=1",
-        ]
-        if args.use_set:
-            ini.append(f"ExpertParameters={(out / 'sets' / (ea.name + '.set')).as_posix()}")
-        (out / "configs" / f"{ea.name}.ini").write_text("\n".join(ini) + "\n", encoding="utf-8")
+        for rsym in runs:
+            # the primary run keeps the historical names (<EA>.ini/.set); extra
+            # symbol runs get __<SYMBOL> so every result file stays distinct
+            stem = ea.name if rsym == sym else f"{ea.name}__{rsym}"
+            ini = [
+                "[Tester]",
+                f"Expert={ea.name}",
+                f"Symbol={rsym}",
+                f"Period={tf}",
+                f"Model={args.model}",
+                f"FromDate={args.date_from}",
+                f"ToDate={args.date_to}",
+                "Optimization=0",
+                "Visual=0",
+                f"Deposit={args.deposit}",
+                "Currency=USD",
+                f"Leverage={args.leverage}",
+                "ReplaceReport=1",
+                f"Report={args.report_dir}\\{stem}",
+                "ShutdownTerminal=1",
+            ]
+            if args.use_set:
+                ini.append(f"ExpertParameters={(out / 'sets' / (stem + '.set')).as_posix()}")
+            (out / "configs" / f"{stem}.ini").write_text("\n".join(ini) + "\n", encoding="utf-8")
 
-        set_lines = [f"; {ea.title}", f"; source: {ea.doc}", ";",
-                     f"; test: {sym} {tf}  {args.date_from}..{args.date_to}  model={args.model}", ";"]
-        set_lines += [f"{n}={v}" for n, v in input_defaults(ea)]
-        (out / "sets" / f"{ea.name}.set").write_text("\n".join(set_lines) + "\n", encoding="utf-8")
+            set_lines = [f"; {ea.title}", f"; source: {ea.doc}", ";",
+                         f"; test: {rsym} {tf}  {args.date_from}..{args.date_to}  model={args.model}", ";"]
+            set_lines += [f"{n}={v}" for n, v in input_defaults(ea)]
+            (out / "sets" / f"{stem}.set").write_text("\n".join(set_lines) + "\n", encoding="utf-8")
 
         index_only = not (set(symbols_of(ea)) & {
             "EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "AUDUSD", "USDCAD", "USDCHF",
@@ -179,6 +214,7 @@ def main() -> int:
             "name": ea.name, "magic": ea.magic, "title": ea.title, "doc": ea.doc,
             "symbols": symbols_of(ea), "test_symbol": sym, "timeframe": tf,
             "risk_pct": ea.common.get("risk", ""), "index_only": index_only,
+            "sweep_symbols": runs,
         })
 
     ps1 = ["# Sequential 65-EA Strategy Tester sweep (generated - do not hand-edit).",
@@ -210,11 +246,14 @@ def main() -> int:
            'echo done. results: %APPDATA%\\MetaQuotes\\Terminal\\Common\\Files\\EA_TestReports']
     (out / "run_all.bat").write_text("\r\n".join(bat) + "\r\n", encoding="utf-8")
 
+    run_count = sum(len(m["sweep_symbols"]) for m in manifest)
+    multi = [m for m in manifest if len(m["sweep_symbols"]) > 1]
     (out / "manifest.json").write_text(json.dumps({
         "generated_from": str(GEN.relative_to(REPO)),
         "date_from": args.date_from, "date_to": args.date_to,
         "model": args.model, "deposit": args.deposit, "leverage": args.leverage,
-        "count": len(manifest), "eas": manifest,
+        "sweep_mode": args.symbols, "count": len(manifest), "run_count": run_count,
+        "eas": manifest,
     }, indent=2) + "\n", encoding="utf-8")
 
     pre = sorted(universe)
@@ -222,7 +261,16 @@ def main() -> int:
         "# every symbol the 65 EAs need (union)\n# feed this to MQL5_Master/Scripts/UniversePreflight.mq5\n"
         + "\n".join(pre) + "\n", encoding="utf-8")
 
-    print(f"OK - {len(manifest)} tester configs written to {out}")
+    print(f"OK - {len(manifest)} EAs, {run_count} tester config(s) written to {out} "
+          f"(sweep mode: {args.symbols})")
+    if multi:
+        print(f"     multi-symbol runs ({len(multi)} engine(s)):")
+        for m in multi:
+            print(f"        {m['name']}: {', '.join(m['sweep_symbols'])}")
+    if args.symbols == "primary":
+        print("     NOTE: after the EA_MAX_SYMBOLS 8 -> 10 change, the four wide universes "
+              "(2031/2034/3111/2040 in the portfolio) are only fully covered with "
+              "--symbols wide (or all).")
     print(f"     primary symbols used: {sorted({m['test_symbol'] for m in manifest})}")
     index_only = [m["name"] for m in manifest if m["index_only"]]
     if index_only:

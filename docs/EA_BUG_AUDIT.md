@@ -615,7 +615,26 @@ and `verify_portfolio.py` checks that the exporter keeps matching the engine's
 parser (Calendar API calls present, right file name, ANSI write, `date,time,cc,HIGH`
 rows), that the template's header matches, and that the README points at the script.
 
-Verification after both: `verify_portfolio.py` **OK - 1 810 checks** (+14: cap
+**Follow-through so the decisions are actually observable.**  Two consequences of
+the two changes needed work of their own:
+
+* the **sweep did not cover the widened universes.**  `gen_tester_configs.py`
+  emits one config per EA (one symbol — the primary), and each tester report was
+  written to `<strategy>_<magic>.csv`, so a second symbol's run would have
+  **overwritten** the first.  Now: `--symbols wide` adds exactly the symbols the
+  old 8-symbol cap truncated (magics 2031/2034/3111/2040 → six extra runs; `all`
+  sweeps every universe symbol), `EA_TestReport()` puts the test symbol in the
+  file name, and `parse_results.py` keys rows by **(EA, symbol)** instead of
+  collapsing them into one.  `verify_portfolio.py` runs the generator in both
+  modes on every verification and fails if any >8-symbol universe gets no extra
+  run — so this cannot drift;
+* the **calendar export could not cover the tester window.**  The script exports
+  "now ± N days" by default while the sweep runs a fixed range
+  (2025.01.01 .. 2026.09.30), which would leave the fail-closed engines blind to
+  every historical event.  `InpFromDate`/`InpToDate` (YYYY.MM.DD, empty =
+  relative window) fix that; Stage 0b says to use the same dates as the configs.
+
+Verification after both: `verify_portfolio.py` **OK - 1 816 checks** (+14: cap
 covers every universe, exporter/template contract, README coupling).  The
 universe note in the report became a success line ("no universe is truncated
 (cap 10 >= widest universe 10, magic 2040)").

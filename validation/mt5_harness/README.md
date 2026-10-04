@@ -47,6 +47,13 @@ Compile and run **`MQL5_Master/Scripts/ExportRedNews.mq5`** — it writes that f
 from the terminal's own economic calendar. (`validation/mt5_harness/files/`
 holds a hand-fill template for brokers without a calendar feed.)
 
+After the `EA_MAX_SYMBOLS` 8 → 10 change, four engines trade 9–10 symbols, so the
+one-symbol default sweep no longer covers them: run
+`gen_tester_configs.py --symbols wide` (adds exactly the six runs the old cap
+truncated) or `--symbols all` (one run per EA × symbol).  Multi-symbol runs keep
+separate result rows (the report file name carries the test symbol) and
+`parse_results.py` lists one row per (EA, symbol).
+
 Compile and run **`MQL5_Master/Scripts/UniversePreflight.mq5`** once. It reports
 every symbol the 65 EAs need, whether your broker offers it, its spread and
 contract size, and which index aliases exist (GER40 / DE40 / DAX / …). The
