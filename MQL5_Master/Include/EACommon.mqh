@@ -432,42 +432,56 @@ void EA_ExecutePlan(SEAContext &ctx, const SSignalPlan &plan)
       }
    }
 
-   double base = AccountInfoDouble(ACCOUNT_EQUITY);
-   if(g_eaCfg.riskBaseInitialBalance && g_eaCfg.riskInitialBalance > 0.0)
-      base = g_eaCfg.riskInitialBalance;                      // phase-initial balance (LOCKED risk base)
-   else if(g_eaCfg.riskBaseBalance)
-      base = AccountInfoDouble(ACCOUNT_BALANCE);
-   double riskMoney = base * riskPct / 100.0;
-   double lots      = EA_LotsForRisk(ctx.symbol, riskMoney, plan.riskDist);
-   //--- re-check with commission included so the all-in loss stays inside the budget
-   if(lots > 0.0 && g_eaCfg.commissionPerLotRT > 0.0)
+   double lots = 0.0;
+   if(g_eaCfg.staticLots > 0.0)
    {
-      double allIn = EA_LossPerLotAllIn(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
-      if(allIn > 0.0)
+      lots = EA_NormalizeVolume(ctx.symbol, g_eaCfg.staticLots);
+      if(lots <= 0.0)
       {
-         double lotsAllIn = EA_NormalizeVolume(ctx.symbol, riskMoney / allIn);
-         if(lotsAllIn > 0.0) lots = MathMin(lots, lotsAllIn);
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s static lot %.4f normalization produced 0",
+                ctx.symbol, g_eaCfg.staticLots), true);
+         return;
       }
    }
-   if(lots <= 0.0)
+   else
    {
-      EA_Log(EA_LOG_EVENTS, StringFormat("%s lot sizing produced 0 (risk=%.2f dist=%.5f)",
-             ctx.symbol, riskMoney, plan.riskDist), true);
-      return;
-   }
-
-   //--- Stage 6: the smallest tradable lot must still fit the risk budget,
-   //--- otherwise the broker minimum forces more risk than the tier allows
-   double minLots = SymbolInfoDouble(ctx.symbol, SYMBOL_VOLUME_MIN);
-   if(minLots > 0.0)
-   {
-      double allInPerLot = EA_LossPerLotAllIn(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
-      double minLotRisk   = allInPerLot * minLots;
-      if(minLotRisk > riskMoney * 1.0001)
+      double base = AccountInfoDouble(ACCOUNT_EQUITY);
+      if(g_eaCfg.riskBaseInitialBalance && g_eaCfg.riskInitialBalance > 0.0)
+         base = g_eaCfg.riskInitialBalance;                      // phase-initial balance (LOCKED risk base)
+      else if(g_eaCfg.riskBaseBalance)
+         base = AccountInfoDouble(ACCOUNT_BALANCE);
+      double riskMoney = base * riskPct / 100.0;
+      lots      = EA_LotsForRisk(ctx.symbol, riskMoney, plan.riskDist);
+      //--- re-check with commission included so the all-in loss stays inside the budget
+      if(lots > 0.0 && g_eaCfg.commissionPerLotRT > 0.0)
       {
-         EA_Log(EA_LOG_EVENTS, StringFormat("%s minimum lot %.2f risks %.2f > budget %.2f - skip (minimum lot unsafe)",
-                ctx.symbol, minLots, minLotRisk, riskMoney), true);
+         double allIn = EA_LossPerLotAllIn(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
+         if(allIn > 0.0)
+         {
+            double lotsAllIn = EA_NormalizeVolume(ctx.symbol, riskMoney / allIn);
+            if(lotsAllIn > 0.0) lots = MathMin(lots, lotsAllIn);
+         }
+      }
+      if(lots <= 0.0)
+      {
+         EA_Log(EA_LOG_EVENTS, StringFormat("%s lot sizing produced 0 (risk=%.2f dist=%.5f)",
+                ctx.symbol, riskMoney, plan.riskDist), true);
          return;
+      }
+
+      //--- Stage 6: the smallest tradable lot must still fit the risk budget,
+      //--- otherwise the broker minimum forces more risk than the tier allows
+      double minLots = SymbolInfoDouble(ctx.symbol, SYMBOL_VOLUME_MIN);
+      if(minLots > 0.0)
+      {
+         double allInPerLot = EA_LossPerLotAllIn(ctx.symbol, plan.riskDist, g_eaCfg.commissionPerLotRT);
+         double minLotRisk   = allInPerLot * minLots;
+         if(minLotRisk > riskMoney * 1.0001)
+         {
+            EA_Log(EA_LOG_EVENTS, StringFormat("%s minimum lot %.2f risks %.2f > budget %.2f - skip (minimum lot unsafe)",
+                   ctx.symbol, minLots, minLotRisk, riskMoney), true);
+            return;
+         }
       }
    }
 

@@ -71,6 +71,7 @@ struct SEASettings
    bool                 requireSupportedList;  // fail init if symbol not in list
    //--- risk
    double               riskPct;               // base risk per trade (% of equity/balance)
+   double               staticLots;            // fixed volume (0.0 = use dynamic riskPct)
    bool                 riskBaseBalance;       // size on balance instead of equity
    double               qualifyingDayAmount;   // cash: a day counts when the closed-day delta reaches this
    int                  qualifyingDaysTarget;  // required qualifying days per phase (0 = off)
@@ -162,6 +163,7 @@ struct SEASettings
       symbols                = "";
       requireSupportedList   = false;
       riskPct                = 0.5;
+      staticLots             = 0.0;
       riskBaseBalance        = false;
       qualifyingDayAmount    = 0.0;
       qualifyingDaysTarget   = 0;

@@ -12068,6 +12068,7 @@ public:
 
 //--- portfolio-level inputs ------------------------------------------------
 input double InpRiskScale           = 1.0;    // multiplies every engine's delivered riskPct
+input double InpStaticLots          = 0.01;   // static fixed lots across all engines (0 = use dynamic riskPct)
 input string InpOnlyMagics          = "";     // whitelist: run only these magics (empty = all)
 input string InpDisableMagics       = "";     // blacklist: never run these magics (e.g. "2035,2027")
 input string InpKeepDeliveredPolicy = "2006"; // engines that keep their delivered order policy
@@ -13091,6 +13092,8 @@ int OnInit()
       }
 
       g_eaCfg.riskPct *= InpRiskScale;          // portfolio-level scaling only
+      if(InpStaticLots > 0.0)
+         g_eaCfg.staticLots = InpStaticLots;    // static lot override
 
       //--- news: prefer the terminal's own economic calendar (server time, live
       //--- only) over the per-engine CSV.  This frees the six fail-closed engines
@@ -13117,10 +13120,11 @@ int OnInit()
       if(g_portAllowed[i]) entriesLive++;
 
       if(InpSummary)
-         PrintFormat("[portfolio] %-45s ready  magic=%-5s tag=%-6s %s %s risk=%.3f%% " +
+         PrintFormat("[portfolio] %-45s ready  magic=%-5s tag=%-6s %s %s %s " +
                      "maxOpen=%d oneEntryAccountWide=%s%s%s",
                      g_portName[i], IntegerToString(g_portMagic[i]), PortTagOf(g_portMagic[i]),
-                     g_portSymbolsTxt[i], g_portTfTxt[i], g_eaCfg.riskPct,
+                     g_portSymbolsTxt[i], g_portTfTxt[i],
+                     (g_eaCfg.staticLots > 0.0) ? StringFormat("lots=%.2f", g_eaCfg.staticLots) : StringFormat("risk=%.3f%%", g_eaCfg.riskPct),
                      g_eaCfg.maxOpenPositions, g_eaCfg.oneEntryAccountWide ? "true" : "false",
                      PortKeepDelivered(g_portMagic[i]) ? " (delivered policy kept)" : "",
                      g_portAllowed[i] ? "" : StringFormat(" - SWITCHED OFF (switch=%s%s%s): " +
@@ -13143,8 +13147,8 @@ int OnInit()
    EventSetTimer(1);            // ticks only arrive for the chart symbol; this
                                 // keeps every engine alive on its own schedule
    PrintFormat("[portfolio] %d/%d engines live on one chart, %d open for new entries " +
-               "(%d switched off, risk scale %.2f)", g_portLive, g_portCount, entriesLive,
-               disabled, InpRiskScale);
+               "(%d switched off, risk scale %.2f, static lots %.2f)", g_portLive, g_portCount, entriesLive,
+               disabled, InpRiskScale, InpStaticLots);
    return INIT_SUCCEEDED;
 }
 
