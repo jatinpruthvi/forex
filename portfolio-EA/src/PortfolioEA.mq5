@@ -56,6 +56,7 @@ struct SEngineRow
    int      closed;        // closed trades (entry-out deals)
    int      wins;
    int      losses;
+   double   maxProfit;     // largest single-trade closed gain
    double   maxDd;         // max closed drawdown, account currency
    double   run;           // running sum (working value for the DD curve)
    double   peak;
@@ -151,6 +152,7 @@ int EnsureRow(const long magic)
    g_rows[g_count].closed   = 0;
    g_rows[g_count].wins     = 0;
    g_rows[g_count].losses   = 0;
+   g_rows[g_count].maxProfit = 0.0;
    g_rows[g_count].maxDd    = 0.0;
    g_rows[g_count].run      = 0.0;
    g_rows[g_count].peak     = 0.0;
@@ -233,7 +235,7 @@ void Refresh()
    for(int i = 0; i < g_count; i++)
    {
       g_rows[i].net = 0.0; g_rows[i].closed = 0; g_rows[i].wins = 0;
-      g_rows[i].losses = 0; g_rows[i].maxDd = 0.0; g_rows[i].run = 0.0;
+      g_rows[i].losses = 0; g_rows[i].maxProfit = 0.0; g_rows[i].maxDd = 0.0; g_rows[i].run = 0.0;
       g_rows[i].peak = 0.0;
       g_rows[i].openPos = 0; g_rows[i].floating = 0.0;
       g_rows[i].verdict = "KEEP";
@@ -282,7 +284,11 @@ void Refresh()
          double pl = money + PendingTake(pend, magic, posId);   // whole round turn
          g_rows[i].net += pl;
          g_rows[i].closed++;
-         if(pl > 0.0)      g_rows[i].wins++;
+         if(pl > 0.0)
+         {
+            g_rows[i].wins++;
+            if(pl > g_rows[i].maxProfit) g_rows[i].maxProfit = pl;
+         }
          else if(pl < 0.0) g_rows[i].losses++;
 
          g_rows[i].run += pl;
@@ -401,7 +407,7 @@ void WriteCsv()
                   "MQL5\\Files\\PortfolioEA if this persists", InpReportFile, GetLastError());
       return;
    }
-   FileWrite(h, "magic", "tag", "engine", "strategy", "timeframe", "net", "trades",
+   FileWrite(h, "magic", "tag", "engine", "strategy", "timeframe", "net", "max_profit", "trades",
              "wins", "losses", "win_pct", "max_dd", "dd_pct_of_base", "open_positions",
              "floating", "verdict", "switch");
    for(int i = 0; i < g_count; i++)
@@ -411,7 +417,8 @@ void WriteCsv()
       double ddPct  = (g_base > 0.0) ? 100.0 * g_rows[i].maxDd / g_base : 0.0;
       FileWrite(h, IntegerToString(g_rows[i].magic), CsvText(g_rows[i].tag),
                 CsvText(g_rows[i].name), CsvText(g_rows[i].strategy), CsvText(g_rows[i].tf),
-                DoubleToString(g_rows[i].net, 2), IntegerToString(g_rows[i].closed),
+                DoubleToString(g_rows[i].net, 2), DoubleToString(g_rows[i].maxProfit, 2),
+                IntegerToString(g_rows[i].closed),
                 IntegerToString(g_rows[i].wins), IntegerToString(g_rows[i].losses),
                 DoubleToString(winPct, 1), DoubleToString(g_rows[i].maxDd, 2),
                 DoubleToString(ddPct, 1), IntegerToString(g_rows[i].openPos),
@@ -457,7 +464,7 @@ void DrawPanel()
       ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
       ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x - 6);
       ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 6);
-      ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 620);
+      ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 710);
       ObjectSetInteger(0, bgName, OBJPROP_YSIZE, (shown + 4) * dy + 10);
       ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, C'16,18,22');
       ObjectSetInteger(0, bgName, OBJPROP_BORDER_COLOR, C'45,55,72');
@@ -476,8 +483,8 @@ void DrawPanel()
              clrGold, size + 1, true);
 
    MakeLabel(g_panelPrefix + "cols", x, y + dy,
-             StringFormat("%-7s %-7s %10s %6s %6s %10s %5s %10s  %s",
-                          "magic", "tag", "net", "trades", "win%", "maxDD", "open",
+             StringFormat("%-7s %-7s %10s %10s %6s %5s %10s %5s %10s  %s",
+                          "magic", "tag", "net", "maxProfit", "trades", "win%", "maxDD", "open",
                           "float", "verdict"),
              clrDodgerBlue, size);
 
@@ -485,8 +492,10 @@ void DrawPanel()
 
    for(int i = 0; i < shown; i++)
    {
-      double winPct = (g_rows[i].wins + g_rows[i].losses > 0)
+      double winVal = (g_rows[i].wins + g_rows[i].losses > 0)
                       ? 100.0 * g_rows[i].wins / (g_rows[i].wins + g_rows[i].losses) : 0.0;
+      string winPct = StringFormat("%3.0f%%", winVal);
+
       color clr = clrSilver;
       if(g_rows[i].openPos > 0)
          clr = (g_rows[i].floating >= 0.0) ? clrLime : clrOrangeRed;
@@ -498,9 +507,9 @@ void DrawPanel()
       if(g_rows[i].verdict == "DROP") clr = clrRed;
 
       MakeLabel(g_panelPrefix + "row" + IntegerToString(i), x, top + i * dy,
-                StringFormat("%-7s %-7s %10.2f %6d %5.0f%% %10.2f %5d %10.2f  %s",
+                StringFormat("%-7s %-7s %10.2f %10.2f %6d %5s %10.2f %5d %10.2f  %s",
                              IntegerToString(g_rows[i].magic), g_rows[i].tag,
-                             g_rows[i].net, g_rows[i].closed, winPct, g_rows[i].maxDd,
+                             g_rows[i].net, g_rows[i].maxProfit, g_rows[i].closed, winPct, g_rows[i].maxDd,
                              g_rows[i].openPos, g_rows[i].floating, g_rows[i].verdict),
                 clr, size);
    }
