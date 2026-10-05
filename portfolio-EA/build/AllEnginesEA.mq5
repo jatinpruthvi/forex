@@ -724,6 +724,12 @@ public:
 //| from EA_THE5ERS_2_5K_CHALLENGE_PLAN  |  magic 3104
 //| source document: docs/prop_firm/THE5ERS-2.5K-CHALLENGE-PLAN.md
 //==================================================================
+enum P3104_ENUM_T5K_PROFILE
+{
+   T5K_ROUTE_A      = 0,  // Route A sweep/reclaim (research module)
+   T5K_M1_MOMENTUM  = 1   // M1 Momentum Reversion (active first-challenge module)
+};
+
 //--- EA_THE5ERS_2_5K_CHALLENGE_PLAN  (magic 3104, The5ers $2,500 challenge plan - Route A with spread-median and cost gates)
 const string                 P3104_InpSymbolsToTrade          = "EURUSD,GBPUSD,USDJPY";
 const double                 P3104_InpRiskPct                 = 0.4;
@@ -755,12 +761,6 @@ const int                    P3104_InpNewsBeforeMin           = 30;
 const int                    P3104_InpNewsAfterMin            = 30;
 const double                 P3104_InpQualifyingDayCash       = 12.50;
 const int                    P3104_InpQualifyingDayCount      = 3;
-
-enum P3104_ENUM_T5K_PROFILE
-{
-   T5K_ROUTE_A      = 0,  // Route A sweep/reclaim (research module)
-   T5K_M1_MOMENTUM  = 1   // M1 Momentum Reversion (active first-challenge module)
-};
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers $2,500 challenge plan - Route A with spread-median and cost gates
@@ -1155,6 +1155,21 @@ public:
 //| from EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST  |  magic 3106
 //| source document: docs/prop_firm/THE5ERS-END-TO-END-PRECODE-CHECKLIST.md
 //==================================================================
+enum P3106_ENUM_PHASE25K
+{
+   PHASE25K_EVALUATION_1 = 0,  // Phase 1 (10% target)
+   PHASE25K_EVALUATION_2 = 1,  // Phase 2 (5% target)
+   PHASE25K_FUNDED       = 2   // Funded (capital preservation)
+};
+
+enum P3106_ENUM_RR_PROFILE
+{
+   RR_A_040_15 = 0,  // A: 0.40% risk / +1.50R
+   RR_B_035_175= 1,  // B: 0.35% risk / +1.75R
+   RR_C_030_20 = 2,  // C: 0.30% risk / +2.00R
+   RR_D_025_25 = 3   // D: 0.25% risk / +2.50R
+};
+
 //--- EA_THE5ERS_END_TO_END_PRECODE_CHECKLIST  (magic 3106, The5ers pre-code checklist - staged compliance gates + paired profiles)
 const string                 P3106_InpSymbolsToTrade          = "EURUSD,GBPUSD,USDJPY";
 const double                 P3106_InpMaxSpreadPoints         = 3.0;
@@ -1176,20 +1191,6 @@ const string                 P3106_InpNewsFile                = "the5ers_red_new
 const int                    P3106_InpMaxRequestsPerDay       = 20;
 const double                 P3106_InpQualifyingDayCash       = 12.50;
 const int                    P3106_InpQualifyingDayCount      = 3;
-
-enum P3106_ENUM_PHASE25K
-{
-   PHASE25K_EVALUATION_1 = 0,  // Phase 1 (10% target)
-   PHASE25K_EVALUATION_2 = 1,  // Phase 2 (5% target)
-   PHASE25K_FUNDED       = 2   // Funded (capital preservation)
-};
-enum P3106_ENUM_RR_PROFILE
-{
-   RR_A_040_15 = 0,  // A: 0.40% risk / +1.50R
-   RR_B_035_175= 1,  // B: 0.35% risk / +1.75R
-   RR_C_030_20 = 2,  // C: 0.30% risk / +2.00R
-   RR_D_025_25 = 3   // D: 0.25% risk / +2.50R
-};
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers pre-code checklist - staged compliance gates + paired profiles
@@ -1470,6 +1471,12 @@ public:
 //| from EA_THE5ERS_HIGH_STAKES_RESEARCH  |  magic 3107
 //| source document: docs/prop_firm/THE5ERS-HIGH-STAKES-RESEARCH.md
 //==================================================================
+enum P3107_ENUM_HIGH_STAKES_VARIANT
+{
+   HS_NEW_10PCT     = 0,  // New High Stakes: 10% Phase 1
+   HS_CLASSIC_8PCT  = 1   // Classic High Stakes: 8% Phase 1
+};
+
 //--- EA_THE5ERS_HIGH_STAKES_RESEARCH  (magic 3107, The5ers High Stakes research - internal limit ladder + news jurisdiction)
 const string                 P3107_InpSymbolsToTrade          = "EURUSD,GBPUSD,USDJPY";
 const double                 P3107_InpRiskPct                 = 0.4;
@@ -1491,12 +1498,6 @@ const int                    P3107_InpNewsAfterMin            = 30;
 const double                 P3107_InpAccountSize             = 2500.0;
 const double                 P3107_InpQualifyingDayCash       = 12.50;
 const int                    P3107_InpQualifyingDayCount      = 3;
-
-enum P3107_ENUM_HIGH_STAKES_VARIANT
-{
-   HS_NEW_10PCT     = 0,  // New High Stakes: 10% Phase 1
-   HS_CLASSIC_8PCT  = 1   // Classic High Stakes: 8% Phase 1
-};
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers High Stakes research - internal limit ladder + news jurisdiction
@@ -1616,6 +1617,13 @@ public:
 //| from EA_THE5ERS_PROPOSAL_REVIEW  |  magic 3108
 //| source document: docs/prop_firm/THE5ERS-PROPOSAL-REVIEW.md
 //==================================================================
+enum P3108_ENUM_REVIEW_PHASE
+{
+   REVIEW_PHASE_1 = 0,  // Phase 1 (10% / $250)
+   REVIEW_PHASE_2 = 1,  // Phase 2 (5% / $125, fresh counter)
+   REVIEW_FUNDED  = 2   // Funded (same process, capital preservation)
+};
+
 //--- EA_THE5ERS_PROPOSAL_REVIEW  (magic 3108, The5ers proposal review - corrected profitable-day and cash-risk rules)
 const string                 P3108_InpSymbolsToTrade          = "EURUSD,GBPUSD,USDJPY";
 const double                 P3108_InpRiskPct                 = 0.4;
@@ -1635,13 +1643,6 @@ const bool                   P3108_InpVerifyProductName       = false;
 const int                    P3108_InpFlatBeforeRolloverMin   = 15;
 const string                 P3108_InpNewsFile                = "the5ers_red_news.csv";
 const int                    P3108_InpQualifyingDayCount      = 3;
-
-enum P3108_ENUM_REVIEW_PHASE
-{
-   REVIEW_PHASE_1 = 0,  // Phase 1 (10% / $250)
-   REVIEW_PHASE_2 = 1,  // Phase 2 (5% / $125, fresh counter)
-   REVIEW_FUNDED  = 2   // Funded (same process, capital preservation)
-};
 
 //+------------------------------------------------------------------+
 //| Strategy: The5ers proposal review - corrected profitable-day and cash-risk rules
@@ -1912,6 +1913,14 @@ public:
 //| from EA_TRIAD_R_HS_CODE_REVIEW  |  magic 3110
 //| source document: docs/strategy/TRIAD_R_HS-CODE-REVIEW.md
 //==================================================================
+enum P3110_ENUM_REVIEW_PROFILE
+{
+   REVIEW_RR_A = 0,  // A: 0.40% / +1.50R
+   REVIEW_RR_B = 1,  // B: 0.35% / +1.75R
+   REVIEW_RR_C = 2,  // C: 0.30% / +2.00R
+   REVIEW_RR_D = 3   // D: 0.25% / +2.50R
+};
+
 //--- EA_TRIAD_R_HS_CODE_REVIEW  (magic 3110, TRIAD-R code review - hardened runtime controls from the 12 findings)
 const string                 P3110_InpSymbolsToTrade          = "EURUSD,GBPUSD,USDJPY";
 const double                 P3110_InpMaxSpreadPoints         = 3.0;
@@ -1928,14 +1937,6 @@ const int                    P3110_InpEarlyLeadSeconds        = 5;
 const int                    P3110_InpLeaseMinutes            = 10;
 const string                 P3110_InpPriorityOrder           = "EURUSD,GBPUSD,USDJPY";
 const string                 P3110_InpNewsCoverageThrough     = "";
-
-enum P3110_ENUM_REVIEW_PROFILE
-{
-   REVIEW_RR_A = 0,  // A: 0.40% / +1.50R
-   REVIEW_RR_B = 1,  // B: 0.35% / +1.75R
-   REVIEW_RR_C = 2,  // C: 0.30% / +2.00R
-   REVIEW_RR_D = 3   // D: 0.25% / +2.50R
-};
 
 //+------------------------------------------------------------------+
 //| Strategy: TRIAD-R code review - hardened runtime controls from the 12 findings
@@ -3176,6 +3177,19 @@ public:
 //| from EA_STRATEGY_ROADMAP  |  magic 3117
 //| source document: docs/strategy/STRATEGY-ROADMAP.md
 //==================================================================
+enum P3117_ENUM_ROADMAP_TRACK
+{
+   TRACK_A_LONG_TERM = 0,   // Track A: validated relaxed-geometry triad
+   TRACK_B_FAST_TRACK= 1    // Track B: fast-track family set
+};
+
+enum P3117_ENUM_FAST_FAMILY
+{
+   FAST_F1_QUIET_FADE   = 0,  // F1 quiet-session range fade
+   FAST_F2_FAILED_BREAK = 1,  // F2 failed-breakout reversal (ORB level)
+   FAST_F3_BREAK_RIDER  = 2   // F3 breakout rider (no target, session exit)
+};
+
 //--- EA_STRATEGY_ROADMAP  (magic 3117, Strategy roadmap - Track A preservation, Track B fast-track families)
 const string                 P3117_InpSymbolsToTrade          = "GBPJPY,EURJPY,XAUUSD,EURUSD";
 const double                 P3117_InpRiskPct                 = 1.5;
@@ -3194,18 +3208,6 @@ const double                 P3117_InpTrackASweepMin          = 0.02;
 const double                 P3117_InpTrackAWickMin           = 0.45;
 const double                 P3117_InpTrackABodyMin           = 0.50;
 const bool                   P3117_InpGoldSwingPersonalTrack  = true;
-
-enum P3117_ENUM_ROADMAP_TRACK
-{
-   TRACK_A_LONG_TERM = 0,   // Track A: validated relaxed-geometry triad
-   TRACK_B_FAST_TRACK= 1    // Track B: fast-track family set
-};
-enum P3117_ENUM_FAST_FAMILY
-{
-   FAST_F1_QUIET_FADE   = 0,  // F1 quiet-session range fade
-   FAST_F2_FAILED_BREAK = 1,  // F2 failed-breakout reversal (ORB level)
-   FAST_F3_BREAK_RIDER  = 2   // F3 breakout rider (no target, session exit)
-};
 
 //+------------------------------------------------------------------+
 //| Strategy: Strategy roadmap - Track A preservation, Track B fast-track families

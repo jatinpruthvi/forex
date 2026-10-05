@@ -240,14 +240,14 @@ int EA_Init(CEAStrategy *strategy)
    g_eaStrategy.OnInitStrategy();
 
    g_eaInitialised = true;
-   EA_Log(EA_LOG_EVENTS, StringFormat("================================================="));
+   EA_Log(EA_LOG_EVENTS, "=================================================");
    EA_Log(EA_LOG_EVENTS, StringFormat("%s initialised (magic %s)", g_eaCfg.strategyName, EA_PrettyMagic(g_eaCfg.magic)));
    if(StringLen(g_eaCfg.sourceDoc) > 0) EA_Log(EA_LOG_EVENTS, "source: " + g_eaCfg.sourceDoc);
    EA_Log(EA_LOG_EVENTS, StringFormat("symbols: %s | tf: %s | build: %s",
           g_eaCfg.symbols, EnumToString(g_eaCfg.signalTimeframe), EA_CORE_BUILD_ID));
    EA_Log(EA_LOG_EVENTS, StringFormat("risk/trade: %.3f%% | max positions: %d | max trades/day: %d",
           g_eaCfg.riskPct, g_eaCfg.maxOpenPositions, g_eaCfg.maxTradesPerDay));
-   EA_Log(EA_LOG_EVENTS, StringFormat("================================================="));
+   EA_Log(EA_LOG_EVENTS, "=================================================");
    return INIT_SUCCEEDED;
 }
 
@@ -308,8 +308,8 @@ void EA_TestReport()
       TesterStatistics(STAT_BALANCEDD_PERCENT),
       TesterStatistics(STAT_RECOVERY_FACTOR),
       TesterStatistics(STAT_SHARPE_RATIO),
-      TesterStatistics(STAT_MINLOTS_VOLUME),
-      TesterStatistics(STAT_MAXLOTS_VOLUME),
+      0.0,
+      0.0,
       TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES)));
    FileClose(h);
    EA_Log(EA_LOG_EVENTS, "tester report written: Common\\Files\\" + fname);
@@ -412,7 +412,7 @@ void EA_BookFill(const SEAContext &ctx, const SSignalPlan &plan, const ulong tic
 }
 
 //--- size and execute a plan
-void EA_ExecutePlan(const SEAContext &ctx, const SSignalPlan &plan)
+void EA_ExecutePlan(SEAContext &ctx, const SSignalPlan &plan)
 {
    if(plan.dir == 0) return;
    double riskPct = MathMin(ctx.riskPct, 5.0);                 // hard safety clamp

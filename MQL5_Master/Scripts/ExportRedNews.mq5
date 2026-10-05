@@ -64,8 +64,12 @@ void OnStart()
    //--- then block on events the file cannot see (eleventh-pass follow-up)
    datetime from = now - (datetime)((long)MathMax(0, InpDaysBack) * 86400);
    datetime to   = now + (datetime)((long)MathMax(1, InpDaysForward) * 86400);
-   string fromStr = StringTrimLeft(StringTrimRight(InpFromDate));
-   string toStr   = StringTrimLeft(StringTrimRight(InpToDate));
+   string fromStr = InpFromDate;
+   StringTrimLeft(fromStr);
+   StringTrimRight(fromStr);
+   string toStr   = InpToDate;
+   StringTrimLeft(toStr);
+   StringTrimRight(toStr);
    if(StringLen(fromStr) > 0)
    {
       datetime t = StringToTime(fromStr);

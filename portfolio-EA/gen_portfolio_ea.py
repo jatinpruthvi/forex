@@ -200,6 +200,9 @@ def transform(ea, engine_values: set[str], value_counts: dict | None = None) -> 
         id_map[t] = prefix + t
 
     body = rename(body, id_map)
+    enum_decl_re = re.compile(r"^\s*enum\s+\w+\s*\{.*?\}\s*;\s*", re.M | re.S)
+    enums_txt = "\n\n".join(m.group(0).strip() for m in enum_decl_re.finditer(body))
+    body = enum_decl_re.sub("", body)
     body = re.sub(r"\n{3,}", "\n\n", body)
 
     # const definitions with the delivered defaults
@@ -213,7 +216,7 @@ def transform(ea, engine_values: set[str], value_counts: dict | None = None) -> 
     consts_txt = "\n".join(consts)
 
     return {"ea": ea, "class": cls, "class_new": prefix + cls, "body": body,
-            "consts": consts_txt, "inputs": inputs,
+            "consts": consts_txt, "inputs": inputs, "enums": enums_txt,
             "enum_types": enum_types, "renamed_values": renamed_values}
 
 
@@ -871,12 +874,15 @@ def render(engine_values: set[str], specs) -> tuple[str, str, list[dict]]:
             "      return true;\n"
             "   }\n"
             "};\n\n")
-        blocks.append(
+        sec_header = (
             "//==================================================================\n"
             f"//| from {ea.name}  |  magic {ea.magic}\n"
             f"//| source document: {ea.doc}\n"
-            "//==================================================================\n"
-            f"{tr['consts']}\n\n{tr['body'].strip()}\n")
+            "//==================================================================\n")
+        if tr["enums"]:
+            blocks.append(f"{sec_header}{tr['enums']}\n\n{tr['consts']}\n\n{tr['body'].strip()}\n")
+        else:
+            blocks.append(f"{sec_header}{tr['consts']}\n\n{tr['body'].strip()}\n")
         tf = TIMEFRAME_RE.search(ea.configure)
         tf_label = TF_LABEL.get(tf.group(1) if tf else "PERIOD_M5", "M5")
         label = strategy_label(ea)
