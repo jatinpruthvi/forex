@@ -38,6 +38,7 @@ This module acts as a strict compliance officer. It tracks equity independently 
 Ported directly from your highly advanced V4 framework, this module handles fundamental news filtering.
 *   **Live WebRequest:** On startup, it connects directly to `https://nfs.faireconomy.media` and downloads the ForexFactory XML calendar.
 *   **CSV Caching:** It parses the XML for "High Impact" events and caches them to `triad_red_news.csv`. (If running in Strategy Tester, it bypasses the internet and reads the CSV directly).
+*   **Blackout Zones (updated 2026-10-04):** if no usable calendar loaded at all, the gate **fails closed** (no new entries) instead of trading blind; a loaded week with no high-impact events is not a blackout; impact is matched case-insensitively.  The calendar maintains itself: the 1-second timer re-loads every 6 h live (or re-reads the CSV hourly), a failed refresh backs off 15 min, and a live calendar that cannot be refreshed for 48 h fails closed too.  The live source is the terminal's own calendar when the broker provides one - it covers 30 days ahead, unlike the FF file's seven ("this week") - with the FF download as the fallback; the Strategy Tester uses the CSV.  The event field is `server_time`: server time is the frame the gate compares against `TimeCurrent()`.
 *   **Blackout Zones:** When `E1_SMC_Core` wants to take a trade, the NewsManager blocks it if we are within 30 minutes before or 15 minutes after a Red News event for the traded currency (or USD).
 
 ### D. `E1_SMC_Core.mqh` (The Smart Money Brain)
@@ -45,6 +46,7 @@ This is the algorithmic heart of the EA. It uses a 60-candle lookback window to 
 *   **Trend Bias:** Checks if the H4 Fast EMA is aligned with the H4 Slow EMA. Additionally, it enforces the V4 H1 Trend Bias, ensuring the most recent H1 candle is trading *above* a rising H1 50-EMA for longs.
 *   **Daily ATR Exhaustion:** If the pair has already moved >80% of its Daily Average True Range (ATR), the EA refuses to take breakout trades.
 *   **SMT Divergence Gate:** If trading EURUSD/GBPUSD, the EA checks the DXY RSI. If EURUSD is sweeping a low, but DXY is not exhausted at the high, the divergence fails, and the trade is blocked.
+*   **Liquidity Sweep (implemented 2026-10-04, corrected 2026-10-05):** the entry precondition looks for a takeout of prior liquidity that is then reclaimed - the sweep candle (the same one the CHoCH detector selects) must trade below the lowest low of the **ten bars before it** (bullish) / above their highest high (bearish) and its own close must come back on the right side of that level.  `CopyRates` fills the array oldest-first; the first version read the *newest* ten bars as the "prior" liquidity, which made the rule close to meaningless - see `docs/EA_TOP25_BUGS_2.md` #8.  (It was a stub returning `true` before.)
 *   **Unmitigated Order Block Logic:** Finds the exact Change of Character (CHoCH) candle. Crucially, it scans *forward* from the CHoCH to the present to ensure price hasn't already wicked back and mitigated the block. If it's fresh, it calculates the Order Block edges.
 
 ### E. `ExecutionManager.mqh` (The Sniper)
@@ -58,5 +60,6 @@ Once `E1_SMC_Core` verifies a setup, this module takes over to handle the physic
 ---
 
 ## 🔒 3. System Integrity & Failsafes
-*   **Machine-Gun Prevention:** `E1_SMC_Core` uses cryptographic sweep-time tracking (`m_lastTradedSweepTime`). Once an Order Block is traded, it is marked permanently in MT5 Global Variables. Even if you get stopped out, the EA will never re-enter that exact same Order Block loop.
+*   **Machine-Gun Prevention:** `E1_SMC_Core` uses cryptographic sweep-time tracking (`m_lastTradedSweepTime`). Once an Order Block's bracket has been **placed**, it is marked permanently in MT5 Global Variables. Even if you get stopped out, the EA will never re-enter that exact same Order Block loop. (A rejected placement - a spread blip, a stop-level error - no longer consumes the setup; three failed attempts abandon it. The delivered code marked it before the order was sent.)
+*   **State keys (2026-10-04):** every persisted value is namespaced `MasterTriad_<account>_<magic>_<field>`; the pre-upgrade values are adopted once on the first run and the old keys are deleted.  The daily-loss breaker freezes the remainder of the server day; the trailing-DD breaker freezes a full 48 h that the day boundary does not lift.
 *   **Memory Persistence:** By utilizing `GlobalVariableSet` for Peak Equity, Breaker Reset Times, and Traded Sweeps, the EA is fully immune to MT5 crashes, VPS restarts, or accidental chart timeframe changes.

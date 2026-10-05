@@ -2,11 +2,29 @@
 //|                                                  NewsManager.mqh |
 //|                                  Copyright 2026, Master Strategy |
 //+------------------------------------------------------------------+
-#property strict
+//--- Calendar upkeep.  The delivered module loaded the calendar ONCE, in the
+//--- init path, and never again: a chart left running across a weekend kept
+//--- last week's file while the new week's red news went unseen (past events
+//--- never block).  RefreshIfStale() is called from the EA's 1-second OnTimer
+//--- and re-loads the calendar at most once per interval; if the live download
+//--- cannot be refreshed for NEWS_STALE_BLOCK_HOURS the gate FAILS CLOSED.
+#define NEWS_LIVE_REFRESH_HOURS    6    // live: re-download the FF file at most this often
+#define NEWS_CSV_REFRESH_HOURS     1    // file mode: re-read the CSV (matches the 65-engine family's hourly stamp)
+#define NEWS_STALE_BLOCK_HOURS    48    // live: block new entries after this long without a successful refresh
+#define NEWS_REFRESH_RETRY_MINUTES 15   // after a FAILED attempt wait this long (never a per-tick retry)
+//--- terminal-calendar window (mirrors the engine family's 2 / 30 days).  The
+//--- FF weekly file only covers Sunday..Saturday, so live gating used to be
+//--- blind to everything beyond the current week; the terminal calendar carries
+//--- every scheduled release weeks ahead and its stamps are already server time.
+#define NEWS_CAL_PAST_DAYS          2
+#define NEWS_CAL_FUTURE_DAYS       30
 
 struct NewsEvent
 {
-    datetime utc_time;
+    //--- broker SERVER time - the frame the gate compares against TimeCurrent().
+    //--- It said `utc_time` while holding server time (audit: naming only, the
+    //--- values were right for their consumer); the name now tells the truth.
+    datetime server_time;
     string   currency;
     string   title;
     string   impact;
@@ -21,8 +39,21 @@ private:
     int       m_blockMinutesAfter;
     string    m_csvFileName;
     
-    int       m_brokerUtcOffset; // Broker time offset from ForexFactory (EST/EDT is UTC-5/UTC-4, Broker usually UTC+2/UTC+3)
-    
+    int       m_brokerUtcOffset; // fallback NY -> server shift (winter calibration; used only if the terminal clocks are unusable)
+
+    //--- #7: a load that produced nothing usable must not read as "no news".
+    //--- The gate fails CLOSED while the calendar is unusable (the EA refuses to
+    //--- init on a failed load; this is the belt-and-braces at the gate).
+    bool      m_loadOk;
+    bool      m_warnedNoCalendar;
+    bool      m_warnedEmptyWeek;
+
+    //--- calendar upkeep: when the last good load happened, when the last
+    //--- attempt happened (backoff), and whether the staleness warning printed
+    datetime  m_loadedAt;
+    datetime  m_lastAttemptAt;
+    bool      m_warnedStale;
+
     string    ExtractXMLTag(string xml, string tag);
 
 public:
@@ -31,8 +62,67 @@ public:
              
     bool      DownloadAndParse();
     bool      LoadFromCSV();
+    bool      LoadFromTerminalCalendar();   // the terminal's own calendar (live only)
     bool      IsNewsBlockActive(string symbol);
+    bool      RefreshIfStale();     // called from the EA's OnTimer - re-loads when due
+    bool      IsCalendarStale() const;
 };
+
+//+------------------------------------------------------------------+
+//| Calendar upkeep - why this exists                                 |
+//|                                                                   |
+//| "Live" is only live if it is fresh.  The FF feed is rewritten     |
+//| every week (and corrected during the week), so a file that is     |
+//| never re-read silently ages into a filter that blocks nothing -   |
+//| the worst failure mode for a news gate, because it looks fine.    |
+//|                                                                   |
+//|   * live mode  - re-download from the feed every                  |
+//|       NEWS_LIVE_REFRESH_HOURS; after a failed attempt wait        |
+//|       NEWS_REFRESH_RETRY_MINUTES before trying again              |
+//|   * file mode  - re-read the CSV every NEWS_CSV_REFRESH_HOURS so  |
+//|       a scheduled refresh of the file needs no re-init either     |
+//|   * stale      - live only: once the newest successful load is    |
+//|       older than NEWS_STALE_BLOCK_HOURS the gate FAILS CLOSED     |
+//|       until a refresh succeeds (same policy as #7 for a bad load) |
+//|                                                                   |
+//| File mode never goes stale on the wall clock: in the tester (and  |
+//| a replay) TimeCurrent() is simulated history, so the file is what |
+//| it is.                                                            |
+//+------------------------------------------------------------------+
+bool CNewsManager::RefreshIfStale()
+{
+    if(m_loadedAt <= 0) return m_loadOk;   // nothing ever loaded - init handles that
+
+    long interval = (long)(m_liveEnabled ? NEWS_LIVE_REFRESH_HOURS : NEWS_CSV_REFRESH_HOURS) * 3600;
+    if((long)TimeCurrent() - (long)m_loadedAt < interval) return m_loadOk;
+
+    //--- backoff: a failing endpoint (WebRequest not whitelisted, no network)
+    //--- must not be retried on every timer tick
+    if(m_lastAttemptAt > 0 &&
+       (long)TimeCurrent() - (long)m_lastAttemptAt < (long)NEWS_REFRESH_RETRY_MINUTES * 60)
+        return m_loadOk;
+    m_lastAttemptAt = TimeCurrent();
+
+    if(m_liveEnabled)
+    {
+        Print("NEWS MANAGER: refreshing the live calendar (last successful load ",
+              TimeToString(m_loadedAt), ").");
+        bool ok = DownloadAndParse();
+        if(!ok)
+            Print("NEWS ERROR: live calendar refresh failed - keeping the previous file; ",
+                  "entries will FAIL CLOSED once it is ", NEWS_STALE_BLOCK_HOURS, "h old.");
+        return ok;
+    }
+    return LoadFromCSV();                  // file mode: pick up an updated CSV in place
+}
+
+bool CNewsManager::IsCalendarStale() const
+{
+    //--- live only - see the header comment; CSVs are replayed against simulated time
+    if(!m_liveEnabled || !m_loadOk || m_loadedAt <= 0) return false;
+    return ((long)TimeCurrent() - (long)m_loadedAt) >= (long)NEWS_STALE_BLOCK_HOURS * 3600;
+}
+
 
 //+------------------------------------------------------------------+
 //| Constructor                                                      |
@@ -44,6 +134,12 @@ CNewsManager::CNewsManager(bool enableLive, int minsBefore, int minsAfter, int b
     m_blockMinutesAfter = minsAfter;
     m_brokerUtcOffset = brokerOffsetHours;
     m_csvFileName = csvName;
+    m_loadOk = false;
+    m_warnedNoCalendar = false;
+    m_warnedEmptyWeek = false;
+    m_loadedAt = 0;
+    m_lastAttemptAt = 0;
+    m_warnedStale = false;
     ArrayResize(m_events, 0);
 }
 
@@ -79,6 +175,164 @@ string CNewsManager::ExtractXMLTag(string xml, string tag)
 }
 
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| US daylight-saving check for a NEW YORK local timestamp           |
+//|                                                                   |
+//| The ForexFactory feed stamps its events in New York local time:   |
+//| EST (UTC-5) in winter, EDT (UTC-4) from the second Sunday of      |
+//| March 02:00 to the first Sunday of November 02:00.  Every         |
+//| date-based translation of those stamps needs this offset - see    |
+//| NewsServerShiftSeconds() below.                                   |
+//+------------------------------------------------------------------+
+bool IsNewYorkDst(const datetime nyLocalTime)
+{
+    MqlDateTime dt;
+    if(!TimeToStruct(nyLocalTime, dt)) return false;
+
+    MqlDateTime m;
+    m.year = dt.year; m.mon = 3; m.day = 1; m.hour = 2; m.min = 0; m.sec = 0;
+    datetime mar1 = StructToTime(m);
+    MqlDateTime md;
+    TimeToStruct(mar1, md);
+    int daysToSun = (7 - md.day_of_week) % 7;          // day_of_week: 0 = Sunday
+    datetime dstStart = mar1 + (datetime)((daysToSun + 7) * 86400);   // second Sunday
+
+    MqlDateTime n;
+    n.year = dt.year; n.mon = 11; n.day = 1; n.hour = 2; n.min = 0; n.sec = 0;
+    datetime nov1 = StructToTime(n);
+    MqlDateTime nd;
+    TimeToStruct(nov1, nd);
+    int daysToSun2 = (7 - nd.day_of_week) % 7;
+    datetime dstEnd = nov1 + (datetime)(daysToSun2 * 86400);          // first Sunday
+
+    return (nyLocalTime >= dstStart && nyLocalTime < dstEnd);
+}
+
+//+------------------------------------------------------------------+
+//| Seconds to add to a New York LOCAL stamp to reach SERVER time     |
+//|                                                                   |
+//|     shift = server_offset - ny_offset                             |
+//|                                                                   |
+//| server_offset = TimeTradeServer() - TimeGMT(): the broker's own   |
+//|   UTC offset, read live from the terminal.  Exact for EET/EEST    |
+//|   servers that follow European DST, for fixed-offset servers and  |
+//|   for half-hour zones (the engine reads the same clocks in        |
+//|   EA_ServerGmtOffsetSeconds()).                                   |
+//| ny_offset = -4 h while New York is on daylight time, -5 h         |
+//|   otherwise, for the EVENT'S OWN date.                            |
+//|                                                                   |
+//| The delivered code added a constant offset calibrated on winter   |
+//| (default 7 h = server+2 - NY-5).  That is only right while the    |
+//| broker's offset and New York's move together: it misses by an     |
+//| hour all summer on a fixed-offset server, and during the weeks    |
+//| where the US and EU change dates differ on an EET/EEST server -   |
+//| a 30-minute window can miss the release entirely.  When the       |
+//| terminal clocks are unusable (|diff| >= 14 h, e.g. a mis-set       |
+//| clock) the calibrated input is the fallback, as before.           |
+//+------------------------------------------------------------------+
+long NewsServerShiftSeconds(const datetime nyLocalTime, const int fallbackHours)
+{
+    long serverMinusGmt = (long)TimeTradeServer() - (long)TimeGMT();
+    if(serverMinusGmt <= -(long)14 * 3600 || serverMinusGmt >= (long)14 * 3600)
+        return (long)fallbackHours * 3600;                  // clocks unusable
+
+    long nyOffsetSeconds = (IsNewYorkDst(nyLocalTime) ? -4 : -5) * (long)3600;
+    return serverMinusGmt - nyOffsetSeconds;
+}
+
+//+------------------------------------------------------------------+
+//| Load from the terminal's own economic calendar                     |
+//|                                                                    |
+//| The better LIVE source, and the fix for the audit's horizon note:  |
+//| the FF file is `ff_calendar_thisweek.xml` - Sunday..Saturday only, |
+//| so a gate driven by it cannot see the next week's releases at all. |
+//| The terminal calendar carries every scheduled event NEWS_CAL_       |
+//| FUTURE_DAYS ahead, needs no WebRequest whitelist, and its stamps    |
+//| are already in trade-server time (the frame the gate uses).        |
+//|                                                                    |
+//| Unavailable in the Strategy Tester (the calendar API serves no      |
+//| data there) - the caller falls back to the FF file / CSV.  "Loaded  |
+//| but zero high-impact events" is treated as a failure so the        |
+//| fallback still runs instead of silently arming an empty gate.       |
+//|                                                                    |
+//| When this source supplies the events the FF CSV is deliberately     |
+//| NOT rewritten: Scripts\ExportRedNews.mq5 is the way to build a     |
+//| backtest file, and the file's NY-local convention must not be       |
+//| mixed with server-time values.                                     |
+//+------------------------------------------------------------------+
+bool CNewsManager::LoadFromTerminalCalendar()
+{
+    if(MQLInfoInteger(MQL_TESTER)) return false;      // no calendar data in the tester
+
+    datetime now  = TimeCurrent();
+    datetime from = now - (datetime)((long)NEWS_CAL_PAST_DAYS * 86400);
+    datetime to   = now + (datetime)((long)NEWS_CAL_FUTURE_DAYS * 86400);
+
+    MqlCalendarValue values[];
+    ResetLastError();
+    int n = CalendarValueHistory(values, from, to, NULL, NULL);
+    if(n <= 0)
+    {
+        Print("NEWS MANAGER: terminal calendar returned no values (count ", n,
+              ", err ", GetLastError(), ").");
+        return false;
+    }
+
+    //--- build into a LOCAL list and only commit it on success: a calendar that
+    //--- turns out unusable must not have wiped the events a previous load left
+    //--- in memory (the caller may still fall back, and a failed fallback would
+    //--- otherwise leave an armed-but-empty gate behind)
+    NewsEvent fresh[];
+    int kept = 0, unknownCcy = 0;
+    datetime newest = 0;
+    for(int i = 0; i < n; i++)
+    {
+        MqlCalendarEvent ev;
+        if(!CalendarEventById(values[i].event_id, ev)) continue;
+        if(ev.importance != CALENDAR_IMPORTANCE_HIGH) continue;   // red-folder rule
+
+        string cc = "ALL";
+        MqlCalendarCountry country;
+        if(CalendarCountryById(ev.country_id, country) && StringLen(country.currency) > 0)
+            cc = country.currency;
+        else
+            unknownCcy++;               // no resolvable currency -> ALL (fail closed)
+
+        int size = ArraySize(fresh);
+        ArrayResize(fresh, size + 1);
+        fresh[size].server_time = values[i].time;      // already server time
+        fresh[size].currency    = cc;
+        fresh[size].impact      = "High";
+        fresh[size].title       = ev.name;
+        if(values[i].time > newest) newest = values[i].time;
+        kept++;
+    }
+
+    if(kept <= 0) return false;         // m_events untouched - the caller falls back
+
+    ArrayResize(m_events, kept);
+    for(int i = 0; i < kept; i++)
+    {
+        m_events[i].server_time = fresh[i].server_time;
+        m_events[i].currency    = fresh[i].currency;
+        m_events[i].impact      = fresh[i].impact;
+        m_events[i].title       = fresh[i].title;
+    }
+
+    m_loadOk = true;
+    m_loadedAt = TimeCurrent();
+    m_warnedStale = false;
+    m_warnedNoCalendar = false;
+    m_warnedEmptyWeek = false;
+    if(unknownCcy > 0)
+        Print("NEWS MANAGER WARNING: ", unknownCcy,
+              " event(s) had no resolvable currency and are treated as ALL.");
+    Print("NEWS MANAGER: terminal calendar loaded ", kept, " high-impact event(s), ",
+          TimeToString(now, TIME_DATE), " .. ", TimeToString(newest, TIME_DATE), " (server time).");
+    return true;
+}
+
+//+------------------------------------------------------------------+
 //| Download and Parse XML from ForexFactory                         |
 //+------------------------------------------------------------------+
 bool CNewsManager::DownloadAndParse()
@@ -88,6 +342,19 @@ bool CNewsManager::DownloadAndParse()
         Print("NEWS MANAGER: Live News Download Bypassed (Backtest Mode Active). Attempting to load from CSV.");
         return LoadFromCSV();
     }
+
+    //--- backtests cannot download (WebRequest is unavailable in the tester)
+    //--- and the calendar API has no data there: the CSV is the only source
+    if(MQLInfoInteger(MQL_TESTER))
+    {
+        Print("NEWS MANAGER: Strategy Tester - live sources unavailable, loading from CSV.");
+        return LoadFromCSV();
+    }
+
+    //--- live: the terminal calendar first - it has the horizon the weekly FF
+    //--- file cannot (see LoadFromTerminalCalendar)
+    if(LoadFromTerminalCalendar()) return true;
+    Print("NEWS MANAGER: terminal calendar unavailable - using the ForexFactory weekly file.");
     
     string url="https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
     char post[], result[];
@@ -120,8 +387,13 @@ bool CNewsManager::DownloadAndParse()
         string event_str = StringSubstr(xml, pos, end_pos - pos);
         pos = end_pos;
         
+        // #7: the feed's casing is not a contract.  The delivered exact compare
+        // against "High" silently dropped every row if the feed ever shipped
+        // "HIGH"/"high" - i.e. the news filter would go quietly inert.
         string impact = ExtractXMLTag(event_str, "impact");
-        if(impact != "High") continue; // We only care about RED news
+        string imp = impact;
+        StringTrimLeft(imp); StringTrimRight(imp); StringToLower(imp);
+        if(imp != "high") continue; // RED news only
         
         string date = ExtractXMLTag(event_str, "date");
         string time_str = ExtractXMLTag(event_str, "time");
@@ -146,13 +418,17 @@ bool CNewsManager::DownloadAndParse()
 bool CNewsManager::LoadFromCSV()
 {
     ArrayResize(m_events, 0);
+    m_loadOk = false;
     int handle = FileOpen(m_csvFileName, FILE_READ|FILE_CSV|FILE_ANSI|FILE_SHARE_READ, ',');
     if(handle == INVALID_HANDLE)
     {
-        Print("NEWS ERROR: Cannot load CSV ", m_csvFileName, ". News filtering will be disabled.");
+        Print("NEWS ERROR: cannot load CSV ", m_csvFileName,
+              " - the news gate will FAIL CLOSED (no new entries).");
         return false;
     }
-    
+
+    int rowsSeen = 0, badRows = 0, notHigh = 0;
+
     while(!FileIsEnding(handle))
     {
         string time_text = FileReadString(handle);
@@ -161,23 +437,65 @@ bool CNewsManager::LoadFromCSV()
         string currency = FileReadString(handle);
         string impact = FileReadString(handle);
         string title = FileReadString(handle);
+        rowsSeen++;
+
+        // #7: impact compared case-insensitively (and trimmed); a hand-written
+        // CSV with "HIGH" now behaves, and the 2030 coverage sentinel row
+        // (impact "COVERAGE") is no longer loaded as a blocking event.
+        string imp = impact;
+        StringTrimLeft(imp); StringTrimRight(imp); StringToLower(imp);
+        if(imp != "high") { notHigh++; continue; }
         
         datetime event_time = ParseAMPMTime(time_text); // CRITICAL FIX: Handle ForexFactory AM/PM
+
+        // #8: a changed feed format used to make ParseAMPMTime() return 0 and the
+        // event landed at 1970 + offset - a silent no-op (past events never
+        // block).  Reject anything outside a sane calendar range and count it.
+        if(event_time <= 0 ||
+           event_time < (datetime)D'2000.01.01' || event_time >= (datetime)D'2100.01.01')
+        {
+            badRows++;
+            continue;
+        }
         
-        // V4 UPGRADE: Align ForexFactory EST/EDT time to Broker Server Time (typically +7 hours)
-        event_time = event_time + (m_brokerUtcOffset * 3600);
+        // V5 FIX: translate the feed's New York local stamp to the broker's
+        // server clock with the offset read LIVE from the terminal clocks; a
+        // fixed winter calibration is an hour off whenever the broker's UTC
+        // offset and New York's do not move together (see above).
+        long shiftSeconds = NewsServerShiftSeconds(event_time, m_brokerUtcOffset);
+        event_time = (datetime)((long)event_time + shiftSeconds);
         
         int size = ArraySize(m_events);
         ArrayResize(m_events, size + 1);
-        m_events[size].utc_time = event_time;
+        m_events[size].server_time = event_time;
         m_events[size].currency = currency;
         m_events[size].impact = impact;
         m_events[size].title = title;
     }
     
     FileClose(handle);
-    Print("NEWS MANAGER: Successfully loaded ", ArraySize(m_events), " high-impact events from CSV.");
-    return true;
+
+    //--- fail-closed state (#7): rows that existed but could not be parsed mean
+    //--- the format changed under us - refuse rather than trade blind.  An empty
+    //--- file is also refused; a file with only non-high rows is a legitimate
+    //--- "quiet week" and loads fine with zero events.
+    m_loadOk = (rowsSeen > 0 && badRows == 0);
+    if(m_loadOk)
+    {
+        //--- a good load resets the upkeep clock and the one-shot warnings
+        m_loadedAt = TimeCurrent();
+        m_warnedStale = false;
+        m_warnedNoCalendar = false;
+        m_warnedEmptyWeek = false;
+    }
+    if(badRows > 0)
+        Print("NEWS ERROR: ", badRows, " of ", rowsSeen, " row(s) in ", m_csvFileName,
+              " could not be parsed - the feed format may have changed.  News gate FAILS CLOSED.");
+    if(rowsSeen == 0)
+        Print("NEWS ERROR: ", m_csvFileName, " contains no rows.  News gate FAILS CLOSED.");
+    Print("NEWS MANAGER: loaded ", ArraySize(m_events), " high-impact event(s) from CSV (",
+          notHigh, " non-high row(s) skipped, ", badRows, " unparseable).");
+    return m_loadOk;
 }
 
 //+------------------------------------------------------------------+
@@ -185,7 +503,38 @@ bool CNewsManager::LoadFromCSV()
 //+------------------------------------------------------------------+
 bool CNewsManager::IsNewsBlockActive(string symbol)
 {
-    if(ArraySize(m_events) == 0) return false;
+    // #7: the delivered gate returned false when the event list was empty, so a
+    // failed or unparseable calendar read as "no news" and the EA traded blind.
+    if(!m_loadOk)
+    {
+        if(!m_warnedNoCalendar)
+        {
+            m_warnedNoCalendar = true;
+            Print("NEWS FILTER: no usable calendar loaded - blocking new entries (fail closed).");
+        }
+        return true;
+    }
+    if(IsCalendarStale())
+    {
+        //--- live file aged past the block threshold without a successful refresh:
+        //--- blocking is the same policy as an unusable load (#7)
+        if(!m_warnedStale)
+        {
+            m_warnedStale = true;
+            Print("NEWS FILTER: the live calendar is older than ", NEWS_STALE_BLOCK_HOURS,
+                  "h and could not be refreshed - blocking new entries (fail closed).");
+        }
+        return true;
+    }
+    if(ArraySize(m_events) == 0)
+    {
+        if(!m_warnedEmptyWeek)
+        {
+            m_warnedEmptyWeek = true;
+            Print("NEWS FILTER: calendar loaded but contains no high-impact events - no blackout windows.");
+        }
+        return false;
+    }
     
     datetime current_time = TimeCurrent();
     string base = SymbolInfoString(symbol, SYMBOL_CURRENCY_BASE);
@@ -203,7 +552,7 @@ bool CNewsManager::IsNewsBlockActive(string symbol)
         if(m_events[i].currency == "ALL" || m_events[i].currency == base || m_events[i].currency == quote || (m_events[i].currency == "USD" && (base == "XAU" || base == "GOLD")))
         {
             // Time distance in seconds
-            long diff = (long)m_events[i].utc_time - (long)current_time;
+            long diff = (long)m_events[i].server_time - (long)current_time;
             
             // If the event is in the future, check if we are within the 'Before' block
             if(diff > 0 && diff <= (m_blockMinutesBefore * 60))

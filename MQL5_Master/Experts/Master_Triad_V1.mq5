@@ -5,8 +5,6 @@
 #property copyright "Master Strategy"
 #property link      ""
 #property version   "1.00"
-#property strict
-
 //--- Master Includes
 #include "..\Include\RiskGovernor.mqh"
 #include "..\Include\ExecutionManager.mqh"
@@ -19,7 +17,7 @@ input double InpBaseRiskPct = 0.005; // 0.5% Base Risk (Track A Eval / Track B F
 input bool   InpUseDxySmtGate = true; // Use Native DXY SMT Divergence Gate
 input bool   InpEnableLiveNews = true; // V4 Upgrade: Download Live News from ForexFactory
 input ulong InpMagicNumber = 777112; // EA Magic Number
-input int    InpBrokerOffset = 7; // Hours difference between Broker Server and EST/EDT
+input int    InpBrokerOffset = 7; // Fallback NY->server shift (hours) if the terminal clocks are unusable
 
 //--- V4 Upgrade: Institutional Lifecycle Gates
 enum ENUM_LIFECYCLE_LOCK
@@ -95,8 +93,6 @@ int OnInit()
         return(INIT_FAILED);
     }
     
-    GlobalVariableSet("MasterTriad_UseDxySmt", (double)InpUseDxySmtGate);
-    
     ArrayResize(ExecManagers, TotalSymbols);
     ArrayResize(E1Cores, TotalSymbols);
     
@@ -106,7 +102,8 @@ int OnInit()
         SymbolSelect(TargetSymbols[i], true);
         
         ExecManagers[i] = new CExecutionManager(TargetSymbols[i], InpMagicNumber); 
-        E1Cores[i] = new CE1SMCCore(ExecManagers[i], NewsManager, TargetSymbols[i], InpMagicNumber);
+        E1Cores[i] = new CE1SMCCore(ExecManagers[i], NewsManager, TargetSymbols[i], InpMagicNumber,
+                                     InpUseDxySmtGate);
         Print("✓ Initialized engines for: ", TargetSymbols[i]);
     }
     
@@ -140,6 +137,15 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTimer()
 {
+    // --- 0. NEWS CALENDAR UPKEEP ---
+    // The delivered module loaded the calendar once in OnInit and never again,
+    // so a chart left running across a weekend kept last week's file and traded
+    // through the new week's red news.  RefreshIfStale() re-downloads at most
+    // every NEWS_LIVE_REFRESH_HOURS (and re-reads the CSV hourly in file mode);
+    // it runs before the gates below so weekends and frozen periods still keep
+    // the calendar fresh.  If the live refresh keeps failing the gate closes.
+    if(CheckPointer(NewsManager) != POINTER_INVALID) NewsManager.RefreshIfStale();
+
     // --- 1. GLOBAL RISK GOVERNOR GATE ---
     if(!RiskGovernor.IsTradingAllowed()) return;
     
@@ -153,9 +159,12 @@ void OnTimer()
         if(!fridayClosed)
         {
             Print("CRITICAL: Friday 21:00 reached. Executing Prop Firm Weekend Auto-Close.");
-            RiskGovernor.CloseAllPositions();
             fridayClosed = true;
         }
+        // The delivered code closed ONCE and never looked again: a rejected close meant a
+        // weekend gap on a prop account.  FlattenResidual() re-drives it every 5 s until
+        // nothing of this magic is left, and is silent afterwards.
+        RiskGovernor.FlattenResidual();
         return; // Halt all trading until Monday
     }
     else if(dt.day_of_week != 5)

@@ -19,7 +19,7 @@ input double InpMinMarginLevelPct = 250; // Deterministic Gate 2
 bool CheckDeliveryGates()
 {
     // Gate 1: Spread Verification (No AI inference, pure math)
-    double currentSpread = SymbolInfoInteger(Symbol(), SYMBOL_SPREAD);
+    double currentSpread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
     if(currentSpread > InpMaxSpreadPoints)
     {
         PrintFormat("RPSB GATE FAILED: Spread (%.0f) exceeds safety cap (%.0f).", currentSpread, InpMaxSpreadPoints);

@@ -4,8 +4,6 @@
 //+------------------------------------------------------------------+
 #property copyright "Master Strategy"
 #property version   "1.00"
-#property strict
-
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
 #include <Trade\OrderInfo.mqh>
@@ -34,7 +32,6 @@ public:
     void           ManageDualBracketCancellation();
     void           ManageStagedExits();
     void           ManageDeadMoneyExit();
-    void           ManageH1Bailout();
     double         GetDailyATR(string symbol);
     double         GetDailyRange(string symbol);
     void           CleanupGlobalVariables();
@@ -75,7 +72,10 @@ bool CExecutionManager::SendDualBracketLimit(string symbol, ENUM_ORDER_TYPE orde
         Print("EXECUTION ERROR: Broker returned invalid Volume Step (0). Aborting execution.");
         return false;
     }
-    double halfLot = MathFloor((totalLotSize / 2.0) / step) * step;
+    // + 1e-9: some exact multiples divide to just under the integer in IEEE doubles (0.29 / 0.01
+    // is 28.999999999999996), and a bare floor() then drops a whole step - a 0.58-lot order was
+    // split 2 x 0.28 instead of 2 x 0.29.  (14 of the 399 lot sizes 0.02 .. 8.00 are affected.)
+    double halfLot = MathFloor((totalLotSize / 2.0) / step + 1e-9) * step;
     
     // Safety: Find volume digits for strict normalization
     int volDigits = 2;
@@ -198,12 +198,11 @@ bool CExecutionManager::SendDualBracketLimit(string symbol, ENUM_ORDER_TYPE orde
 //+------------------------------------------------------------------+
 //| OnTick Maintenance                                               |
 //+------------------------------------------------------------------+
-void CExecutionManager::OnTickMaintenance(bool isNewsBlocked = false)
+void CExecutionManager::OnTickMaintenance(bool isNewsBlocked)     // default lives on the declaration only
 {
     ManageDualBracketCancellation();
     ManageStagedExits();
     ManageDeadMoneyExit();
-    ManageH1Bailout();
     CleanupGlobalVariables();
     
     // CRITICAL PROP FIRM FIX: Active News Block Limit Order Cancellation
@@ -270,7 +269,7 @@ void CExecutionManager::ManageDualBracketCancellation()
     }
     
     // CRITICAL FIX: Manual Ghost Order Cleanup (Since we can't trust broker expiration)
-    // Delete any pending limit orders older than 4 hours to prevent stale execution
+    // Delete any pending limit orders older than 45 minutes to prevent stale execution
     for(int j = OrdersTotal() - 1; j >= 0; j--)
     {
         if(m_order.SelectByIndex(j))
@@ -298,51 +297,61 @@ void CExecutionManager::ManageStagedExits()
         if(m_position.SelectByIndex(i))
         {
             if(m_position.Magic() != m_magic || m_position.Symbol() != m_symbol) continue;
-            
+
             ulong ticket = m_position.Ticket();
             ulong identifier = m_position.Identifier(); // CRITICAL FIX: Ticket can change on partial close, Identifier never changes.
             string gvName = "Triad_Partial_" + IntegerToString(identifier);
-            
-            // Skip if we already took the partial on this ticket
-            if(GlobalVariableCheck(gvName)) continue;
-            
+
+            // The flag means "the 25% partial is banked (or was too small to split)".  The
+            // delivered code set it NO MATTER WHETHER the close or the stop move succeeded
+            // and skipped the whole block once it existed, so one requote at +1.5R left the
+            // trade with neither its partial nor its break-even stop, for good.  The two
+            // steps are now independent and each is retried until it works.
+            bool partialDone = GlobalVariableCheck(gvName);
+
             double entry = m_position.PriceOpen();
             double currentPrice = m_position.PriceCurrent();
             double originalSL = m_position.StopLoss();
             double tp = m_position.TakeProfit();
-            
+
             double riskDist = MathAbs(entry - originalSL);
             if(riskDist == 0) continue;
-            
+
             double currentR = 0;
             if(m_position.PositionType() == POSITION_TYPE_BUY)
                 currentR = (currentPrice - entry) / riskDist;
             else if(m_position.PositionType() == POSITION_TYPE_SELL)
                 currentR = (entry - currentPrice) / riskDist;
-                
+
             // Target: +1.5R -> Close 25% and move SL to BE + 0.2R (to cover swap/commission)
             if(currentR >= 1.5)
             {
-                double currentVolume = m_position.Volume();
-                
-                // MQL5 allows partial closes by specifying a smaller volume
-                double partialVol = NormalizeDouble(currentVolume * 0.25, 2);
-                double minLot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN);
-                double lotStep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
-                
-                // Align to lot step
-                partialVol = MathFloor(partialVol / lotStep) * lotStep;
-                
-                if(partialVol >= minLot)
+                if(!partialDone)
                 {
-                    Print("EXECUTION: +1.5R Reached! Securing 25% partial profit on ticket #", ticket);
-                    m_trade.PositionClosePartial(ticket, partialVol);
+                    double currentVolume = m_position.Volume();
+                    double minLot = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN);
+                    double lotStep = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
+
+                    // 25% rounded DOWN to the lot step.  (NormalizeDouble(v, 2) rounds to
+                    // nearest: on a 0.02-lot position 0.005 became 0.01, i.e. 50% - not 25%.)
+                    double partialVol = (lotStep > 0.0) ? MathFloor(currentVolume * 0.25 / lotStep + 1e-9) * lotStep : 0.0;
+
+                    if(partialVol >= minLot && partialVol < currentVolume)
+                    {
+                        Print("EXECUTION: +1.5R Reached! Securing 25% partial profit on ticket #", ticket);
+                        if(m_trade.PositionClosePartial(ticket, partialVol)) partialDone = true;
+                        else Print("EXECUTION WARNING: partial close failed (retcode ", m_trade.ResultRetcode(), ") - will retry.");
+                    }
+                    else
+                        partialDone = true;       // too small to split: nothing to bank, move on to the stop
+                    if(partialDone) GlobalVariableSet(gvName, 1.0);
                 }
-                
-                // Move Stop Loss
+
+                // Move Stop Loss to BE + 0.2R.  Idempotent: it never moves backwards, and once
+                // applied the recomputed level is no better than the current stop.
                 double newSL = 0;
                 int digits = (int)SymbolInfoInteger(m_symbol, SYMBOL_DIGITS);
-                
+
                 if(m_position.PositionType() == POSITION_TYPE_BUY)
                 {
                     newSL = NormalizeDouble(entry + (riskDist * 0.2), digits); // BE + 0.2R
@@ -353,15 +362,13 @@ void CExecutionManager::ManageStagedExits()
                     newSL = NormalizeDouble(entry - (riskDist * 0.2), digits); // BE + 0.2R
                     if(newSL >= originalSL && originalSL != 0) newSL = originalSL; // Never move SL backwards
                 }
-                
+
                 if(newSL != originalSL)
                 {
                     Print("EXECUTION: Moving Stop Loss to BE + 0.2R on ticket #", ticket);
-                    m_trade.PositionModify(ticket, newSL, tp);
+                    if(!m_trade.PositionModify(ticket, newSL, tp))
+                        Print("EXECUTION WARNING: stop move failed (retcode ", m_trade.ResultRetcode(), ") - will retry.");
                 }
-                
-                // Mark this ticket as partially closed so we don't loop it
-                GlobalVariableSet(gvName, 1.0);
             }
         }
     }
@@ -415,15 +422,6 @@ void CExecutionManager::ManageDeadMoneyExit()
 }
 
 //+------------------------------------------------------------------+
-//| Manage H1 Structure Bailout (MQL5 Backport)                      |
-//+------------------------------------------------------------------+
-void CExecutionManager::ManageH1Bailout()
-{
-    // Closes position at market if an H1 candle closes fully engulfing against us.
-    // Core logic wrapper to be populated with iClose() analysis.
-}
-
-//+------------------------------------------------------------------+
 //| Helper: Daily ATR                                                |
 //+------------------------------------------------------------------+
 double CExecutionManager::GetDailyATR(string symbol)
@@ -442,7 +440,12 @@ double CExecutionManager::GetDailyATR(string symbol)
 double CExecutionManager::GetDailyRange(string symbol)
 {
     double high[], low[];
-    // Use index 1 (yesterday's completed range)
+    // #15: index 0 IS today's DEVELOPING range - and that is what the caller
+    // wants.  SendDualBracketLimit() asks "is today's travel already past 75% of
+    // a normal day?", so the deliberate vintage pair is:
+    //     today's developing range  (here, index 0)
+    //   vs yesterday's completed ATR (GetDailyATR(), index 1)
+    // The delivered comment claimed index 1, which the code never did.
     if(CopyHigh(symbol, PERIOD_D1, 0, 1, high) > 0 && CopyLow(symbol, PERIOD_D1, 0, 1, low) > 0)
         return (high[0] - low[0]);
     return 0.0;
