@@ -27,11 +27,15 @@
 #property description "Needs MQL5\\Files\\PortfolioEA\\engines.csv for engine names (optional)."
 
 //--- inputs ----------------------------------------------------------------
-input int    InpRefreshSec   = 15;     // refresh interval (seconds)
+input int    InpRefreshSec   = 5;      // refresh interval (seconds)
 input int    InpDaysBack     = 30;     // history window in days (0 = all available)
 input bool   InpWriteCsv     = true;   // write performance.csv
 input bool   InpShowPanel    = true;   // draw the on-chart panel
-input int    InpPanelRows    = 24;     // panel rows (sorted by net)
+input int    InpPanelRows    = 20;     // panel rows to display
+input int    InpPanelX       = 15;     // panel X offset (pixels)
+input int    InpPanelY       = 25;     // panel Y offset (pixels)
+input int    InpFontSize     = 9;      // panel font size
+input bool   InpShowBgBox    = true;   // draw semi-transparent background box
 input int    InpMinTrades    = 20;     // closed trades before DROP is allowed
 input double InpReviewDdPct  = 25.0;   // closed-DD % of base that triggers REVIEW
 input double InpBaseBalance  = 0.0;    // DD base (0 = balance when this EA starts)
@@ -341,13 +345,27 @@ void Refresh()
          g_rows[i].verdict = "KEEP";
    }
 
-   //--- sort: best net first, then most trades
+   //--- sort: open positions first, then highest net, then most trades
    for(int a = 0; a < g_count - 1; a++)
       for(int b = 0; b < g_count - 1 - a; b++)
       {
-         bool doSwap = (g_rows[b].net < g_rows[b + 1].net) ||
-                       (g_rows[b].net == g_rows[b + 1].net &&
-                        g_rows[b].closed < g_rows[b + 1].closed);
+         bool doSwap = false;
+         // 1. prioritize engines with active open positions
+         if(g_rows[b].openPos < g_rows[b + 1].openPos)
+            doSwap = true;
+         else if(g_rows[b].openPos == g_rows[b + 1].openPos)
+         {
+            // 2. prioritize highest net profit
+            if(g_rows[b].net < g_rows[b + 1].net)
+               doSwap = true;
+            else if(g_rows[b].net == g_rows[b + 1].net)
+            {
+               // 3. prioritize engines with closed trades
+               if(g_rows[b].closed < g_rows[b + 1].closed)
+                  doSwap = true;
+            }
+         }
+
          if(doSwap)
          {
             SEngineRow tmp  = g_rows[b];
@@ -409,7 +427,7 @@ void WriteCsv()
 //| on-chart panel                                                    |
 //+------------------------------------------------------------------+
 void MakeLabel(const string name, const int x, const int y, const string text,
-               const color clr, const int size)
+               const color clr, const int size, const bool bold = false)
 {
    if(ObjectFind(0, name) < 0)
       ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
@@ -425,42 +443,81 @@ void MakeLabel(const string name, const int x, const int y, const string text,
 
 void DrawPanel()
 {
-   const int x = 10, y = 20, dy = 14, size = 9;
+   const int x = InpPanelX, y = InpPanelY;
+   const int dy = InpFontSize + 6;
+   const int size = InpFontSize;
    int shown = (InpPanelRows > 0) ? (int)MathMin(InpPanelRows, g_count) : g_count;
 
+   //--- optional background box to guarantee readability over candlestick bars
+   if(InpShowBgBox)
+   {
+      string bgName = g_panelPrefix + "bg";
+      if(ObjectFind(0, bgName) < 0)
+         ObjectCreate(0, bgName, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x - 6);
+      ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 6);
+      ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 620);
+      ObjectSetInteger(0, bgName, OBJPROP_YSIZE, (shown + 4) * dy + 10);
+      ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, C'16,18,22');
+      ObjectSetInteger(0, bgName, OBJPROP_BORDER_COLOR, C'45,55,72');
+      ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+      ObjectSetInteger(0, bgName, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, bgName, OBJPROP_BACK, false);
+   }
+
+   color headFloatClr = (g_totalFloat > 0.0) ? clrLimeGreen
+                      : (g_totalFloat < 0.0) ? clrTomato : clrGold;
+
    MakeLabel(g_panelPrefix + "head", x, y,
-             StringFormat("PORTFOLIO   net %+.2f   open %d   float %+.2f   [%s]",
+             StringFormat("PORTFOLIO DASHBOARD  Net: %+.2f  Open: %d  Float: %+.2f  [%s]",
                           g_totalNet, g_totalOpen, g_totalFloat,
                           TimeToString(TimeCurrent(), TIME_MINUTES)),
-             clrGold, size + 1);
+             clrGold, size + 1, true);
 
    MakeLabel(g_panelPrefix + "cols", x, y + dy,
-             StringFormat("%-7s %-8s %10s %6s %6s %10s %5s %10s  %s",
+             StringFormat("%-7s %-7s %10s %6s %6s %10s %5s %10s  %s",
                           "magic", "tag", "net", "trades", "win%", "maxDD", "open",
                           "float", "verdict"),
-             clrSilver, size);
+             clrDodgerBlue, size);
+
    int top = y + 2 * dy;
 
    for(int i = 0; i < shown; i++)
    {
       double winPct = (g_rows[i].wins + g_rows[i].losses > 0)
                       ? 100.0 * g_rows[i].wins / (g_rows[i].wins + g_rows[i].losses) : 0.0;
-      color clr = (g_rows[i].net > 0.0) ? clrLimeGreen
-                : (g_rows[i].net < 0.0) ? clrTomato : clrSilver;
+      color clr = clrSilver;
+      if(g_rows[i].openPos > 0)
+         clr = (g_rows[i].floating >= 0.0) ? clrLime : clrOrangeRed;
+      else if(g_rows[i].net > 0.0)
+         clr = clrLimeGreen;
+      else if(g_rows[i].net < 0.0)
+         clr = clrTomato;
+
       if(g_rows[i].verdict == "DROP") clr = clrRed;
+
       MakeLabel(g_panelPrefix + "row" + IntegerToString(i), x, top + i * dy,
-                StringFormat("%-7s %-8s %10.2f %6d %5.0f%% %10.2f %5d %10.2f  %s",
+                StringFormat("%-7s %-7s %10.2f %6d %5.0f%% %10.2f %5d %10.2f  %s",
                              IntegerToString(g_rows[i].magic), g_rows[i].tag,
                              g_rows[i].net, g_rows[i].closed, winPct, g_rows[i].maxDd,
                              g_rows[i].openPos, g_rows[i].floating, g_rows[i].verdict),
                 clr, size);
    }
 
+   //--- clean up any stale row objects if shown count decreased
+   for(int r = shown; r < 100; r++)
+   {
+      string oldRow = g_panelPrefix + "row" + IntegerToString(r);
+      if(ObjectFind(0, oldRow) >= 0) ObjectDelete(0, oldRow);
+      else break;
+   }
+
    string footer = (g_count > shown)
-                   ? StringFormat("... %d more engine(s) - full list in MQL5\\Files\\%s",
+                   ? StringFormat("... %d more engine(s) - full log in MQL5\\Files\\%s",
                                   g_count - shown, InpReportFile)
-                   : "to switch an engine off: untick InpRun_<magic> in AllEnginesEA";
-   MakeLabel(g_panelPrefix + "foot", x, top + shown * dy + dy, footer, clrSilver, size);
+                   : "To toggle an engine: tick/untick InpRun_<magic> in AllEnginesEA";
+   MakeLabel(g_panelPrefix + "foot", x, top + shown * dy + (dy / 2), footer, clrGray, size - 1);
    ChartRedraw(0);
 }
 
