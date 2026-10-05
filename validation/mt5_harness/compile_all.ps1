@@ -89,7 +89,7 @@ $totalWarnings = 0
 $failed = @()
 
 foreach ($t in $targets) {
-    $log = "$($t.FullName).log"
+    $log = [System.IO.Path]::ChangeExtension($t.FullName, ".log")
     if (Test-Path $log) { Remove-Item $log -Force }
     & $MetaEditor /compile:"$($t.FullName)" /log 2>$null | Out-Null
 
@@ -129,7 +129,7 @@ if ($totalErrors -gt 0) {
     Write-Host ""
     Write-Host "First errors (send these to the maintainer, together with the .log files):"
     $targets | ForEach-Object {
-        $log = "$($_.FullName).log"
+        $log = [System.IO.Path]::ChangeExtension($_.FullName, ".log")
         if (Test-Path $log) {
             Select-String -Path $log -Pattern ": error" -Encoding Unicode |
                 Select-Object -First 3 | ForEach-Object { Write-Host ("  [" + $_.Filename + "] " + $_.Line.Trim()) }
