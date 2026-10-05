@@ -636,30 +636,43 @@ struct SEmaPullbackParams
    int      maxBarsSinceTouch;
    bool     tradeBothWays;
    double   scoreBase;
+   //--- the three members below were ASSIGNED by 13 delivered EAs (`ep.emaPeriod = 20;`,
+   //--- `ep.maxDistanceAtr = 1.20;`, `ep.requireTrend = true;`) but never DECLARED here,
+   //--- so every one of those EAs - and the one-program portfolio build - failed to
+   //--- compile.  They are real knobs now, with the semantics the EAs were written for.
+   int      emaPeriod;         // pullback EMA: 20 / 50 / 200 (the context carries those three; else 20)
+   double   maxDistanceAtr;    // pullback tolerance in ATR (0 = use touchTolAtr)
+   bool     requireTrend;      // fast EMA must sit on the trade side of the slow one
 
    void Reset()
    {
       requireH1Bias = false; requireD1Bias = false;
       touchTolAtr = 0.25; wickRatio = 0.40; stopBufferAtr = 0.15;
       targetR = 2.0; maxBarsSinceTouch = 3; tradeBothWays = true; scoreBase = 58.0;
+      emaPeriod = 20; maxDistanceAtr = 0.0; requireTrend = true;
    }
 };
 
 bool SigEmaPullback(const SEAContext &ctx, const SEmaPullbackParams &p, SSignalPlan &out)
 {
    out.Reset();
-   if(ctx.atr <= 0.0 || ctx.ema20 <= 0.0) return false;
+   //--- the pullback EMA: the context carries the 20 / 50 / 200 only
+   double emaRef = ctx.ema20;
+   if(p.emaPeriod == 50)       emaRef = ctx.ema50;
+   else if(p.emaPeriod == 200) emaRef = ctx.ema200;
+   if(ctx.atr <= 0.0 || emaRef <= 0.0) return false;
+   const double tolAtr = (p.maxDistanceAtr > 0.0) ? p.maxDistanceAtr : p.touchTolAtr;
    if(p.requireD1Bias)
    {
       if(ctx.emaD1_200 <= 0.0) return false;
-      if(ctx.mid > ctx.emaD1_200 && ctx.mid < ctx.ema20) return false;
-      if(ctx.mid < ctx.emaD1_200 && ctx.mid > ctx.ema20) return false;
+      if(ctx.mid > ctx.emaD1_200 && ctx.mid < emaRef) return false;
+      if(ctx.mid < ctx.emaD1_200 && ctx.mid > emaRef) return false;
    }
    if(p.requireH1Bias)
    {
       if(ctx.emaH1_200 <= 0.0) return false;
-      if(ctx.mid > ctx.emaH1_200 && ctx.mid < ctx.ema20) return false;
-      if(ctx.mid < ctx.emaH1_200 && ctx.mid > ctx.ema20) return false;
+      if(ctx.mid > ctx.emaH1_200 && ctx.mid < emaRef) return false;
+      if(ctx.mid < ctx.emaH1_200 && ctx.mid > emaRef) return false;
    }
 
    MqlRates r[];
@@ -669,13 +682,13 @@ bool SigEmaPullback(const SEAContext &ctx, const SEmaPullbackParams &p, SSignalP
    for(int i = 1; i <= (int)MathMin(got - 1, p.maxBarsSinceTouch); i++)
    {
       MqlRates b = r[i];
-      double tol = p.touchTolAtr * ctx.atr;
+      double tol = tolAtr * ctx.atr;
       //--- bullish pullback: bar dips into the EMA and closes above it
-      if(b.low <= ctx.ema20 + tol && b.close > ctx.ema20 && ctx.ema20 > ctx.ema50)
+      if(b.low <= emaRef + tol && b.close > emaRef && (!p.requireTrend || ctx.ema20 > ctx.ema50))
       {
          if(EA_WickRatio(b, +1) < p.wickRatio) continue;
          double entry = ctx.ask;
-         double stop  = MathMin(b.low, ctx.ema20) - p.stopBufferAtr * ctx.atr;
+         double stop  = MathMin(b.low, emaRef) - p.stopBufferAtr * ctx.atr;
          double risk  = entry - stop;
          if(risk <= 0.0) continue;
          out.dir = +1; out.entry = entry; out.stop = stop;
@@ -685,11 +698,11 @@ bool SigEmaPullback(const SEAContext &ctx, const SEmaPullbackParams &p, SSignalP
       }
       //--- bearish pullback
       if(!p.tradeBothWays) continue;
-      if(b.high >= ctx.ema20 - tol && b.close < ctx.ema20 && ctx.ema20 < ctx.ema50)
+      if(b.high >= emaRef - tol && b.close < emaRef && (!p.requireTrend || ctx.ema20 < ctx.ema50))
       {
          if(EA_WickRatio(b, -1) < p.wickRatio) continue;
          double entry = ctx.bid;
-         double stop  = MathMax(b.high, ctx.ema20) + p.stopBufferAtr * ctx.atr;
+         double stop  = MathMax(b.high, emaRef) + p.stopBufferAtr * ctx.atr;
          double risk  = stop - entry;
          if(risk <= 0.0) continue;
          out.dir = -1; out.entry = entry; out.stop = stop;

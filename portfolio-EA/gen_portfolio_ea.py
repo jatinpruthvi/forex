@@ -275,6 +275,8 @@ input int    InpMaxBookPositions    = 0;      // max positions across ALL engine
 input int    InpMaxBookPerSymbol    = 0;      // max book POSITIONS on one symbol (0 = off)
 input double InpBookRiskPct         = 0.0;    // max aggregate open risk, % of balance (0 = off)
 input bool   InpQuietInit           = true;   // hide the per-switch 'risk init' log line
+input bool   InpSummary             = true;   // print one '[portfolio] ... ready' line per engine at init
+                                              // (was read by the init loop but never declared)
 input bool   InpNewsCalendar        = true;   // engines with a news gate read the terminal
                                               // calendar live (no CSV needed; the tester
                                               // always uses the CSV - it has no calendar)

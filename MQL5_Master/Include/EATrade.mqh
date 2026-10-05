@@ -616,6 +616,7 @@ public:
    }
 
    double DayStartEquity() const { return m_dayStartEquity; }
+   double MonthStartEquity() const { return m_monthStartEquity; }   // calendar-month anchor (restart-safe)
    double Hwm()            const { return m_hwm; }
    double StartBalance()   const { return m_startBalance; }
    bool   Halted()         const { return m_halted; }

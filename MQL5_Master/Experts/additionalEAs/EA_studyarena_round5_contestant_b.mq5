@@ -77,12 +77,15 @@ public:
       if(ctx.emaH1_50 <= 0.0) return false;
       bool biasUp = (ctx.mid > ctx.emaH1_50);
 
-      bool long  = biasUp  && ArraySize(lows)  >= 2 && lows[0] < lows[1] && r[0].close > lows[0];
-      bool short = !biasUp && ArraySize(highs) >= 2 && highs[0] > highs[1] && r[0].close < highs[0];
-      if(!long && !short) return false;
+      //--- `long` / `short` are MQL5 reserved words (data types): they cannot name a
+      //--- variable, and the delivered `bool long = ...` failed to compile - in this EA
+      //--- AND in the one-program portfolio build that inlines it
+      bool goLong  = biasUp  && ArraySize(lows)  >= 2 && lows[0] < lows[1] && r[0].close > lows[0];
+      bool goShort = !biasUp && ArraySize(highs) >= 2 && highs[0] > highs[1] && r[0].close < highs[0];
+      if(!goLong && !goShort) return false;
 
-      int dir = long ? +1 : -1;
-      double structural = long ? (lows[0] - 0.10 * ctx.atr) : (highs[0] + 0.10 * ctx.atr);
+      int dir = goLong ? +1 : -1;
+      double structural = goLong ? (lows[0] - 0.10 * ctx.atr) : (highs[0] + 0.10 * ctx.atr);
       double stopDist = MathAbs(ctx.mid - structural);
       if(stopDist <= 0.0) return false;
       double tight = InpStopFactor * stopDist;

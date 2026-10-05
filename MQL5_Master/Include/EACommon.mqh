@@ -168,6 +168,7 @@ bool EA_BuildContext(SEAContext &ctx, const string sym, const int idx)
    EA_Buf(ind.hEmaD1_200, 0, 1, ctx.emaD1_200);
    EA_Buf(ind.hRsi14, 0, 1, ctx.rsi14);
    EA_Buf(ind.hAdx14, 0, 1, ctx.adx14);
+   EA_Buf(ind.hAdxD1, 0, 1, ctx.adxD1);
    EA_Buf(ind.hAdxH1, 0, 1, ctx.adxH1);
    EA_Buf(ind.hAdxH4, 0, 1, ctx.adxH4);
    EA_Buf(ind.hAtrH1, 0, 1, ctx.atrH1);

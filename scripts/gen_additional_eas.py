@@ -5480,12 +5480,15 @@ input double InpMaxSpreadSpacingPct = 15.0;  // Spread must stay below this % of
    if(ctx.emaH1_50 <= 0.0) return false;
    bool biasUp = (ctx.mid > ctx.emaH1_50);
 
-   bool long  = biasUp  && ArraySize(lows)  >= 2 && lows[0] < lows[1] && r[0].close > lows[0];
-   bool short = !biasUp && ArraySize(highs) >= 2 && highs[0] > highs[1] && r[0].close < highs[0];
-   if(!long && !short) return false;
+   //--- `long` / `short` are MQL5 reserved words (data types): they cannot name a
+   //--- variable, and the delivered `bool long = ...` failed to compile - in this EA
+   //--- AND in the one-program portfolio build that inlines it
+   bool goLong  = biasUp  && ArraySize(lows)  >= 2 && lows[0] < lows[1] && r[0].close > lows[0];
+   bool goShort = !biasUp && ArraySize(highs) >= 2 && highs[0] > highs[1] && r[0].close < highs[0];
+   if(!goLong && !goShort) return false;
 
-   int dir = long ? +1 : -1;
-   double structural = long ? (lows[0] - 0.10 * ctx.atr) : (highs[0] + 0.10 * ctx.atr);
+   int dir = goLong ? +1 : -1;
+   double structural = goLong ? (lows[0] - 0.10 * ctx.atr) : (highs[0] + 0.10 * ctx.atr);
    double stopDist = MathAbs(ctx.mid - structural);
    if(stopDist <= 0.0) return false;
    double tight = InpStopFactor * stopDist;
@@ -7041,6 +7044,8 @@ add(
             "spread": "0", "daily": "0", "totaldd": "0", "target": "20", "maxday": "4"},
     inputs='''input double InpBaseRiskPct       = 0.75;  // Base engine risk
 input double InpAplusBoostPct     = 0.50;  // A+ setup adds 0.5% free-roll risk
+input double InpAplusScore        = 95.0;  // A+ = every optional filter met (8/8 on the doc's scale)
+input double InpFreeRollMonthPct  = 5.0;   // doc: the booster is paid for by the month's market money (>= +5%)
 input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
 input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)''',
     configure='''cfg.strategyName          = "R8B_SOS3_FREEROLL";
@@ -7177,7 +7182,15 @@ input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
    double LotsMultiplier(SEAContext &ctx)
    {
       if(ctx.riskPct <= 0.0) return 0.0;
-      double risk = InpBaseRiskPct + ((m_setupScore >= InpAplusScore) ? InpAplusBoostPct : 0.0);
+      //--- the doc: "once the month is >= +5%, add +0.5% risk to the next 8/8 setup only -
+      //--- this is what closes 12.6% -> ~15% using market money, not account money".
+      //--- The delivered code applied the booster to EVERY A+ setup (and read an input,
+      //--- InpAplusScore, that was never declared - the EA did not compile).
+      bool   freeRoll = false;
+      double monthStart = g_eaRisk.MonthStartEquity();
+      if(monthStart > 0.0)
+         freeRoll = ((ctx.equity - monthStart) / monthStart * 100.0 >= InpFreeRollMonthPct);
+      double risk = InpBaseRiskPct + ((freeRoll && m_setupScore >= InpAplusScore) ? InpAplusBoostPct : 0.0);
       return MathMax(0.0, risk / ctx.riskPct);
    }
 
@@ -7628,7 +7641,7 @@ input double InpSpreadAvgMult     = 2.00;  // Skip if spread > 2x its rolling av
    //--- doc: daily ATR above its 90th percentile -> risk halved automatically
    double LotsMultiplier(SEAContext &ctx)
    {
-      if(ctx.index < 0 || ctx.index >= EA_MAX_SYM) return 1.0;
+      if(ctx.index < 0 || ctx.index >= EA_MAX_SYMBOLS) return 1.0;     // (was EA_MAX_SYM: undeclared)
       double series[];
       int got = EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 0, 101, series);
       if(got < 60) return 1.0;                                   // thin history - fail open

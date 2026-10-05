@@ -89,7 +89,7 @@ public:
    //--- doc: daily ATR above its 90th percentile -> risk halved automatically
    double LotsMultiplier(SEAContext &ctx)
    {
-      if(ctx.index < 0 || ctx.index >= EA_MAX_SYM) return 1.0;
+      if(ctx.index < 0 || ctx.index >= EA_MAX_SYMBOLS) return 1.0;     // (was EA_MAX_SYM: undeclared)
       double series[];
       int got = EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 0, 101, series);
       if(got < 60) return 1.0;                                   // thin history - fail open

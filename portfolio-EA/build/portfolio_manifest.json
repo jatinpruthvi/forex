@@ -1186,7 +1186,7 @@
         "AUDNZD",
         "EURGBP"
       ],
-      "inputs": 9,
+      "inputs": 11,
       "renamed_enum_values": [],
       "prefixed_enum_types": []
     },

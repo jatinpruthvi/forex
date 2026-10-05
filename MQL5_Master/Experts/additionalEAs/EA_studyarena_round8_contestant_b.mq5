@@ -28,6 +28,8 @@ input ulong           InpMagicNumber      = 2027; // UNIQUE MAGIC NUMBER FOR THI
 input ENUM_EA_LOG_LEVEL InpLogLevel       = EA_LOG_EVENTS;   // Log verbosity
 input double InpBaseRiskPct       = 0.75;  // Base engine risk
 input double InpAplusBoostPct     = 0.50;  // A+ setup adds 0.5% free-roll risk
+input double InpAplusScore        = 95.0;  // A+ = every optional filter met (8/8 on the doc's scale)
+input double InpFreeRollMonthPct  = 5.0;   // doc: the booster is paid for by the month's market money (>= +5%)
 input double InpMaxOpenRiskPct   = 1.50;  // Doc: max open risk at any instant
 input double InpChandelierMult    = 2.50;  // Runner trail (High - 2.5 x H1 ATR)
 
@@ -179,7 +181,15 @@ public:
    double LotsMultiplier(SEAContext &ctx)
    {
       if(ctx.riskPct <= 0.0) return 0.0;
-      double risk = InpBaseRiskPct + ((m_setupScore >= InpAplusScore) ? InpAplusBoostPct : 0.0);
+      //--- the doc: "once the month is >= +5%, add +0.5% risk to the next 8/8 setup only -
+      //--- this is what closes 12.6% -> ~15% using market money, not account money".
+      //--- The delivered code applied the booster to EVERY A+ setup (and read an input,
+      //--- InpAplusScore, that was never declared - the EA did not compile).
+      bool   freeRoll = false;
+      double monthStart = g_eaRisk.MonthStartEquity();
+      if(monthStart > 0.0)
+         freeRoll = ((ctx.equity - monthStart) / monthStart * 100.0 >= InpFreeRollMonthPct);
+      double risk = InpBaseRiskPct + ((freeRoll && m_setupScore >= InpAplusScore) ? InpAplusBoostPct : 0.0);
       return MathMax(0.0, risk / ctx.riskPct);
    }
 

@@ -5995,12 +5995,15 @@ public:
       if(ctx.emaH1_50 <= 0.0) return false;
       bool biasUp = (ctx.mid > ctx.emaH1_50);
 
-      bool long  = biasUp  && ArraySize(lows)  >= 2 && lows[0] < lows[1] && r[0].close > lows[0];
-      bool short = !biasUp && ArraySize(highs) >= 2 && highs[0] > highs[1] && r[0].close < highs[0];
-      if(!long && !short) return false;
+      //--- `long` / `short` are MQL5 reserved words (data types): they cannot name a
+      //--- variable, and the delivered `bool long = ...` failed to compile - in this EA
+      //--- AND in the one-program portfolio build that inlines it
+      bool goLong  = biasUp  && ArraySize(lows)  >= 2 && lows[0] < lows[1] && r[0].close > lows[0];
+      bool goShort = !biasUp && ArraySize(highs) >= 2 && highs[0] > highs[1] && r[0].close < highs[0];
+      if(!goLong && !goShort) return false;
 
-      int dir = long ? +1 : -1;
-      double structural = long ? (lows[0] - 0.10 * ctx.atr) : (highs[0] + 0.10 * ctx.atr);
+      int dir = goLong ? +1 : -1;
+      double structural = goLong ? (lows[0] - 0.10 * ctx.atr) : (highs[0] + 0.10 * ctx.atr);
       double stopDist = MathAbs(ctx.mid - structural);
       if(stopDist <= 0.0) return false;
       double tight = P2017_InpStopFactor * stopDist;
@@ -7734,6 +7737,8 @@ const ulong                  P2027_InpMagicNumber             = 2027;
 const ENUM_EA_LOG_LEVEL      P2027_InpLogLevel                = EA_LOG_EVENTS;
 const double                 P2027_InpBaseRiskPct             = 0.75;
 const double                 P2027_InpAplusBoostPct           = 0.50;
+const double                 P2027_InpAplusScore              = 95.0;
+const double                 P2027_InpFreeRollMonthPct        = 5.0;
 const double                 P2027_InpMaxOpenRiskPct          = 1.50;
 const double                 P2027_InpChandelierMult          = 2.50;
 
@@ -7885,7 +7890,15 @@ public:
    double LotsMultiplier(SEAContext &ctx)
    {
       if(ctx.riskPct <= 0.0) return 0.0;
-      double risk = P2027_InpBaseRiskPct + ((m_setupScore >= InpAplusScore) ? P2027_InpAplusBoostPct : 0.0);
+      //--- the doc: "once the month is >= +5%, add +0.5% risk to the next 8/8 setup only -
+      //--- this is what closes 12.6% -> ~15% using market money, not account money".
+      //--- The delivered code applied the booster to EVERY A+ setup (and read an input,
+      //--- P2027_InpAplusScore, that was never declared - the EA did not compile).
+      bool   freeRoll = false;
+      double monthStart = g_eaRisk.MonthStartEquity();
+      if(monthStart > 0.0)
+         freeRoll = ((ctx.equity - monthStart) / monthStart * 100.0 >= P2027_InpFreeRollMonthPct);
+      double risk = P2027_InpBaseRiskPct + ((freeRoll && m_setupScore >= P2027_InpAplusScore) ? P2027_InpAplusBoostPct : 0.0);
       return MathMax(0.0, risk / ctx.riskPct);
    }
 
@@ -8389,7 +8402,7 @@ public:
    //--- doc: daily ATR above its 90th percentile -> risk halved automatically
    double LotsMultiplier(SEAContext &ctx)
    {
-      if(ctx.index < 0 || ctx.index >= EA_MAX_SYM) return 1.0;
+      if(ctx.index < 0 || ctx.index >= EA_MAX_SYMBOLS) return 1.0;     // (was EA_MAX_SYM: undeclared)
       double series[];
       int got = EA_BufN(g_eaInd[ctx.index].hAtrD1, 0, 0, 101, series);
       if(got < 60) return 1.0;                                   // thin history - fail open
@@ -11988,6 +12001,8 @@ input int    InpMaxBookPositions    = 0;      // max positions across ALL engine
 input int    InpMaxBookPerSymbol    = 0;      // max book POSITIONS on one symbol (0 = off)
 input double InpBookRiskPct         = 0.0;    // max aggregate open risk, % of balance (0 = off)
 input bool   InpQuietInit           = true;   // hide the per-switch 'risk init' log line
+input bool   InpSummary             = true;   // print one '[portfolio] ... ready' line per engine at init
+                                              // (was read by the init loop but never declared)
 input bool   InpNewsCalendar        = true;   // engines with a news gate read the terminal
                                               // calendar live (no CSV needed; the tester
                                               // always uses the CSV - it has no calendar)

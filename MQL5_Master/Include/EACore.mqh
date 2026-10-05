@@ -800,6 +800,7 @@ struct SEAContext
    double      emaH1_50, emaH1_200, emaD1_200;
    double      rsi14;
    double      adx14;
+   double      adxD1;               // D1 ADX(14): R4B's daily regime gate (field was read but never declared)
    double      adxH1;               // H1 ADX(14): the regime timeframe the docs quote
    double      adxH4;               // H4 ADX(14): grid gates quote 1H and 4H together
    double      atrH1;               // H1 ATR(14): grid spacing and tripwires quote 1H ATR
@@ -832,7 +833,7 @@ void EA_ContextReset(SEAContext &ctx)
    ctx.atr = 0; ctx.atrD1 = 0; ctx.point = 0; ctx.pip = 0;
    ctx.ema20 = 0; ctx.ema50 = 0; ctx.ema200 = 0;
    ctx.emaH1_50 = 0; ctx.emaH1_200 = 0; ctx.emaD1_200 = 0;
-   ctx.rsi14 = 0; ctx.adx14 = 0; ctx.adxH1 = 0; ctx.adxH4 = 0;
+   ctx.rsi14 = 0; ctx.adx14 = 0; ctx.adxD1 = 0; ctx.adxH1 = 0; ctx.adxH4 = 0;
    ctx.atrH1 = 0;
    ctx.rangeHigh = 0; ctx.rangeLow = 0;
    ctx.equity = 0; ctx.balance = 0; ctx.dayStartEquity = 0;

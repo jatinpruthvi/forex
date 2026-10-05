@@ -208,6 +208,11 @@ def check_file(path: Path, defined: set[str], is_ea: bool) -> list[str]:
         if re.search(rf"(?<![\w.]){name}\s*(?:=|\+\+|--)(?!=)", body):
             problems.append(f"assignment to input variable {name}")
 
+    problems += check_identifiers(path, src)
+    problems += check_members(path, src)
+    problems += check_duplicate_declarations(path, src)
+    problems += check_undeclared_variables(path, raw, src)
+
     #--- every call to our own helper namespace must exist somewhere
     if is_ea:
         for m in re.finditer(r"\b(EA_[A-Za-z_]\w*|Sig[A-Z]\w*)\s*\(", src):
@@ -217,6 +222,297 @@ def check_file(path: Path, defined: set[str], is_ea: bool) -> list[str]:
                 problems.append(f"call to undefined helper {name}() at line {line}")
     return problems
 
+
+
+#--- identifier rules -----------------------------------------------------------
+# Two classes of compile error the call-based checks above cannot see, both found
+# by READING the 65 EAs (neither the arity checker nor this one looked at plain
+# identifiers):
+#   * a reserved word used as a variable name (`bool long = ...` - `long`/`short`
+#     are data types in MQL5 and cannot be redefined), and
+#   * a project identifier that is never declared (`EA_MAX_SYM` for the real
+#     constant `EA_MAX_SYMBOLS`).
+# Both stop the whole 65-engine portfolio build from compiling.
+RESERVED_TYPES = {"bool", "char", "uchar", "short", "ushort", "int", "uint", "long", "ulong",
+                  "float", "double", "string", "datetime", "color", "void"}
+RESERVED_OTHER = {"class", "struct", "enum", "union", "const", "private", "protected", "public",
+                  "virtual", "delete", "override", "extern", "input", "static", "break",
+                  "dynamic_cast", "operator", "case", "else", "continue", "for", "return",
+                  "default", "if", "sizeof", "new", "switch", "do", "while", "this", "true",
+                  "false", "template", "typename", "namespace"}
+RESERVED = RESERVED_TYPES | RESERVED_OTHER
+_TYPE_LEFT = (r"(?:const\s+)?(?:" + "|".join(sorted(RESERVED_TYPES - {"void"})) +
+              r"|ENUM_\w+|S[A-Z]\w*|C[A-Z]\w*)")
+RESERVED_DECL_RE = re.compile(
+    r"(?<![\w.])" + _TYPE_LEFT + r"\s*[&*]?\s+(" + "|".join(sorted(RESERVED)) + r")\s*(?=[=;,\[)])")
+RESERVED_VALUE_RE = re.compile(
+    r"(?:!|&&|\|\||\?|=|\breturn)\s*(" + "|".join(sorted(RESERVED_TYPES - {"void"})) +
+    r")\s*(?=[?:]|&&|\|\||==|!=|;|\)|,)")
+
+PROJECT_ID_RE = re.compile(r"(?<![\w.:>])(EA_[A-Z][A-Z0-9_]*|Inp[A-Z]\w*|g_ea[A-Za-z0-9_]*|m_[A-Za-z]\w*)\b(?!\s*\()")
+_DECL_NAME_RE = re.compile(
+    r"(?<![\w.])(?!(?:return|else|case|new|delete|sizeof|goto|typename|operator|public|private|protected)\b)"
+    r"[A-Za-z_]\w*(?:\s*<[^>;{}]*>)?(?:\s+[&*]?\s*|\s*[&*]\s*)([A-Za-z_]\w*)\s*(?=[=;,(\[):])")
+_DEFINE_RE = re.compile(r"^[ \t]*#define[ \t]+([A-Za-z_]\w*)", re.M)
+_ENUM_RE = re.compile(r"enum\s+[A-Za-z_]\w*\s*\{([^}]*)\}", re.S)
+_declared_cache: dict[str, set[str]] = {}
+
+
+def declared_names(paths: list[Path]) -> set[str]:
+    """Every name the given sources declare (macro, enum constant, variable,
+    member, parameter, function).  Deliberately generous: it exists to catch
+    names that are declared NOWHERE, not to prove scoping."""
+    key = "|".join(sorted(str(p) for p in paths))
+    if key in _declared_cache:
+        return _declared_cache[key]
+    names: set[str] = set()
+    for p in paths:
+        try:
+            raw = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        names.update(_DEFINE_RE.findall(raw))
+        src = strip_noise(raw)
+        names.update(m.group(1) for m in _DECL_NAME_RE.finditer(src))
+        for m in _ENUM_RE.finditer(src):
+            for v in m.group(1).split(","):
+                nm = v.split("=")[0].strip()
+                if nm:
+                    names.add(nm)
+        # `for(int i = 0, j = 1; ...)` / `double a = 1, b = 2;` second declarators
+        for m in re.finditer(r",\s*([A-Za-z_]\w*)\s*(?==)", src):
+            names.add(m.group(1))
+    _declared_cache[key] = names
+    return names
+
+
+def _unit_for(path: Path) -> list[Path]:
+    unit = sorted(INCLUDES.glob("*.mqh")) + [path]
+    build = ROOT / "portfolio-EA" / "build"
+    if build in path.parents:
+        unit += [build / "PortfolioStrategies.mqh", build / "AllEnginesEA.mq5"]
+    return unit
+
+
+def check_identifiers(path: Path, src: str) -> list[str]:
+    problems = []
+    for m in RESERVED_DECL_RE.finditer(src):
+        line = src[:m.start()].count("\n") + 1
+        problems.append(f"reserved word '{m.group(1)}' used as a variable name at line {line} "
+                        f"(MQL5 reserved words cannot name identifiers - compile error)")
+    for m in RESERVED_VALUE_RE.finditer(src):
+        line = src[:m.start()].count("\n") + 1
+        problems.append(f"reserved word '{m.group(1)}' used as a value at line {line} "
+                        f"(did a variable get named after a data type?)")
+    declared = declared_names(_unit_for(path))
+    seen: set[str] = set()
+    for m in PROJECT_ID_RE.finditer(src):
+        name = m.group(1)
+        if name in declared or name in seen:
+            continue
+        seen.add(name)
+        line = src[:m.start()].count("\n") + 1
+        problems.append(f"undeclared identifier {name} at line {line} (not defined in this file "
+                        f"or the shared headers - compile error)")
+    return problems
+
+
+#--- struct member rule ---------------------------------------------------------
+# `ep.emaPeriod = 20;` on a struct that has no such member is a compile error.
+# 13 EAs did exactly that for SEmaPullbackParams (and one read a SEAContext field
+# that was never declared): the arity / call checks never look at `var.member`.
+# Variable types come from the enclosing function's parameters and locals first
+# (so two functions may reuse the name `p` for different types), then from any
+# file-scope declaration.
+_STRUCT_FIELDS: dict[str, set[str]] = {}
+_FUNC_RE = re.compile(r"([A-Za-z_]\w*)\s*\(([^()]*)\)\s*(?:const\s*)?(?:override\s*)?\{")
+
+
+def struct_fields() -> dict[str, set[str]]:
+    if _STRUCT_FIELDS:
+        return _STRUCT_FIELDS
+    text = "\n".join(strip_noise(p.read_text(encoding="utf-8", errors="replace"))
+                     for p in sorted(INCLUDES.glob("*.mqh")))
+    for m in re.finditer(r"\bstruct\s+([A-Za-z_]\w*)\s*\{", text):
+        i, depth, j = m.end(), 1, m.end()
+        while j < len(text) and depth:
+            depth += (text[j] == "{") - (text[j] == "}")
+            j += 1
+        body = text[i:j - 1]
+        fields: set[str] = set(re.findall(r"\b([A-Za-z_]\w*)\s*\(", body))      # methods
+        for d in re.finditer(r"^\s*(?:const\s+)?[A-Za-z_][\w:<>]*\s*[&*]?\s+([^;(){}]+);", body, re.M):
+            for part in d.group(1).split(","):
+                nm = re.match(r"\s*[&*]?\s*([A-Za-z_]\w*)", part)
+                if nm:
+                    fields.add(nm.group(1))
+        _STRUCT_FIELDS[m.group(1)] = fields
+    return _STRUCT_FIELDS
+
+
+def _typed_vars(text: str, structs: dict[str, set[str]]) -> dict[str, set[str]]:
+    out: dict[str, set[str]] = {}
+    for st in structs:
+        for m in re.finditer(r"(?<![\w.])" + st + r"\b\s*[&*]?\s*([A-Za-z_]\w*)\b(?=\s*[\[;=,)(])", text):
+            out.setdefault(m.group(1), set()).add(st)
+    return out
+
+
+def check_members(path: Path, src: str) -> list[str]:
+    structs = struct_fields()
+    if not structs:
+        return []
+    file_vars = _typed_vars(src, structs)
+    problems: list[str] = []
+    seen: set[tuple[str, str, int]] = set()
+
+    def scan(body: str, offset_line: int, scope_vars: dict[str, set[str]], local_names: set[str]) -> None:
+        for var in set(scope_vars) | set(file_vars):
+            if var not in scope_vars and var in local_names:
+                continue          # declared locally with a non-struct type (e.g. MqlRates d[])
+            types = scope_vars.get(var) or file_vars.get(var, set())
+            allowed = set().union(*(structs[t] for t in types)) if types else set()
+            for m in re.finditer(r"(?<![\w.])" + re.escape(var) + r"(?:\s*\[[^\]]*\])?\s*\.\s*([A-Za-z_]\w*)", body):
+                if m.group(1) in allowed:
+                    continue
+                line = offset_line + body[:m.start()].count("\n")
+                key = (var, m.group(1), line)
+                if key in seen:
+                    continue
+                seen.add(key)
+                problems.append(f"struct member '{var}.{m.group(1)}' at line {line}: "
+                                f"{'/'.join(sorted(types))} has no such member (compile error)")
+
+    covered: list[tuple[int, int]] = []
+    for fm in _FUNC_RE.finditer(src):
+        if fm.group(1) in ("if", "for", "while", "switch", "catch"):
+            continue
+        i, depth, j = fm.end(), 1, fm.end()
+        while j < len(src) and depth:
+            depth += (src[j] == "{") - (src[j] == "}")
+            j += 1
+        body = src[i:j - 1]
+        scope_text = fm.group(2) + ";\n" + body
+        scope_vars = _typed_vars(scope_text, structs)
+        local_names = set(re.findall(
+            r"(?<![\w.])[A-Za-z_]\w*(?:\s+[&*]?\s*|\s*[&*]\s*)([A-Za-z_]\w*)\b(?=\s*[\[;=,)(])", scope_text))
+        scan(body, src[:i].count("\n") + 1, scope_vars, local_names)
+        covered.append((i, j))
+    return problems
+
+
+#--- scope rules ----------------------------------------------------------------
+# Two more classes the call-based checks cannot see.  Both are plain compile
+# errors in MQL5 and both are cheap to rule out statically:
+#   * the same name declared twice in one block (copy-paste duplicates), and
+#   * a variable that is used but never declared in the function, its class, the
+#     file or the shared headers (a typo - `sweepIndx` for `sweepIdx`).
+_DECL_TYPES = (r"(?:bool|char|uchar|short|ushort|int|uint|long|ulong|float|double|string|datetime|color|"
+               r"Mql\w+|ENUM_\w+|S[A-Z]\w*|C[A-Z]\w*)")
+_DUP_RE = re.compile(r"[{}]|(?:(?<=[;{}])|^)\s*(?:static\s+|const\s+)*(" + _DECL_TYPES +
+                     r")(?:\s+[&*]?\s*|\s*[&*]\s*)([A-Za-z_]\w*)\s*(?=[=;,\[(])")
+_KEYWORDS = RESERVED | {"NULL", "ref"}
+_BUILTIN_VARS = {"_Symbol", "_Point", "_Digits", "_Period", "_LastError", "_StopFlag",
+                 "_UninitReason", "_RandomSeed"}
+_FUNC_SKIP = ("if", "for", "while", "switch", "catch")
+
+
+def _function_spans(src: str):
+    for fm in _FUNC_RE.finditer(src):
+        if fm.group(1) in _FUNC_SKIP:
+            continue
+        i, depth, j = fm.end(), 1, fm.end()
+        while j < len(src) and depth:
+            depth += (src[j] == "{") - (src[j] == "}")
+            j += 1
+        yield fm, i, j
+
+
+def check_duplicate_declarations(path: Path, src: str) -> list[str]:
+    problems = []
+    for fm, i, j in _function_spans(src):
+        body = src[i:j - 1]
+        params = set(re.findall(r"(?:" + _DECL_TYPES + r")(?:\s+[&*]?\s*|\s*[&*]\s*)([A-Za-z_]\w*)", fm.group(2)))
+        stack = [params]
+        for t in _DUP_RE.finditer(body):
+            tok = t.group(0).strip()
+            if tok == "{":
+                stack.append(set())
+            elif tok == "}":
+                if len(stack) > 1:
+                    stack.pop()
+            elif t.group(2) in stack[-1]:
+                line = src[:i].count("\n") + 1 + body[:t.start()].count("\n")
+                problems.append(f"'{t.group(2)}' is declared twice in the same block at line {line} "
+                                f"(in {fm.group(1)}) - compile error")
+            else:
+                stack[-1].add(t.group(2))
+    return problems
+
+
+def _blank_function_bodies(src: str) -> str:
+    out = list(src)
+    for fm, i, j in _function_spans(src):
+        for k in range(i, j - 1):
+            if out[k] != "\n":
+                out[k] = " "
+    return "".join(out)
+
+
+def _outer_declared(raw: str, src: str) -> set[str]:
+    """Names visible outside any function body: class members, globals, macros,
+    enum constants, struct fields.  Parameter lists are removed first - a
+    parameter name is not a global."""
+    outer = _blank_function_bodies(src)
+    for _ in range(3):
+        outer = re.sub(r"\([^()]*\)", "()", outer)
+    names = {m.group(1) for m in _DECL_NAME_RE.finditer(outer)}
+    names.update(_DEFINE_RE.findall(raw))
+    for m in _ENUM_RE.finditer(src):
+        for v in m.group(1).split(","):
+            nm = v.split("=")[0].strip()
+            if nm:
+                names.add(nm)
+    names.update(re.findall(r",\s*([A-Za-z_]\w*)\s*(?=[=;,\[])", outer))
+    return names
+
+
+def _header_names() -> set[str]:
+    key = "__headers__"
+    if key not in _declared_cache:
+        names: set[str] = set()
+        for p in sorted(INCLUDES.glob("*.mqh")):
+            raw = p.read_text(encoding="utf-8", errors="replace")
+            names |= _outer_declared(raw, strip_noise(raw))
+        _declared_cache[key] = names
+    return _declared_cache[key]
+
+
+def check_undeclared_variables(path: Path, raw: str, src: str) -> list[str]:
+    problems: list[str] = []
+    visible_outer = _header_names() | _outer_declared(raw, src)
+    build = ROOT / "portfolio-EA" / "build"
+    if build in path.parents:                      # the host and its strategies share one program
+        for other in (build / "PortfolioStrategies.mqh", build / "AllEnginesEA.mq5"):
+            if other != path and other.exists():
+                o_raw = other.read_text(encoding="utf-8", errors="replace")
+                visible_outer |= _outer_declared(o_raw, strip_noise(o_raw))
+    reported: set[tuple[str, str]] = set()
+    for fm, i, j in _function_spans(src):
+        body = src[i:j - 1]
+        scope = fm.group(2) + ";\n" + body
+        local = {m.group(1) for m in _DECL_NAME_RE.finditer(scope)}
+        local.update(re.findall(r",\s*([A-Za-z_]\w*)\s*(?=[=;,\[)])", scope))
+        visible = local | visible_outer
+        for m in re.finditer(r"(?<![\w.:>#])([a-z_][A-Za-z0-9_]*)\b(?!\s*\()", body):
+            nm = m.group(1)
+            if nm in _KEYWORDS or nm in _BUILTIN_VARS or nm in visible or re.match(r"clr[A-Z]", nm):
+                continue          # (clr* = MQL5's built-in web colours)
+            if (fm.group(1), nm) in reported:
+                continue
+            reported.add((fm.group(1), nm))
+            line = src[:i].count("\n") + 1 + body[:m.start()].count("\n")
+            problems.append(f"'{nm}' is used but never declared (in {fm.group(1)}, line {line}) - compile error")
+    return problems
 
 
 #--- fields declared in the engine's SEASettings block (used by cfg.<field> checks)
