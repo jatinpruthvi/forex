@@ -901,6 +901,40 @@ Guarded by 27 new verifier checks (1 878 -> 1 906) and 13 new tests
 backoff, the horizon window and the commit-on-success rule; reverting the two
 files fails 34 checks and 10 tests.
 
+## Top-25 sweep #2 - the strategy classes, line by line (2026-10-05)
+
+Owner request: "find top 25 bug which is high priority and fix those bugs", together with the
+question whether any EA implements ICT / SMC (answered in `docs/ICT_SMC_COVERAGE.md`).
+
+**Why the earlier passes missed it.**  Six deep passes and a top-25 concentrated on the shared
+engine, the Triad and the tooling; the per-EA `BuildPlan` / helper code (2 477 + 5 061 lines) was
+skimmed.  The checkers could not have caught what is there: `arity_check.py` inspects `name(` call
+sites only and `check_mql5_source.py` inspects structure and forbidden tokens - neither looks at a
+plain identifier or a `var.member` access.  Reading the classes found sixteen EAs that cannot
+compile (reserved words as variable names, `EA_MAX_SYM`, `InpAplusScore`, `ctx.adxD1`, three
+`SEmaPullbackParams` members assigned by 13 EAs) and the portfolio host's undeclared `InpSummary`.
+Five new static rules now cover those classes (51 findings against the delivered EAs, 0 against the
+fixed tree), and the same reading found the silent layer: three "two-sided" EAs that could never go
+short, a percentile gate that rejected almost every day, a stop 100x too close, an exit that could not
+fire, fire-and-forget breaker closes, and more - `docs/EA_TOP25_BUGS_2.md` has the 25 with evidence.
+
+**A correction to this audit.**  Defect #5 of the first top-25 ("`DetectLiquiditySweep()` is a stub")
+was fixed with a rule that read the time axis backwards: `CopyRates` fills a plain array
+oldest-first (MQL5 reference: "the oldest element will be located at the start of the physical
+memory"), so the "prior liquidity" `r[50..59]` was the *newest* ten bars.  The test that pinned that
+rule encoded the same mistake.  Both are replaced (`tests/test_ict_smc_fixes.py`).
+
+**What was checked, and what was not.**  A first draft of the lot-split note claimed
+`0.03 / 0.01 = 2.9999999999999996`; it is exactly `3.0`.  The real defect (14 of 399 lot sizes lose a
+step, e.g. `0.29 / 0.01 = 28.999999999999996`) was re-measured and the comment and test corrected.
+For the governor's closes, the MQL5 reference confirms that `CTrade::SetTypeFillingBySymbol` exists to
+choose the order's fill mode from the symbol's allowed modes; it was **not** confirmed here what the
+library default is or that a close would be rejected without it (MT5 cannot run in this sandbox), so
+the explicit per-symbol call is a defensive, behaviour-neutral fix - the unconditional parts of that
+finding are that the close results were ignored and never retried.  Repeating a default argument in
+an out-of-class definition (`OnTickMaintenance`) is a C++ error (C2572); whether MQL5 rejects it was
+not verified, so the repeat was removed defensively, also behaviour-neutral.
+
 ## Verification after the fixes
 
 | Check | Result |

@@ -2,6 +2,10 @@
 
 _2026-10-04. Owner request: "find top 25 high priority bugs in our development"._
 
+> **A second sweep followed on 2026-10-05** (`docs/EA_TOP25_BUGS_2.md`): it read the 65 strategy classes
+> that this list skimmed and found that 16 of the 65 EAs - and the portfolio host - could not compile,
+> plus a layer of silent strategy defects.  It also corrects #5 below (the sweep rule was time-reversed).
+
 **How this list was produced.** Full-file reads of the one live path the twelve
 earlier passes never audited (`Master_Triad_V1.mq5` + `RiskGovernor.mqh` +
 `ExecutionManager.mqh` + `NewsManager.mqh` + `E1_SMC_Core.mqh` — that is the
@@ -83,7 +87,7 @@ can now log that it is inert (#13).
 | 20 | P3 | DEFECT | hygiene | `#property strict` (MQL4-only directive) in the Triad set | `Master_Triad_V1.mq5:8`, `RiskGovernor.mqh:5-6`, `ExecutionManager.mqh:7`, `E1_SMC_Core.mqh:7` | ignored property/warning noise; the repo checker already flags it | remove |
 | 21 | P3 | RISK | engine clock | engine 3107 is the only EA that reads the live auto offset, whose correctness now depends on the VPS PC timezone (`TimeGMT()` is derived from it) | `EA_THE5ERS_HIGH_STAKES_RESEARCH.mq5:66` + `EACore.mqh:408` | a mis-set VPS timezone shifts its sessions/news by hours, live, with no symptom | log the resolved offset at init and sanity-check it (|offset| ≤ 14 h) |
 | 22 | P3 | LIMIT | tracker | a position opened before `InpDaysBack` loses its entry-side commission from the round turn (net understated); the verdict is closed-only by design (floating P&L not counted) | `portfolio-EA/src/PortfolioEA.mq5:219-243`, `:318` | long-carry trades look slightly worse; documented, but worth stating in the panel footer | note it in the README/verdict rules |
-| 23 | P0 | GAP | everything | **47 000 lines of MQL5 have never been compiled.** The last two passes alone found five compile-blocking adjacent string literals, and two of the items above would only show up in a backtest | `validation/mt5_harness/compile_all.ps1` (never run); repo-wide adjacency scan is the only stand-in | any of the open defects above can be masked by a compile error; nothing here is proven to build | run `compile_all.ps1` first on Windows — it is the single highest-value next action |
+| 23 | P0 | GAP | everything | **47 000 lines of MQL5 have never been compiled.** The last two passes alone found five compile-blocking adjacent string literals, and two of the items above would only show up in a backtest | `validation/mt5_harness/compile_all.ps1` (never run); repo-wide adjacency scan is the only stand-in | any of the open defects above can be masked by a compile error; nothing here is proven to build | run `compile_all.ps1` first on Windows — it is the single highest-value next action (the second sweep, `docs/EA_TOP25_BUGS_2.md`, then found 16 EAs and the portfolio host that could not compile) |
 | 24 | P1 | GAP | validation | no Strategy Tester sweep has ever run: no PASS/WARN/FAIL table, the six fail-closed news engines need the Stage 0b calendar file, and the four widened universes' older backtests are invalidated (owner decision) | `docs/EA_VALIDATION_PLAYBOOK.md` Stage 0b/1; `--symbols wide` | all performance decisions (KEEP/REVIEW/DROP, demo switches) are currently blind | Stage 0b calendar for the tester window, then `--symbols wide`, then `parse_results.py` |
 | 25 | P1 | GAP | demo | no demo run with the tracker: the live switches, tracker verdicts/panel and the new live-calendar source are unverified live; 65 engines in one thread (476 indicator handles, 1 s timer) have never been timed | `portfolio-EA/src/PortfolioEA.mq5`, `portfolio-EA/README.md` deploy steps | the switch semantics and the dashboard are the operator's only feedback | demo run on one account, tracker attached, after the compile |
 
