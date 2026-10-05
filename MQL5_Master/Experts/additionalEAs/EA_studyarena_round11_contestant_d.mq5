@@ -141,8 +141,8 @@ public:
       if(!RetireCheck()) return 0.0;                     // auto-retired
       if(ctx.riskPct <= 0.0) return 0.0;
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double hwm = GlobalVariableGet("R11D_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R11D_HWM", MathMax(equity, hwm)); return 1.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R11D", false));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R11D", false), MathMax(equity, hwm)); return 1.0; }
       double dd = 100.0 * (hwm - equity) / hwm;
       int steps = (int)MathFloor(dd / InpThrottleStepPct);
       double mult = MathPow(0.5, steps);

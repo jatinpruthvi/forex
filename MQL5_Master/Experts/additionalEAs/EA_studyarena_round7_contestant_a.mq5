@@ -74,7 +74,10 @@ public:
       if(gapAbs < InpGapMinPoints || gapAbs > InpGapMaxPoints) return false;
 
       int dir = (gap > 0.0) ? -1 : +1;                 // fade the gap
-      double stopDist = 1.5 * gapAbs * ctx.point;      // 1.5x the gap in price units
+      //--- gapAbs is a PRICE difference (open - close), already in price units.  The delivered
+      //--- `1.5 * gapAbs * ctx.point` multiplied it by the point size again: on a 2-digit index
+      //--- symbol the stop sat 100x too close (sizing then took a 100x position for it).
+      double stopDist = 1.5 * gapAbs;
 
       plan.Reset();
       plan.dir      = dir;
@@ -82,40 +85,51 @@ public:
       plan.riskDist = stopDist;
       plan.stop     = (dir > 0) ? plan.entry - stopDist : plan.entry + stopDist;
       plan.target   = priorClose;                      // exact gap fill
+      //--- evaluated on every M5 bar of the window, so by 10:55 the gap may be long gone: a
+      //--- target behind the entry is not a trade
+      if(dir > 0 && priorClose <= plan.entry) return false;
+      if(dir < 0 && priorClose >= plan.entry) return false;
       plan.score    = 70.0;
       plan.reason   = StringFormat("R7A-GAPFADE(%.0f pts)", gapAbs);
       return true;
    }
 
-   //--- close of the last session bar before 16:30 prior day
+   //--- close of the last bar that opened BEFORE 16:30 UK on the previous trading day.
+   //--- Three defects in the delivered version: (1) it compared SERVER minutes with the
+   //--- UK-clock input; (2) `>= 16:30` returned the day's FINAL bar (23:55), so the "gap"
+   //--- was the overnight move, not the cash-session gap the document defines; (3) the
+   //--- loop ran to a hard-coded 300 whatever CopyRates returned - an out-of-range read
+   //--- stops the whole EA (and, in the portfolio build, all 65 engines).
    double PriorCashClose(const string sym)
    {
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M5, 1, 300, r) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_M5, 1, 600, r);          // r[0] = last closed bar
+      if(got < 10) return 0.0;
       MqlDateTime now;
-      TimeToStruct(TimeTradeServer(), now);
-      for(int i = 0; i < 300; i++)
+      TimeToStruct(EA_ClockNow(), now);                       // UK wall clock
+      for(int i = 0; i < got; i++)
       {
          MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         if(t.day == now.day) continue;                      // yesterday or older
-         if(t.hour * 60 + t.min >= InpPriorCashCloseMin) return r[i].close;
+         TimeToStruct(EA_BarClockTime(r[i].time), t);         // the bar on the UK clock
+         if(t.year == now.year && t.mon == now.mon && t.day == now.day) continue;   // today's bars
+         if(t.hour * 60 + t.min < InpPriorCashCloseMin) return r[i].close;          // newest bar before 16:30
       }
       return 0.0;
    }
 
-   //--- open of the first bar at/after 08:00 today
+   //--- open of the first bar at/after 08:00 UK today (UK clock, not the server's: with a
+   //--- GMT+2 broker the delivered code took the 06:00 UK price as the "cash open")
    double CashOpen(const string sym)
    {
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M5, 0, 120, r) < 5) return 0.0;
+      if(EA_Rates(sym, PERIOD_M5, 0, 240, r) < 5) return 0.0;
       MqlDateTime now;
-      TimeToStruct(TimeTradeServer(), now);
+      TimeToStruct(EA_ClockNow(), now);
       for(int i = ArraySize(r) - 1; i >= 0; i--)
       {
          MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         if(t.day != now.day) continue;
+         TimeToStruct(EA_BarClockTime(r[i].time), t);
+         if(t.year != now.year || t.mon != now.mon || t.day != now.day) continue;
          if(t.hour * 60 + t.min >= InpCashOpenMin) return r[i].open;
       }
       return 0.0;

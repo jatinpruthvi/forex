@@ -174,6 +174,25 @@ int EA_Rates(const string sym, const ENUM_TIMEFRAMES tf, const int start, const 
    return got;
 }
 
+//--- Key of a strategy-level equity high-water mark.  Five EAs stored theirs under a
+//--- FIXED name ("R11E_HWM"): shared by every account, never reset - a prop-account
+//--- reset or a demo-to-live switch inherited the old peak (and the two EAs with a
+//--- "shutdown for the month" tier locked out for good, because no trades means the
+//--- equity can never climb back above a stale peak).  Now the key carries account +
+//--- magic, and `monthly` adds the server month so "for the month" is literally true.
+string EA_HwmKey(const string tag, const bool monthly)
+{
+   string k = StringFormat("EA_%I64d_%I64d_%s_HWM", (long)AccountInfoInteger(ACCOUNT_LOGIN),
+                           (long)g_eaCfg.magic, tag);
+   if(monthly)
+   {
+      MqlDateTime d;
+      TimeToStruct(TimeTradeServer(), d);
+      k += StringFormat("_%04d%02d", d.year, d.mon);
+   }
+   return k;
+}
+
 //+------------------------------------------------------------------+
 //| Clock helpers for bars                                           |
 //+------------------------------------------------------------------+
@@ -260,6 +279,64 @@ bool SigPrevSessionRange(const string sym, const ENUM_TIMEFRAMES tf,
 bool SigAsianRange(const string sym, double &hi, double &lo)
 {
    return SigPrevSessionRange(sym, PERIOD_M5, 0, 7 * 60, hi, lo);
+}
+
+//--- The ranges of the most recent completed Asian sessions (London 00:00-07:00),
+//--- newest first, built from H1 bars in ONE fetch.  ranges[0] is the latest completed
+//--- session.  Returns how many sessions were found.
+int SigAsianRangeHistory(const string sym, const int sessions, double &ranges[])
+{
+   ArrayResize(ranges, 0);
+   MqlRates r[];
+   int want = (sessions + 4) * 24 + 24;               // weekends carry no bars: slack, not extra days
+   int got  = EA_Rates(sym, PERIOD_H1, 1, want, r);   // series, r[0] = last closed H1 bar
+   if(got < 24) return 0;
+   datetime curDay = 0;
+   double   h = -DBL_MAX, l = DBL_MAX;
+   int      n = 0, inWin = 0;
+   for(int i = 0; i < got; i++)
+   {
+      datetime clk = EA_BarClockTime(r[i].time);
+      int      m   = EA_MinutesOfDay(clk);
+      datetime day = clk - (datetime)(m * 60);        // midnight of that wall-clock day
+      if(curDay == 0) curDay = day;
+      if(day != curDay)                               // a new (older) day began: flush the finished one
+      {
+         if(inWin >= 3 && h > -DBL_MAX && l < DBL_MAX && n < sessions)
+         { ArrayResize(ranges, n + 1); ranges[n] = h - l; n++; }
+         if(n >= sessions) return n;
+         curDay = day; h = -DBL_MAX; l = DBL_MAX; inWin = 0;
+      }
+      if(m >= 0 && m < 7 * 60)
+      {
+         if(r[i].high > h) h = r[i].high;
+         if(r[i].low  < l) l = r[i].low;
+         inWin++;
+      }
+   }
+   if(inWin >= 3 && h > -DBL_MAX && l < DBL_MAX && n < sessions)
+   { ArrayResize(ranges, n + 1); ranges[n] = h - l; n++; }
+   return n;
+}
+
+//--- Percentile (0..100) of `todayRange` among the PREVIOUS `sessions` Asian-session
+//--- ranges.  R5A / R5A2 compared it with the last 60 full-DAY ranges instead - an Asian
+//--- range is only a fraction of a day's range, so the percentile sat near zero and a
+//--- "[20, 65] band" gate rejected almost every day (R5A2 effectively never traded).
+//--- 50 (neutral) when there is too little history, like the delivered fallback.
+double SigAsiaRangePercentile(const string sym, const double todayRange, const int sessions)
+{
+   double rg[];
+   int n = SigAsianRangeHistory(sym, sessions + 1, rg);
+   if(n < 21) return 50.0;
+   int below = 0, used = 0;
+   for(int i = 1; i < n; i++)                        // [0] is the session being judged
+   {
+      if(rg[i] <= 0.0) continue;
+      used++;
+      if(todayRange >= rg[i]) below++;
+   }
+   return (used > 0) ? 100.0 * below / (double)used : 50.0;
 }
 
 //--- daily (D1) Donchian channel of the last `days` completed days
@@ -468,6 +545,24 @@ bool SigSweepReclaim(const SEAContext &ctx, const SSweepParams &p, SSignalPlan &
       }
    }
    return false;
+}
+
+//--- Tick volume of the SWEEP candle relative to the average of the 20 candles before
+//--- it (`sweepBar` = SSignalPlan.sweepBarsAgo, a series index counted from bar 0).
+//--- 0 means "not measurable" (thin history / no volume) - callers fail OPEN on it, as
+//--- the delivered gates did.  R12A / R12F / R12FABLE measured the LAST CLOSED bar
+//--- (the displacement/reclaim candle) instead of the sweep candle their documents name.
+double SigSweepVolumeRatio(const SEAContext &ctx, const int sweepBar)
+{
+   if(sweepBar < 1) return 0.0;
+   MqlRates r[];
+   int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, sweepBar + 21, r);
+   if(got < sweepBar + 21) return 0.0;
+   double sum = 0.0;
+   for(int i = sweepBar + 1; i <= sweepBar + 20; i++) sum += (double)r[i].tick_volume;
+   double avg = sum / 20.0;
+   if(avg <= 0.0) return 0.0;
+   return (double)r[sweepBar].tick_volume / avg;
 }
 
 //+------------------------------------------------------------------+
@@ -882,36 +977,49 @@ bool SigBreakRetest(const SEAContext &ctx, const SBreakRetestParams &p, SSignalP
    int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 8, r);
    if(got < 4) return false;
 
-   //--- find an accepted break (close beyond range) then a retest holding the level
-   for(int i = 1; i <= (int)MathMin(got - 2, 4); i++)
+   //--- An ACCEPTED break is a closed bar beyond the range (+ buffer); the RETEST is a
+   //--- LATER closed bar (newer = smaller index) that comes back to the level and holds
+   //--- on the right side of it.  The delivered rule judged break and retest on the SAME
+   //--- candle - and a breakout candle that opened inside the range always "retested"
+   //--- (its low is at the level), so the whole function was a breakout chaser; its
+   //--- `retest failed` test could not even be reached.
+   for(int k = 2; k <= (int)MathMin(got - 1, 5); k++)          // the break bar
    {
-      MqlRates b = r[i];
-      if(b.close > rHi + p.breakBufferAtr * ctx.atr)
+      MqlRates brk = r[k];
+      if(brk.close > rHi + p.breakBufferAtr * ctx.atr)
       {
-         if(b.low > rHi + p.retestTolAtr * ctx.atr) continue;      // no retest yet
-         if(b.close < rHi) continue;                               // retest failed
-         double entry = ctx.ask;
-         double stop  = rLo - p.stopBufferAtr * ctx.atr;
-         double risk  = entry - stop;
-         if(risk <= 0.0) continue;
-         out.dir = +1; out.entry = entry; out.stop = stop;
-         out.target = entry + p.targetR * risk; out.riskDist = risk;
-         out.score = p.scoreBase; out.reason = "Break-retest long of session range"; out.barsAgo = i;
-         return true;
+         for(int j = k - 1; j >= 1; j--)                       // the retest bar (after the break)
+         {
+            MqlRates rt = r[j];
+            if(rt.low > rHi + p.retestTolAtr * ctx.atr) continue;    // has not come back to the level
+            if(rt.close < rHi) continue;                             // closed back inside: failed
+            double entry = ctx.ask;
+            double stop  = rLo - p.stopBufferAtr * ctx.atr;
+            double risk  = entry - stop;
+            if(risk <= 0.0) continue;
+            out.dir = +1; out.entry = entry; out.stop = stop;
+            out.target = entry + p.targetR * risk; out.riskDist = risk;
+            out.score = p.scoreBase; out.reason = "Break-retest long of session range"; out.barsAgo = j;
+            return true;
+         }
       }
       if(!p.tradeBothWays) continue;
-      if(b.close < rLo - p.breakBufferAtr * ctx.atr)
+      if(brk.close < rLo - p.breakBufferAtr * ctx.atr)
       {
-         if(b.high < rLo - p.retestTolAtr * ctx.atr) continue;
-         if(b.close > rLo) continue;
-         double entry = ctx.bid;
-         double stop  = rHi + p.stopBufferAtr * ctx.atr;
-         double risk  = stop - entry;
-         if(risk <= 0.0) continue;
-         out.dir = -1; out.entry = entry; out.stop = stop;
-         out.target = entry - p.targetR * risk; out.riskDist = risk;
-         out.score = p.scoreBase; out.reason = "Break-retest short of session range"; out.barsAgo = i;
-         return true;
+         for(int j = k - 1; j >= 1; j--)
+         {
+            MqlRates rt = r[j];
+            if(rt.high < rLo - p.retestTolAtr * ctx.atr) continue;
+            if(rt.close > rLo) continue;
+            double entry = ctx.bid;
+            double stop  = rHi + p.stopBufferAtr * ctx.atr;
+            double risk  = stop - entry;
+            if(risk <= 0.0) continue;
+            out.dir = -1; out.entry = entry; out.stop = stop;
+            out.target = entry - p.targetR * risk; out.riskDist = risk;
+            out.score = p.scoreBase; out.reason = "Break-retest short of session range"; out.barsAgo = j;
+            return true;
+         }
       }
    }
    return false;
@@ -1254,6 +1362,17 @@ bool SigSessionFade(const SEAContext &ctx, const int rangeFromMin, const int ran
 //| 15. ORDER-BLOCK RETEST (SMC)                                     |
 //|   bullish: last bearish candle before a displacement leg up;     |
 //|   the retest of that block is the entry. Mirror for bearish.     |
+//|                                                                  |
+//|   * onlyDir restricts the search to ONE side.  Three EAs (R2C,    |
+//|     R3A, R3B) tried to do that with `tradeBothWays = (bias > 0)`  |
+//|     and then required `plan.dir == bias`: with a BEARISH bias the |
+//|     bearish branch was switched off, so those EAs could never go  |
+//|     short.                                                       |
+//|   * a block is only tradable while it is alive: if a CLOSED bar   |
+//|     after the displacement closed beyond the block's far side the |
+//|     block failed.  The delivered detector tested the current price|
+//|     only, so a block price had already traded THROUGH could still |
+//|     fire (a "retest from below" taken as a long).                 |
 //+------------------------------------------------------------------+
 struct SOrderBlockParams
 {
@@ -1264,11 +1383,13 @@ struct SOrderBlockParams
    double   targetR;
    bool     requireHtfBias;   // H1 200-EMA must agree
    bool     tradeBothWays;
+   int      onlyDir;          // 0 = follow tradeBothWays; +1 = long only; -1 = short only
 
    void Reset()
    {
       lookbackBars = 12; displacementBody = 0.55; touchTolAtr = 0.15;
       stopBufferAtr = 0.10; targetR = 2.5; requireHtfBias = true; tradeBothWays = true;
+      onlyDir = 0;
    }
 };
 
@@ -1280,44 +1401,55 @@ bool SigOrderBlockRetest(const SEAContext &ctx, const SOrderBlockParams &p, SSig
    int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, p.lookbackBars + 2, r);
    if(got < 5) return false;
    double tol = p.touchTolAtr * ctx.atr;
+   const bool allowLong  = (p.onlyDir >= 0);
+   const bool allowShort = (p.onlyDir < 0) || (p.onlyDir == 0 && p.tradeBothWays);
 
    for(int i = 2; i < got - 1; i++)
    {
-      //--- bullish order block: bearish candle followed by a bullish displacement
       MqlRates block = r[i];
       MqlRates disp  = r[i - 1];
-      if(block.close < block.open && disp.close > disp.open &&
+      //--- bullish order block: bearish candle followed by a bullish displacement
+      if(allowLong && block.close < block.open && disp.close > disp.open &&
          EA_BodyRatio(disp) >= p.displacementBody && disp.close > block.high)
       {
-         if(p.requireHtfBias && ctx.emaH1_200 > 0.0 && ctx.mid < ctx.emaH1_200) continue;
+         bool failed = false;                       // a closed bar beneath the block kills it
+         for(int j = i - 2; j >= 1; j--)
+            if(r[j].close < block.low) { failed = true; break; }
+         bool htfOk  = !(p.requireHtfBias && ctx.emaH1_200 > 0.0 && ctx.mid < ctx.emaH1_200);
          //--- price must be retesting the block from above
-         if(ctx.mid <= block.low - tol || ctx.mid > block.high + tol) continue;
+         bool inZone = !(ctx.mid <= block.low - tol || ctx.mid > block.high + tol);
          double entry = (ctx.ask > 0.0) ? ctx.ask : ctx.mid;
          double stop  = block.low - p.stopBufferAtr * ctx.atr;
          double risk  = entry - stop;
-         if(risk <= 0.0) continue;
-         out.dir = +1; out.entry = entry; out.stop = stop;
-         out.target = entry + p.targetR * risk; out.riskDist = risk;
-         out.score = 64.0; out.barsAgo = i;
-         out.reason = StringFormat("bullish OB retest (block bar %d)", i);
-         return true;
+         if(!failed && htfOk && inZone && risk > 0.0)
+         {
+            out.dir = +1; out.entry = entry; out.stop = stop;
+            out.target = entry + p.targetR * risk; out.riskDist = risk;
+            out.score = 64.0; out.barsAgo = i;
+            out.reason = StringFormat("bullish OB retest (block bar %d)", i);
+            return true;
+         }
       }
-      if(!p.tradeBothWays) continue;
       //--- bearish order block
-      if(block.close > block.open && disp.close < disp.open &&
+      if(allowShort && block.close > block.open && disp.close < disp.open &&
          EA_BodyRatio(disp) >= p.displacementBody && disp.close < block.low)
       {
-         if(p.requireHtfBias && ctx.emaH1_200 > 0.0 && ctx.mid > ctx.emaH1_200) continue;
-         if(ctx.mid >= block.high + tol || ctx.mid < block.low - tol) continue;
+         bool failed = false;                       // a closed bar above the block kills it
+         for(int j = i - 2; j >= 1; j--)
+            if(r[j].close > block.high) { failed = true; break; }
+         bool htfOk  = !(p.requireHtfBias && ctx.emaH1_200 > 0.0 && ctx.mid > ctx.emaH1_200);
+         bool inZone = !(ctx.mid >= block.high + tol || ctx.mid < block.low - tol);
          double entry = (ctx.bid > 0.0) ? ctx.bid : ctx.mid;
          double stop  = block.high + p.stopBufferAtr * ctx.atr;
          double risk  = stop - entry;
-         if(risk <= 0.0) continue;
-         out.dir = -1; out.entry = entry; out.stop = stop;
-         out.target = entry - p.targetR * risk; out.riskDist = risk;
-         out.score = 64.0; out.barsAgo = i;
-         out.reason = StringFormat("bearish OB retest (block bar %d)", i);
-         return true;
+         if(!failed && htfOk && inZone && risk > 0.0)
+         {
+            out.dir = -1; out.entry = entry; out.stop = stop;
+            out.target = entry - p.targetR * risk; out.riskDist = risk;
+            out.score = 64.0; out.barsAgo = i;
+            out.reason = StringFormat("bearish OB retest (block bar %d)", i);
+            return true;
+         }
       }
    }
    return false;
@@ -1334,13 +1466,16 @@ struct SFvgParams
    double   minGapAtr;      // gap size floor
    double   stopBufferAtr;
    double   targetR;
-   double   maxRetrace;     // allowed retrace into the gap (0..1)
+   double   maxRetrace;     // price must be inside the gap's FIRST (1 - maxRetrace) share: at 0.75 it has
+                            // entered at least 25% of the way from the near edge (the name says "max"; the
+                            // behaviour is a minimum depth - kept, because 2 EAs were written against it)
    bool     tradeBothWays;
+   int      onlyDir;        // 0 = follow tradeBothWays; +1 = long only; -1 = short only (see the OB note)
 
    void Reset()
    {
       impulseBody = 0.60; minGapAtr = 0.10; stopBufferAtr = 0.15;
-      targetR = 3.0; maxRetrace = 0.75; tradeBothWays = true;
+      targetR = 3.0; maxRetrace = 0.75; tradeBothWays = true; onlyDir = 0;
    }
 };
 
@@ -1352,12 +1487,14 @@ bool SigFvgRetest(const SEAContext &ctx, const SFvgParams &p, SSignalPlan &out)
    int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, 10, r);
    if(got < 4) return false;
 
+   const bool allowLong  = (p.onlyDir >= 0);
+   const bool allowShort = (p.onlyDir < 0) || (p.onlyDir == 0 && p.tradeBothWays);
    for(int i = 1; i <= 3; i++)
    {
       if(i + 2 >= got) continue;
       MqlRates left = r[i + 2], mid = r[i + 1], right = r[i];
       //--- bullish imbalance: gap between left.high and right.low
-      if(mid.close > mid.open && EA_BodyRatio(mid) >= p.impulseBody &&
+      if(allowLong && mid.close > mid.open && EA_BodyRatio(mid) >= p.impulseBody &&
          left.high < right.low && (right.low - left.high) >= p.minGapAtr * ctx.atr)
       {
          double gapLow = left.high, gapHigh = right.low;
@@ -1373,7 +1510,7 @@ bool SigFvgRetest(const SEAContext &ctx, const SFvgParams &p, SSignalPlan &out)
          out.reason = "bullish FVG retest";
          return true;
       }
-      if(!p.tradeBothWays) continue;
+      if(!allowShort) continue;
       //--- bearish imbalance: gap between left.low and right.high
       if(mid.close < mid.open && EA_BodyRatio(mid) >= p.impulseBody &&
          left.low > right.high && (left.low - right.high) >= p.minGapAtr * ctx.atr)

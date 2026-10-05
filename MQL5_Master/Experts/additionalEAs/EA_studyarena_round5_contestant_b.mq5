@@ -114,9 +114,10 @@ public:
    {
       MqlRates r[];
       int n = (int)InpLiquidityLookback;
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, n, r) < 10) return entry + dir * InpRunnerTargetR * stopDist;
+      int got = EA_Rates(ctx.symbol, PERIOD_M15, 1, n, r);
+      if(got < 10) return entry + dir * InpRunnerTargetR * stopDist;
       double best = 0.0;
-      for(int i = 0; i < n; i++)
+      for(int i = 0; i < got; i++)                   // (was `i < n`: a short history read past the array)
       {
          if(dir > 0 && r[i].high > entry)
          {

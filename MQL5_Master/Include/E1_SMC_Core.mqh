@@ -30,6 +30,8 @@ private:
     datetime          m_setupSweepTime;
     datetime          m_lastTradedSweepTime;
     datetime          m_lastAttemptTime;
+    int               m_failCount;          // consecutive failed placements of the SAME sweep
+    datetime          m_failSweep;
     double            m_setupFrontPrice;
     double            m_setupEqPrice;
     double            m_setupSL;
@@ -44,6 +46,7 @@ public:
 
     int            GetTrendBias(string symbol);
     bool           DetectLiquiditySweep(string symbol, int bias);
+    void           RegisterPlacement(bool placed);
     bool           DetectM15CHoCH(string symbol, int bias);
     int            GradeSetup(string symbol, int bias);
     bool           HasActiveSetup(string symbol);
@@ -67,6 +70,8 @@ CE1SMCCore::CE1SMCCore(CExecutionManager *execManager, CNewsManager *newsManager
     m_useDxySmtGate = useDxySmtGate;
     m_tickCount = 0;
     m_lastAttemptTime = 0;
+    m_failCount = 0;
+    m_failSweep = 0;
     
     if(GlobalVariableCheck(SweepGvName()))
         m_lastTradedSweepTime = (datetime)GlobalVariableGet(SweepGvName());
@@ -179,6 +184,9 @@ void CE1SMCCore::OnTickEngine(string symbol, double lotSize)
     int grade = GradeSetup(symbol, bias);
     if(grade < 5) // Skip if grade is < 5 (C-grade or Skip)
     {
+        // once per M15 candle: this branch runs on EVERY timer tick, and the delivered
+        // code re-ran the whole CHoCH scan and printed a line each second
+        m_lastAttemptTime = currentCandleTime;
         Print("E1 ENGINE: Setup found but graded ", grade, ". Skipping (Grade Filter).");
         return;
     }
@@ -224,19 +232,17 @@ void CE1SMCCore::OnTickEngine(string symbol, double lotSize)
     {
         double pointsRisk = MathAbs(frontPrice - sl) / tickSize;
         double actualLotSize = (pointsRisk > 0 && tickValue > 0) ? (riskMoney / (pointsRisk * tickValue)) : 0;
-        m_lastAttemptTime = currentCandleTime; // Mark attempt
-        m_lastTradedSweepTime = m_setupSweepTime; // Mark this specific structural sweep as traded
-        GlobalVariableSet(SweepGvName(), (double)m_lastTradedSweepTime);
-        m_execManager.SendDualBracketLimit(symbol, ORDER_TYPE_BUY_LIMIT, actualLotSize, frontPrice, eqPrice, sl, tp);
+        m_lastAttemptTime = currentCandleTime; // at most ONE attempt per M15 candle (anti machine-gun)
+        bool placed = m_execManager.SendDualBracketLimit(symbol, ORDER_TYPE_BUY_LIMIT, actualLotSize, frontPrice, eqPrice, sl, tp);
+        RegisterPlacement(placed);
     }
     else if(bias == -1) // Sell
     {
         double pointsRisk = MathAbs(frontPrice - sl) / tickSize;
         double actualLotSize = (pointsRisk > 0 && tickValue > 0) ? (riskMoney / (pointsRisk * tickValue)) : 0;
-        m_lastAttemptTime = currentCandleTime; // Mark attempt
-        m_lastTradedSweepTime = m_setupSweepTime; // Mark this specific structural sweep as traded
-        GlobalVariableSet(SweepGvName(), (double)m_lastTradedSweepTime);
-        m_execManager.SendDualBracketLimit(symbol, ORDER_TYPE_SELL_LIMIT, actualLotSize, frontPrice, eqPrice, sl, tp);
+        m_lastAttemptTime = currentCandleTime; // at most ONE attempt per M15 candle (anti machine-gun)
+        bool placed = m_execManager.SendDualBracketLimit(symbol, ORDER_TYPE_SELL_LIMIT, actualLotSize, frontPrice, eqPrice, sl, tp);
+        RegisterPlacement(placed);
     }
 }
 
@@ -279,55 +285,103 @@ int CE1SMCCore::GetTrendBias(string symbol)
 }
 
 //+------------------------------------------------------------------+
-//| Detect Liquidity Sweep - liquidity sweep precondition (#5)        |
+//| Register the outcome of a placement attempt                       |
+//|                                                                   |
+//| The delivered code marked the sweep "traded" - and persisted that |
+//| in a GlobalVariable - BEFORE the order was sent and never looked  |
+//| at the result.  A spread blip, a stop-level rejection or a lot    |
+//| below the broker minimum therefore consumed the setup for good    |
+//| (and across restarts).  Now the sweep is consumed only when the   |
+//| bracket was really placed; a setup whose placement keeps failing  |
+//| is abandoned after three candles so it cannot retry for hours.    |
+//+------------------------------------------------------------------+
+void CE1SMCCore::RegisterPlacement(bool placed)
+{
+    if(placed)
+    {
+        m_lastTradedSweepTime = m_setupSweepTime;
+        GlobalVariableSet(SweepGvName(), (double)m_lastTradedSweepTime);
+        m_failCount = 0;
+        m_failSweep = 0;
+        return;
+    }
+    if(m_failSweep == m_setupSweepTime) m_failCount++;
+    else { m_failSweep = m_setupSweepTime; m_failCount = 1; }
+    if(m_failCount >= 3)
+    {
+        Print("E1 ENGINE: placement failed 3 times for the sweep of ", TimeToString(m_setupSweepTime),
+              " - abandoning this setup.");
+        m_lastTradedSweepTime = m_setupSweepTime;
+        GlobalVariableSet(SweepGvName(), (double)m_lastTradedSweepTime);
+        m_failCount = 0;
+        m_failSweep = 0;
+    }
+    else
+        Print("E1 ENGINE: order not placed (attempt ", m_failCount,
+              "/3) - the setup stays available for the next M15 candle.");
+}
+
+//+------------------------------------------------------------------+
+//| Detect Liquidity Sweep - liquidity sweep precondition (#5, redone)|
 //|                                                                   |
 //| The delivered version returned true unconditionally, so the        |
 //| documented entry precondition ("price sweeps liquidity, then       |
 //| reclaims it") never ran - entries fired on the M15 CHoCH alone.    |
 //|                                                                    |
-//| The rule below uses the SAME 60-bar M15 window and the same        |
-//| indexing as DetectM15CHoCH(), so both functions agree on which     |
-//| bar is the sweep:                                                  |
-//|   * bars 1..49  - the sweep candidate (the extreme the CHoCH path  |
-//|                   also selects: most recent extreme on ties)       |
-//|   * bars 50..59 - the prior liquidity the sweep must take out      |
-//|   * the sweep candle must CLOSE back inside (reclaim), i.e. the    |
-//|     breakdown failed - that failure is the liquidity grab          |
+//| The first implementation of this rule read the TIME AXIS BACKWARDS.|
+//| CopyRates() fills a plain (non-series) array OLDEST-first - the     |
+//| MQL5 reference: "the oldest element will be located at the start    |
+//| of the physical memory" - so r[0] is the oldest bar and r[59] the   |
+//| last closed one, exactly as DetectM15CHoCH() already assumes (its   |
+//| "after the sweep" loops run to HIGHER indices).  The rule treated   |
+//| bars 50..59 as the "prior liquidity", i.e. the NEWEST ten bars,     |
+//| which turned it into a near-tautology: a canonical sweep-and-       |
+//| reclaim could be rejected and a breakdown that simply continued     |
+//| could pass.                                                        |
 //|                                                                    |
-//| This makes entries strictly rarer than the stub did (a real        |
-//| precondition), which is a behaviour change by design and must be   |
-//| re-validated on the strategy tester before live use.               |
+//| The rule now, in chronological terms:                              |
+//|   * the sweep candle is the window extreme CHoCH selects (the      |
+//|     oldest 50 bars of the newest 60; most recent extreme on ties)  |
+//|   * the prior liquidity is the extreme of the 10 bars BEFORE it    |
+//|     (hence 70 bars are fetched: 10 for the prior, 60 for the window)|
+//|   * the sweep must take that level out, and the sweep candle must  |
+//|     CLOSE back on the right side of it (the failed breakdown that  |
+//|     IS the liquidity grab)                                         |
 //+------------------------------------------------------------------+
 bool CE1SMCCore::DetectLiquiditySweep(string symbol, int bias)
 {
     if(bias != 1 && bias != -1) return false;
 
+    // chronological: r[0] oldest ... r[69] = last closed bar.  The newest 60 bars
+    // (r[10]..r[69]) are rates[0]..rates[59] of DetectM15CHoCH().
     MqlRates r[];
-    if(CopyRates(symbol, PERIOD_M15, 1, 60, r) < 60) return false;   // need the full window
+    if(CopyRates(symbol, PERIOD_M15, 1, 70, r) < 70) return false;   // need the full window
+    const int OFF = 10;
 
-    double priorExtreme = (bias == 1) ? r[50].low : r[50].high;
-    for(int i = 51; i < 60; i++)
-        priorExtreme = (bias == 1) ? MathMin(priorExtreme, r[i].low)
-                                   : MathMax(priorExtreme, r[i].high);
-
-    int    sweepIdx   = -1;
-    double sweepPrice = (bias == 1) ? r[1].low : r[1].high;
-    for(int i = 1; i < 50; i++)
+    int    s          = OFF;
+    double sweepPrice = (bias == 1) ? r[OFF].low : r[OFF].high;
+    for(int i = OFF + 1; i < OFF + 50; i++)           // rates[0..49] - same pick as the CHoCH path
     {
-        if(bias == 1 && r[i].low  <= sweepPrice) { sweepPrice = r[i].low;  sweepIdx = i; }
-        if(bias == -1 && r[i].high >= sweepPrice) { sweepPrice = r[i].high; sweepIdx = i; }
+        if(bias == 1  && r[i].low  <= sweepPrice) { sweepPrice = r[i].low;  s = i; }
+        if(bias == -1 && r[i].high >= sweepPrice) { sweepPrice = r[i].high; s = i; }
     }
-    if(sweepIdx < 0) return false;
+
+    // the prior liquidity: the 10 bars immediately BEFORE the sweep candle (s >= OFF, so
+    // r[s-10] >= r[0] always exists)
+    double priorExtreme = (bias == 1) ? r[s - 10].low : r[s - 10].high;
+    for(int k = s - 9; k < s; k++)
+        priorExtreme = (bias == 1) ? MathMin(priorExtreme, r[k].low)
+                                   : MathMax(priorExtreme, r[k].high);
 
     if(bias == 1)
     {
-        if(sweepPrice >= priorExtreme) return false;      // never took out prior liquidity
-        if(r[sweepIdx].close <= priorExtreme) return false; // breakdown held: not a sweep
+        if(sweepPrice >= priorExtreme) return false;        // never took out the prior low
+        if(r[s].close <= priorExtreme) return false;        // the breakdown held: not a sweep
     }
     else
     {
-        if(sweepPrice <= priorExtreme) return false;
-        if(r[sweepIdx].close >= priorExtreme) return false;
+        if(sweepPrice <= priorExtreme) return false;        // never took out the prior high
+        if(r[s].close >= priorExtreme) return false;        // the breakout held: not a sweep
     }
     return true;
 }

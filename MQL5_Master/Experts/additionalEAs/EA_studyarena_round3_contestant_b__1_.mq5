@@ -81,7 +81,7 @@ public:
       f.impulseBody = 0.60; f.minGapAtr = 0.10;
       f.stopBufferAtr = 0.15; f.targetR = 6.0;      // runner targets 6-8R
       f.maxRetrace = 0.75;
-      f.tradeBothWays = (dirBias > 0);
+      f.onlyDir = dirBias;               // (was tradeBothWays = (dirBias > 0): shorts were impossible)
       if(!SigFvgRetest(ctx, f, plan)) return false;
       if(plan.dir != dirBias) return false;
 

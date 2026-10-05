@@ -139,8 +139,8 @@ public:
    double DrawdownPct()
    {
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double hwm = GlobalVariableGet("R11E_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R11E_HWM", MathMax(equity, hwm)); return 0.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R11E", true));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R11E", true), MathMax(equity, hwm)); return 0.0; }
       if(hwm <= 0.0) return 0.0;
       return 100.0 * (hwm - equity) / hwm;
    }

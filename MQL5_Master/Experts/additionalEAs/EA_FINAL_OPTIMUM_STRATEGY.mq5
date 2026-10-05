@@ -120,7 +120,9 @@ public:
       int lookback = (ctx.clockMinutes - 7 * 60) / 5 + 4;
       if(lookback > 300) lookback = 300;
       MqlRates r[];
-      int got = EA_Rates(ctx.symbol, PERIOD_M5, 1, lookback, r);
+      //--- series index k == bar k (r[0] = the forming bar): the loops below reject ri/di < 1.
+      //--- Fetching from bar 1 made every pattern one bar late.
+      int got = EA_Rates(ctx.symbol, PERIOD_M5, 0, lookback + 1, r);
       if(got < 4) return false;
 
       double sweepMin = PairSweepMinAtr(ctx.symbol) * ctx.atr;
@@ -296,7 +298,10 @@ public:
          bool   isBuy  = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
          double sl     = PositionGetDouble(POSITION_SL);
          datetime opened = (datetime)PositionGetInteger(POSITION_TIME);
-         bool   exitCh = isBuy ? (r[1].close < l) : (r[1].close > h);
+         //--- r[0] = yesterday's close, the channel is r[1..N]: exactly the entry's geometry.  The
+         //--- delivered test used r[1], a bar that is part of the channel, so `r[1].close < l`
+         //--- (or `> h`) could never be true and the documented exit never fired.
+         bool   exitCh = isBuy ? (r[0].close < l) : (r[0].close > h);
 
          double extreme = PositionGetDouble(POSITION_PRICE_OPEN);
          for(int i = 0; i < ArraySize(r); i++)

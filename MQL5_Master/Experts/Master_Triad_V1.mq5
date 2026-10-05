@@ -159,9 +159,12 @@ void OnTimer()
         if(!fridayClosed)
         {
             Print("CRITICAL: Friday 21:00 reached. Executing Prop Firm Weekend Auto-Close.");
-            RiskGovernor.CloseAllPositions();
             fridayClosed = true;
         }
+        // The delivered code closed ONCE and never looked again: a rejected close meant a
+        // weekend gap on a prop account.  FlattenResidual() re-drives it every 5 s until
+        // nothing of this magic is left, and is silent afterwards.
+        RiskGovernor.FlattenResidual();
         return; // Halt all trading until Monday
     }
     else if(dt.day_of_week != 5)

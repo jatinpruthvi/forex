@@ -83,7 +83,7 @@ public:
       ob.touchTolAtr = 0.20; ob.stopBufferAtr = 0.10;
       ob.targetR = 1.50;                 // M5 engine target
       ob.requireHtfBias = true;
-      ob.tradeBothWays = (bias > 0);
+      ob.onlyDir = bias;                 // (was tradeBothWays = (bias > 0): shorts were impossible)
       if(!SigOrderBlockRetest(ctx, ob, plan)) return false;
       if(plan.dir != bias) return false;
 

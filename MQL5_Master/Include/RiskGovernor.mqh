@@ -24,6 +24,8 @@ private:
     datetime       m_dailyFreezeDay;    // daily-loss breaker: frozen for THIS server day
     datetime       m_trailingFreezeUntil; // trailing-DD breaker: absolute expiry (48 h)
     datetime       m_lastDayStart;      // server-day key: the full date, not day_of_year
+    datetime       m_lastFlatAttempt;   // rate-limit for the flatten retries
+    datetime       m_lastFreezeLog;     // rate-limit for the freeze message (it fired every second)
     ulong          m_magic;
     CPositionInfo  m_position;
     CTrade         m_trade;
@@ -38,7 +40,9 @@ public:
                    CRiskGovernor(ulong magic = 777112);
                   ~CRiskGovernor();
                   
-    void           CloseAllPositions();
+    int            CloseAllPositions();      // returns what is STILL open afterwards (0 = flat)
+    int            CountExposure();          // this magic's positions + pending orders
+    void           FlattenResidual();        // retry the flatten (rate-limited) until nothing is left
     
     // Core Stage 0 Checks
     bool           IsTradingAllowed();
@@ -95,6 +99,8 @@ void CRiskGovernor::SaveState() const
 CRiskGovernor::CRiskGovernor(ulong magic)
   : m_magic(magic)
 {
+    m_lastFlatAttempt = 0;
+    m_lastFreezeLog   = 0;
     // CRITICAL FIX: Terminal Restart / VPS Reboot Persistence
     // If the terminal crashes, memory resets. We MUST read peak equity and breakers from disk.
 
@@ -195,15 +201,25 @@ bool CRiskGovernor::IsTradingAllowed()
 
     if(m_trailingFreezeUntil > 0 && TimeCurrent() < m_trailingFreezeUntil)
     {
-        Print("RISK GOVERNOR: trailing-DD freeze active until ",
-              TimeToString(m_trailingFreezeUntil));
+        FlattenResidual();       // the trip's close may have failed - never leave exposure unmanaged
+        if(TimeCurrent() - m_lastFreezeLog >= 900)       // (was: one line per second for 48 hours)
+        {
+            m_lastFreezeLog = TimeCurrent();
+            Print("RISK GOVERNOR: trailing-DD freeze active until ",
+                  TimeToString(m_trailingFreezeUntil));
+        }
         return false;
     }
 
     if(m_dailyFreezeDay == dayStart)
     {
-        Print("RISK GOVERNOR: daily-loss freeze active for ", TimeToString(dayStart, TIME_DATE),
-              " - trading resumes at the next day boundary");
+        FlattenResidual();
+        if(TimeCurrent() - m_lastFreezeLog >= 900)
+        {
+            m_lastFreezeLog = TimeCurrent();
+            Print("RISK GOVERNOR: daily-loss freeze active for ", TimeToString(dayStart, TIME_DATE),
+                  " - trading resumes at the next day boundary");
+        }
         return false;
     }
 
@@ -216,7 +232,9 @@ bool CRiskGovernor::IsTradingAllowed()
         Print("RISK GOVERNOR BREAKER TRIPPED: daily equity loss ",
               DoubleToString(dailyLossPct*100, 2), "%. Closing all; no new entries for the rest of ",
               TimeToString(dayStart, TIME_DATE), ".");
-        CloseAllPositions();
+        int left = CloseAllPositions();
+        if(left > 0)
+            Print("RISK GOVERNOR WARNING: ", left, " position(s)/order(s) could NOT be closed - retrying every 5 s.");
         m_dailyFreezeDay = dayStart;
         SaveState();
         return false;
@@ -235,7 +253,9 @@ bool CRiskGovernor::IsTradingAllowed()
         Print("RISK GOVERNOR BREAKER TRIPPED: trailing DD ",
               DoubleToString(currentDD*100, 2), "%. Closing all; freeze ",
               FREEZE_TRAILING_HOURS, "h (the day boundary does not lift this one).");
-        CloseAllPositions();
+        int left = CloseAllPositions();
+        if(left > 0)
+            Print("RISK GOVERNOR WARNING: ", left, " position(s)/order(s) could NOT be closed - retrying every 5 s.");
         m_trailingFreezeUntil = TimeCurrent() + (datetime)(FREEZE_TRAILING_HOURS * 3600);
         SaveState();
         return false;
@@ -315,8 +335,21 @@ double CRiskGovernor::GetDailyRealizedPnL()
 
 //+------------------------------------------------------------------+
 //| Helper: Close All Positions AND PENDING ORDERS                   |
+//|                                                                  |
+//| The delivered version was fire-and-forget: it ignored every      |
+//| return code, the breaker then set its freeze flag regardless, and |
+//| the freeze branches simply returned - so one rejected close (a    |
+//| requote, a closed market, an unsupported fill mode) left the      |
+//| position open FOR THE WHOLE FREEZE with nothing managing it       |
+//| (OnTimer returns before OnTickMaintenance while frozen).  The     |
+//| Friday 21:00 auto-close had the same one-shot shape.              |
+//|                                                                  |
+//| Now: the fill mode is set per symbol before each close (this      |
+//| object's CTrade never configured one, while the executors do),    |
+//| failures are reported, the function returns what is still open,   |
+//| and FlattenResidual() retries every 5 s until nothing is left.    |
 //+------------------------------------------------------------------+
-void CRiskGovernor::CloseAllPositions()
+int CRiskGovernor::CloseAllPositions()
 {
     // Close open positions
     for(int i = PositionsTotal() - 1; i >= 0; i--)
@@ -325,7 +358,11 @@ void CRiskGovernor::CloseAllPositions()
         {
             if(m_position.Magic() == m_magic)
             {
-                m_trade.PositionClose(m_position.Ticket());
+                string sym = m_position.Symbol();
+                m_trade.SetTypeFillingBySymbol(sym);
+                if(!m_trade.PositionClose(m_position.Ticket()))
+                    Print("RISK GOVERNOR: close of #", m_position.Ticket(), " ", sym,
+                          " failed - retcode ", m_trade.ResultRetcode());
             }
         }
     }
@@ -337,10 +374,36 @@ void CRiskGovernor::CloseAllPositions()
         {
             if(order.Magic() == m_magic)
             {
-                m_trade.OrderDelete(order.Ticket());
+                if(!m_trade.OrderDelete(order.Ticket()))
+                    Print("RISK GOVERNOR: delete of order #", order.Ticket(),
+                          " failed - retcode ", m_trade.ResultRetcode());
             }
         }
     }
+    return CountExposure();
+}
+
+//--- this magic's open positions + pending orders (what a flatten must drive to zero)
+int CRiskGovernor::CountExposure()
+{
+    int n = 0;
+    for(int i = PositionsTotal() - 1; i >= 0; i--)
+        if(m_position.SelectByIndex(i) && m_position.Magic() == m_magic) n++;
+    COrderInfo order;
+    for(int j = OrdersTotal() - 1; j >= 0; j--)
+        if(order.SelectByIndex(j) && order.Magic() == m_magic) n++;
+    return n;
+}
+
+//--- called while frozen / on Friday: re-drives the flatten, at most every 5 seconds,
+//--- and is silent once the book is flat
+void CRiskGovernor::FlattenResidual()
+{
+    if(CountExposure() == 0) return;
+    if(TimeCurrent() - m_lastFlatAttempt < 5) return;
+    m_lastFlatAttempt = TimeCurrent();
+    int left = CloseAllPositions();
+    Print("RISK GOVERNOR: flatten retry - ", left, " position(s)/order(s) still open.");
 }
 
 //+------------------------------------------------------------------+

@@ -324,15 +324,14 @@ public:
       if(atrNow < p60 || atrNow > p90) return false;
       score += 1.0;
 
-      //--- filter 2/4: M15 close beyond the 4-hour range with body >= 70%
+      //--- filter 2/4: M15 close beyond the 4-hour range with body >= 70%.  Index k == bar k
+      //--- (fetched from bar 0).  A candidate's reference range is the 16 bars BEFORE it
+      //--- (i+1 .. i+16).  The delivered code used ONE fixed window (bars 3..18) for every
+      //--- candidate, so a candidate inside it (i = 3..6) was part of the range it had to close
+      //--- beyond - it could never break out - and only the last two bars could ever fire.
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 30, r) < 20) return false;
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 0, 30, r) < 24) return false;
       double hi = -1e18, lo = 1e18;
-      for(int i = 3; i < 19; i++)                                   // prior 16 bars = 4 hours
-      {
-         if(r[i].high > hi) hi = r[i].high;
-         if(r[i].low  < lo) lo = r[i].low;
-      }
       int    dir = 0;
       int    breakIdx = -1;
       double extreme = 0.0;
@@ -342,8 +341,14 @@ public:
          if(range <= 0.0) continue;
          double body = MathAbs(r[i].close - r[i].open) / range;
          if(body < 0.70) continue;
-         if(r[i].close > hi)      { dir = +1; breakIdx = i; extreme = r[i].high; break; }
-         if(r[i].close < lo)      { dir = -1; breakIdx = i; extreme = r[i].low;  break; }
+         double ch = -1e18, cl = 1e18;
+         for(int k = i + 1; k <= i + 16; k++)                       // the 4 hours BEFORE the candidate
+         {
+            if(r[k].high > ch) ch = r[k].high;
+            if(r[k].low  < cl) cl = r[k].low;
+         }
+         if(r[i].close > ch)      { dir = +1; breakIdx = i; extreme = r[i].high; hi = ch; lo = cl; break; }
+         if(r[i].close < cl)      { dir = -1; breakIdx = i; extreme = r[i].low;  hi = ch; lo = cl; break; }
       }
       if(dir == 0) return false;
       score += 1.0;
@@ -408,7 +413,7 @@ public:
       if(adx > 16.0) return false;
 
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 24, r) < 21) return false;
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 0, 24, r) < 21) return false;   // index k == bar k (r[1] = last closed)
       double sum = 0.0, sum2 = 0.0;
       for(int i = 1; i <= 20; i++) { sum += r[i].close; sum2 += r[i].close * r[i].close; }
       double sma = sum / 20.0;

@@ -116,7 +116,7 @@ public:
 
       //--- M1 momentum reversion: fade a completed extreme candle
       MqlRates r[];
-      int got = EA_Rates(ctx.symbol, PERIOD_M1, 1, 30, r);
+      int got = EA_Rates(ctx.symbol, PERIOD_M1, 0, 30, r);      // index k == bar k: r[1..3] are the last three CLOSED bars
       if(got < 20) return false;
 
       //--- one signal event per session: remember the extreme bar time we traded

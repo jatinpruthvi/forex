@@ -192,19 +192,34 @@ public:
             g_eaExec.Close(t, "unprotected exposure (review finding 10)");
          }
       }
-      //--- finding 5: external cashflow detection while flat and inactive
-      static double balanceRef = -1.0;
-      if(balanceRef < 0.0) balanceRef = AccountInfoDouble(ACCOUNT_BALANCE);
-      if(ctx.openPositionsAll == 0 && ctx.tradesToday == 0)
+      //--- finding 5: external cashflow detection.  The delivered rule compared the balance
+      //--- with a reference refreshed ONLY while flat with zero trades today, so the realised
+      //--- P/L of any ordinary trading day tripped it the next morning and halted the EA for
+      //--- that whole day (it traded roughly every other day).  Deposits, withdrawals, credits
+      //--- and corrections are balance-type DEALS in the history: look for exactly those.
+      static datetime cashflowScanFrom = 0;
+      datetime nowSrv = TimeTradeServer();
+      if(cashflowScanFrom == 0) cashflowScanFrom = nowSrv + 1;      // (the tester's opening deposit is not a cashflow)
+      else if(nowSrv - cashflowScanFrom >= 60)
       {
-         double bal = AccountInfoDouble(ACCOUNT_BALANCE);
-         if(MathAbs(bal - balanceRef) > 1.0)
+         if(HistorySelect(cashflowScanFrom, nowSrv + 60))
          {
-            EA_Log(EA_LOG_EVENTS, StringFormat("CRITICAL: unexplained balance change %.2f -> %.2f - halting for review",
-                   balanceRef, bal));
-            g_eaRisk.Halt("external cashflow / unauthorized history");
+            for(int d = HistoryDealsTotal() - 1; d >= 0; d--)
+            {
+               ulong dealTicket = HistoryDealGetTicket(d);
+               if(dealTicket == 0) continue;
+               long dealType = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
+               if(dealType == DEAL_TYPE_BALANCE || dealType == DEAL_TYPE_CREDIT ||
+                  dealType == DEAL_TYPE_CHARGE  || dealType == DEAL_TYPE_CORRECTION)
+               {
+                  EA_Log(EA_LOG_EVENTS, StringFormat("CRITICAL: external cashflow (deal #%I64u, %.2f) - halting for review",
+                         dealTicket, HistoryDealGetDouble(dealTicket, DEAL_PROFIT)));
+                  g_eaRisk.Halt("external cashflow / unauthorized history");
+                  break;
+               }
+            }
          }
-         balanceRef = bal;
+         cashflowScanFrom = nowSrv;
       }
    }
 };

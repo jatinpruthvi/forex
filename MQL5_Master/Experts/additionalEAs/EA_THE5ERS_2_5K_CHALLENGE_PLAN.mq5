@@ -136,7 +136,7 @@ public:
          if(ctx.atr <= 0.0) return false;
 
          MqlRates m[];
-         if(EA_Rates(ctx.symbol, PERIOD_M1, 1, 20, m) < 16) return false;
+         if(EA_Rates(ctx.symbol, PERIOD_M1, 0, 20, m) < 16) return false;   // index k == bar k (loop i = 1..3 = last 3 closed)
          for(int i = 1; i <= 3; i++)
          {
             double body = MathAbs(m[i].close - m[i].open);

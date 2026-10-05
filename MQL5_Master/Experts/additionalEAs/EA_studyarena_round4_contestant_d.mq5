@@ -163,7 +163,10 @@ public:
          if(range <= 0.0) continue;
          if(r[i].close > r[i + 1].high && body >= 0.60 * range) { brokeHigh = true; break; }
       }
-      if(sweptLow && brokeHigh) return BullPlan(ctx, plan, lo);
+      //--- the stop goes beyond the SWEEP EXTREME (the document: "beyond the sweep extreme plus one
+      //--- spread"); the delivered call passed the range edge, which sits INSIDE the wick whenever
+      //--- the sweep went deeper than 0.1 ATR
+      if(sweptLow && brokeHigh) return BullPlan(ctx, plan, r[3].low);
       bool sweptHigh = (r[3].high > hi && r[2].close < hi);
       bool brokeLow  = false;
       for(int i = 0; i < 3; i++)
@@ -173,7 +176,7 @@ public:
          if(range <= 0.0) continue;
          if(r[i].close < r[i + 1].low && body >= 0.60 * range) { brokeLow = true; break; }
       }
-      if(sweptHigh && brokeLow) return BearPlan(ctx, plan, hi);
+      if(sweptHigh && brokeLow) return BearPlan(ctx, plan, r[3].high);
       return false;
    }
 

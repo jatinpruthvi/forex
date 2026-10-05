@@ -131,10 +131,14 @@ public:
    bool TradedThisSession(const string sym)
    {
       if(!HistorySelect(TimeCurrent() - 24 * 3600, TimeCurrent())) return false;
+      //--- the session start is a LONDON-clock minute: convert it to the server clock.  The
+      //--- delivered code subtracted a London session start from a SERVER time-of-day, so the
+      //--- counted window began a whole broker offset early and the previous session's closed
+      //--- trades counted against this one's limit.
       MqlDateTime dt;
-      TimeToStruct(TimeTradeServer(), dt);
-      int nowMin = dt.hour * 60 + dt.min;
-      datetime from = TimeTradeServer() - (datetime)(MathMax(0, nowMin - 7 * 60) * 60);
+      TimeToStruct(EA_ClockNow(), dt);
+      dt.hour = 7; dt.min = 0; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
       for(int i = 0; i < HistoryDealsTotal(); i++)
       {
          ulong t = HistoryDealGetTicket(i);

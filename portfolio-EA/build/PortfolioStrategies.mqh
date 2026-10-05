@@ -114,7 +114,9 @@ public:
       int lookback = (ctx.clockMinutes - 7 * 60) / 5 + 4;
       if(lookback > 300) lookback = 300;
       MqlRates r[];
-      int got = EA_Rates(ctx.symbol, PERIOD_M5, 1, lookback, r);
+      //--- series index k == bar k (r[0] = the forming bar): the loops below reject ri/di < 1.
+      //--- Fetching from bar 1 made every pattern one bar late.
+      int got = EA_Rates(ctx.symbol, PERIOD_M5, 0, lookback + 1, r);
       if(got < 4) return false;
 
       double sweepMin = PairSweepMinAtr(ctx.symbol) * ctx.atr;
@@ -290,7 +292,10 @@ public:
          bool   isBuy  = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
          double sl     = PositionGetDouble(POSITION_SL);
          datetime opened = (datetime)PositionGetInteger(POSITION_TIME);
-         bool   exitCh = isBuy ? (r[1].close < l) : (r[1].close > h);
+         //--- r[0] = yesterday's close, the channel is r[1..N]: exactly the entry's geometry.  The
+         //--- delivered test used r[1], a bar that is part of the channel, so `r[1].close < l`
+         //--- (or `> h`) could never be true and the documented exit never fired.
+         bool   exitCh = isBuy ? (r[0].close < l) : (r[0].close > h);
 
          double extreme = PositionGetDouble(POSITION_PRICE_OPEN);
          for(int i = 0; i < ArraySize(r); i++)
@@ -407,7 +412,7 @@ public:
 
       //--- M1 momentum reversion: fade a completed extreme candle
       MqlRates r[];
-      int got = EA_Rates(ctx.symbol, PERIOD_M1, 1, 30, r);
+      int got = EA_Rates(ctx.symbol, PERIOD_M1, 0, 30, r);      // index k == bar k: r[1..3] are the last three CLOSED bars
       if(got < 20) return false;
 
       //--- one signal event per session: remember the extreme bar time we traded
@@ -796,7 +801,7 @@ public:
          if(ctx.atr <= 0.0) return false;
 
          MqlRates m[];
-         if(EA_Rates(ctx.symbol, PERIOD_M1, 1, 20, m) < 16) return false;
+         if(EA_Rates(ctx.symbol, PERIOD_M1, 0, 20, m) < 16) return false;   // index k == bar k (loop i = 1..3 = last 3 closed)
          for(int i = 1; i <= 3; i++)
          {
             double body = MathAbs(m[i].close - m[i].open);
@@ -2041,19 +2046,34 @@ public:
             g_eaExec.Close(t, "unprotected exposure (review finding 10)");
          }
       }
-      //--- finding 5: external cashflow detection while flat and inactive
-      static double balanceRef = -1.0;
-      if(balanceRef < 0.0) balanceRef = AccountInfoDouble(ACCOUNT_BALANCE);
-      if(ctx.openPositionsAll == 0 && ctx.tradesToday == 0)
+      //--- finding 5: external cashflow detection.  The delivered rule compared the balance
+      //--- with a reference refreshed ONLY while flat with zero trades today, so the realised
+      //--- P/L of any ordinary trading day tripped it the next morning and halted the EA for
+      //--- that whole day (it traded roughly every other day).  Deposits, withdrawals, credits
+      //--- and corrections are balance-type DEALS in the history: look for exactly those.
+      static datetime cashflowScanFrom = 0;
+      datetime nowSrv = TimeTradeServer();
+      if(cashflowScanFrom == 0) cashflowScanFrom = nowSrv + 1;      // (the tester's opening deposit is not a cashflow)
+      else if(nowSrv - cashflowScanFrom >= 60)
       {
-         double bal = AccountInfoDouble(ACCOUNT_BALANCE);
-         if(MathAbs(bal - balanceRef) > 1.0)
+         if(HistorySelect(cashflowScanFrom, nowSrv + 60))
          {
-            EA_Log(EA_LOG_EVENTS, StringFormat("CRITICAL: unexplained balance change %.2f -> %.2f - halting for review",
-                   balanceRef, bal));
-            g_eaRisk.Halt("external cashflow / unauthorized history");
+            for(int d = HistoryDealsTotal() - 1; d >= 0; d--)
+            {
+               ulong dealTicket = HistoryDealGetTicket(d);
+               if(dealTicket == 0) continue;
+               long dealType = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
+               if(dealType == DEAL_TYPE_BALANCE || dealType == DEAL_TYPE_CREDIT ||
+                  dealType == DEAL_TYPE_CHARGE  || dealType == DEAL_TYPE_CORRECTION)
+               {
+                  EA_Log(EA_LOG_EVENTS, StringFormat("CRITICAL: external cashflow (deal #%I64u, %.2f) - halting for review",
+                         dealTicket, HistoryDealGetDouble(dealTicket, DEAL_PROFIT)));
+                  g_eaRisk.Halt("external cashflow / unauthorized history");
+                  break;
+               }
+            }
          }
-         balanceRef = bal;
+         cashflowScanFrom = nowSrv;
       }
    }
 };
@@ -2367,15 +2387,14 @@ public:
       if(atrNow < p60 || atrNow > p90) return false;
       score += 1.0;
 
-      //--- filter 2/4: M15 close beyond the 4-hour range with body >= 70%
+      //--- filter 2/4: M15 close beyond the 4-hour range with body >= 70%.  Index k == bar k
+      //--- (fetched from bar 0).  A candidate's reference range is the 16 bars BEFORE it
+      //--- (i+1 .. i+16).  The delivered code used ONE fixed window (bars 3..18) for every
+      //--- candidate, so a candidate inside it (i = 3..6) was part of the range it had to close
+      //--- beyond - it could never break out - and only the last two bars could ever fire.
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 30, r) < 20) return false;
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 0, 30, r) < 24) return false;
       double hi = -1e18, lo = 1e18;
-      for(int i = 3; i < 19; i++)                                   // prior 16 bars = 4 hours
-      {
-         if(r[i].high > hi) hi = r[i].high;
-         if(r[i].low  < lo) lo = r[i].low;
-      }
       int    dir = 0;
       int    breakIdx = -1;
       double extreme = 0.0;
@@ -2385,8 +2404,14 @@ public:
          if(range <= 0.0) continue;
          double body = MathAbs(r[i].close - r[i].open) / range;
          if(body < 0.70) continue;
-         if(r[i].close > hi)      { dir = +1; breakIdx = i; extreme = r[i].high; break; }
-         if(r[i].close < lo)      { dir = -1; breakIdx = i; extreme = r[i].low;  break; }
+         double ch = -1e18, cl = 1e18;
+         for(int k = i + 1; k <= i + 16; k++)                       // the 4 hours BEFORE the candidate
+         {
+            if(r[k].high > ch) ch = r[k].high;
+            if(r[k].low  < cl) cl = r[k].low;
+         }
+         if(r[i].close > ch)      { dir = +1; breakIdx = i; extreme = r[i].high; hi = ch; lo = cl; break; }
+         if(r[i].close < cl)      { dir = -1; breakIdx = i; extreme = r[i].low;  hi = ch; lo = cl; break; }
       }
       if(dir == 0) return false;
       score += 1.0;
@@ -2451,7 +2476,7 @@ public:
       if(adx > 16.0) return false;
 
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 24, r) < 21) return false;
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 0, 24, r) < 21) return false;   // index k == bar k (r[1] = last closed)
       double sum = 0.0, sum2 = 0.0;
       for(int i = 1; i <= 20; i++) { sum += r[i].close; sum2 += r[i].close * r[i].close; }
       double sma = sum / 20.0;
@@ -3806,7 +3831,9 @@ public:
       ob.Reset();
       ob.lookbackBars = 16; ob.displacementBody = 0.45;
       ob.touchTolAtr = 0.35; ob.targetR = P2005_InpSweepRr;
-      ob.requireHtfBias = true; ob.tradeBothWays = (htfBias > 0);
+      //--- one-sided search: the delivered `tradeBothWays = (htfBias > 0)` switched the bearish
+      //--- branch OFF exactly when the bias was bearish, so this EA could never go short
+      ob.requireHtfBias = true; ob.onlyDir = htfBias;
       SSignalPlan obPlan;
       if(!SigOrderBlockRetest(ctx, ob, obPlan)) return false;
       if(obPlan.dir != htfBias) return false;
@@ -3886,7 +3913,7 @@ public:
       ob.touchTolAtr = 0.20; ob.stopBufferAtr = 0.10;
       ob.targetR = 1.50;                 // M5 engine target
       ob.requireHtfBias = true;
-      ob.tradeBothWays = (bias > 0);
+      ob.onlyDir = bias;                 // (was tradeBothWays = (bias > 0): shorts were impossible)
       if(!SigOrderBlockRetest(ctx, ob, plan)) return false;
       if(plan.dir != bias) return false;
 
@@ -4006,7 +4033,7 @@ public:
       f.impulseBody = 0.60; f.minGapAtr = 0.10;
       f.stopBufferAtr = 0.15; f.targetR = 6.0;      // runner targets 6-8R
       f.maxRetrace = 0.75;
-      f.tradeBothWays = (dirBias > 0);
+      f.onlyDir = dirBias;               // (was tradeBothWays = (dirBias > 0): shorts were impossible)
       if(!SigFvgRetest(ctx, f, plan)) return false;
       if(plan.dir != dirBias) return false;
 
@@ -4135,7 +4162,7 @@ public:
    bool SniperSetup(SEAContext &ctx, SSignalPlan &plan)
    {
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 40, r) < 25) return false;
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 40, r) < 30) return false;     // the loop below reads r[0..29]
       //--- volume surge vs 30-bar median
       double vols[];
       ArrayResize(vols, 30);
@@ -4205,6 +4232,18 @@ public:
 
    void SyncGamma(SEAContext &ctx)
    {
+      //--- the hedge is an OPPOSITE market order on the same symbol: on a netting account that
+      //--- does not hedge the runner, it closes (part of) it.  Hedging accounts only.
+      if(AccountInfoInteger(ACCOUNT_MARGIN_MODE) != ACCOUNT_MARGIN_MODE_RETAIL_HEDGING)
+      {
+         static bool warned = false;
+         if(!warned)
+         {
+            warned = true;
+            EA_Log(EA_LOG_ERRORS, "gamma scalp disabled: it needs a HEDGING account (a netting account would net the hedge against the runner)");
+         }
+         return;
+      }
       //--- 1) retire closed hedges and take profit on scalps that reached the target
       for(int i = m_hedgeCount - 1; i >= 0; i--)
       {
@@ -4789,6 +4828,11 @@ public:
 
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
+      //--- the regime (stop factor / risk) is derived from THIS symbol's context BEFORE any plan is
+      //--- shaped by it.  ApplyRegime() ran first and RegimeParams() only later, in LotsMultiplier(),
+      //--- so the stop factor came from whichever symbol was evaluated last.
+      RegimeParams(ctx);
+
       //--- Lever 4: spread-divergence signal (spread blow-out with direction = information)
       if(SpreadDivergence(ctx, plan)) return true;
 
@@ -4947,7 +4991,7 @@ public:
    {
       double score = 0.0;
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, (ENUM_TIMEFRAMES)g_eaCfg.signalTimeframe, 1, 20, r) < 5) return 0.0;
+      if(EA_Rates(ctx.symbol, (ENUM_TIMEFRAMES)g_eaCfg.signalTimeframe, 1, 20, r) < 16) return 0.0;   // reads r[1..15]
       //--- touches of the zone
       int touches = 0;
       for(int i = 1; i <= 15; i++)
@@ -5143,7 +5187,10 @@ public:
          if(range <= 0.0) continue;
          if(r[i].close > r[i + 1].high && body >= 0.60 * range) { brokeHigh = true; break; }
       }
-      if(sweptLow && brokeHigh) return BullPlan(ctx, plan, lo);
+      //--- the stop goes beyond the SWEEP EXTREME (the document: "beyond the sweep extreme plus one
+      //--- spread"); the delivered call passed the range edge, which sits INSIDE the wick whenever
+      //--- the sweep went deeper than 0.1 ATR
+      if(sweptLow && brokeHigh) return BullPlan(ctx, plan, r[3].low);
       bool sweptHigh = (r[3].high > hi && r[2].close < hi);
       bool brokeLow  = false;
       for(int i = 0; i < 3; i++)
@@ -5153,7 +5200,7 @@ public:
          if(range <= 0.0) continue;
          if(r[i].close < r[i + 1].low && body >= 0.60 * range) { brokeLow = true; break; }
       }
-      if(sweptHigh && brokeLow) return BearPlan(ctx, plan, hi);
+      if(sweptHigh && brokeLow) return BearPlan(ctx, plan, r[3].high);
       return false;
    }
 
@@ -5710,20 +5757,12 @@ public:
       return d[0].high - d[0].low;
    }
 
-   //--- percentile of today's Asian range among the last 60 sessions
+   //--- percentile of today's Asian range among the previous 60 ASIAN sessions.  The
+   //--- delivered body compared it with 60 full-day D1 ranges (always far larger), so the
+   //--- percentile sat near zero and the [20, 65] gate rejected almost every day.
    double AsiaRangePercentile(const string sym, const double todayRange)
    {
-      MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 60, d) < 30) return 50.0;
-      int below = 0, n = 0;
-      for(int i = 0; i < 60; i++)
-      {
-         double r = d[i].high - d[i].low;
-         if(r <= 0.0) continue;
-         n++;
-         if (todayRange >= r) below++;
-      }
-      return (n > 0) ? 100.0 * below / (double)n : 50.0;
+      return SigAsiaRangePercentile(sym, todayRange, 60);
    }
 
    //--- scale risk by the sleeve's budget allocation
@@ -5858,19 +5897,12 @@ public:
       return s[m_spreadCount / 2];
    }
 
+   //--- percentile of today's Asian range among the previous 60 ASIAN sessions.  The
+   //--- delivered body compared it with 60 full-day D1 ranges (always far larger), so the
+   //--- percentile sat near zero and the [20, 65] gate rejected almost every day.
    double AsiaRangePercentile(const string sym, const double todayRange)
    {
-      MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 60, d) < 30) return 50.0;
-      int below = 0, n = 0;
-      for(int i = 0; i < 60; i++)
-      {
-         double r = d[i].high - d[i].low;
-         if(r <= 0.0) continue;
-         n++;
-         if(todayRange >= r) below++;
-      }
-      return (n > 0) ? 100.0 * below / (double)n : 50.0;
+      return SigAsiaRangePercentile(sym, todayRange, 60);
    }
 
    //--- ranking table: H1+H4 trend agreement, sweep at prior-day extreme, cost
@@ -5993,9 +6025,10 @@ public:
    {
       MqlRates r[];
       int n = (int)P2017_InpLiquidityLookback;
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, n, r) < 10) return entry + dir * P2017_InpRunnerTargetR * stopDist;
+      int got = EA_Rates(ctx.symbol, PERIOD_M15, 1, n, r);
+      if(got < 10) return entry + dir * P2017_InpRunnerTargetR * stopDist;
       double best = 0.0;
-      for(int i = 0; i < n; i++)
+      for(int i = 0; i < got; i++)                   // (was `i < n`: a short history read past the array)
       {
          if(dir > 0 && r[i].high > entry)
          {
@@ -7072,7 +7105,10 @@ public:
       if(gapAbs < P2022_InpGapMinPoints || gapAbs > P2022_InpGapMaxPoints) return false;
 
       int dir = (gap > 0.0) ? -1 : +1;                 // fade the gap
-      double stopDist = 1.5 * gapAbs * ctx.point;      // 1.5x the gap in price units
+      //--- gapAbs is a PRICE difference (open - close), already in price units.  The delivered
+      //--- `1.5 * gapAbs * ctx.point` multiplied it by the point size again: on a 2-digit index
+      //--- symbol the stop sat 100x too close (sizing then took a 100x position for it).
+      double stopDist = 1.5 * gapAbs;
 
       plan.Reset();
       plan.dir      = dir;
@@ -7080,40 +7116,51 @@ public:
       plan.riskDist = stopDist;
       plan.stop     = (dir > 0) ? plan.entry - stopDist : plan.entry + stopDist;
       plan.target   = priorClose;                      // exact gap fill
+      //--- evaluated on every M5 bar of the window, so by 10:55 the gap may be long gone: a
+      //--- target behind the entry is not a trade
+      if(dir > 0 && priorClose <= plan.entry) return false;
+      if(dir < 0 && priorClose >= plan.entry) return false;
       plan.score    = 70.0;
       plan.reason   = StringFormat("R7A-GAPFADE(%.0f pts)", gapAbs);
       return true;
    }
 
-   //--- close of the last session bar before 16:30 prior day
+   //--- close of the last bar that opened BEFORE 16:30 UK on the previous trading day.
+   //--- Three defects in the delivered version: (1) it compared SERVER minutes with the
+   //--- UK-clock input; (2) `>= 16:30` returned the day's FINAL bar (23:55), so the "gap"
+   //--- was the overnight move, not the cash-session gap the document defines; (3) the
+   //--- loop ran to a hard-coded 300 whatever CopyRates returned - an out-of-range read
+   //--- stops the whole EA (and, in the portfolio build, all 65 engines).
    double PriorCashClose(const string sym)
    {
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M5, 1, 300, r) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_M5, 1, 600, r);          // r[0] = last closed bar
+      if(got < 10) return 0.0;
       MqlDateTime now;
-      TimeToStruct(TimeTradeServer(), now);
-      for(int i = 0; i < 300; i++)
+      TimeToStruct(EA_ClockNow(), now);                       // UK wall clock
+      for(int i = 0; i < got; i++)
       {
          MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         if(t.day == now.day) continue;                      // yesterday or older
-         if(t.hour * 60 + t.min >= P2022_InpPriorCashCloseMin) return r[i].close;
+         TimeToStruct(EA_BarClockTime(r[i].time), t);         // the bar on the UK clock
+         if(t.year == now.year && t.mon == now.mon && t.day == now.day) continue;   // today's bars
+         if(t.hour * 60 + t.min < P2022_InpPriorCashCloseMin) return r[i].close;          // newest bar before 16:30
       }
       return 0.0;
    }
 
-   //--- open of the first bar at/after 08:00 today
+   //--- open of the first bar at/after 08:00 UK today (UK clock, not the server's: with a
+   //--- GMT+2 broker the delivered code took the 06:00 UK price as the "cash open")
    double CashOpen(const string sym)
    {
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M5, 0, 120, r) < 5) return 0.0;
+      if(EA_Rates(sym, PERIOD_M5, 0, 240, r) < 5) return 0.0;
       MqlDateTime now;
-      TimeToStruct(TimeTradeServer(), now);
+      TimeToStruct(EA_ClockNow(), now);
       for(int i = ArraySize(r) - 1; i >= 0; i--)
       {
          MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         if(t.day != now.day) continue;
+         TimeToStruct(EA_BarClockTime(r[i].time), t);
+         if(t.year != now.year || t.mon != now.mon || t.day != now.day) continue;
          if(t.hour * 60 + t.min >= P2022_InpCashOpenMin) return r[i].open;
       }
       return 0.0;
@@ -7528,12 +7575,13 @@ public:
    double MedianDailyRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 };
 
@@ -7631,12 +7679,13 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    bool H1BiasAgrees(SEAContext &ctx)
@@ -7796,37 +7845,40 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    //--- range of the most recent completed session between two clock minutes
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
@@ -8190,9 +8242,11 @@ public:
 
       //--- displacement candle must close in its upper/lower 25%
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 6, r) < 6) return false;
-      bool strongClose = (plan.dir > 0) ? (r[0].close > r[0].low + 0.75 * (r[0].high - r[0].low))
-                                        : (r[0].close < r[0].low + 0.25 * (r[0].high - r[0].low));
+      if(EA_Rates(ctx.symbol, PERIOD_M5, 0, 6, r) < 6) return false;
+      //--- the DISPLACEMENT candle is bar plan.barsAgo (1..3), not always the last closed one
+      int db = (int)MathMax(1, MathMin(plan.barsAgo, 5));
+      bool strongClose = (plan.dir > 0) ? (r[db].close > r[db].low + 0.75 * (r[db].high - r[db].low))
+                                        : (r[db].close < r[db].low + 0.25 * (r[db].high - r[db].low));
       if(!strongClose) return false;
       plan.reason = "R8D-ONESHOT " + plan.reason;
       return true;
@@ -8853,8 +8907,8 @@ public:
       if(ctx.riskPct <= 0.0) return 0.0;
       double risk = P2033_InpBaseRiskPct;
       double equity = ctx.equity;
-      double hwm = GlobalVariableGet("R10KIMI_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R10KIMI_HWM", MathMax(equity, hwm)); return 1.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R10KIMI", false));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R10KIMI", false), MathMax(equity, hwm)); return 1.0; }
       if(hwm > 0.0 && equity < hwm * (1.0 - P2033_InpThrottleAfterPct / 100.0)) risk *= 0.50;
       return MathMax(0.0, risk / ctx.riskPct);
    }
@@ -9027,37 +9081,40 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    //--- range of the most recent completed session between two clock minutes
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
@@ -9242,12 +9299,14 @@ public:
    int TradesThisSession(const int sessFrom)
    {
       if(!HistorySelect(TimeCurrent() - 3 * 24 * 3600, TimeCurrent())) return 0;
+      //--- the session start is a LONDON-clock minute: convert it to the server clock.  The
+      //--- delivered code subtracted a London session start from a SERVER time-of-day, so the
+      //--- counted window began a whole broker offset early and the previous session's closed
+      //--- trades counted against this one's limit.
       MqlDateTime dt;
-      TimeToStruct(TimeTradeServer(), dt);
-      int nowMin = dt.hour * 60 + dt.min;
-      int elapsed = nowMin - sessFrom;
-      if(elapsed < 0) elapsed = 0;
-      datetime from = TimeTradeServer() - (datetime)(elapsed * 60);
+      TimeToStruct(EA_ClockNow(), dt);
+      dt.hour = sessFrom / 60; dt.min = sessFrom % 60; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
       int n = 0;
       for(int i = 0; i < HistoryDealsTotal(); i++)
       {
@@ -9500,8 +9559,8 @@ public:
    double DrawdownPct()
    {
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double hwm = GlobalVariableGet("R11C_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R11C_HWM", MathMax(equity, hwm)); return 0.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R11C", false));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R11C", false), MathMax(equity, hwm)); return 0.0; }
       if(hwm <= 0.0) return 0.0;
       return 100.0 * (hwm - equity) / hwm;
    }
@@ -9634,8 +9693,8 @@ public:
       if(!RetireCheck()) return 0.0;                     // auto-retired
       if(ctx.riskPct <= 0.0) return 0.0;
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double hwm = GlobalVariableGet("R11D_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R11D_HWM", MathMax(equity, hwm)); return 1.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R11D", false));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R11D", false), MathMax(equity, hwm)); return 1.0; }
       double dd = 100.0 * (hwm - equity) / hwm;
       int steps = (int)MathFloor(dd / P2038_InpThrottleStepPct);
       double mult = MathPow(0.5, steps);
@@ -9771,8 +9830,8 @@ public:
    double DrawdownPct()
    {
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double hwm = GlobalVariableGet("R11E_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R11E_HWM", MathMax(equity, hwm)); return 0.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R11E", true));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R11E", true), MathMax(equity, hwm)); return 0.0; }
       if(hwm <= 0.0) return 0.0;
       return 100.0 * (hwm - equity) / hwm;
    }
@@ -10040,6 +10099,10 @@ public:
       p.entryRetrace = 0.50; p.targetR = 2.0;
       if(!SigSweepReclaim(ctx, p, plan)) return false;
       if(!BiasGate(ctx, plan.dir)) return false;
+      {
+         double sweepVol = SigSweepVolumeRatio(ctx, plan.sweepBarsAgo);      // doc: sweep-candle participation
+         if(sweepVol > 0.0 && sweepVol < P2041_InpSweepVolumeX) return false;
+      }
       plan.reason = "R12FABLE-SWEEP1 " + plan.reason;
       return true;
    }
@@ -10072,36 +10135,39 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
@@ -10110,18 +10176,15 @@ public:
       return found;
    }
 
-   //--- cost/flow gate: spread vs 20-day average, sweep volume vs 20-candle average
+   //--- cost gate: spread vs its rolling average.  (The sweep-volume half of the old
+   //--- FlowGate ran BEFORE the signal, so it could only look at the last closed bar; it now
+   //--- runs after SigSweepReclaim, on the sweep candle the document names.)
    bool FlowGate(SEAContext &ctx)
    {
       PushSpread(ctx.spreadPoints);
       double avgSpread = AverageSpread();
       if(avgSpread > 0.0 && ctx.spreadPoints > P2041_InpSpreadAvgX * avgSpread) return false;
-      MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 22, r) < 21) return false;
-      double vsum = 0.0;
-      for(int i = 1; i <= 20; i++) vsum += (double)r[i].tick_volume;
-      double vavg = vsum / 20.0;
-      return (vavg <= 0.0 || r[0].tick_volume >= P2041_InpSweepVolumeX * vavg);
+      return true;
    }
 
    double m_spreads[120];
@@ -10226,7 +10289,6 @@ public:
       if(asianPair && ctx.adxH1 < 16.0) score++;                          // H1 ADX waiver (doc)
       else if(BiasIntact(ctx)) score++;                                   // 2 bias
       if(SpreadGate(ctx)) score++;                                        // 6 spread gate
-      if(ParticipationGate(ctx)) score++;                                 // 7 participation
 
       SSweepParams p;
       p.Reset();
@@ -10238,7 +10300,11 @@ public:
       p.stopBufferAtr = 0.10; p.minStopAtr = 0.60; p.maxStopAtr = 1.50;
       p.entryRetrace = 0.50; p.targetR = 2.0;
       if(!SigSweepReclaim(ctx, p, plan)) return false;
-      score += 2;                                                          // sweep + displacement
+      //--- filters 3 (sweep), 4 (rejection) and 5 (displacement) are ALL hard-gated by a
+      //--- successful SigSweepReclaim - that is THREE points.  The delivered `+= 2` capped the
+      //--- board at 7 of 8, so "score >= 7" demanded a perfect run instead of allowing one miss.
+      score += 3;
+      if(ParticipationGate(ctx, plan)) score++;                            // 7 participation (sweep candle)
       if(!CorrelatedPositionOpen(ctx)) score++;                            // 8 clean book
       if(score < P2042_InpMinScore) return false;
       plan.score  = score * 12.5;
@@ -10264,36 +10330,39 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
@@ -10341,14 +10410,11 @@ public:
       return false;
    }
 
-   bool ParticipationGate(SEAContext &ctx)
+   //--- doc filter 7: the SWEEP candle's tick volume (the delivered gate read the last closed bar)
+   bool ParticipationGate(SEAContext &ctx, const SSignalPlan &plan)
    {
-      MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 22, r) < 21) return true;
-      double vsum = 0.0;
-      for(int i = 1; i <= 20; i++) vsum += (double)r[i].tick_volume;
-      double vavg = vsum / 20.0;
-      return (vavg <= 0.0 || r[0].tick_volume >= P2042_InpSweepVolumeX * vavg);
+      double ratio = SigSweepVolumeRatio(ctx, plan.sweepBarsAgo);
+      return (ratio <= 0.0 || ratio >= P2042_InpSweepVolumeX);      // not measurable: fail open (as before)
    }
 
    bool CorrelatedPositionOpen(SEAContext &ctx)
@@ -10477,8 +10543,8 @@ public:
    double DrawdownPct()
    {
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double hwm = GlobalVariableGet("R12B_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R12B_HWM", MathMax(equity, hwm)); return 0.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R12B", true));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R12B", true), MathMax(equity, hwm)); return 0.0; }
       if(hwm <= 0.0) return 0.0;
       return 100.0 * (hwm - equity) / hwm;
    }
@@ -10601,10 +10667,14 @@ public:
    bool TradedThisSession(const string sym)
    {
       if(!HistorySelect(TimeCurrent() - 24 * 3600, TimeCurrent())) return false;
+      //--- the session start is a LONDON-clock minute: convert it to the server clock.  The
+      //--- delivered code subtracted a London session start from a SERVER time-of-day, so the
+      //--- counted window began a whole broker offset early and the previous session's closed
+      //--- trades counted against this one's limit.
       MqlDateTime dt;
-      TimeToStruct(TimeTradeServer(), dt);
-      int nowMin = dt.hour * 60 + dt.min;
-      datetime from = TimeTradeServer() - (datetime)(MathMax(0, nowMin - 7 * 60) * 60);
+      TimeToStruct(EA_ClockNow(), dt);
+      dt.hour = 7; dt.min = 0; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
       for(int i = 0; i < HistoryDealsTotal(); i++)
       {
          ulong t = HistoryDealGetTicket(i);
@@ -10724,36 +10794,39 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
@@ -10793,13 +10866,8 @@ public:
       double costR = (plan.riskDist > 0.0) ? (ctx.spreadPoints * ctx.point) / plan.riskDist : 1.0;
       if(costR <= 0.10) score++;
       if(ctx.atrD1 > 0.0 && ctx.atr > 0.35 * ctx.atrD1) score++;
-      MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 22, r) >= 21)
-      {
-         double vsum = 0.0;
-         for(int i = 1; i <= 20; i++) vsum += (double)r[i].tick_volume;
-         if(vsum > 0.0 && r[0].tick_volume >= 1.2 * (vsum / 20.0)) score++;
-      }
+      //--- participation = the SWEEP candle's volume (not the last closed bar's)
+      if(SigSweepVolumeRatio(ctx, plan.sweepBarsAgo) >= 1.2) score++;
       return MathMin(score, 8);
    }
 };
@@ -10918,36 +10986,39 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }
@@ -11008,12 +11079,14 @@ public:
    int TradesThisSession(const int sessFrom)
    {
       if(!HistorySelect(TimeCurrent() - 3 * 24 * 3600, TimeCurrent())) return 0;
+      //--- the session start is a LONDON-clock minute: convert it to the server clock.  The
+      //--- delivered code subtracted a London session start from a SERVER time-of-day, so the
+      //--- counted window began a whole broker offset early and the previous session's closed
+      //--- trades counted against this one's limit.
       MqlDateTime dt;
-      TimeToStruct(TimeTradeServer(), dt);
-      int nowMin = dt.hour * 60 + dt.min;
-      int elapsed = nowMin - sessFrom;
-      if(elapsed < 0) elapsed += 24 * 60;
-      datetime from = TimeTradeServer() - (datetime)(elapsed * 60);
+      TimeToStruct(EA_ClockNow(), dt);
+      dt.hour = sessFrom / 60; dt.min = sessFrom % 60; dt.sec = 0;
+      datetime from = EA_ClockToServer(StructToTime(dt));
       int n = 0;
       for(int i = 0; i < HistoryDealsTotal(); i++)
       {

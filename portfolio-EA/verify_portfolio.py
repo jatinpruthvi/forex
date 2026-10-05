@@ -674,13 +674,16 @@ def main() -> int:
     expo = rg[rg.index("2. Sum Pending Orders (CRITICAL"):rg.index("return exposure;")]
     check("order.OrderType()" in expo and "m_position.PositionType()" not in expo,
           "a pending order's risk-free test must use the ORDER's own type (#4)")
-    daily = rg[rg.index("double CRiskGovernor::GetDailyRealizedPnL()"):rg.index("void CRiskGovernor::CloseAllPositions()")]
+    _end = next((m for m in ("int CRiskGovernor::CloseAllPositions()", "void CRiskGovernor::CloseAllPositions()")
+                 if m in rg), "")
+    daily = (rg[rg.index("double CRiskGovernor::GetDailyRealizedPnL()"):rg.index(_end)]
+             if _end and "double CRiskGovernor::GetDailyRealizedPnL()" in rg else "")
     check("StartOfServerDay()" in daily and "DEAL_MAGIC" in daily and "DEAL_ENTRY_OUT_BY" in daily,
           "GetDailyRealizedPnL must use the server day start and filter by magic (#14)")
 
     e1 = (REPO / "MQL5_Master" / "Include" / "E1_SMC_Core.mqh").read_text(encoding="utf-8")
     sweep = e1[e1.index("bool CE1SMCCore::DetectLiquiditySweep("):e1.index("bool CE1SMCCore::DetectM15CHoCH(")]
-    check("CopyRates(symbol, PERIOD_M15, 1, 60, r)" in sweep and
+    check("CopyRates(symbol, PERIOD_M15, 1, 70, r)" in sweep and
           "priorExtreme" in sweep and sweep.count("return false") >= 3,
           "DetectLiquiditySweep must implement the sweep precondition, not just return true (#5)")
     check("PERIOD_M15, SERIES_LASTBAR_DATE" in e1 and "PERIOD_CURRENT, SERIES_LASTBAR_DATE" not in e1,
@@ -800,6 +803,118 @@ def main() -> int:
     em = (REPO / "MQL5_Master" / "Include" / "ExecutionManager.mqh").read_text(encoding="utf-8")
     check("today's DEVELOPING range" in em,
           "the daily-range vintage must be stated truthfully in the code (#15)")
+
+    # 13m - top-25 sweep #2: compile blockers + strategy-logic defects ---------
+    # Found by reading the strategy classes line by line (docs/EA_TOP25_BUGS_2.md).  Sixteen
+    # EAs - and so the one-program portfolio - could not compile; the rest are logic defects
+    # that fail silently.  Each check pins one fix so the defect cannot quietly return.
+    def code(text: str) -> str:
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+        return re.sub(r"//[^\n]*", "", text)
+
+    inc = REPO / "MQL5_Master" / "Include"
+    sig = (inc / "EASignals.mqh").read_text(encoding="utf-8")
+    core = (inc / "EACore.mqh").read_text(encoding="utf-8")
+    common = (inc / "EACommon.mqh").read_text(encoding="utf-8")
+    ads = REPO / "MQL5_Master" / "Experts" / "additionalEAs"
+    eas = {p.stem: p.read_text(encoding="utf-8") for p in sorted(ads.glob("*.mq5"))}
+    delivered = [t for n, t in eas.items() if n in {m["ea"] for m in gpe.load_registry()}] \
+        if hasattr(gpe, "load_registry") else list(eas.values())
+    chk_src = (REPO / "scripts" / "check_mql5_source.py").read_text(encoding="utf-8")
+    for rule in ("def check_identifiers(", "def check_members(", "def check_duplicate_declarations(",
+                 "def check_undeclared_variables(", "RESERVED_DECL_RE"):
+        check(rule in chk_src, f"the repo checker must carry the compile-class rule {rule}")
+    pull = sig[sig.index("struct SEmaPullbackParams"):sig.index("bool SigEmaPullback(")] \
+        if "struct SEmaPullbackParams" in sig and "bool SigEmaPullback(" in sig else ""
+    assigned = set()
+    for t in eas.values():
+        assigned |= set(re.findall(r"\bep\.(\w+)\s*=", t))
+    check(all(re.search(r"\b(?:bool|int|double)\s+" + m + r"\b", pull) for m in assigned) and assigned,
+          "every member an EA assigns on SEmaPullbackParams must be declared (13 EAs did not compile)")
+    check(re.search(r"double\s+adxD1;", core) is not None and "EA_Buf(ind.hAdxD1, 0, 1, ctx.adxD1);" in common,
+          "the daily ADX must exist in SEAContext and be filled (R4B read ctx.adxD1)")
+    r5b = code(eas.get("EA_studyarena_round5_contestant_b", ""))
+    check(re.search(r"\bbool\s+(long|short)\b", r5b) is None and "bool goLong" in r5b,
+          "R5B must not name variables after MQL5 data types (long/short are reserved words)")
+    check(all(re.search(r"\bEA_MAX_SYM\b", code(t)) is None for t in eas.values()),
+          "EA_MAX_SYM does not exist (EA_MAX_SYMBOLS does) - R10FABLE did not compile")
+    r8b = eas.get("EA_studyarena_round8_contestant_b", "")
+    check("input double InpAplusScore" in r8b and "g_eaRisk.MonthStartEquity()" in r8b and
+          "freeRoll && m_setupScore >= InpAplusScore" in r8b,
+          "R8B must declare its booster inputs and honour the document's month >= +5% rule")
+    check(re.search(r"input bool\s+InpSummary\b", (HERE / "gen_portfolio_ea.py").read_text(encoding="utf-8")) is not None,
+          "the portfolio host must declare InpSummary (its init loop reads it)")
+
+    ob = sig[sig.index("bool SigOrderBlockRetest("):sig.index("//| 16. FAIR-VALUE-GAP")] \
+        if "bool SigOrderBlockRetest(" in sig and "//| 16. FAIR-VALUE-GAP" in sig else ""
+    check("p.onlyDir >= 0" in ob and "r[j].close < block.low" in ob and "r[j].close > block.high" in ob,
+          "the order-block detector needs a one-sided search and a block-failure test")
+    check(all(re.search(r"tradeBothWays\s*=\s*\((?:htfBias|bias|dirBias) > 0\)", code(t)) is None
+              for t in eas.values()),
+          "tradeBothWays = (bias > 0) switches the bearish branch off - R2C/R3A/R3B could never short")
+    brk = sig[sig.index("bool SigBreakRetest("):sig.index("//| 8. VWAP REVERSION")] \
+        if "bool SigBreakRetest(" in sig and "//| 8. VWAP REVERSION" in sig else ""
+    check("for(int k = 2;" in brk and "for(int j = k - 1; j >= 1; j--)" in brk,
+          "the retest must be a LATER bar than the break, not the breakout candle itself")
+    check("int SigAsianRangeHistory(" in sig and "double SigAsiaRangePercentile(" in sig and
+          all("return SigAsiaRangePercentile(sym, todayRange, 60);" in eas.get(n, "")
+              for n in ("EA_studyarena_round5_contestant_a", "EA_studyarena_round5_contestant_a_2047")),
+          "R5A/R5A2 must rank the Asian range against past ASIAN ranges, not full-day ranges")
+    check(all("ArrayResize(s, 20);" not in code(t) for t in eas.values()) and
+          all("i < 400" not in code(t) for t in eas.values()),
+          "no loop may run past what CopyRates returned (out-of-range stops the EA / the whole portfolio)")
+    check(all("EA_MinutesOfDay(EA_BarClockTime(r[i].time))" in code(t)
+              for t in eas.values() if "bool RangeBetween(" in t),
+          "RangeBetween must compare London-clock minutes, not raw server minutes")
+    r7a = code(eas.get("EA_studyarena_round7_contestant_a", ""))
+    check("double stopDist = 1.5 * gapAbs;" in r7a and "gapAbs * ctx.point" not in r7a and "i < 300" not in r7a and
+          "EA_BarClockTime(r[i].time)" in r7a and "priorClose <= plan.entry" in r7a,
+          "R7A: stop in price units, UK-clock cash open/close, bounded loop, no stale target")
+    gold = code(eas.get("EA_FINAL_OPTIMUM_STRATEGY", ""))
+    check("isBuy ? (r[0].close < l) : (r[0].close > h)" in gold and "r[1].close < l" not in gold,
+          "the gold opposite-channel exit must test yesterday's close against the channel it is outside of")
+    surv = code(eas.get("EA_TRIAD_SURVIVE", ""))
+    check("for(int k = i + 1; k <= i + 16; k++)" in surv and "for(int i = 3; i < 19; i++)" not in surv,
+          "TRIAD_SURVIVE sleeve B needs a reference range per candidate")
+    check("EA_Rates(ctx.symbol, PERIOD_M1, 0, 30, r)" in code(eas.get("EA_THE5ERS_CHALLENGE_STRATEGY_V2", "")) and
+          "EA_Rates(ctx.symbol, PERIOD_M1, 0, 20, m)" in code(eas.get("EA_THE5ERS_2_5K_CHALLENGE_PLAN", "")) and
+          "PERIOD_M5, 0, lookback + 1, r)" in gold and "PERIOD_M15, 0, 24, r) < 21" in surv,
+          "detectors that loop from index 1 must fetch from bar 0 (one-bar-late fix)")
+    check("BullPlan(ctx, plan, r[3].low)" in code(eas.get("EA_studyarena_round4_contestant_d", "")),
+          "R4D must stop beyond the sweep wick, not the range edge")
+    kimi = code(eas.get("EA_TRIAD_R_HS_CODE_REVIEW", ""))
+    check("balanceRef" not in kimi and "DEAL_TYPE_BALANCE" in kimi,
+          "3110's external-cashflow rule must look for balance-type deals, not a stale balance reference")
+    check("string EA_HwmKey(const string tag, const bool monthly)" in sig and
+          all(re.search(r'GlobalVariable(?:Get|Set)\("R\w+_HWM"', code(t)) is None for t in eas.values()),
+          "equity high-water marks must be scoped by account + magic (and by month where the doc says so)")
+    r12a = code(eas.get("EA_studyarena_round12_contestant_a", ""))
+    check("score += 3;" in r12a and "score += 2;" not in r12a and "SigSweepVolumeRatio(ctx, plan.sweepBarsAgo)" in r12a,
+          "R12A's scoreboard must credit sweep + rejection + displacement (8 points, not 7)")
+    rgx = (inc / "RiskGovernor.mqh").read_text(encoding="utf-8")
+    flat = rgx[rgx.index("int CRiskGovernor::CloseAllPositions()"):rgx.index("double CRiskGovernor::GetTotalPortfolioHeat()")] \
+        if "int CRiskGovernor::CloseAllPositions()" in rgx and "double CRiskGovernor::GetTotalPortfolioHeat()" in rgx else ""
+    check("SetTypeFillingBySymbol(sym)" in flat and "return CountExposure();" in flat and
+          rgx.count("FlattenResidual();") >= 2 and "TimeCurrent() - m_lastFreezeLog >= 900" in rgx,
+          "the breaker flatten must be verified, retried until flat, and its freeze log throttled")
+    check("RiskGovernor.FlattenResidual();" in triad and "RiskGovernor.CloseAllPositions();" not in code(triad),
+          "the Friday auto-close must retry until flat, not fire once")
+    e1b = (inc / "E1_SMC_Core.mqh").read_text(encoding="utf-8")
+    check("void CE1SMCCore::RegisterPlacement(bool placed)" in e1b and e1b.count("RegisterPlacement(placed);") == 2,
+          "E1 must consume a sweep only when the bracket was actually placed")
+    check("const int OFF = 10;" in e1b and "r[s - 10]" in e1b and "r[50]" not in e1b[e1b.index("bool CE1SMCCore::DetectLiquiditySweep("):e1b.index("bool CE1SMCCore::DetectM15CHoCH(")],
+          "the sweep's prior liquidity is the bars BEFORE the sweep candle (CopyRates is oldest-first)")
+    emx = (inc / "ExecutionManager.mqh").read_text(encoding="utf-8")
+    stg = code(emx[emx.index("void CExecutionManager::ManageStagedExits()"):emx.index("//| Manage Dead-Money Exit")]) \
+        if "void CExecutionManager::ManageStagedExits()" in emx and "//| Manage Dead-Money Exit" in emx else ""
+    check("if(m_trade.PositionClosePartial(ticket, partialVol)) partialDone = true;" in stg and
+          "if(!m_trade.PositionModify(ticket, newSL, tp))" in stg and "if(GlobalVariableCheck(gvName)) continue;" not in stg,
+          "staged exits must retry a failed partial / stop move instead of flagging them done")
+    check("ManageH1Bailout" not in emx and "MathFloor((totalLotSize / 2.0) / step + 1e-9) * step" in emx,
+          "no empty protective-exit stub; the lot split must not lose a step to IEEE rounding")
+    r4c2 = code(eas.get("EA_studyarena_round4_contestant_c__1_", ""))
+    check(r4c2.find("RegimeParams(ctx);") != -1 and r4c2.find("RegimeParams(ctx);") < r4c2.find("SpreadDivergence(ctx, plan)"),
+          "R4C2 must derive the regime from this symbol before the plan is shaped by it")
 
     ps1 = (REPO / "validation" / "mt5_harness" / "compile_all.ps1").read_text(encoding="utf-8")
     check('": information: result"' not in ps1 and "(?i):\\s*error" in ps1,

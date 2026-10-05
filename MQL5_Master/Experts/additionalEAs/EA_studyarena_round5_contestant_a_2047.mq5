@@ -135,19 +135,12 @@ public:
       return s[m_spreadCount / 2];
    }
 
+   //--- percentile of today's Asian range among the previous 60 ASIAN sessions.  The
+   //--- delivered body compared it with 60 full-day D1 ranges (always far larger), so the
+   //--- percentile sat near zero and the [20, 65] gate rejected almost every day.
    double AsiaRangePercentile(const string sym, const double todayRange)
    {
-      MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 60, d) < 30) return 50.0;
-      int below = 0, n = 0;
-      for(int i = 0; i < 60; i++)
-      {
-         double r = d[i].high - d[i].low;
-         if(r <= 0.0) continue;
-         n++;
-         if(todayRange >= r) below++;
-      }
-      return (n > 0) ? 100.0 * below / (double)n : 50.0;
+      return SigAsiaRangePercentile(sym, todayRange, 60);
    }
 
    //--- ranking table: H1+H4 trend agreement, sweep at prior-day extreme, cost

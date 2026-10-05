@@ -4,7 +4,8 @@ MQL5 cannot run in this sandbox, so the rules that were fixed are mirrored in
 Python and pinned against the *defect* they replace:
 
   #4  a pending order's risk-free test must use the ORDER's own type
-  #5  the liquidity sweep must be a real precondition (takeout + reclaim)
+  #5  the liquidity sweep must be a real precondition (takeout + reclaim) - see
+      tests/test_ict_smc_fixes.py for the corrected, time-ordered rule
   #6  heat/exposure count only this EA's magic
   #7  the news gate fails CLOSED on an unusable calendar; impact is case-insensitive
   #8  rows whose timestamp does not parse are rejected and counted
@@ -94,55 +95,25 @@ class PendingOrderRiskTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------- #5 / #11 -----
-def sweep_ok(rates, bias: int) -> bool:
-    """Mirror of DetectLiquiditySweep: bars 50..59 are prior liquidity, 1..49 the candidate."""
-    prior = min(r["low"] for r in rates[50:60]) if bias == 1 else max(r["high"] for r in rates[50:60])
-    idx, price = -1, (rates[1]["low"] if bias == 1 else rates[1]["high"])
-    for i in range(1, 50):
-        if bias == 1 and rates[i]["low"] <= price:
-            price, idx = rates[i]["low"], i
-        if bias == -1 and rates[i]["high"] >= price:
-            price, idx = rates[i]["high"], i
-    if idx < 0:
-        return False
-    if bias == 1:
-        return price < prior and rates[idx]["close"] > prior
-    return price > prior and rates[idx]["close"] < prior
-
-
-def make_rates(sweep_idx: int, sweep_bias: int, close_back: bool):
-    rates = [{"high": 1.1050, "low": 1.1000, "close": 1.1025} for _ in range(60)]
-    for i in range(50, 60):                      # prior liquidity floor 1.0950 / ceiling 1.1050
-        rates[i] = {"high": 1.1060, "low": 1.0950, "close": 1.1000}
-    for i in range(1, 50):
-        rates[i] = {"high": 1.1030, "low": 1.0990, "close": 1.1020}
-    if sweep_bias == 1:
-        rates[sweep_idx] = {"high": 1.1010, "low": 1.0930,
-                            "close": 1.0970 if close_back else 1.0940}
-    else:
-        rates[sweep_idx] = {"high": 1.1070, "low": 1.0990,
-                            "close": 1.1030 if close_back else 1.1060}
-    return rates
-
-
+# The #5 sweep precondition was re-done in top-25 sweep #2: the first implementation read
+# the "prior liquidity" from the NEWEST ten bars (CopyRates fills a plain array OLDEST-first,
+# so r[50..59] are the most recent bars) and this class used to pin that backwards rule as
+# correct.  The corrected mirror, its fixtures and the legacy contrast live in
+# tests/test_ict_smc_fixes.py (SweepDirectionOfTimeTests).  What stays here is the part of
+# #5 that was never in doubt: the rule is a real precondition and #11's two search
+# directions mirror each other.
 class SweepTests(unittest.TestCase):
-    def test_takeout_with_reclaim_is_a_sweep(self):
-        self.assertTrue(sweep_ok(make_rates(5, 1, True), 1))
-        self.assertTrue(sweep_ok(make_rates(7, -1, True), -1))
+    def test_the_sweep_rule_lives_in_the_corrected_tests(self):
+        spec = (REPO / "tests" / "test_ict_smc_fixes.py").read_text(encoding="utf-8")
+        self.assertIn("class SweepDirectionOfTimeTests", spec)
+        self.assertIn("def new_sweep_ok(", spec)
 
-    def test_breakdown_that_holds_is_not_a_sweep(self):
-        self.assertFalse(sweep_ok(make_rates(5, 1, False), 1))
-        self.assertFalse(sweep_ok(make_rates(7, -1, False), -1))
-
-    def test_no_takeout_fails_both_directions(self):
-        flat = make_rates(5, 1, True)
-        for r in flat:
-            r["low"] = max(r["low"], 1.0960)      # nothing below the prior floor 1.0950
-        self.assertFalse(sweep_ok(flat, 1))
-        flat2 = make_rates(7, -1, True)
-        for r in flat2:
-            r["high"] = min(r["high"], 1.1040)    # nothing above the prior ceiling 1.1050
-        self.assertFalse(sweep_ok(flat2, -1))
+    def test_the_source_is_a_real_precondition(self):
+        e1 = (REPO / "MQL5_Master" / "Include" / "E1_SMC_Core.mqh").read_text(encoding="utf-8")
+        fn = e1[e1.index("bool CE1SMCCore::DetectLiquiditySweep("):e1.index("bool CE1SMCCore::DetectM15CHoCH(")]
+        body = re.sub(r"//[^\n]*", "", fn)
+        self.assertGreaterEqual(body.count("return false"), 4)
+        self.assertIn("priorExtreme", body)
 
 
 # ---------------------------------------------------------------- #7 / #8 -----

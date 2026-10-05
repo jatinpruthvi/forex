@@ -93,9 +93,11 @@ public:
 
       //--- displacement candle must close in its upper/lower 25%
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M5, 1, 6, r) < 6) return false;
-      bool strongClose = (plan.dir > 0) ? (r[0].close > r[0].low + 0.75 * (r[0].high - r[0].low))
-                                        : (r[0].close < r[0].low + 0.25 * (r[0].high - r[0].low));
+      if(EA_Rates(ctx.symbol, PERIOD_M5, 0, 6, r) < 6) return false;
+      //--- the DISPLACEMENT candle is bar plan.barsAgo (1..3), not always the last closed one
+      int db = (int)MathMax(1, MathMin(plan.barsAgo, 5));
+      bool strongClose = (plan.dir > 0) ? (r[db].close > r[db].low + 0.75 * (r[db].high - r[db].low))
+                                        : (r[db].close < r[db].low + 0.25 * (r[db].high - r[db].low));
       if(!strongClose) return false;
       plan.reason = "R8D-ONESHOT " + plan.reason;
       return true;

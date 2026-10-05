@@ -126,8 +126,8 @@ public:
       if(ctx.riskPct <= 0.0) return 0.0;
       double risk = InpBaseRiskPct;
       double equity = ctx.equity;
-      double hwm = GlobalVariableGet("R10KIMI_HWM");
-      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet("R10KIMI_HWM", MathMax(equity, hwm)); return 1.0; }
+      double hwm = GlobalVariableGet(EA_HwmKey("R10KIMI", false));
+      if(hwm <= 0.0 || equity > hwm) { GlobalVariableSet(EA_HwmKey("R10KIMI", false), MathMax(equity, hwm)); return 1.0; }
       if(hwm > 0.0 && equity < hwm * (1.0 - InpThrottleAfterPct / 100.0)) risk *= 0.50;
       return MathMax(0.0, risk / ctx.riskPct);
    }

@@ -126,37 +126,40 @@ public:
    double MedianRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 
    //--- range of the most recent completed session between two clock minutes
    bool RangeBetween(const string sym, const int fromMin, const int toMin, double &hi, double &lo)
    {
+      //--- bar times are SERVER time, the windows are London-clock minutes: convert before
+      //--- comparing.  The delivered loop compared them raw - with a GMT+2 broker it measured
+      //--- 02:00-09:00 UK as "the 00:00-07:00 Asian range" - and ran to a hard-coded 400
+      //--- whatever CopyRates returned (an out-of-range read stops the EA, and in the
+      //--- portfolio build every engine with it).
       MqlRates r[];
-      if(EA_Rates(sym, PERIOD_M15, 1, 400, r) < 30) return false;
+      int got = EA_Rates(sym, PERIOD_M15, 1, 400, r);
+      if(got < 30) return false;
       bool wrap = (fromMin > toMin);
       int i = 0;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(inWin) break;
       }
-      if(i >= 400) return false;
+      if(i >= got) return false;
       hi = 0.0; lo = 0.0;
       bool found = false;
-      for(; i < 400; i++)
+      for(; i < got; i++)
       {
-         MqlDateTime t;
-         TimeToStruct(r[i].time, t);
-         int m = t.hour * 60 + t.min;
+         int m = EA_MinutesOfDay(EA_BarClockTime(r[i].time));
          bool inWin = wrap ? (m >= fromMin || m < toMin) : (m >= fromMin && m < toMin);
          if(!inWin) break;
          if(!found) { hi = r[i].high; lo = r[i].low; found = true; }

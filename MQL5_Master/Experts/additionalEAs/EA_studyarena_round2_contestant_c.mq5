@@ -113,7 +113,9 @@ public:
       ob.Reset();
       ob.lookbackBars = 16; ob.displacementBody = 0.45;
       ob.touchTolAtr = 0.35; ob.targetR = InpSweepRr;
-      ob.requireHtfBias = true; ob.tradeBothWays = (htfBias > 0);
+      //--- one-sided search: the delivered `tradeBothWays = (htfBias > 0)` switched the bearish
+      //--- branch OFF exactly when the bias was bearish, so this EA could never go short
+      ob.requireHtfBias = true; ob.onlyDir = htfBias;
       SSignalPlan obPlan;
       if(!SigOrderBlockRetest(ctx, ob, obPlan)) return false;
       if(obPlan.dir != htfBias) return false;

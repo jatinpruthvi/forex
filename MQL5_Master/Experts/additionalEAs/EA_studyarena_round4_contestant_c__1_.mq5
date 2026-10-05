@@ -66,6 +66,11 @@ public:
 
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
+      //--- the regime (stop factor / risk) is derived from THIS symbol's context BEFORE any plan is
+      //--- shaped by it.  ApplyRegime() ran first and RegimeParams() only later, in LotsMultiplier(),
+      //--- so the stop factor came from whichever symbol was evaluated last.
+      RegimeParams(ctx);
+
       //--- Lever 4: spread-divergence signal (spread blow-out with direction = information)
       if(SpreadDivergence(ctx, plan)) return true;
 
@@ -224,7 +229,7 @@ public:
    {
       double score = 0.0;
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, (ENUM_TIMEFRAMES)g_eaCfg.signalTimeframe, 1, 20, r) < 5) return 0.0;
+      if(EA_Rates(ctx.symbol, (ENUM_TIMEFRAMES)g_eaCfg.signalTimeframe, 1, 20, r) < 16) return 0.0;   // reads r[1..15]
       //--- touches of the zone
       int touches = 0;
       for(int i = 1; i <= 15; i++)

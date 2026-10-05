@@ -119,12 +119,13 @@ public:
    double MedianDailyRange(const string sym)
    {
       MqlRates d[];
-      if(EA_Rates(sym, PERIOD_D1, 1, 20, d) < 10) return 0.0;
+      int got = EA_Rates(sym, PERIOD_D1, 1, 20, d);
+      if(got < 10) return 0.0;
       double s[];
-      ArrayResize(s, 20);
-      for(int i = 0; i < 20; i++) s[i] = d[i].high - d[i].low;
+      ArrayResize(s, got);               // (the delivered code sized and read 20 after checking only 10)
+      for(int i = 0; i < got; i++) s[i] = d[i].high - d[i].low;
       ArraySort(s);
-      return s[10];
+      return s[got / 2];                 // = s[10] on a full 20-day window
    }
 };
 

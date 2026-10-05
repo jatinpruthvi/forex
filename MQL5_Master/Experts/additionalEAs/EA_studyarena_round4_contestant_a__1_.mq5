@@ -96,7 +96,7 @@ public:
    bool SniperSetup(SEAContext &ctx, SSignalPlan &plan)
    {
       MqlRates r[];
-      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 40, r) < 25) return false;
+      if(EA_Rates(ctx.symbol, PERIOD_M15, 1, 40, r) < 30) return false;     // the loop below reads r[0..29]
       //--- volume surge vs 30-bar median
       double vols[];
       ArrayResize(vols, 30);
@@ -166,6 +166,18 @@ public:
 
    void SyncGamma(SEAContext &ctx)
    {
+      //--- the hedge is an OPPOSITE market order on the same symbol: on a netting account that
+      //--- does not hedge the runner, it closes (part of) it.  Hedging accounts only.
+      if(AccountInfoInteger(ACCOUNT_MARGIN_MODE) != ACCOUNT_MARGIN_MODE_RETAIL_HEDGING)
+      {
+         static bool warned = false;
+         if(!warned)
+         {
+            warned = true;
+            EA_Log(EA_LOG_ERRORS, "gamma scalp disabled: it needs a HEDGING account (a netting account would net the hedge against the runner)");
+         }
+         return;
+      }
       //--- 1) retire closed hedges and take profit on scalps that reached the target
       for(int i = m_hedgeCount - 1; i >= 0; i--)
       {
