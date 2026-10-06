@@ -69,6 +69,9 @@ input group "=== Execution ==="
 input int    InpMaxDeviationPoints= 20;     // max slippage accepted on a market order
 input bool   InpCloseAllOnHalt    = true;   // flatten this EA's positions when it halts
 input int    InpMaxEntryLagSeconds= 30;     // skip a signal if the bar opened longer ago than this
+input bool   InpUseDynamicSpread  = true;   // true = check spread against last N-bar average
+input int    InpDynamicSpreadBars = 20;     // N bars for spread average calculation
+input double InpDynamicSpreadMultiplier = 1.5; // max allowed multiplier over N-bar average
 
 input group "=== Risk ==="
 input double InpRiskPercent       = 0.50;   // % of sizing base per trade
@@ -984,6 +987,40 @@ void EvaluateSymbol(const int idx,const datetime now)
      }
    if(InpDailyBreakerR>0.0 && g_day_net_r<=-InpDailyBreakerR) { g_day_locked=true; return; }
    if(g_target_reached) return;                     // prop target met - no new risk, ever
+
+   // ---- dynamic spread gate ----
+   if(InpUseDynamicSpread)
+     {
+      int nBars = (InpDynamicSpreadBars > 0) ? InpDynamicSpreadBars : 20;
+      double mult = (InpDynamicSpreadMultiplier > 0.0) ? InpDynamicSpreadMultiplier : 1.5;
+      MqlRates sp_rates[];
+      ArraySetAsSeries(sp_rates, true);
+      int copied = CopyRates(sym, InpTimeframe, 1, nBars, sp_rates);
+      if(copied >= MathMin(5, nBars))
+        {
+         double sum_sp = 0.0;
+         int count_sp = 0;
+         for(int k = 0; k < copied; k++)
+           {
+            if(sp_rates[k].spread > 0)
+              {
+               sum_sp += (double)sp_rates[k].spread;
+               count_sp++;
+              }
+           }
+         if(count_sp > 0)
+           {
+            double avg_sp = sum_sp / (double)count_sp;
+            double cur_sp = (double)SymbolInfoInteger(sym, SYMBOL_SPREAD);
+            if(cur_sp > mult * avg_sp)
+              {
+               PrintFormat("[SKIP] %s spread %.1f > %.2fx avg(N=%d: %.1f) [dyn cap %.1f pts]",
+                           sym, cur_sp, mult, nBars, avg_sp, mult * avg_sp);
+               return;
+              }
+           }
+        }
+     }
 
    // ---- sizing ----
    const double risk_cash=SizingBase()*InpRiskPercent/100.0;

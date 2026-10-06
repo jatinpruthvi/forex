@@ -226,6 +226,39 @@ double EA_SpreadPips(const string sym)
    return EA_SpreadPoints(sym) * EA_Point(sym) / pip;
 }
 
+//--- dynamic spread: average spread in points over the last N closed bars
+//--- (TF: PERIOD_CURRENT or M5/M1 fallback; returns 0.0 if history is unavailable)
+double EA_SpreadAverageLastNBars(const string sym, const int bars, const ENUM_TIMEFRAMES tf = PERIOD_CURRENT)
+{
+   int n = MathMax(1, bars);
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   ENUM_TIMEFRAMES useTf = (tf == PERIOD_CURRENT) ? _Period : tf;
+   if(useTf == PERIOD_CURRENT) useTf = PERIOD_M5;
+   int copied = CopyRates(sym, useTf, 1, n, rates);
+   if(copied < MathMin(5, n))
+   {
+      // Fallback: try M1 or M5 if current chart timeframe didn't have enough history
+      if(useTf != PERIOD_M5)
+         copied = CopyRates(sym, PERIOD_M5, 1, n, rates);
+      if(copied < MathMin(5, n) && useTf != PERIOD_M1)
+         copied = CopyRates(sym, PERIOD_M1, 1, n, rates);
+   }
+   if(copied <= 0) return 0.0;
+
+   double sum = 0.0;
+   int count = 0;
+   for(int k = 0; k < copied; k++)
+   {
+      if(rates[k].spread > 0)
+      {
+         sum += (double)rates[k].spread;
+         count++;
+      }
+   }
+   return (count > 0) ? (sum / (double)count) : 0.0;
+}
+
 //+------------------------------------------------------------------+
 //| Fill-vs-signal slippage                                          |
 //+------------------------------------------------------------------+

@@ -271,6 +271,9 @@ string PortTagOf(const long magic);       // "P<magic>|" identity prefix
 //--- portfolio-level inputs ------------------------------------------------
 input double InpRiskScale           = 1.0;    // multiplies every engine's delivered riskPct
 input double InpStaticLots          = 0.01;   // static fixed lots across all engines (0 = use dynamic riskPct)
+input bool   InpUseDynamicSpread    = true;   // true = check spread against last N-bar average
+input int    InpDynamicSpreadBars   = 20;     // N bars for spread average calculation
+input double InpDynamicSpreadMultiplier = 1.5; // max allowed spread multiplier over N-bar average (e.g. 1.5x)
 input string InpOnlyMagics          = "";     // whitelist: run only these magics (empty = all)
 input string InpDisableMagics       = "";     // blacklist: never run these magics (e.g. "2035,2027")
 input string InpKeepDeliveredPolicy = "2006"; // engines that keep their delivered order policy
@@ -714,6 +717,10 @@ int OnInit()
       if(InpStaticLots > 0.0)
          g_eaCfg.staticLots = InpStaticLots;    // static lot override
 
+      g_eaCfg.useDynamicSpread        = InpUseDynamicSpread;
+      g_eaCfg.dynamicSpreadBars       = InpDynamicSpreadBars;
+      g_eaCfg.dynamicSpreadMultiplier = InpDynamicSpreadMultiplier;
+
       //--- news: prefer the terminal's own economic calendar (server time, live
       //--- only) over the per-engine CSV.  This frees the six fail-closed engines
       //--- from needing MQL5\Files\the5ers_red_news.csv at all; in the Strategy
@@ -766,8 +773,8 @@ int OnInit()
    EventSetTimer(1);            // ticks only arrive for the chart symbol; this
                                 // keeps every engine alive on its own schedule
    PrintFormat("[portfolio] %d/%d engines live on one chart, %d open for new entries " +
-               "(%d switched off, risk scale %.2f, static lots %.2f)", g_portLive, g_portCount, entriesLive,
-               disabled, InpRiskScale, InpStaticLots);
+               "(%d switched off, risk scale %.2f, static lots %.2f, dyn spread %s[N=%d, %.1fx])", g_portLive, g_portCount, entriesLive,
+               disabled, InpRiskScale, InpStaticLots, InpUseDynamicSpread ? "ON" : "OFF", InpDynamicSpreadBars, InpDynamicSpreadMultiplier);
    return INIT_SUCCEEDED;
 }
 

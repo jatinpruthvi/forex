@@ -75,7 +75,10 @@ struct SEASettings
    bool                 riskBaseBalance;       // size on balance instead of equity
    double               qualifyingDayAmount;   // cash: a day counts when the closed-day delta reaches this
    int                  qualifyingDaysTarget;  // required qualifying days per phase (0 = off)
-   double               maxSpreadPoints;       // 0 = disabled
+   double               maxSpreadPoints;       // 0 = disabled (static ceiling)
+   bool                 useDynamicSpread;      // true = check spread against last N-bar average
+   int                  dynamicSpreadBars;     // N bars for spread average (default: 20)
+   double               dynamicSpreadMultiplier; // max multiplier over N-bar average (default: 1.5x)
    double               dailyLossPct;          // halt day at -x%  (0 = disabled)
    double               weeklyLossPct;         // halt week at -x% (0 = disabled)
    bool                 flattenOnHalt;        // close positions and cancel entries when halted
@@ -168,6 +171,9 @@ struct SEASettings
       qualifyingDayAmount    = 0.0;
       qualifyingDaysTarget   = 0;
       maxSpreadPoints        = 0.0;
+      useDynamicSpread       = true;
+      dynamicSpreadBars      = 20;
+      dynamicSpreadMultiplier= 1.5;
       dailyLossPct           = 0.0;
       weeklyLossPct          = 0.0;
       flattenOnHalt          = false;

@@ -39,6 +39,7 @@ input double GInpWeeklyReducedRiskPct   = 0.25;
 
 input group "=== GEMINI ROI: 7. Spread Filter ==="
 input bool   GInpEnableSpreadFilter     = true;
+input int    GInpSpreadBars             = 20;   // N bars for spread average calculation
 input double GInpMaxSpreadMultiplier    = 1.5;
 
 input group "=== GEMINI ROI: 8. Adaptive Half-Kelly Sizing ==="
@@ -289,13 +290,46 @@ bool GeminiSpreadAllows(string symbol)
   {
    if(!GInpEnableSpreadFilter) return true;
    long sp_pts=SymbolInfoInteger(symbol,SYMBOL_SPREAD);
-   double point=SymbolInfoDouble(symbol,SYMBOL_POINT);
-   double sp_pips=sp_pts*point*10000.0;
+   if(sp_pts<=0) return true;
+   int nBars = (GInpSpreadBars > 0) ? GInpSpreadBars : 20;
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   int copied = CopyRates(symbol, PERIOD_CURRENT, 1, nBars, rates);
+   if(copied < MathMin(5, nBars))
+      copied = CopyRates(symbol, PERIOD_M5, 1, nBars, rates);
+   if(copied >= MathMin(5, nBars))
+     {
+      double sum_sp = 0.0;
+      int count_sp = 0;
+      for(int i = 0; i < copied; i++)
+        {
+         if(rates[i].spread > 0)
+           {
+            sum_sp += (double)rates[i].spread;
+            count_sp++;
+           }
+        }
+      if(count_sp > 0)
+        {
+         double avg_sp = sum_sp / (double)count_sp;
+         double ratio = (double)sp_pts / avg_sp;
+         if(ratio > GInpMaxSpreadMultiplier)
+           {
+            PrintFormat("[GEMINI] Spread blocked %s: current %d > %.2fx avg(N=%d: %.1f) [dyn cap %.1f pts]",
+                        symbol, sp_pts, GInpMaxSpreadMultiplier, nBars, avg_sp, GInpMaxSpreadMultiplier * avg_sp);
+            return false;
+           }
+         return true;
+        }
+     }
+   // Fallback: range-based normal spread check if MqlRates spread not populated
    double highs[],lows[];
    ArrayResize(highs,20); ArrayResize(lows,20);
    if(CopyHigh(symbol,PERIOD_M5,1,20,highs)<20) return true;
    if(CopyLow(symbol,PERIOD_M5,1,20,lows)<20)   return true;
    double avg=0; for(int i=0;i<20;i++) avg+=(highs[i]-lows[i]); avg/=20.0;
+   double point=SymbolInfoDouble(symbol,SYMBOL_POINT);
+   double sp_pips=sp_pts*point*10000.0;
    double normal=avg*0.08*10000.0; if(normal<=0) return true;
    double ratio=sp_pips/normal;
    if(ratio>GInpMaxSpreadMultiplier)

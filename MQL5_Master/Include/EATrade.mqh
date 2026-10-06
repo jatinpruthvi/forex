@@ -857,7 +857,23 @@ public:
       if(g_eaCfg.maxTradesPerDay > 0 && TradesToday() >= g_eaCfg.maxTradesPerDay) return false;
       if(g_eaCfg.minSecondsBetweenTrades > 0 && m_lastTradeTime > 0 &&
          TimeTradeServer() - m_lastTradeTime < g_eaCfg.minSecondsBetweenTrades) return false;
-      if(g_eaCfg.maxSpreadPoints > 0.0 && ctx.spreadPoints > g_eaCfg.maxSpreadPoints)
+      if(g_eaCfg.useDynamicSpread)
+      {
+         int nBars = (g_eaCfg.dynamicSpreadBars > 0) ? g_eaCfg.dynamicSpreadBars : 20;
+         double mult = (g_eaCfg.dynamicSpreadMultiplier > 0.0) ? g_eaCfg.dynamicSpreadMultiplier : 1.5;
+         double avgSpread = EA_SpreadAverageLastNBars(ctx.symbol, nBars, PERIOD_CURRENT);
+         if(avgSpread > 0.0)
+         {
+            double dynMaxSpread = mult * avgSpread;
+            if(ctx.spreadPoints > dynMaxSpread)
+            {
+               EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.2fx avg(N=%d: %.1f) [dyn cap %.1f pts] - skip",
+                      ctx.symbol, ctx.spreadPoints, mult, nBars, avgSpread, dynMaxSpread), true);
+               return false;
+            }
+         }
+      }
+      else if(g_eaCfg.maxSpreadPoints > 0.0 && ctx.spreadPoints > g_eaCfg.maxSpreadPoints)
       {
          EA_Log(EA_LOG_EVENTS, StringFormat("%s spread %.1f > %.1f pts - skip", ctx.symbol, ctx.spreadPoints, g_eaCfg.maxSpreadPoints), true);
          return false;
