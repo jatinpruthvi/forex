@@ -425,8 +425,10 @@ void WriteCsv()
                 DoubleToString(g_rows[i].floating, 2), g_rows[i].verdict,
                 "InpRun_" + IntegerToString(g_rows[i].magic));
    }
+   //--- column alignment: 17 columns total
+   //--- magic, tag, engine, strategy, tf, net, max_profit, trades, wins, losses, win_pct, max_dd, dd_pct, open_pos, floating, verdict, switch
    FileWrite(h, "TOTAL", "", "", "", "", DoubleToString(g_totalNet, 2), "", "", "", "",
-             "", "", IntegerToString(g_totalOpen), DoubleToString(g_totalFloat, 2), "", "");
+             "", "", "", IntegerToString(g_totalOpen), DoubleToString(g_totalFloat, 2), "", "");
    FileClose(h);
 }
 
