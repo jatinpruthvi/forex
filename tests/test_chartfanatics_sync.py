@@ -54,6 +54,12 @@ EA source too, so an invention can never quietly become a "documented rule":
     SigFractals is bound to the signal timeframe, so the daily swing geometry is local; the
     anchored-VWAP anchor is the phase anchor and its deviation bands are represented by the 1R
     partial; the MA exit context reads a daily close on the wrong side of both the 8 and the 21.
+  * EA_CF_MarketDna (card #21): the playbook reads the tape and Level II depth - not readable from an EA - so
+    the order-flow proxy is used: aggression is a displacement bar (strong body, close out of the zone) on
+    above-average participation, absorption failure is the zone being closed through, and the catalyst
+    (earnings / news) becomes relative volume plus the engine's calendar gate.  The DNA move multiple, zone
+    width, body/volume thresholds, chase cap and fractal trail are numbers the document does not state.  The
+    document's instrument rule is honoured by configuration: stocks and futures only, forex deliberately out.
   * EA_CF_MarketAuctionTheory (card #20): the document's numbers are illustrative, so the post-open
     formation window and the congestion cap that define the auction zone, the daily 45-degree slope
     threshold, the "strongly" body threshold, the stop tick buffer and the second-entry allowance are
@@ -724,6 +730,37 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
         (r"\[interpretation\]", "every number the document leaves open stays labelled"),
     ],
+    # ------------------------------------------- Market DNA (card #21)
+    "EA_CF_MarketDna.mq5": [
+        (r"input ENUM_TIMEFRAMES InpDnaTf\s*=\s*PERIOD_H1;", "[interpretation]: the structure chart the DNA points are read from"),
+        (r"input double InpDnaMoveAtr\s*=\s*2\.50;", '"areas where momentum exploded" - the move that marks a DNA point'),
+        (r"if\(bHi <= bLo \|\| \(bHi - bLo\) > InpZoneMaxAtr \* atr\) continue;", '"treat levels as zones with ranges, not exact lines"'),
+        (r"if\(moveUp >= moveDn && moveUp >= InpDnaMoveAtr \* atr\) side = \+1;", "a demand DNA point: the base produced a big up move"),
+        (r"else if\(moveDn > moveUp && moveDn >= InpDnaMoveAtr \* atr\) side = -1;", "the supply DNA point (the short side)"),
+        (r"if\(side > 0 && r\[i\]\.close < bLo\) \{ consumed = true; break; \}", '"never let a trade run past the DNA zone once invalidated"'),
+        (r"if\(EA_BodyRatio\(m\[1\]\) < InpBodyMin\) return false;", '"enter as close as possible to where aggression confirms" - the displacement bar'),
+        (r"double volMult = \(double\)m\[1\]\.tick_volume / avg;", "aggression is measured against participation"),
+        (r"if\(volMult < InpAggVolMult\) return false;", '"a valid setup occurs when aggression overwhelms absorption"'),
+        (r"if\(m\[1\]\.low > zone\.hi\) return false;", "the bar must test the zone (price must be in play at the level)"),
+        (r"if\(m\[1\]\.close <= zone\.hi\) return false;", '"passive sellers fail to hold their liquidity wall" - the close is out of the zone'),
+        (r"stopRef = MathMin\(zone\.lo, m\[1\]\.low\);", "the stop reference beyond the zone and the aggression low"),
+        (r"double stop = \(dir > 0\) \? stopRef - InpStopBufferAtr \* ctx\.atr", '"place stops just beyond the liquidity zone that defines the DNA level"'),
+        (r"if\(risk > InpMaxStopAtr \* ctx\.atr\) continue;", '"risk is reduced ... by minimizing stop distance"'),
+        (r"if\(dist < 0\.0 \|\| dist > InpMaxChaseAtr \* ctx\.atr\) continue;", "the entry stays at the level - never chased"),
+        (r"input double InpMinRr\s*=\s*3\.00;", '"must achieve 3:1 R:R minimum"'),
+        (r"cfg\.partial1AtR\s*=\s*InpPartial1R;", '"scale partials into the first strong reaction"'),
+        (r"if\(moveR >= InpPartial1R \* risk && AggressionFlipped\(ctx, dir\)\)", '"hold the remainder until aggression flips on the tape"'),
+        (r"if\(dir > 0\) return \(m\[1\]\.close < m\[1\]\.open && m\[1\]\.close < m\[2\]\.low\);", "the flip, read as an opposing displacement close"),
+        (r"double structure = FractalStop\(ctx\.symbol, dir\);", '"trail stops behind newly formed aggressive zones"'),
+        (r"if\(InpRequireCatalyst && !CatalystPresent\(ctx\)\) return false;", '"the best setups occur when news or earnings push participants into the market" - relative volume'),
+        (r"if\(!SessionHasRange\(ctx\)\) return false;", '"no trades in flat/range-bound sessions where aggression is unclear"'),
+        (r"input bool\s+InpNewsGate\s*=\s*true;", "the engine calendar stands in for the doc's news catalysts"),
+        (r"the doc\'s instrument rule is honoured: stocks \+ futures", '"avoid Forex because you are getting lied to" - honoured by configuration'),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", "[interpretation]: M5 stands in for the tape (Level II is not readable by an EA)"),
+        (r"input int\s+InpMaxTradesPerDay\s*=\s*2;", "[interpretation]: the doc sets no daily cap"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every reading of the tape stays labelled"),
+    ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
         (r"EA_ApplyStagePolicy\(policy, InpStage\);", "the stage table is read from the engine helper, not duplicated"),
@@ -761,7 +798,8 @@ class SyncTests(unittest.TestCase):
         for name in ("EA_CF_Structure_OTE.mq5", "EA_CF_PO3_OTE_ADR.mq5",
                      "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
                      "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5",
-                     "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5"):
+                     "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5",
+                     "EA_CF_MarketDna.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

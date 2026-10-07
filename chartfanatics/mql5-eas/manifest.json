@@ -486,6 +486,31 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/market-auction-theory.pdf"
+  },
+  {
+   "card": 21,
+   "slug": "market-dna-strategy",
+   "strategy": "Market DNA Strategy",
+   "ea": "EA_CF_MarketDna.mq5",
+   "class": "CCfMarketDna",
+   "magic": 3224,
+   "timeframe": "M5",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "DNA zone scan (H1 base + exploded move, zone not line, consumed-level test)",
+    "aggression proxy (displacement body on above-average participation, close out of the zone)",
+    "EA_BodyRatio confirmation bar",
+    "SigRangeForDay (flat-session gate)",
+    "relative-volume catalyst proxy + cfg.newsFilter calendar gate",
+    "engine tracking (EA_TrackIndex) + fractal trail",
+    "aggression-flip runner exit",
+    "cfg.partial1AtR partial into the first reaction",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/market-dna-strategy.pdf"
   }
  ]
 }
