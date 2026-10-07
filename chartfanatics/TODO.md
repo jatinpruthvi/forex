@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 18 in progress ·
-⬜ 29 not started
+**Cards:** ✅ 0 done · 🟡 20 in progress ·
+⬜ 27 not started
 
-**EAs built:** 18/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 20/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 18 awaiting human · 29 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 19 awaiting human · 28 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 90/376 (24%)
-`▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 100/376 (27%)
+`▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -97,8 +97,8 @@ infrastructure needed to get a first verdict:
 | 03 | Algorithmic Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=TyHTEtArsS4) · [summary](glimpse/TyHTEtArsS4.md) | [`AlgoPortfolioMonitor.mq5`](mql5-eas/EA_CF_AlgoPortfolioMonitor.mq5) mag 3209 (monitor) | [`algorithmic-strategy.md`](todos/algorithmic-strategy.md) |
 | 09 | Fair Pricing Theory Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=KHEQ5g55dQ4) · [summary](glimpse/KHEQ5g55dQ4.md) | [`FairPricingTheory.mq5`](mql5-eas/EA_CF_FairPricingTheory.mq5) mag 3213 | [`fair-pricing-theory-strategy.md`](todos/fair-pricing-theory-strategy.md) |
 | 14 | Institutional Options Flow & Gamma Reversal Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=35cyqDz-ej8) · [summary](glimpse/35cyqDz-ej8.md) | [`GammaReversal.mq5`](mql5-eas/EA_CF_GammaReversal.mq5) mag 3218 | [`institutional-options-flow-gamma-reversal-strategy.md`](todos/institutional-options-flow-gamma-reversal-strategy.md) |
-| 15 | Institutional Strategy Development Framework | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=yW6c0K8uGvw) · [summary](glimpse/yW6c0K8uGvw.md) | _—_ | [`institutional-strategy-development-framework.md`](todos/institutional-strategy-development-framework.md) |
-| 17 | Liquidity Inversion Model | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=UIGZtoGGPH4) · [summary](glimpse/UIGZtoGGPH4.md) | _—_ | [`liquidity-inversion-model.md`](todos/liquidity-inversion-model.md) |
+| 15 | Institutional Strategy Development Framework | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=yW6c0K8uGvw) · [summary](glimpse/yW6c0K8uGvw.md) | [`InstFramework.mq5`](mql5-eas/EA_CF_InstFramework.mq5) mag 3219 | [`institutional-strategy-development-framework.md`](todos/institutional-strategy-development-framework.md) |
+| 17 | Liquidity Inversion Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=UIGZtoGGPH4) · [summary](glimpse/UIGZtoGGPH4.md) | [`LiquidityInversion.mq5`](mql5-eas/EA_CF_LiquidityInversion.mq5) mag 3220 | [`liquidity-inversion-model.md`](todos/liquidity-inversion-model.md) |
 | 24 | Momentum Model Performance Development | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=WDdvnd9vLbM) · [summary](glimpse/WDdvnd9vLbM.md) | _—_ | [`momentum-model-performance-development.md`](todos/momentum-model-performance-development.md) |
 | 25 | Nasdaq ICT and Order Flow Scalping Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=KkTTCKr-3Ew) · [summary](glimpse/KkTTCKr-3Ew.md) | _—_ | [`nasdaq-ict-and-order-flow-scalping-strategy.md`](todos/nasdaq-ict-and-order-flow-scalping-strategy.md) |
 | 26 | NQ Liquidity Sweep & Reversal Scalping Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=-kGVL93XfyE) · [summary](glimpse/-kGVL93XfyE.md) | _—_ | [`nq-liquidity-sweep-reversal-scalping-strategy.md`](todos/nq-liquidity-sweep-reversal-scalping-strategy.md) |

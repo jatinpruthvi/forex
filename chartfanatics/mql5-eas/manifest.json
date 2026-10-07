@@ -1,373 +1,420 @@
 {
-  "_comment": "Machine-readable link between a ChartFanatics strategy card and its EA. Read by chartfanatics/gen_todos.py (board + card Tracking fields) and by humans deploying the files. Magic block 3201-3247 is reserved for this family; keep it in sync with docs/EA_IMPLEMENTATION_TRACKER.md.",
-  "magic_block": [
-    3201,
-    3247
-  ],
-  "deploy_to": "MQL5\\Experts\\chartfanatics\\",
-  "eas": [
-    {
-      "card": 4,
-      "slug": "amd-model",
-      "strategy": "AMD Model",
-      "ea": "EA_CF_AMD_Model.mq5",
-      "class": "CCfAmdModel",
-      "magic": 3201,
-      "timeframe": "M5",
-      "primitives": [
-        "SigSweepReclaim",
-        "SigEmaCascade",
-        "EA_InWindow (macro windows)",
-        "cfg.maxCostR",
-        "evidence ledger"
-      ],
-      "source": "chartfanatics/pdf/amd-model.pdf",
-      "wave": 1,
-      "status": "static-checked"
-    },
-    {
-      "card": 39,
-      "slug": "structure-ote",
-      "strategy": "Structure + OTE",
-      "ea": "EA_CF_Structure_OTE.mq5",
-      "class": "CCfStructureOte",
-      "magic": 3202,
-      "timeframe": "M15",
-      "primitives": [
-        "SigOrderBlockRetest",
-        "SigSweepReclaim",
-        "SigEmaCascade",
-        "SigFractals (engineered liquidity)",
-        "custom premium/discount + OTE band"
-      ],
-      "source": "chartfanatics/pdf/structure-ote.pdf",
-      "wave": 1,
-      "status": "static-checked"
-    },
-    {
-      "card": 37,
-      "slug": "smt-divergence-po3",
-      "strategy": "SMT Divergence + PO3",
-      "ea": "EA_CF_SMT_PO3.mq5",
-      "class": "CCfSmtPo3",
-      "magic": 3203,
-      "timeframe": "M5",
-      "primitives": [
-        "SigSweepReclaim",
-        "SigRangeForDay",
-        "custom NQ-vs-ES SMT divergence (engine SMT is DXY-RSI)",
-        "cfg.maxCostR",
-        "evidence ledger"
-      ],
-      "source": "chartfanatics/pdf/smt-divergence-po3.pdf",
-      "wave": 1,
-      "status": "static-checked"
-    },
-    {
-      "card": 31,
-      "slug": "po3-ote-adr",
-      "strategy": "PO3, OTE + ADR",
-      "ea": "EA_CF_PO3_OTE_ADR.mq5",
-      "class": "CCfPo3OteAdr",
-      "magic": 3204,
-      "timeframe": "M15",
-      "primitives": [
-        "SigRangeForDay",
-        "SigFractals (manipulation anchor)",
-        "EA_InWindow (3 sessions)",
-        "custom fib-anchored OTE limit 0.62-0.705 + ADR gate"
-      ],
-      "source": "chartfanatics/pdf/po3-ote-adr.pdf",
-      "wave": 1,
-      "status": "static-checked"
-    },
-    {
-      "card": 7,
-      "slug": "break-retest",
-      "strategy": "Break & Retest",
-      "ea": "EA_CF_Break_Retest.mq5",
-      "class": "CCfBreakRetest",
-      "magic": 3205,
-      "timeframe": "M5",
-      "primitives": [
-        "SigBreakRetest",
-        "SigTwoBarReversal (rejection/engulf)",
-        "SigRangeForDay",
-        "custom no-trade-zone gate"
-      ],
-      "source": "chartfanatics/pdf/break-retest.pdf",
-      "wave": 1,
-      "status": "static-checked"
-    },
-    {
-      "card": 16,
-      "slug": "intraday-liquidity-volatility-model",
-      "strategy": "Intraday Liquidity & Volatility Model",
-      "ea": "EA_CF_Intraday_Liquidity.mq5",
-      "class": "CCfIntradayLiquidity",
-      "magic": 3206,
-      "timeframe": "M5",
-      "primitives": [
-        "SigFvgRetest",
-        "SigSweepReclaim (MSS)",
-        "SigAsianRange",
-        "SigRangeForDay",
-        "custom failed-raid detector (SigSessionFade timing does not fit)"
-      ],
-      "source": "chartfanatics/pdf/intraday-liquidity-volatility-model.pdf",
-      "wave": 1,
-      "status": "static-checked"
-    },
-    {
-      "card": 1,
-      "slug": "5-stage-trading-framework",
-      "strategy": "5 Stage Trading Framework",
-      "ea": "EA_CF_Stage_Guardrails.mq5",
-      "class": "CCfStageGuardrails",
-      "magic": 3207,
-      "timeframe": "-",
-      "trades": false,
-      "role": "process monitor: journals the account's trades and flags the framework's discipline breaches; never opens positions",
-      "primitives": [
-        "EA_ApplyStagePolicy (engine helper, added for this card)",
-        "account-wide deal sweep (HistorySelect/HistoryDealGet*)",
-        "journal CSV"
-      ],
-      "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 2,
-      "slug": "80-20-nasdaq-strategy",
-      "strategy": "80/20 Nasdaq Strategy",
-      "ea": "EA_CF_8020NasdaqStrategy.mq5",
-      "class": "CCf8020Nasdaq",
-      "magic": 3208,
-      "timeframe": "M3",
-      "primitives": [
-        "EA_Rates (M3 entries, M10 structure)",
-        "EA_WickRatio / EA_BodyRatio (candle patterns)",
-        "EA_InWindow (NY open, lunch excluded)",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/glimpse/jsUTbjwpFVk.md",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 3,
-      "slug": "algorithmic-strategy",
-      "strategy": "Algorithmic Strategy",
-      "ea": "EA_CF_AlgoPortfolioMonitor.mq5",
-      "class": "CCfAlgoPortfolioMonitor",
-      "magic": 3209,
-      "timeframe": "-",
-      "primitives": [
-        "account-wide deal history per magic",
-        "ranking filters (PF / return-DD / trades per month)",
-        "allocation rule inversion",
-        "ranking journal CSV"
-      ],
-      "source": "chartfanatics/glimpse/TyHTEtArsS4.md",
-      "wave": 2,
-      "trades": false,
-      "status": "static-checked"
-    },
-    {
-      "card": 5,
-      "slug": "auction-market-strategy",
-      "strategy": "Auction Market",
-      "ea": "EA_CF_AuctionMarket.mq5",
-      "class": "CCfAuctionMarket",
-      "magic": 3210,
-      "timeframe": "M5",
-      "primitives": [
-        "local tick-volume profile (POC / value area / LVN)",
-        "EA_Rates / EA_BodyRatio",
-        "EA_InWindow (NY trend window, London reversion window)",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/pdf/auction-market-strategy.pdf",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 6,
-      "slug": "auction-market-theory-strategy",
-      "strategy": "Auction Market Theory",
-      "ea": "EA_CF_AuctionMarketTheory.mq5",
-      "class": "CCfAuctionMarketTheory",
-      "magic": 3211,
-      "timeframe": "M5",
-      "primitives": [
-        "local tick-volume profile (POC / value area)",
-        "SigRangeForDay (opening range)",
-        "custom Manage() flow exit (g_eaExec.Close)",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/pdf/auction-market-theory-strategy.pdf",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 8,
-      "slug": "episodic-pivot-strategy",
-      "strategy": "Episodic Pivot",
-      "ea": "EA_CF_EpisodicPivot.mq5",
-      "class": "CCfEpisodicPivot",
-      "magic": 3212,
-      "timeframe": "M5",
-      "primitives": [
-        "daily-catalyst detection (gap/move + volume multiple)",
-        "neglect gate (range + volume)",
-        "SigRangeForDay (opening range)",
-        "iVolumeReal (EP 9M share count)",
-        "custom Manage() daily-low trail + g_eaExec.Modify",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/pdf/episodic-pivot-strategy.pdf",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 9,
-      "slug": "fair-pricing-theory-strategy",
-      "strategy": "Fair Pricing Theory",
-      "ea": "EA_CF_FairPricingTheory.mq5",
-      "class": "CCfFairPricingTheory",
-      "magic": 3213,
-      "timeframe": "M1",
-      "primitives": [
-        "EA_Rates (M1 signals, D1 fair price)",
-        "EA_BodyRatio",
-        "EA_InWindow (3 session windows)",
-        "cfg.dayLockAfterLosses (three-loss rule)",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 10,
-      "slug": "first-red-day",
-      "strategy": "First Red Day",
-      "ea": "EA_CF_FirstRedDay.mq5",
-      "class": "CCfFirstRedDay",
-      "magic": 3214,
-      "timeframe": "M5",
-      "primitives": [
-        "daily run detection (green streak + strength)",
-        "previous-day-close line",
-        "gap-up fade / bounce-failure trigger",
-        "engine partials + trail",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/pdf/first-red-day.pdf",
-      "wave": 2,
-      "status": "static-checked"
-    },
-    {
-      "card": 11,
-      "slug": "first-red-day-strategy",
-      "strategy": "First Red Day Strategy",
-      "ea": "EA_CF_FirstRedDayPro.mq5",
-      "class": "CCfFirstRedDayPro",
-      "magic": 3215,
-      "timeframe": "M5",
-      "wave": 2,
-      "status": "static-checked",
-      "primitives": [
-        "daily run + minimum-criteria gate (green streak, extension, volume, range)",
-        "previous-day-close trigger",
-        "three entry methods (pre-red / standard / lower-high)",
-        "session VWAP magnet",
-        "M15-high trail (custom Manage())",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/pdf/first-red-day-strategy.pdf"
-    },
-    {
-      "card": 12,
-      "slug": "full-psychology-masterclass",
-      "strategy": "Psychology MasterClass",
-      "ea": "EA_CF_PsychGuardrails.mq5",
-      "class": "CCfPsychGuardrails",
-      "magic": 3216,
-      "timeframe": "M15",
-      "wave": 2,
-      "status": "static-checked",
-      "primitives": [
-        "account-wide daily deal replay (every magic)",
-        "graded shutdown ladder (caution / cooldown / breach / session over)",
-        "carryover shift from yesterday's result",
-        "zone-map proxies (revenge, size escalation, entry burst, off-window)",
-        "pre/during/post session journal CSV"
-      ],
-      "source": "chartfanatics/pdf/full-psychology-masterclass.pdf",
-      "trades": false
-    },
-    {
-      "card": 13,
-      "slug": "futures-trading-strategy",
-      "strategy": "Futures Trading Strategy",
-      "ea": "EA_CF_FuturesStrategy.mq5",
-      "class": "CCfFuturesStrategy",
-      "magic": 3217,
-      "timeframe": "M30",
-      "wave": 2,
-      "status": "static-checked",
-      "primitives": [
-        "Bollinger bandwidth classification (D1, 20/3sigma)",
-        "Donchian box (SigDonchian) for the consolidation range and week levels",
-        "Beacon 30/50/70 levels on the band-peak leg",
-        "daily fractal structural stop (engine geometry, D1)",
-        "anchored VWAP + 8/21/34 MA exit context (custom Manage())",
-        "LotsMultiplier for counter-trend smaller size",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/pdf/futures-trading-strategy.pdf"
-    },
-    {
-      "card": 14,
-      "slug": "institutional-options-flow-gamma-reversal-strategy",
-      "strategy": "Institutional Options Flow & Gamma Reversal",
-      "ea": "EA_CF_GammaReversal.mq5",
-      "class": "CCfGammaReversal",
-      "magic": 3218,
-      "timeframe": "M1",
-      "wave": 3,
-      "status": "static-checked",
-      "primitives": [
-        "wall levels as inputs (options-platform data)",
-        "EA_WickRatio rejection geometry (engine reuse)",
-        "volume confirmation vs the M1 average",
-        "tick-based stop/target geometry",
-        "OPEX / witching / spiration calendar gates",
-        "2-day post-loss lock from the EA's own deal history",
-        "engine partial + trail (contract scale-out)",
-        "cfg.maxCostR",
-        "evidence ledger",
-        "EA_ApplyStagePolicy"
-      ],
-      "source": "chartfanatics/glimpse/35cyqDz-ej8.md"
-    }
-  ]
+ "_comment": "Machine-readable link between a ChartFanatics strategy card and its EA. Read by chartfanatics/gen_todos.py (board + card Tracking fields) and by humans deploying the files. Magic block 3201-3247 is reserved for this family; keep it in sync with docs/EA_IMPLEMENTATION_TRACKER.md.",
+ "magic_block": [
+  3201,
+  3247
+ ],
+ "deploy_to": "MQL5\\Experts\\chartfanatics\\",
+ "eas": [
+  {
+   "card": 4,
+   "slug": "amd-model",
+   "strategy": "AMD Model",
+   "ea": "EA_CF_AMD_Model.mq5",
+   "class": "CCfAmdModel",
+   "magic": 3201,
+   "timeframe": "M5",
+   "primitives": [
+    "SigSweepReclaim",
+    "SigEmaCascade",
+    "EA_InWindow (macro windows)",
+    "cfg.maxCostR",
+    "evidence ledger"
+   ],
+   "source": "chartfanatics/pdf/amd-model.pdf",
+   "wave": 1,
+   "status": "static-checked"
+  },
+  {
+   "card": 39,
+   "slug": "structure-ote",
+   "strategy": "Structure + OTE",
+   "ea": "EA_CF_Structure_OTE.mq5",
+   "class": "CCfStructureOte",
+   "magic": 3202,
+   "timeframe": "M15",
+   "primitives": [
+    "SigOrderBlockRetest",
+    "SigSweepReclaim",
+    "SigEmaCascade",
+    "SigFractals (engineered liquidity)",
+    "custom premium/discount + OTE band"
+   ],
+   "source": "chartfanatics/pdf/structure-ote.pdf",
+   "wave": 1,
+   "status": "static-checked"
+  },
+  {
+   "card": 37,
+   "slug": "smt-divergence-po3",
+   "strategy": "SMT Divergence + PO3",
+   "ea": "EA_CF_SMT_PO3.mq5",
+   "class": "CCfSmtPo3",
+   "magic": 3203,
+   "timeframe": "M5",
+   "primitives": [
+    "SigSweepReclaim",
+    "SigRangeForDay",
+    "custom NQ-vs-ES SMT divergence (engine SMT is DXY-RSI)",
+    "cfg.maxCostR",
+    "evidence ledger"
+   ],
+   "source": "chartfanatics/pdf/smt-divergence-po3.pdf",
+   "wave": 1,
+   "status": "static-checked"
+  },
+  {
+   "card": 31,
+   "slug": "po3-ote-adr",
+   "strategy": "PO3, OTE + ADR",
+   "ea": "EA_CF_PO3_OTE_ADR.mq5",
+   "class": "CCfPo3OteAdr",
+   "magic": 3204,
+   "timeframe": "M15",
+   "primitives": [
+    "SigRangeForDay",
+    "SigFractals (manipulation anchor)",
+    "EA_InWindow (3 sessions)",
+    "custom fib-anchored OTE limit 0.62-0.705 + ADR gate"
+   ],
+   "source": "chartfanatics/pdf/po3-ote-adr.pdf",
+   "wave": 1,
+   "status": "static-checked"
+  },
+  {
+   "card": 7,
+   "slug": "break-retest",
+   "strategy": "Break & Retest",
+   "ea": "EA_CF_Break_Retest.mq5",
+   "class": "CCfBreakRetest",
+   "magic": 3205,
+   "timeframe": "M5",
+   "primitives": [
+    "SigBreakRetest",
+    "SigTwoBarReversal (rejection/engulf)",
+    "SigRangeForDay",
+    "custom no-trade-zone gate"
+   ],
+   "source": "chartfanatics/pdf/break-retest.pdf",
+   "wave": 1,
+   "status": "static-checked"
+  },
+  {
+   "card": 16,
+   "slug": "intraday-liquidity-volatility-model",
+   "strategy": "Intraday Liquidity & Volatility Model",
+   "ea": "EA_CF_Intraday_Liquidity.mq5",
+   "class": "CCfIntradayLiquidity",
+   "magic": 3206,
+   "timeframe": "M5",
+   "primitives": [
+    "SigFvgRetest",
+    "SigSweepReclaim (MSS)",
+    "SigAsianRange",
+    "SigRangeForDay",
+    "custom failed-raid detector (SigSessionFade timing does not fit)"
+   ],
+   "source": "chartfanatics/pdf/intraday-liquidity-volatility-model.pdf",
+   "wave": 1,
+   "status": "static-checked"
+  },
+  {
+   "card": 1,
+   "slug": "5-stage-trading-framework",
+   "strategy": "5 Stage Trading Framework",
+   "ea": "EA_CF_Stage_Guardrails.mq5",
+   "class": "CCfStageGuardrails",
+   "magic": 3207,
+   "timeframe": "-",
+   "trades": false,
+   "role": "process monitor: journals the account's trades and flags the framework's discipline breaches; never opens positions",
+   "primitives": [
+    "EA_ApplyStagePolicy (engine helper, added for this card)",
+    "account-wide deal sweep (HistorySelect/HistoryDealGet*)",
+    "journal CSV"
+   ],
+   "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 2,
+   "slug": "80-20-nasdaq-strategy",
+   "strategy": "80/20 Nasdaq Strategy",
+   "ea": "EA_CF_8020NasdaqStrategy.mq5",
+   "class": "CCf8020Nasdaq",
+   "magic": 3208,
+   "timeframe": "M3",
+   "primitives": [
+    "EA_Rates (M3 entries, M10 structure)",
+    "EA_WickRatio / EA_BodyRatio (candle patterns)",
+    "EA_InWindow (NY open, lunch excluded)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/jsUTbjwpFVk.md",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 3,
+   "slug": "algorithmic-strategy",
+   "strategy": "Algorithmic Strategy",
+   "ea": "EA_CF_AlgoPortfolioMonitor.mq5",
+   "class": "CCfAlgoPortfolioMonitor",
+   "magic": 3209,
+   "timeframe": "-",
+   "primitives": [
+    "account-wide deal history per magic",
+    "ranking filters (PF / return-DD / trades per month)",
+    "allocation rule inversion",
+    "ranking journal CSV"
+   ],
+   "source": "chartfanatics/glimpse/TyHTEtArsS4.md",
+   "wave": 2,
+   "trades": false,
+   "status": "static-checked"
+  },
+  {
+   "card": 5,
+   "slug": "auction-market-strategy",
+   "strategy": "Auction Market",
+   "ea": "EA_CF_AuctionMarket.mq5",
+   "class": "CCfAuctionMarket",
+   "magic": 3210,
+   "timeframe": "M5",
+   "primitives": [
+    "local tick-volume profile (POC / value area / LVN)",
+    "EA_Rates / EA_BodyRatio",
+    "EA_InWindow (NY trend window, London reversion window)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/auction-market-strategy.pdf",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 6,
+   "slug": "auction-market-theory-strategy",
+   "strategy": "Auction Market Theory",
+   "ea": "EA_CF_AuctionMarketTheory.mq5",
+   "class": "CCfAuctionMarketTheory",
+   "magic": 3211,
+   "timeframe": "M5",
+   "primitives": [
+    "local tick-volume profile (POC / value area)",
+    "SigRangeForDay (opening range)",
+    "custom Manage() flow exit (g_eaExec.Close)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/auction-market-theory-strategy.pdf",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 8,
+   "slug": "episodic-pivot-strategy",
+   "strategy": "Episodic Pivot",
+   "ea": "EA_CF_EpisodicPivot.mq5",
+   "class": "CCfEpisodicPivot",
+   "magic": 3212,
+   "timeframe": "M5",
+   "primitives": [
+    "daily-catalyst detection (gap/move + volume multiple)",
+    "neglect gate (range + volume)",
+    "SigRangeForDay (opening range)",
+    "iVolumeReal (EP 9M share count)",
+    "custom Manage() daily-low trail + g_eaExec.Modify",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/episodic-pivot-strategy.pdf",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 9,
+   "slug": "fair-pricing-theory-strategy",
+   "strategy": "Fair Pricing Theory",
+   "ea": "EA_CF_FairPricingTheory.mq5",
+   "class": "CCfFairPricingTheory",
+   "magic": 3213,
+   "timeframe": "M1",
+   "primitives": [
+    "EA_Rates (M1 signals, D1 fair price)",
+    "EA_BodyRatio",
+    "EA_InWindow (3 session windows)",
+    "cfg.dayLockAfterLosses (three-loss rule)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 10,
+   "slug": "first-red-day",
+   "strategy": "First Red Day",
+   "ea": "EA_CF_FirstRedDay.mq5",
+   "class": "CCfFirstRedDay",
+   "magic": 3214,
+   "timeframe": "M5",
+   "primitives": [
+    "daily run detection (green streak + strength)",
+    "previous-day-close line",
+    "gap-up fade / bounce-failure trigger",
+    "engine partials + trail",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/first-red-day.pdf",
+   "wave": 2,
+   "status": "static-checked"
+  },
+  {
+   "card": 11,
+   "slug": "first-red-day-strategy",
+   "strategy": "First Red Day Strategy",
+   "ea": "EA_CF_FirstRedDayPro.mq5",
+   "class": "CCfFirstRedDayPro",
+   "magic": 3215,
+   "timeframe": "M5",
+   "wave": 2,
+   "status": "static-checked",
+   "primitives": [
+    "daily run + minimum-criteria gate (green streak, extension, volume, range)",
+    "previous-day-close trigger",
+    "three entry methods (pre-red / standard / lower-high)",
+    "session VWAP magnet",
+    "M15-high trail (custom Manage())",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/first-red-day-strategy.pdf"
+  },
+  {
+   "card": 12,
+   "slug": "full-psychology-masterclass",
+   "strategy": "Psychology MasterClass",
+   "ea": "EA_CF_PsychGuardrails.mq5",
+   "class": "CCfPsychGuardrails",
+   "magic": 3216,
+   "timeframe": "M15",
+   "wave": 2,
+   "status": "static-checked",
+   "primitives": [
+    "account-wide daily deal replay (every magic)",
+    "graded shutdown ladder (caution / cooldown / breach / session over)",
+    "carryover shift from yesterday's result",
+    "zone-map proxies (revenge, size escalation, entry burst, off-window)",
+    "pre/during/post session journal CSV"
+   ],
+   "source": "chartfanatics/pdf/full-psychology-masterclass.pdf",
+   "trades": false
+  },
+  {
+   "card": 13,
+   "slug": "futures-trading-strategy",
+   "strategy": "Futures Trading Strategy",
+   "ea": "EA_CF_FuturesStrategy.mq5",
+   "class": "CCfFuturesStrategy",
+   "magic": 3217,
+   "timeframe": "M30",
+   "wave": 2,
+   "status": "static-checked",
+   "primitives": [
+    "Bollinger bandwidth classification (D1, 20/3sigma)",
+    "Donchian box (SigDonchian) for the consolidation range and week levels",
+    "Beacon 30/50/70 levels on the band-peak leg",
+    "daily fractal structural stop (engine geometry, D1)",
+    "anchored VWAP + 8/21/34 MA exit context (custom Manage())",
+    "LotsMultiplier for counter-trend smaller size",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/futures-trading-strategy.pdf"
+  },
+  {
+   "card": 14,
+   "slug": "institutional-options-flow-gamma-reversal-strategy",
+   "strategy": "Institutional Options Flow & Gamma Reversal",
+   "ea": "EA_CF_GammaReversal.mq5",
+   "class": "CCfGammaReversal",
+   "magic": 3218,
+   "timeframe": "M1",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "wall levels as inputs (options-platform data)",
+    "EA_WickRatio rejection geometry (engine reuse)",
+    "volume confirmation vs the M1 average",
+    "tick-based stop/target geometry",
+    "OPEX / witching / spiration calendar gates",
+    "2-day post-loss lock from the EA's own deal history",
+    "engine partial + trail (contract scale-out)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/35cyqDz-ej8.md"
+  },
+  {
+   "card": 15,
+   "slug": "institutional-strategy-development-framework",
+   "strategy": "Institutional Strategy Development Framework",
+   "ea": "EA_CF_InstFramework.mq5",
+   "class": "CCfInstFramework",
+   "magic": 3219,
+   "timeframe": "M1",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "SigRangeForDay (09:30-10:00 opening range)",
+    "session VWOP anchored at the open or the prior close (tick-volume proxy)",
+    "overnight hold window (wrap-around engine session)",
+    "LotsMultiplier volatility targeting (constant dollar risk)",
+    "own-history drawdown validation pause",
+    "account-wide monthly review CSV",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/yW6c0K8uGvw.md"
+  },
+  {
+   "card": 17,
+   "slug": "liquidity-inversion-model",
+   "strategy": "Liquidity Inversion Model",
+   "ea": "EA_CF_LiquidityInversion.mq5",
+   "class": "CCfLiquidityInversion",
+   "magic": 3220,
+   "timeframe": "M5",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "own Donchian sweep with the candidate bar excluded (SigDonchian reuse for the weekly fallback)",
+    "3-bar fair value gap detection on H4 / M15 / H1 / D1",
+    "gap inversion (displacement close + rejection retest) on the entry timeframe",
+    "SigRangeForDay (09:30 NY open level as the intraday target)",
+    "consecutive-loss day lock (the engine's day lock counts today's losers, not the streak)",
+    "LotsMultiplier high-volatility de-risking",
+    "cfg.partial1/breakEvenAtR/trailAtR runner management",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/UIGZtoGGPH4.md"
+  }
+ ]
 }

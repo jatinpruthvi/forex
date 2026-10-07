@@ -353,6 +353,8 @@ def check_duplicate_members(path: Path, src: str) -> list[str]:
         body = src[i:j - 1]
         seen: dict[tuple[str, str], int] = {}
         for m in _MEMBER_SIG_RE.finditer(body):
+            if m.group(1) in RESERVED:
+                continue          # `else if(...) {` / `while(...) {` are control flow, not members
             params = _normalise_params(m.group(2))
             sig = (m.group(1), params)
             line = src[:i].count("\n") + 1 + body[:m.start()].count("\n")

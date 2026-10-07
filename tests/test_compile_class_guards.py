@@ -44,6 +44,40 @@ def _scan(snippet: str):
                 chk.check_undeclared_variables(p, raw, src))
 
 
+class DuplicateMemberTests(unittest.TestCase):
+    """The duplicate-member rule (copy-paste methods) must not fire on control flow.
+
+    `else if(cond) {` matches the member-declaration shape - "words, name, (params), {"
+    - so a mode switch written as an else-if chain was reported as a duplicate member
+    ("if(InpMode ==)") on every EA that used one.  Both directions are pinned here.
+    """
+
+    def _members(self, snippet: str):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "sample.mq5"
+            p.write_text(snippet, encoding="utf-8")
+            return chk.check_duplicate_members(p, chk.strip_noise(snippet))
+
+    def test_else_if_chains_are_not_members(self) -> None:
+        out = self._members(
+            "class C { void F(int m)\n"
+            "{\n"
+            "   if(m == 1) { A(); }\n"
+            "   else if(m == 2)\n"
+            "   { B(); }\n"
+            "   else if(m == 3)\n"
+            "   { C(); }\n"
+            "}\n"
+            "   void A(){} void B(){} void C(){} };")
+        self.assertEqual(out, [])
+
+    def test_a_real_duplicate_member_is_still_flagged(self) -> None:
+        # the copy-paste case: same name and same parameter TYPES, parameter names renamed
+        out = self._members("class C { bool F(int a, double b) { return true; }\n"
+                            "          bool F(int x, double y) { return false; } };")
+        self.assertTrue(any("duplicate member" in m for m in out), out)
+
+
 class ReservedWordTests(unittest.TestCase):
     def test_a_variable_named_after_a_data_type_is_flagged(self):
         ident, *_ = _scan("class C { bool F(){ bool long = true; bool short = false;\n"

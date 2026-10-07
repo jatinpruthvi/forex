@@ -54,12 +54,27 @@ EA source too, so an invention can never quietly become a "documented rule":
     SigFractals is bound to the signal timeframe, so the daily swing geometry is local; the
     anchored-VWAP anchor is the phase anchor and its deviation bands are represented by the 1R
     partial; the MA exit context reads a daily close on the wrong side of both the 8 and the 21.
+  * EA_CF_LiquidityInversion (card #17): the video teaches the ICT stack by example, so the reading is
+    fixed in the code and labelled: "sweep" = a daily wick beyond the prior weekly (preferred: monthly)
+    extreme that closes back inside; "inversion" = a displacement close through the gap followed by a
+    retest that holds the new side; the rejection tolerance is a fraction of the gap height (no number in
+    the source).  The engine's `dayLockAfterLosses` counts today's losers, not consecutive ones, so the
+    document's two-consecutive-loss rule is tracked in class state instead.  The VIX gate needs a
+    broker-published volatility symbol and is off by default; the options-leap workflow and prop-firm
+    payout rules are not implementable on MT5 spot and are disclosed on the card.
   * EA_CF_GammaReversal (card #14): gamma/put/call walls are options-platform data (the video names
     Guestbot) that no MetaTrader EA can read, so the levels are inputs the trader fills in - the
     video's own action item - and everything the document states mechanically (window, OPEX /
     witching / "spiration" calendar, tick stops and tick targets, partial + runner, the 2-day
     post-loss rule) is implemented.  "Spiration" is non-standard and is read verbatim as a day 30
     days before a monthly OPEX; approach/reclaim/volume tolerances are inputs.
+  * EA_CF_InstFramework (card #15): the document is an institutional PIPELINE; the EA carries its
+    codeable strategies (ORB, VWOP, overnight gap) as modes plus its volatility-targeting and
+    live-validation rules.  PEAD (Strategy 3) is disclosed in the source as data-blocked: it needs
+    actual-vs-estimate earnings and a calendar no MT5 EA can read.  The 80/20 split and Monte Carlo
+    steps are research-time work (they live in the validation harness); the EA carries their RESULT
+    forward as the drawdown pause threshold.  The overnight 17.5 h hold is DST-proof; entering the
+    Friday close is skipped so the exit cannot sit through a weekend (labelled).
 """
 from __future__ import annotations
 
@@ -511,6 +526,81 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
         (r"\[interpretation\]", "what the video leaves open (tolerances, spiration reading) stays labelled"),
     ],
+    # ------------------------------------------- Institutional Framework (card #15)
+    "EA_CF_InstFramework.mq5": [
+        (r"input ENUM_CF_FW_MODE InpMode = CF_FW_ORB;", "the document's own strategies, one per mode"),
+        (r"input double InpOrbTargetR\s*=\s*2\.0;", '"take profit at 1:1 or 1:2 risk-to-reward"'),
+        (r"input bool\s+InpOrbLongOnly\s*=\s*true;", '"long-only works better than short" - the research finding is the default'),
+        (r"input int\s+InpOrbRangeFromMin\s*=\s*870;", '"the overnight gap plus the 9:30-10:00 a.m. range"'),
+        (r"bool longBreak\s*=\s*\(m\[1\]\.close > rHi && ctx\.mid > rHi\);",
+         '"Go long if price closes above the 9:30-10:00 a.m. high"'),
+        (r"double stop\s*=\s*\(dir > 0\) \? rLo : rHi;", '"Stop loss at the range low"'),
+        (r"if\(ctx\.clockMinutes >= InpOrbExitMin\)", '"or close at 3:30 p.m. if neither hit"'),
+        (r"if\(m\[1\]\.close > vwop\) dir = \+1;", '"go long when a 1-minute bar closes above VWOP"'),
+        (r"if\(m\[1\]\.close < vwop\) dir = -1;", '"short when price closes below VWOP"'),
+        (r'if\(g_eaExec\.Close\(ticket, "close crossed back below VWOP"\)\)', '"exit at VWOP crosses"'),
+        (r"input bool\s+InpVwopAnchorAtOpen\s*=\s*true;", '"Calculate from market open (9:30 a.m. US) or previous day\'s close" - both testable'),
+        (r"if\(InpVwopAnchorAtOpen\) return \(serverBarTime >= openServer\);", "the open anchor is a real calculation, not a label"),
+        (r"return \(serverBarTime >= prevClose\);", "the previous-close anchor is implemented too"),
+        (r"cfg\.sessionStartHour\s*=\s*21;\s*cfg\.sessionStartMin = 0;", '"Go long at 4 p.m. (market close)" - the overnight window wraps midnight'),
+        (r"if\(opened > 0 && TimeTradeServer\(\) - opened >= \(datetime\)\(InpHoldHours \* 3600\)\)",
+         '"Close at 9:30 a.m. (market open)" - 17.5 hours later, DST-proof'),
+        (r"input double InpHoldHours\s*=\s*17\.5;", "4 p.m. to 9:30 a.m. is 17.5 hours"),
+        (r"input bool\s+InpOvernightRequireRangeBreak\s*=\s*false;",
+         '"Can combine with opening range breakout logic for overnight-only breakouts"'),
+        (r"if\(InpSkipFridayOvernight && ctx\.dayOfWeek == 5\) return false;",
+         "a Friday entry could not exit until Monday - the doc describes one overnight, not a weekend"),
+        (r"double mult = InpRiskUsd / planned;",
+         '"adjust contract count so risk is always the same (e.g. $10,000 per trade)" - volatility targeting'),
+        (r"m_paused = \(trades >= InpValidateAfterTrades && dd > InpValidatedMaxDdUsd\);",
+         '"After 10 trades, if ... you see a $15,000 drawdown, that\'s a red flag to pause the strategy"'),
+        (r"input int\s+InpValidateAfterTrades\s*=\s*10;", '"after 10 trades" - the validation window'),
+        (r'FileWrite\(fh, "month", "magic", "trades", "wins", "losses", "win_rate_pct", "expectancy",',
+         '"Monthly Review: monitor live performance, identify underperforming strategies"'),
+        (r'"UNDERPERFORMING - review or retire"', "the review names the underperformer instead of just archiving numbers"),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M1;", '"1-minute timeframe" (the VWOP study\'s execution chart)'),
+        (r"PEAD \(Strategy 3\) is NOT implemented", "Strategy 3 needs earnings data: disclosed, not silently dropped"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every number the video leaves open stays labelled"),
+    ],
+    # ------------------------------------------- Liquidity Inversion (card #17)
+    "EA_CF_LiquidityInversion.mq5": [
+        (r"input ENUM_CF_LI_MODEL InpModel = CF_LI_DAY;", "the document's two models (day / swing) live in one EA, per its own split"),
+        (r"input int\s+InpSweepMaxDays\s*=\s*3;", '"market sweeps monthly/weekly highs or lows (liquidity grab)" - the sweep must be recent'),
+        (r"if\(d\[i\]\.high > hi && d\[i\]\.close < hi\)", "a swept high that closes back inside -> bearish reversal (the doc's own reading)"),
+        (r"if\(d\[i\]\.low\s+< lo && d\[i\]\.close > lo\)", "a swept low that closes back inside -> bullish reversal"),
+        (r"for\(int k = i \+ 1; k <= i \+ days && k < got; k\+\+\)", "the liquidity box excludes the sweeping bar (a box holding the wick can never be exceeded)"),
+        (r"if\(!SweepAt\(ctx\.symbol, 20, bias, level\) \|\| bias == 0\)", 'monthly liquidity is preferred ("more significant than just session highs/lows")'),
+        (r"if\(!FindFvg\(ctx\.symbol, PERIOD_H4, -bias, InpH4ScanBars, lo, hi, barAgo\)\)", '"a fair value gap forms on the 4-hour" - the reaction gap'),
+        (r"return FvgInvertedBias\(ctx\.symbol, PERIOD_H4, bias, InpH4ScanBars, InpInvertTolFrac \* \(hi - lo\)\);", '"that 4H gap inverts - the highest-probability confirmation"'),
+        (r"if\(r\[j\]\.close <= hi\) continue;", "the inversion needs a displacement CLOSE through the gap, not a wick"),
+        (r"if\(r\[c\]\.low <= hi \+ tol && r\[c\]\.close > hi\) return true;", '"breaks through the gap and then rejects it" - the retest holds the new side'),
+        (r"input double InpInvertTolFrac\s*=\s*0\.10;", "[interpretation]: the video gives no rejection tolerance, so it is a fraction of the gap height"),
+        (r"if\(!FindFvg\(ctx\.symbol, zoneTf, -bias, scanBars, zoneLo, zoneHi, 0\)\) return false;", '"a counter-trend 15-minute gap forms on the retracement"'),
+        (r"if\(!ZoneInvertedOn\(ctx\.symbol, entryTf, bias, zoneLo, zoneHi, InpInvertTolFrac \* \(zoneHi - zoneLo\)\)\)", '"the 15m gap is inverted as the entry on the 5-minute"'),
+        (r"if\(InpModel == CF_LI_SWING\) zoneTf = PERIOD_H1;", 'swing entries "come off the hourly or 4-hour, never the 15-minute or lower"'),
+        (r"cfg\.useLimitEntry\s*=\s*false;", '"market execute ... rather than using limit orders"'),
+        (r"input int\s+InpStop15mBars\s*=\s*16;", '"stop loss above the current 15-minute high"'),
+        (r"if\(bias > 0\) extreme = MathMin\(extreme, r\[i\]\.low\);", "long stops sit below the 15m low; the short side mirrors the high"),
+        (r"input int\s+InpStopH4Bars\s*=\s*6;", "swing stops sit beyond the H4 structure instead"),
+        (r"input double InpStopBufferAtr\s*=\s*0\.15;", '"wide enough to allow the trade to breathe" - an ATR buffer beyond the level'),
+        (r"input double InpMinRr\s*=\s*1\.5;", '"typically yields a 1.5:1 to 2:1 initial risk-reward"'),
+        (r"if\(rr < InpMinRr\) return false;", "a setup that cannot reach the doc's R floor is not taken"),
+        (r"double nyLevel = \(bias > 0\) \? nyHi : nyLo;", '"target prior sellside liquidity - the previous session low, the 9:30 open low"'),
+        (r"if\(FindFvg\(ctx\.symbol, PERIOD_D1, -bias, 60, lo, hi, k\)\)", '"mark multiple partials: daily gaps, weekly gaps" - the swing layer aims at unfilled HTF gaps'),
+        (r"input double InpTrimAtR\s*=\s*1\.0;", '"trim 50% at the first take-profit target"'),
+        (r"cfg\.breakEvenAtR\s*=\s*1\.0;", '"move the stop to break-even after the trim"'),
+        (r"cfg\.trailAtR\s*=\s*InpRunnerTrailAtR;", '"let runners capture extended liquidity"'),
+        (r"cfg\.sessionStartHour = 15;  cfg\.sessionStartMin = 0;", '"prefer the New York open (10:00 ET) - do not trade before it" (10:00 ET = 15:00 London)'),
+        (r"input int\s+InpConsecutiveLossLock\s*=\s*2;", '"two consecutive losses stop trading for the day"'),
+        (r"else if\(p > 0\.0\) streak = 0;", '"a win resets the count, so the third attempt is allowed"'),
+        (r"input int\s+InpMaxAttemptsPerDay\s*=\s*3;", '"if he wins one and loses one, he allows himself a third attempt"'),
+        (r"return InpHighVolSizeMult;", '"size down in high volatility so that the same dollar risk applies"'),
+        (r"if\(EA_Rates\(InpVixSymbol, PERIOD_D1, 0, 3, v\) >= 2 && v\[1\]\.close < InpMinVix\)", '"VIX elevation signals setup probability increase" - an optional gate (broker-dependent symbol)'),
+        (r"options-leap workflow is not implementable in an MT5 EA", "options leaps / prop-firm payouts are disclosed, not silently dropped"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every number the video leaves open stays labelled"),
+    ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
         (r"EA_ApplyStagePolicy\(policy, InpStage\);", "the stage table is read from the engine helper, not duplicated"),
@@ -546,7 +636,8 @@ class SyncTests(unittest.TestCase):
     def test_interpretations_stay_labelled(self) -> None:
         # a rule the playbook does not state must remain visibly marked in the source
         for name in ("EA_CF_Structure_OTE.mq5", "EA_CF_PO3_OTE_ADR.mq5",
-                     "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5"):
+                     "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
+                     "EA_CF_LiquidityInversion.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
