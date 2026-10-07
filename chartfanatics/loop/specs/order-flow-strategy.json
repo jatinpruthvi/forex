@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "ca651448ce60828a38c0a0b51893853854af4a9fab028a8e74c29ec7a3258fc2",
+  "acceptance_hash": "f572d72c8c6b1196dff322e9598edd3b5152232d484669ca0d32c98de2a853b0",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_OrderFlowStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "ce296e6d07597e5e0830e26d8c8fc28d4ed00e8e5df5ba972f20cae9303f937e",
-    "tests/test_chartfanatics_sync.py#other_cards": "0a36927fb707d89f32d60828f96ac1e8baa44921e52755dfdb322056d25c2da1"
+    "tests/test_chartfanatics_sync.py#machinery": "d5b79743ec15be5032c7b8ab38c98057d07fb11678eefdcd4108acdc2a95744c",
+    "tests/test_chartfanatics_sync.py#other_cards": "7ead031d231f4d99d69221558147bb5f3e891b75359b0ee81da6f8d5e2b07638"
   },
   "magic": 3231,
-  "planned_at": "2026-10-07T16:02:08Z",
+  "planned_at": "2026-10-07T16:05:07Z",
   "rule_count": 24,
   "slug": "order-flow-strategy",
   "source": "chartfanatics/glimpse/hvyf6frvCcA.md",

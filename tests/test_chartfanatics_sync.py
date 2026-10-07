@@ -162,6 +162,20 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_StageAnalysisStrategy (card #36): Ted Zhang's 4-market-cycle framework read mechanically.  The
+    stack (10/20/30/40 simple moving averages) is the whole judge: bullishly stacked with price surfing
+    above it is Stage 2 (the buy/hold zone), bearishly stacked with price under it is Stage 4 (avoid or
+    short), and a converged stack splits into Stage 1 basing (price near the lows) or Stage 3 topping
+    (near the highs) - both of which take no risk, which is Livermore's "forget the first and last eighth"
+    encoded as a gate.  Entries are the document's own: a completed close above all four MAs with the 10
+    above the 20 and 30, volume confirming, and preferably the pullback into the 10/20 MA; the first
+    multi-month base after a big Stage 2 move breaking out for the next leg; the Stage 4 short entered on
+    a failed rally into the 10 MA.  The exit is Stage 3 itself - the scale-out when price fails to make
+    new highs while the stack converges, and the close that loses the 30 MA for the rest ("do not wait
+    for Stage 4 crash").  The advanced Stage 4 mean reversion back to the MAs ships off by default, as
+    the document frames it as a separate trade.  "[interpretation]": 45-degree steepness, flatten and
+    converge percentages, the volume multiple, the pullback tolerance, the base window and tightness, the
+    big-move threshold, the fail-high window, the extreme distance and the stop buffers.
   * EA_CF_SmallCapShortStatistics (card #35): the three statistical small-cap shorts with every observable
     number from the document - the 100%+ gap and its 1-2 hour consolidation (breakdown entry partial, add
     when momentum cracks 3-5% below the consolidation low, stop above the consolidation high, a 26% fade
@@ -1724,6 +1738,91 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input double\s+InpMaxStopPct\s+= 45\.0;",
          'small-cap stops can be enormous - the sanity cap is labelled'),
     ],
+    # -------------------------------------- stage analysis (card #36)
+    "EA_CF_StageAnalysisStrategy.mq5": [
+        (r"input int\s+InpMa1\s+= 10;",
+         '"Use 10, 20, 30, and 40-week simple moving averages" - the 10'),
+        (r"input int\s+InpMa4\s+= 40;",
+         '"...and 40-week simple moving averages" - the 40'),
+        (r"c\.ma1 = SmaOf\(r, got, InpMa1, 0\);",
+         'the stack is built from simple moving averages of closes'),
+        (r"bool bullish = \(c\.ma1 > c\.ma2 && c\.ma2 > c\.ma3 && c\.ma3 > c\.ma4\);",
+         '"In uptrends, they stack bullishly (10 > 20 > 30 > 40)"'),
+        (r"bool bearish = \(c\.ma1 < c\.ma2 && c\.ma2 < c\.ma3 && c\.ma3 < c\.ma4\);",
+         '"in downtrends, bearishly (10 < 20 < 30 < 40)"'),
+        (r"c\.convergePct = \(hi - lo\) / px \* 100\.0;",
+         '"When they converge and flatten, a transition is near" - the stack spread is measured'),
+        (r"bool aboveAll = \(px > hi\);",
+         'Stage 2: "Price ... surfing above all moving averages"'),
+        (r"bool belowAll = \(px < lo\);",
+         'Stage 4: "Price ... trading below the 10, 30, and 40-week moving averages"'),
+        (r"if\(bullish && aboveAll\)      c\.stage = 2;",
+         'Stage 2 = bullishly stacked and above the whole stack'),
+        (r"else if\(bearish && belowAll\) c\.stage = 4;",
+         'Stage 4 = bearishly stacked and below the whole stack'),
+        (r"else if\(converged\)           c\.stage = \(c\.rangePos >= 0\.5\) \? 3 : 1;",
+         '"This mirrors Stage 1 but at the top" - price near the range highs = 3, near the lows = 1'),
+        (r"else                         c\.stage = 0;",
+         '"sideways bases show oscillation with no clear direction" - the mixed read takes no risk'),
+        (r"c\.priorMove = \(loRef > 0\.0\) \? \(r\[0\]\.close - loRef\) / loRef \* 100\.0 : 0\.0;",
+         'the "higher lows and higher highs" structure is read as the lookback move'),
+        (r"input ENUM_TIMEFRAMES   InpMaTf               = PERIOD_D1;",
+         '"applies to weekly, daily, hourly ... 5-minute charts" - the stack timeframe is an input (fractal)'),
+        (r"if\(!\(t\[1\]\.close > hi\)\) return false;",
+         '"Wait for price to close above all four moving averages"'),
+        (r"if\(!\(c\.ma1 > c\.ma2 && c\.ma1 > c\.ma3\)\) return false;",
+         '"...with the 10 above the 20 and 30"'),
+        (r"return \(\(double\)t\[1\]\.tick_volume >= InpVolMult \* c\.avgVol20\);",
+         '"Volume should confirm"'),
+        (r"bool touch10 = \(t\[1\]\.low <= c\.ma1 \* \(1\.0 \+ tol\) && t\[1\]\.close > c\.ma1\);",
+         '"look for a pullback to the 10/20 MA for a lower-risk entry"'),
+        (r"bool touch20 = \(t\[1\]\.low <= c\.ma2 \* \(1\.0 \+ tol\) && t\[1\]\.close > c\.ma2\);",
+         '... on either the 10 or the 20'),
+        (r"if\(c\.priorMove < InpBigMovePct\) return false;",
+         '"After a big Stage 2 move" - the base trade requires the proven run'),
+        (r"if\(basePct > InpBaseMaxPct\) return false;",
+         '"a tight multi-month base formed" - a wide range is not the setup'),
+        (r"if\(!\(t\[1\]\.close > c\.baseHigh\)\) return false;",
+         '"then broke out for another 25-30% gain" - the breakout is the entry'),
+        (r"if\(!\(t\[1\]\.close > c\.ma1 && t\[1\]\.close > c\.ma2\)\) return false;",
+         'the breakout must have reclaimed the short MAs (the Stage 2 read)'),
+        (r"if\(HasPriorBase\(ctx\)\) return false;",
+         '"the FIRST multi-month consolidation (base)" - a later base is not the setup'),
+        (r"input int\s+InpBaseBars\s+= 30;",
+         '"multi-month consolidation" - the base window (interpretation)'),
+        (r"bool failHigh = \(dir > 0\) \? \(t\[1\]\.high < c\.failHighLevel\) : \(t\[1\]\.low > c\.failHighLevel\);",
+         'Stage 3 exit: "price fails to make new highs"'),
+        (r"bool converged = \(c\.convergePct <= InpConvergePct\);",
+         'Stage 3 exit: "MAs flatten and converge"'),
+        (r"if\(inProfit && converged && failHigh\)",
+         '"it is time to scale out" - only while the trade is still in profit'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, InpScaleOutPct\) \|\| !g_eaExec\.CanPartial\(ticket, InpScaleOutPct\)\)",
+         'the scale-out is a partial close (unsplittable lots count as done)'),
+        (r"input double            InpScaleOutPct        = 50\.0;",
+         'the scale-out size [interpretation]'),
+        (r"bool broke = \(dir > 0\) \? \(t\[1\]\.close < maExit\) : \(t\[1\]\.close > maExit\);",
+         '"Do not wait for Stage 4 crash" - the rest leaves when a close loses the 30 MA'),
+        (r"cfg\.sessionEndFlat        = false;",
+         'Stage 2 is "Buy/Hold" - the hold rides the stage, not the bell'),
+        (r"bool tagged = \(t\[1\]\.high >= c\.ma1 \* \(1\.0 - tol\) && t\[1\]\.close < c\.ma1\);",
+         'Stage 4 "retail should stay out or short" - the short is a failed rally into the 10 MA'),
+        (r"if\(InpAllowShorts && c\.stage == 4\)",
+         'the short is only taken in the bearish stage'),
+        (r"double dist = \(c\.ma3 - ctx\.bid\) / c\.ma3 \* 100\.0;",
+         '"If a stock crashes far below the 30/40-week MAs"'),
+        (r"if\(dist < InpExtremeBelowPct\) return false;",
+         '"crashes far below" - the distance gate (interpretation)'),
+        (r"p\.target = c\.ma3;",
+         '"it may bounce back to those MAs as support" - the MA is the target'),
+        (r"if\(InpUseMeanReversion && InpAllowLongs && c\.stage == 4\)",
+         '"This is a mean reversion trade, not a Stage 2 entry" - off by default'),
+        (r"input double            InpMaxStopPct         = 25\.0;",
+         '"Risk management (stop losses) is essential; follow your system" - the sanity cap (interpretation)'),
+        (r"input int               InpMaxTradesPerDay    = 2;",
+         '"Moderna had three failed Stage 2 breakouts" - the retry budget (interpretation)'),
+        (r"input string            InpSymbolsToTrade     = \"AAPL,MSFT,NVDA\";",
+         'the ETF-leaders market-health screen is the universe (disclosed)'),
+    ],
 }
 
 
@@ -1759,7 +1858,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5",
                      "EA_CF_RealSimpleStrategy.mq5",
                      "EA_CF_ShortingStrategy.mq5",
-                     "EA_CF_SmallCapShortStatistics.mq5"):
+                     "EA_CF_SmallCapShortStatistics.mq5",
+                     "EA_CF_StageAnalysisStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

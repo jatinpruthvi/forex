@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "25c43889e169c0c53b7b47646aa1b5a7dc346ee7fb519410ebd2c99aa92f65fa",
+  "acceptance_hash": "018a6f0e0e2df11aa94b85115e8403bc22918c4de6e5e8e8628aa786361ad47c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "ce296e6d07597e5e0830e26d8c8fc28d4ed00e8e5df5ba972f20cae9303f937e",
-    "tests/test_chartfanatics_sync.py#other_cards": "b2c787b497143f487c1309eb8c54d5f51130d00366b82eb03b4c09d2d75e9797"
+    "tests/test_chartfanatics_sync.py#machinery": "d5b79743ec15be5032c7b8ab38c98057d07fb11678eefdcd4108acdc2a95744c",
+    "tests/test_chartfanatics_sync.py#other_cards": "6d71ee133c240046d5577eda474f9b207d23226de849e6ecd1c39c0507a10afe"
   },
   "magic": 3235,
-  "planned_at": "2026-10-07T16:02:08Z",
+  "planned_at": "2026-10-07T16:05:07Z",
   "rule_count": 39,
   "slug": "price-cycle-continuation-failed-base-strategy",
   "source": "chartfanatics/glimpse/0_NSmOWVbpA.md",

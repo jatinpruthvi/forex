@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 38 in progress ·
-⬜ 9 not started
+**Cards:** ✅ 0 done · 🟡 39 in progress ·
+⬜ 8 not started
 
-**EAs built:** 38/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 39/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 37 awaiting human · 10 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 38 awaiting human · 9 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 190/376 (51%)
-`▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 195/376 (52%)
+`▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -106,7 +106,7 @@ infrastructure needed to get a first verdict:
 | 32 | Price Action Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=70UtrLU6RAg) · [summary](glimpse/70UtrLU6RAg.md) | [`PriceAction.mq5`](mql5-eas/EA_CF_PriceAction.mq5) mag 3234 | [`price-action-strategy.md`](todos/price-action-strategy.md) |
 | 33 | Price Cycle Continuation & Failed Base Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=0_NSmOWVbpA) · [summary](glimpse/0_NSmOWVbpA.md) | [`PriceCycleContinuationFailedBaseStrategy.mq5`](mql5-eas/EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5) mag 3235 | [`price-cycle-continuation-failed-base-strategy.md`](todos/price-cycle-continuation-failed-base-strategy.md) |
 | 36 | Small-Cap Short Statistics | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=52ZsDmFHqyY) · [summary](glimpse/52ZsDmFHqyY.md) | [`SmallCapShortStatistics.mq5`](mql5-eas/EA_CF_SmallCapShortStatistics.mq5) mag 3238 | [`small-cap-short-statistics.md`](todos/small-cap-short-statistics.md) |
-| 38 | Stage Analysis Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=VDK200OHNSo) · [summary](glimpse/VDK200OHNSo.md) | _—_ | [`stage-analysis-strategy.md`](todos/stage-analysis-strategy.md) |
+| 38 | Stage Analysis Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=VDK200OHNSo) · [summary](glimpse/VDK200OHNSo.md) | [`StageAnalysisStrategy.mq5`](mql5-eas/EA_CF_StageAnalysisStrategy.mq5) mag 3239 | [`stage-analysis-strategy.md`](todos/stage-analysis-strategy.md) |
 | 42 | Trading First Principles Framework | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=_wpg45NdMkM) · [summary](glimpse/_wpg45NdMkM.md) | _—_ | [`trading-first-principles-framework.md`](todos/trading-first-principles-framework.md) |
 
 ---

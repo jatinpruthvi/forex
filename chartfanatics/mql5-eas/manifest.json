@@ -832,6 +832,25 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/52ZsDmFHqyY.md"
+  },
+  {
+   "card": 36,
+   "slug": "stage-analysis-strategy",
+   "strategy": "Stage Analysis Strategy",
+   "ea": "EA_CF_StageAnalysisStrategy.mq5",
+   "class": "CCfStageAnalysis",
+   "magic": 3239,
+   "timeframe": "D1 stack / M5 execution",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the 10/20/30/40 simple-moving-average stack read as the 4 stages (bullish+above = 2, bearish+below = 4, converged = 1/3 by range position, mixed = no risk)",
+    "Stage 2 entries: close above all four MAs with the 10 above the 20 and 30, volume confirming, the pullback into the 10/20 MA, and the first multi-month base after a big move",
+    "Stage 3 exit: scale out when price fails to make new highs while the stack converges; close the rest when the 30 MA goes",
+    "Stage 4: the failed-rally short and the optional mean reversion back to the 30 MA (off by default)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/VDK200OHNSo.md"
   }
  ]
 }

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "63705f10c5860ff3cdf528aaf63ff8d84c26b00eae6367bfa3d2a56a11d2ce7c",
+  "acceptance_hash": "82dc20440b39f09969cdbb058e3ac5122adcfd13f72f515da0f46dd450c8890e",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_PriceAction.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "ce296e6d07597e5e0830e26d8c8fc28d4ed00e8e5df5ba972f20cae9303f937e",
-    "tests/test_chartfanatics_sync.py#other_cards": "ecf9defb360d04d8c45eac8f8ffab1dcae262fcb54ecc7aad5172f7224297f12"
+    "tests/test_chartfanatics_sync.py#machinery": "d5b79743ec15be5032c7b8ab38c98057d07fb11678eefdcd4108acdc2a95744c",
+    "tests/test_chartfanatics_sync.py#other_cards": "667749922008cbfa5331f36eba8a2f0baa2b5bb4d50788a6c659c45378890711"
   },
   "magic": 3234,
-  "planned_at": "2026-10-07T16:02:08Z",
+  "planned_at": "2026-10-07T16:05:07Z",
   "rule_count": 36,
   "slug": "price-action-strategy",
   "source": "chartfanatics/glimpse/70UtrLU6RAg.md",
