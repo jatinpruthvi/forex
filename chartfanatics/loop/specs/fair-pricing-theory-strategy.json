@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "c06272d1f24dbbc381335dfb322cc42deb88bdfb8a92540dfab3e8de7154b6e5",
+  "acceptance_hash": "6ab7147df1ceffb6da17f91a2802b7ccab178efdec5168a1b78450bcdbb36f5b",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_FairPricingTheory.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
-    "tests/test_chartfanatics_sync.py#other_cards": "3b025d034cb769f3944c832163a35d8231f58f4a285847e154a29f8b05fac224"
+    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
+    "tests/test_chartfanatics_sync.py#other_cards": "3872eb66cfe24c6e399ceb6c1043647ca5ea40f440a2990edaa8d8fde7a3d184"
   },
   "magic": 3213,
-  "planned_at": "2026-10-07T16:17:42Z",
+  "planned_at": "2026-10-07T16:23:31Z",
   "rule_count": 17,
   "slug": "fair-pricing-theory-strategy",
   "source": "chartfanatics/glimpse/-kGVL93XfyE.md",

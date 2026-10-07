@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "52c372d15735fa9a3fd9af459f202367c1ec7874a243d1c3ead1c6a0712db6c2",
+  "acceptance_hash": "e7db9571e3ff4415c1ebf9558de47f13e98d26d6dac808b6f1b64c9cd30cf136",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_MomentumModelPerformanceDevelopment.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
-    "tests/test_chartfanatics_sync.py#other_cards": "5e22a80531869b604696e512b51a651e25e98e906233483396e0fc80ae1829e2"
+    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
+    "tests/test_chartfanatics_sync.py#other_cards": "6b6bbc181cc7744baffd8a73febc829ff43a97ab6d52a53ab4533e6d8b4b4201"
   },
   "magic": 3227,
-  "planned_at": "2026-10-07T16:17:42Z",
+  "planned_at": "2026-10-07T16:23:32Z",
   "rule_count": 35,
   "slug": "momentum-model-performance-development",
   "source": "chartfanatics/glimpse/WDdvnd9vLbM.md",

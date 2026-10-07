@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "86626db2a46818d00169bd886b2ddf9ea20568083bbb082b441203cfb0e506e0",
+  "acceptance_hash": "bce662c3d93078d91aa3d7d4521445d3c6dce44c27bc174ab3476cff4f5e7c67",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_OrderflowTradingMasterclass.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
-    "tests/test_chartfanatics_sync.py#other_cards": "0b54da2fddb805fe00a130283c6597ab7410a45a128f206bc416f3becfdf8d47"
+    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
+    "tests/test_chartfanatics_sync.py#other_cards": "59a883a1325e55c21d2c19961f5a62861f63ae44c2c80cf112c4b5068c06222a"
   },
   "magic": 3232,
-  "planned_at": "2026-10-07T16:17:42Z",
+  "planned_at": "2026-10-07T16:23:32Z",
   "rule_count": 20,
   "slug": "orderflow-trading-masterclass",
   "source": "chartfanatics/pdf/orderflow-trading-masterclass.pdf",

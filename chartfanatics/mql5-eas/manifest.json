@@ -931,5 +931,26 @@
    ],
    "source": "chartfanatics/pdf/trendline-break-pocket-strategy.pdf"
   }
+,
+  {
+   "card": 41,
+   "slug": "trendline-strategy",
+   "strategy": "Trendline Strategy",
+   "ea": "EA_CF_TrendlineStrategy.mq5",
+   "class": "CCfTrendline",
+   "magic": 3244,
+   "timeframe": "H4",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the action line / safety line pair: the line through the two most recent same-side swings, extended forward, with every older pivot inside tolerance counting as a touchpoint",
+    "the bounce: the completed bar tests the line and closes back on-side - the action line IS the safety line",
+    "the break: a completed close through the opposing line inside a freshness window, protected by the newest same-direction line, skipped when the risk from the safety line is wider than the document allows",
+    "the exits: a completed close back through the safety line closes the trade, and the stop trails along the line as the swings extend it",
+    "the 4-hour frame, the metals / commodities universe and the optional daily top-down confirmation",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/trendline-strategy.pdf"
+  }
  ]
 }

@@ -162,6 +162,23 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_TrendlineStrategy (card #41): Tori Trade's Action Line / Safety Line pair - the bounce ("enter
+    when the price reaches or tests the trendline") and the 2T/3T break ("enter when the price breaks
+    through an established trendline").  The lines are drawn by rule, because an EA cannot read a
+    hand-drawn object: through the two most recent same-side swings (higher lows for support, lower highs
+    for resistance), extended forward, with every older pivot inside tolerance counting as a touch ("at
+    least two or three clear touchpoints before entry") and "at least one week of price data from the
+    first touchpoint" as a gate.  A bounce's action line IS its safety line (the document says so); a
+    break is protected by the newest opposing line and skipped when that line sits further away than the
+    stated "close to the safety line" ("if it's too far, skip the trade").  Exits are the document's: a
+    completed close back through the safety line closes the trade at once ("the trade is invalid and must
+    be closed"), and the stop trails along the line as new swings extend it.  The 4-hour frame, the
+    metals / commodities universe and the optional daily top-down confirmation are inputs.
+    "[interpretation]": the pivot width, the line and touch-test tolerances, the break-close buffer, the
+    freshness window after the break, the stop buffer and its width cap, the maximum safety-line risk
+    percentage, the daily reference period and the far target placeholder.  Disclosed: the document's
+    "frequent false breaks" caveat is mitigated - never pretended away - by the touchpoint gate and the
+    close-through requirement: a wick alone is not a break.
   * EA_CF_TrendlineBreakPocketStrategy (card #40): Ali Crook's pocket, the one window "after price reacts
     from a key level, breaks the trendline, and confirms a shift in momentum, before it becomes a fully
     established trend".  All four conditions are gates, in the document's own order: the level must be a
@@ -2233,6 +2250,98 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input int               InpLimitDays          = 5;",
          'the limit order life is an interpretation of the pocket timing'),
     ],
+    "EA_CF_TrendlineStrategy.mq5": [
+        (r"cfg\.signalTimeframe       = PERIOD_H4;",
+         '"This strategy works best on the 4-hour timeframe"'),
+        (r"input string            InpSymbolsToTrade     = \"XAUUSD,XAGUSD\";",
+         '"certain commodities or metals with strong trending behavior are suitable" - the default universe'),
+        (r"bool DailyTrendUp\(const string sym\)",
+         '"A top-down look at bigger timeframes, like the daily or weekly, helps confirm the main trend direction"'),
+        (r"int n = \(int\)MathMax\(5, InpDailyMaPeriod\);",
+         '... the daily trend reference the look compares against'),
+        (r"if\(InpRequireDailyAlign && \(dailyUp != \(dir > 0\)\)\) return false;",
+         '... and the optional hard version of that confirmation, on both setups'),
+        (r"if\(dir > 0 && !\(px\[0\] > px\[1\]\)\) return false;",
+         'a rising support line needs higher lows - a trendline, not a random line'),
+        (r"if\(dir < 0 && !\(px\[0\] < px\[1\]\)\) return false;",
+         '... and a falling resistance line needs lower highs'),
+        (r"for\(int i = side \+ 1; i \+ side < got - 1 && n < 12; i\+\+\)",
+         'swing points come from closed bars only - the forming bar cannot make a swing'),
+        (r"if\(MathAbs\(px\[k\] - line\) / line <= tol\) L\.touches\+\+;",
+         '"The trendline must have at least two or three clear touchpoints before entry" - every later touch counts'),
+        (r"if\(L\.touches < InpMinTouchpoints\) return false;",
+         '... and the gate uses that count'),
+        (r"if\(d\[L\.oldestIdx\]\.time > TimeTradeServer\(\) - \(datetime\)\(\(long\)InpMinTouchSpanDays \* 86400\)\) return false;",
+         '"There must be at least one week of price data from the first touchpoint"'),
+        (r"if\(InpUseBounce\)",
+         '"The bounce setup aims to enter when the price touches and respects an existing trendline"'),
+        (r"bool tested = \(dir > 0\) \? \(d\[1\]\.low <= lineNow \* \(1\.0 \+ tol\) && d\[1\]\.close > lineNow\)",
+         '"Enter when the price reaches or tests the trendline" - the completed bar tests it and respects it'),
+        (r"double stop  = \(dir > 0\) \? lineNow - InpStopBufferAtr \* ctx\.atr",
+         '"The trendline itself is used as the stop-loss level"'),
+        (r"input double            InpStopBufferAtr      = 0\.50;",
+         '"Stops should not be placed exactly at the entry.  Always give it enough room so normal price wicks don\'t stop you out too early"'),
+        (r"input double            InpMaxStopPct         = 4\.00;",
+         '... with a cap on how wide the buffered stop may be'),
+        (r"m_planSafetyLine = L;                             // bounce: action line = safety line",
+         '"For bounce setups, the action line and safety line are the same"'),
+        (r"bool invalid = isLong \? \(d\[1\]\.close < line\) : \(d\[1\]\.close > line\);",
+         '"If the price closes through the line, the position is closed immediately"'),
+        (r"if\(!BuildLine\(d, got, -dir, action\)\) return false;",
+         'the break takes an opposing trendline as the action line'),
+        (r"for\(int i = 1; i <= action\.newestIdx; i\+\+\)",
+         'the break is looked for on completed bars, newest first'),
+        (r"if\(!before\) \{ breakIdx = i; break; \}",
+         '... and the break bar is the one that STARTED the excursion through the line'),
+        (r"if\(breakIdx > InpBreakFreshBars\) return false;",
+         '"If there is no safety line when the break happens, wait until price forms a clear high or low to draw one" - the entry window respects that wait'),
+        (r"if\(!BuildLine\(d, got, dir, safety\)\) return false;  // a line in the trade",
+         '"A new opposing trendline is drawn as the safety line to protect the position"'),
+        (r"if\(risk > entry \* InpMaxLineRiskPct / 100\.0\) return false;",
+         '"The break must happen close to the safety line so the risk stays tight.  If it\'s too far, skip the trade"'),
+        (r"if\(dir > 0 && !\(safetyNow < entry\)\) return false;",
+         'the safety line must sit behind the trade, where an exit protects it'),
+        (r"p\.score = \(action\.touches >= 3\) \? 88\.0 : 84\.0;",
+         '"More touchpoints show the line is well respected and make the break more reliable"'),
+        (r"\(action\.touches >= 3 \? \" \(3T break\)\" : \" \(2T break\)\"\)",
+         '"Track all 2 touchpoint breaks separately from 3 touchpoints breaks" - the ledger names the class'),
+        (r"p\.score = 86\.0;",
+         '"the bounce setup generally carries the lowest risk" - it scores lower than a break'),
+        (r"if\(InpTrailAlongLine\)",
+         '"The stop can be trailed along the trendline as the price creates new valid swing points"'),
+        (r"if\(better && g_eaExec\.Modify\(t, newSl, curTp\)\)",
+         '... the trail is a real stop modification, not a note'),
+        (r"if\(isLong && newSl >= ctx\.bid\) continue;",
+         'the trail never crosses the market'),
+        (r"if\(g_eaExec\.Close\(t, \"the completed close crossed the safety line - invalid\"\)\)",
+         '"the trade is invalid and must be closed" - the close-based invalidation'),
+        (r"GlobalVariableSet\(T\(ticket, \"_T0\"\), \(double\)\(long\)L\.t0\);",
+         'the safety line is stored per ticket as its two time/price anchors'),
+        (r"GlobalVariableSet\(K\(sym, \"_PTT\"\), \(double\)\(long\)TimeTradeServer\(\)\);",
+         'a pending plan carries its line by symbol plus a freshness stamp, for the fill that follows'),
+        (r"opened \+ \(datetime\)\(4 \* 3600\) >= stamp && opened <= stamp \+ \(datetime\)\(4 \* 3600\)",
+         '... and only a fill opened around that plan adopts it'),
+        (r"if\(InpUseLineExit\)",
+         'the line exit can be switched off for comparison runs'),
+        (r"cfg\.trailAtR              = 0\.0;",
+         'the engine trail is off: the document trails the LINE, not an R level'),
+        (r"cfg\.breakEvenAtR          = 0\.0;",
+         'no break-even rule is stated'),
+        (r"cfg\.timeStopMinutes       = 0;",
+         '"swing trading" - no clock exit, the line decides'),
+        (r"cfg\.maxTradesPerDay       = InpMaxTradesPerDay;",
+         '"Setups are rare" - a small daily attempt budget'),
+        (r"cfg\.minSecondsBetweenTrades = 3600;",
+         'one attempt per 4-hour bar at most'),
+        (r"cfg\.maxOpenPositions      = 2;",
+         'a bounce and a break may be alive at once, one per symbol'),
+        (r"cfg\.maxSpreadPoints       = InpMaxSpreadPoints;",
+         'the spread gate every house EA carries'),
+        (r"cfg\.dailyLossPct          = InpDailyLossPct;",
+         '... and the daily loss halt'),
+        (r"manually drawn trendlines\" are drawn here",
+         'the document assumes hand-drawn lines; the EA says out loud what it draws instead'),
+    ],
 }
 
 
@@ -2273,7 +2382,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_SupportAndResistance.mq5",
                      "EA_CF_VixFuturesStrategy.mq5",
                      "EA_CF_TradingFirstPrinciplesFramework.mq5",
-                     "EA_CF_TrendlineBreakPocketStrategy.mq5"):
+                     "EA_CF_TrendlineBreakPocketStrategy.mq5",
+                     "EA_CF_TrendlineStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

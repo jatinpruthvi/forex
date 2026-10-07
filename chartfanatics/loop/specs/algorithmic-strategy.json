@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "5158cbe72c1de32fbdd9d9d57ddcca54acfbecf09b29fc1c0698ee731790ff83",
+  "acceptance_hash": "c42cb84bb26e96832a3615f377e20f9041440b56520f4df09af3607686c24bcf",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_AlgoPortfolioMonitor.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
-    "tests/test_chartfanatics_sync.py#other_cards": "d30dc56737c155e616db6be23c924f5e0d1000e29765a8af2bf71c26ddaf40e9"
+    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
+    "tests/test_chartfanatics_sync.py#other_cards": "2eeba03298b7f18ddb3dbdff290593cbe369b281f93903f8438f19ce943f8226"
   },
   "magic": 3209,
-  "planned_at": "2026-10-07T16:17:42Z",
+  "planned_at": "2026-10-07T16:23:31Z",
   "rule_count": 15,
   "slug": "algorithmic-strategy",
   "source": "chartfanatics/glimpse/TyHTEtArsS4.md",
