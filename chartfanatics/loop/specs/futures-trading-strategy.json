@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "dc2dce38e436d005a0fd59a311769e63908fbfd4b16dd954ebf40a64e86e0afd",
+  "acceptance_hash": "335daf435f16e68edd0879eba905ab2575346e98dc89b0fcf8f016d4746bac0f",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_FuturesStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "c39a7f9cb2137454063f196ff6af0d1887d6422065cc38d521b165876ca8c377",
-    "tests/test_chartfanatics_sync.py#other_cards": "f1e4ed2e8c18da2608ef86cf638d9d0fff6e4afb4c3fd179e83fe11d91657b3d"
+    "tests/test_chartfanatics_sync.py#machinery": "a9a066ab08575db4a4a9966c429ee422227892482fa5515ae41a7e1ab61ef48f",
+    "tests/test_chartfanatics_sync.py#other_cards": "11de7e3abc42e3aa69dcbab6cfd63e1fe34e495077cd5594dc77433a32635cf5"
   },
   "magic": 3217,
-  "planned_at": "2026-10-07T13:16:38Z",
+  "planned_at": "2026-10-07T13:23:03Z",
   "rule_count": 26,
   "slug": "futures-trading-strategy",
   "source": "chartfanatics/pdf/futures-trading-strategy.pdf",

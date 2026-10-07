@@ -11,9 +11,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "80-20-nasdaq-strategy": {
       "attempts": 1,
@@ -26,9 +26,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "algorithmic-strategy": {
       "attempts": 1,
@@ -41,9 +41,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "amd-model": {
       "attempts": 1,
@@ -56,12 +56,12 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "reset_by": "loop self-test",
       "reset_note": "re-demo attempt counting",
       "state": "awaiting_human",
       "state_before_reset": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "auction-market-strategy": {
       "attempts": 1,
@@ -74,12 +74,12 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "reset_by": "agent",
       "reset_note": "boundary was the batch's own table addition",
       "state": "awaiting_human",
       "state_before_reset": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "auction-market-theory-strategy": {
       "attempts": 1,
@@ -92,12 +92,12 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "reset_by": "agent",
       "reset_note": "boundary was the batch's own table addition",
       "state": "awaiting_human",
       "state_before_reset": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "break-retest": {
       "attempts": 1,
@@ -110,9 +110,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "episodic-pivot-strategy": {
       "attempts": 1,
@@ -125,9 +125,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "fair-pricing-theory-strategy": {
       "attempts": 1,
@@ -140,9 +140,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "first-red-day": {
       "attempts": 1,
@@ -155,9 +155,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "first-red-day-strategy": {
       "attempts": 1,
@@ -170,9 +170,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "full-psychology-masterclass": {
       "attempts": 1,
@@ -185,9 +185,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "futures-trading-strategy": {
       "attempts": 1,
@@ -200,9 +200,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "institutional-options-flow-gamma-reversal-strategy": {
       "attempts": 1,
@@ -215,9 +215,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "institutional-strategy-development-framework": {
       "attempts": 1,
@@ -230,9 +230,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "intraday-liquidity-volatility-model": {
       "attempts": 1,
@@ -245,9 +245,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "liquidity-inversion-model": {
       "attempts": 1,
@@ -260,9 +260,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "liquidity-strategy": {
       "attempts": 1,
@@ -275,9 +275,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "low-volume-node": {
       "attempts": 1,
@@ -290,9 +290,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "market-auction-theory": {
       "attempts": 1,
@@ -305,9 +305,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "market-dna-strategy": {
       "attempts": 1,
@@ -320,9 +320,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "mean-reversion-strategy": {
       "attempts": 1,
@@ -335,9 +335,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "measured-move-trend-strategy": {
       "attempts": 1,
@@ -350,9 +350,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "momentum-model-performance-development": {
       "attempts": 1,
@@ -365,9 +365,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "nasdaq-ict-and-order-flow-scalping-strategy": {
       "attempts": 1,
@@ -380,9 +380,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "nq-liquidity-sweep-reversal-scalping-strategy": {
       "attempts": 1,
@@ -395,9 +395,9 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "options-trading-masterclass": {
       "attempts": 1,
@@ -409,26 +409,35 @@
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "agent",
+      "replan_reason": "plan refresh",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:42Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "order-flow-strategy": {
-      "attempts": 0,
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T13:23:06Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
       "planner": "agent",
-      "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "state": "awaiting_human",
+      "updated": "2026-10-07T13:23:06Z"
     },
     "orderflow-trading-masterclass": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "parabolic-short-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "po3-ote-adr": {
       "attempts": 1,
@@ -441,39 +450,39 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "price-action-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "price-cycle-continuation-failed-base-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "real-simple-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "shorting-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "small-cap-short-statistics": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "smt-divergence-po3": {
       "attempts": 1,
@@ -486,15 +495,15 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "stage-analysis-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "structure-ote": {
       "attempts": 1,
@@ -507,57 +516,57 @@
       ],
       "planner": "agent",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T13:16:38Z",
+      "replanned_at": "2026-10-07T13:23:03Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T13:16:38Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "support-and-resistance": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "the-vix-futures-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "trading-first-principles-framework": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "trendline-break-pocket-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "trendline-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "unique-high-rr": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "universal-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     },
     "volume-profile-strategy": {
       "attempts": 0,
       "planner": "agent",
       "state": "planned",
-      "updated": "2026-10-07T13:16:39Z"
+      "updated": "2026-10-07T13:23:03Z"
     }
   }
 }

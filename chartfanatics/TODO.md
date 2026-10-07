@@ -4,14 +4,14 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 30 in progress ·
-⬜ 17 not started
+**Cards:** ✅ 0 done · 🟡 31 in progress ·
+⬜ 16 not started
 
-**EAs built:** 30/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 31/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 29 awaiting human · 18 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 30 awaiting human · 17 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 150/376 (40%)
+**Stages ticked:** 155/376 (41%)
 `▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -102,7 +102,7 @@ infrastructure needed to get a first verdict:
 | 24 | Momentum Model Performance Development | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=WDdvnd9vLbM) · [summary](glimpse/WDdvnd9vLbM.md) | [`MomentumModelPerformanceDevelopment.mq5`](mql5-eas/EA_CF_MomentumModelPerformanceDevelopment.mq5) mag 3227 | [`momentum-model-performance-development.md`](todos/momentum-model-performance-development.md) |
 | 25 | Nasdaq ICT and Order Flow Scalping Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=KkTTCKr-3Ew) · [summary](glimpse/KkTTCKr-3Ew.md) | [`NasdaqIctAndOrderFlowScalpingStrategy.mq5`](mql5-eas/EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5) mag 3228 | [`nasdaq-ict-and-order-flow-scalping-strategy.md`](todos/nasdaq-ict-and-order-flow-scalping-strategy.md) |
 | 26 | NQ Liquidity Sweep & Reversal Scalping Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=-kGVL93XfyE) · [summary](glimpse/-kGVL93XfyE.md) | [`NqLiquiditySweepReversalScalpingStrategy.mq5`](mql5-eas/EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5) mag 3229 | [`nq-liquidity-sweep-reversal-scalping-strategy.md`](todos/nq-liquidity-sweep-reversal-scalping-strategy.md) |
-| 28 | Order Flow Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=hvyf6frvCcA) · [summary](glimpse/hvyf6frvCcA.md) | _—_ | [`order-flow-strategy.md`](todos/order-flow-strategy.md) |
+| 28 | Order Flow Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=hvyf6frvCcA) · [summary](glimpse/hvyf6frvCcA.md) | [`OrderFlowStrategy.mq5`](mql5-eas/EA_CF_OrderFlowStrategy.mq5) mag 3231 | [`order-flow-strategy.md`](todos/order-flow-strategy.md) |
 | 32 | Price Action Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=70UtrLU6RAg) · [summary](glimpse/70UtrLU6RAg.md) | _—_ | [`price-action-strategy.md`](todos/price-action-strategy.md) |
 | 33 | Price Cycle Continuation & Failed Base Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=0_NSmOWVbpA) · [summary](glimpse/0_NSmOWVbpA.md) | _—_ | [`price-cycle-continuation-failed-base-strategy.md`](todos/price-cycle-continuation-failed-base-strategy.md) |
 | 36 | Small-Cap Short Statistics | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=52ZsDmFHqyY) · [summary](glimpse/52ZsDmFHqyY.md) | _—_ | [`small-cap-short-statistics.md`](todos/small-cap-short-statistics.md) |

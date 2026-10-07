@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "13e640758db9a0a494d3f0a39caf96ac0c368b9a7adbea800502d83a546779fe",
+  "acceptance_hash": "dc6fef353f44e2cb60f4e1d5766a112350153a4c2374016289b72f58943ede70",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_LiquidityStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "c39a7f9cb2137454063f196ff6af0d1887d6422065cc38d521b165876ca8c377",
-    "tests/test_chartfanatics_sync.py#other_cards": "ebdf08fd1ddf508dee9ab881a883abf5f8a283d775c0da5096b9cee992917fb5"
+    "tests/test_chartfanatics_sync.py#machinery": "a9a066ab08575db4a4a9966c429ee422227892482fa5515ae41a7e1ab61ef48f",
+    "tests/test_chartfanatics_sync.py#other_cards": "b8b25546967269ef16707b6552d6bb664d7825261ecf288350b49f8aa10307fe"
   },
   "magic": 3221,
-  "planned_at": "2026-10-07T13:16:38Z",
+  "planned_at": "2026-10-07T13:23:03Z",
   "rule_count": 36,
   "slug": "liquidity-strategy",
   "source": "chartfanatics/pdf/liquidity-strategy.pdf",

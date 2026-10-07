@@ -144,6 +144,16 @@ EA source too, so an invention can never quietly become a "documented rule":
     baseline window are engineering numbers and are marked [interpretation]; delta, gamma, theta, vega
     and open interest are option-chain quantities with no CFD feed and are disclosed as not implemented -
     nothing is faked.
+  * EA_CF_OrderFlowStrategy (card #28): the document works from a real order feed (75 lots for NQ / 200 for
+    ES) and a delta profile; MT5 exposes neither, so "big trades" is a bar far above the window median that
+    touches the level and "delta" is body-directional tick volume, with absorption read as a heavy bar that
+    tests the level and closes back on the defended side - every stand-in is labelled.  The volume profile
+    is built from tick volume in price bins (the family's proxy), the 70% value area and the thin-bin cut
+    are the document's own 70% plus an engineering share, and the overnight window is 02:00-14:29 London
+    (21:00-09:29 ET all year).  The document's add-on ("averaging up" after confirmation) cannot exist while
+    the engine holds one position per symbol: the confirmation instead banks the 1R partial and moves the
+    stop to break-even.  NQ runs 2-minute and ES 3-minute charts; one signal timeframe per EA means M2 for
+    both.  The DOM speed read and the trader's psychology sections are human, disclosed, not faked.
 """
 from __future__ import annotations
 
@@ -1076,6 +1086,57 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"bool BuildPlan\(SEAContext &ctx, SSignalPlan &plan\) \{ plan\.Reset\(\); return false; \}",
          'R11 the document states no entry rule - the EA is a monitor and never proposes a trade'),
     ],
+    # -------------------------------------- order flow strategy (card #28)
+    "EA_CF_OrderFlowStrategy.mq5": [
+        (r"input int\s+InpOvernightFromMin = 120;",
+         '"overnight high/low (9 PM-9:29 AM EST)" - 02:00 London all year'),
+        (r"lv\.haveOn = SigRangeForDay\(sym, g_eaIndTf, InpOvernightFromMin, InpOvernightToMin, 0,",
+         '"Price respects ... overnight high/low" - the engine session-range builder'),
+        (r"lv\.haveOrb = SigRangeForDay\(sym, g_eaIndTf, InpOrbFromMin, InpOrbToMin, 0,",
+         '"a 30-minute opening range breakout (ORB)"'),
+        (r"int got = EA_Rates\(sym, PERIOD_D1, 1, 2, d\);",
+         '"previous day high/low" as a generated level'),
+        (r"input double InpValueAreaPct\s+= 0\.70;",
+         '"Volume profile shows where 70% of transactions occur"'),
+        (r"while\(covered < InpValueAreaPct \* total",
+         'the value area expanded out of the POC until 70% is covered'),
+        (r"input double InpThinBinPct\s+= 0\.35;",
+         '"low volume nodes signal trending moves and breakouts"'),
+        (r"if\(ThinZone\(prof, binVol, meanBin, dir, price, zoneLo, zoneHi\) && zoneLo > vaLo && zoneHi < vaHi\)",
+         '"when price trades inside value areas with no low volume nodes"'),
+        (r"input double InpBigTradeMult\s+= 2\.50;",
+         '"filters orders above a threshold (75 lots for NQ, 200 for ES)" - a tick-volume proxy is used'),
+        (r"input double InpDeltaLean\s+= 0\.20;",
+         '"Delta = ask transactions minus bid transactions" - body-volume proxy'),
+        (r"bool absorp\s+= Absorption\(ctx, level, dir\);",
+         '"Absorption occurs when aggressive sellers hit the bid but price does not fall"'),
+        (r"input int\s+InpMinCriteria\s+= 2;",
+         '"At least two confirmations ... create a valid trade"'),
+        (r"input int\s+InpAPlusCriteria\s+= 3;",
+         '"three or four alignments create A+ setups"'),
+        (r"return \(m_lastCrit >= InpAPlusCriteria\) \? 1\.0 : InpBCSizeMult;",
+         '"Aggressive Entry = Smaller Size" - A+ full risk, B/C smaller'),
+        (r"if\(!Chasing\(ctx\)\) best = c;",
+         '"Never Trade Against Momentum"'),
+        (r"bool MiddleOfRange\(const SEAContext &ctx, const SVolProfile &prof\)",
+         '"Chop in the middle of ranges has poor risk-to-reward"'),
+        (r"bool FadePlan\(const SEAContext &ctx, const SLevels &lv, const SVolProfile &prof, SCfCandidate &out\)",
+         '"sell into breakouts (where they enter)" - the wick-through trap'),
+        (r"cfg\.partial1AtR\s+= InpPartial1R;",
+         '"target the midpoint first, then the opposite edge"'),
+        (r"cfg\.breakEvenAtR\s+= InpBreakEvenR;",
+         '"Never Let a Winner Go Red" / "move stop to break-even"'),
+        (r"cfg\.maxTradesPerDay\s+= InpMaxTradesPerDay;",
+         '"Trader limits himself to 2-3 trades per day"'),
+        (r"input int\s+InpEntryToMin\s+= 1050;",
+         '"Only Trade First 1-3 Hours" - 12:30 ET = 17:30 London'),
+        (r"r\[0\]\.high < r\[1\]\.high && r\[1\]\.high < r\[2\]\.high",
+         '"watching for lower highs (exit signal)"'),
+        (r"input double InpTrendMinRR\s+= 1\.50;",
+         '"on trend days with limited pullbacks, accept tighter ratios (1.5-2 R)"'),
+        (r"input double InpRangeMinRR\s+= 2\.00;",
+         'aggressive entries target 3-4 R, confirmation entries 2 R'),
+    ],
 }
 
 
@@ -1103,7 +1164,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5",
                      "EA_CF_MarketDna.mq5", "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5",
                      "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5",
-                     "EA_CF_OptionsTradingMasterclass.mq5"):
+                     "EA_CF_OptionsTradingMasterclass.mq5",
+                     "EA_CF_OrderFlowStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

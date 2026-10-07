@@ -661,6 +661,29 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/options-trading-masterclass.pdf"
+  },
+  {
+   "card": 28,
+   "slug": "order-flow-strategy",
+   "strategy": "Order Flow Strategy",
+   "ea": "EA_CF_OrderFlowStrategy.mq5",
+   "class": "CCfOrderFlowStrategy",
+   "magic": 3231,
+   "timeframe": "M2",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "four criteria: market-generated levels (D1 previous high/low, the overnight range 02:00-14:29 London, the 30-minute ORB), the 70% value area and low volume nodes from a tick-volume profile, big-trade prints, and delta / absorption",
+    "range model: value-area edge entries, tight stop, midpoint-first structure, opposite edge as the final target",
+    "trap fade: a wick through a generated level that closes back inside, sold into the breakout traders",
+    "trend model: pullbacks into low volume nodes after an accepted value break, next generated level or measured extension as the target",
+    "at least 2 of 4 criteria required; 3+ = A+ sizing via LotsMultiplier",
+    "never the middle of a range, never against momentum",
+    "first 1-3 hours post-open only (09:30-12:30 ET = 14:30-17:30 London), max 3 trades a day",
+    "never let a winner go red: 1R partial + break-even, trail, lower-highs structure exit",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/hvyf6frvCcA.md"
   }
  ]
 }
