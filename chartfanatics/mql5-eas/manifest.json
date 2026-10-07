@@ -792,6 +792,27 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/real-simple-strategy.pdf"
+  },
+  {
+   "card": 34,
+   "slug": "shorting-strategy",
+   "strategy": "Shorting Strategy",
+   "ea": "EA_CF_ShortingStrategy.mq5",
+   "class": "CCfShortingStrategy",
+   "magic": 3237,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "gap gate: the large percentage gap (the 20-40% band is avoided)",
+    "10:00 a.m. behavior check: below the open price with volume declining",
+    "bounce entries (into pops) clear of the flush low; fixed percentage WIDE stops (pre-market highs are not stops)",
+    "backside parabolic read: large run-up, upper-wick topping / failed push, volume fading into the entry",
+    "halt-exhaustion proxy: the historically extreme extension (halts are not observable in MetaTrader)",
+    "30-minute validation through the engine time stop with an R escape; partials into sharp drops with a re-entry budget for recycling",
+    "midday cutoff and the live above-the-open reduce-risk exit; EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/shorting-strategy.pdf"
   }
  ]
 }

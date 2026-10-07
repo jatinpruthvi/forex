@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "a88775944150daa6f4acc7fc2b47b6ccfbae971cf3de5cb1740e397fca7b5eef",
+  "acceptance_hash": "12266d2188217614ad7bd7f606cc5a6520202113e6d7e6a346d159c821b6eba6",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_8020NasdaqStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "c54adc0353d6adedfb5d597d96fd57366a8807895083209aab94fbed6e593d8a",
-    "tests/test_chartfanatics_sync.py#other_cards": "5f1d7e8b21beaa1446e187768c3f43fa347107f68c1e971f84b7fadfff0cf68c"
+    "tests/test_chartfanatics_sync.py#machinery": "1244d4cb723f2591274470f8cc7bf65296e67a4c118628c84dcdadb31c0641aa",
+    "tests/test_chartfanatics_sync.py#other_cards": "9ef4eef686c7e2c9fca54a7922f30beedd0be85299a1ddb1c4aa27983066c958"
   },
   "magic": 3208,
-  "planned_at": "2026-10-07T15:57:54Z",
+  "planned_at": "2026-10-07T15:59:54Z",
   "rule_count": 29,
   "slug": "80-20-nasdaq-strategy",
   "source": "chartfanatics/glimpse/jsUTbjwpFVk.md",

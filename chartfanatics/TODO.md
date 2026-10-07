@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 36 in progress ·
-⬜ 11 not started
+**Cards:** ✅ 0 done · 🟡 37 in progress ·
+⬜ 10 not started
 
-**EAs built:** 36/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 37/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 35 awaiting human · 12 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 36 awaiting human · 11 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 180/376 (48%)
-`▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 185/376 (49%)
+`▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -78,7 +78,7 @@ infrastructure needed to get a first verdict:
 | 30 | Parabolic Short Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/parabolic-short-strategy.pdf) 9.5 MB | [`ParabolicShort.mq5`](mql5-eas/EA_CF_ParabolicShort.mq5) mag 3233 | [`parabolic-short-strategy.md`](todos/parabolic-short-strategy.md) |
 | 31 | PO3, OTE + ADR | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/po3-ote-adr.pdf) 32.8 MB | [`PO3_OTE_ADR.mq5`](mql5-eas/EA_CF_PO3_OTE_ADR.mq5) mag 3204 | [`po3-ote-adr.md`](todos/po3-ote-adr.md) |
 | 34 | Real Simple Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/real-simple-strategy.pdf) 34.0 MB | [`RealSimpleStrategy.mq5`](mql5-eas/EA_CF_RealSimpleStrategy.mq5) mag 3236 | [`real-simple-strategy.md`](todos/real-simple-strategy.md) |
-| 35 | Shorting Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/shorting-strategy.pdf) 31.4 MB | _—_ | [`shorting-strategy.md`](todos/shorting-strategy.md) |
+| 35 | Shorting Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/shorting-strategy.pdf) 31.4 MB | [`ShortingStrategy.mq5`](mql5-eas/EA_CF_ShortingStrategy.mq5) mag 3237 | [`shorting-strategy.md`](todos/shorting-strategy.md) |
 | 37 | SMT Divergence+PO3 | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/smt-divergence-po3.pdf) 4.1 MB | [`SMT_PO3.mq5`](mql5-eas/EA_CF_SMT_PO3.mq5) mag 3203 | [`smt-divergence-po3.md`](todos/smt-divergence-po3.md) |
 | 39 | Structure + OTE | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/structure-ote.pdf) 6.9 MB | [`Structure_OTE.mq5`](mql5-eas/EA_CF_Structure_OTE.mq5) mag 3202 | [`structure-ote.md`](todos/structure-ote.md) |
 | 40 | Support and Resistance | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/support-and-resistance.pdf) 7.7 MB | _—_ | [`support-and-resistance.md`](todos/support-and-resistance.md) |

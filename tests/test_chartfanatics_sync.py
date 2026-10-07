@@ -162,6 +162,18 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_ShortingStrategy (card #34): the systematic spine of the small-cap shorting playbook - the gap
+    gate ("smaller moves around 20-40% are avoided"), the 10:00 a.m. behavior check (below the open with
+    volume declining), bounce entries off the flush low, the backside parabolic read (run-up, upper-wick
+    topping, fading volume), the halt-exhaustion proxy (halts are not observable in MetaTrader, so the
+    document's own "overall extension is historically extreme" is the gate), fixed WIDE percentage stops
+    (pre-market highs are explicitly not used), the 30-minute validation (the engine time stop with an R
+    escape), partials into sharp drops with a re-entry budget for the recycle loop, midday cutoff, and
+    the live "above the open -> reduce risk" rule.  "[interpretation]": the stop percentage (the document
+    says wide but quantifies nothing), the volume-decline fraction, the flush clearance, the topping
+    thresholds, the extension proxy, the attempts budget and the 30-40% target centre.  Market cap and
+    institutional ownership are not observable in MetaTrader - the universe carries that filter, and the
+    gap-size gate stands in (disclosed).
   * EA_CF_RealSimpleStrategy (card #33): the six swing setups are implemented with the document's own
     entries and stops (EP via the first five-minute-bar ORB, delayed HVC reclaim of the gap-day close,
     flat base breakout above the prior day high with the tight-candle / wide-candle stop rule, U&R and
@@ -1541,6 +1553,81 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input double\s+InpTargetR\s+= 8\.0;",
          'no fixed target is stated for the setups - the far TP is a placeholder and the EMA trail is the exit'),
     ],
+    # -------------------------------------- shorting strategy (card #34)
+    "EA_CF_ShortingStrategy.mq5": [
+        (r"input double\s+InpMinGapPct\s+= 40\.0;",
+         '"Focus on stocks with large percentage gaps.  Smaller moves (around 20-40%) are avoided"'),
+        (r"input bool\s+InpUseGapFade\s+= true;",
+         'the gap-up short with fade validation is the first documented setup'),
+        (r"sc\.belowOpen = \(ctx\.bid < sc\.openPrice\);",
+         '"The stock is trading below the open price by ~10:00 a.m."'),
+        (r"if\(InpUseGapFade && gapOk && ctx\.clockMinutes >= InpBehaviorCheckHour \* 60 && sc\.volDeclining\)",
+         '"The key confirmation comes from the 10:00 a.m. behavior check" - below the open with volume declining'),
+        (r"sc\.volDeclining = \(earlier <= 0\.0\) \|\| \(recent <= InpVolDeclineFrac \* earlier\);",
+         '"Volume is decreasing as the price moves lower"'),
+        (r"sc\.barIsBounce = \(m\[1\]\.close > m\[1\]\.open\) && \(m\[1\]\.close < sc\.openPrice\)",
+         '"Short entries are taken into pops or bounces once downside behavior is confirmed"'),
+        (r"sc\.clearOfFlush = \(\(ctx\.bid - sc\.sessionLow\) >= InpFlushClearAtr \* ctx\.atr\);",
+         '"Avoid shorting the exact low of a flush"'),
+        (r"if\(ctx\.ask > openPx\)",
+         '"Above the open: reduce risk or consider exiting"'),
+        (r"if\(g_eaExec\.Close\(ticket, \"price is back above the session open - reduce risk / exit\"\)\)",
+         '"If the stock holds above the open at 10:00 a.m., the setup is considered weak, and risk is reduced or removed"'),
+        (r"input bool\s+InpUseBackside\s+= true;",
+         'the backside parabolic short - the document primary edge'),
+        (r"if\(ParabolicRead\(d, got, runPct, topping, fading\) && runPct >= InpParaMinPct\)",
+         '"A large move has already occurred ... Do not short the first sign of weakness"'),
+        (r"if\(upper / rng >= InpWickShareMin\) wickBars\+\+;",
+         '"Signs of topping appear (upper wicks, failed pushes, slowing momentum)"'),
+        (r"bool failedPush = \(d\[1\]\.high < hi\);",
+         '"failed pushes" - no new high on the newest completed day'),
+        (r"fading = \(earlierVol <= 0\.0\) \|\| \(recentVol <= InpToppingVolFrac \* earlierVol\);",
+         '"Volume begins to decline as price fades"'),
+        (r"StringFormat\(\"backside parabolic: %.0f%% run, topping signs, bounce entry during the fade\", runPct\)",
+         '"Enter on bounces during the fade for better positioning"'),
+        (r"double target = entry \* \(1\.0 - targetPct / 100\.0\);",
+         '"Downside targets are based on historical pullbacks, often around 30-40%"'),
+        (r"input double\s+InpTargetPct\s+= 35\.0;",
+         'the 30-40% band centres the target'),
+        (r"input bool\s+InpUseHaltExhaustion\s+= true;",
+         'the multi-halt exhaustion short is implemented through its extension proxy'),
+        (r"if\(extPct >= InpHaltExtremePct\)",
+         '"No entries are taken during the early halts ... The overall extension is historically extreme" - halts are not observable in MetaTrader, so the extension is the documented fallback'),
+        (r"double stop  = ctx\.ask \* \(1\.0 \+ InpStopPct / 100\.0\);",
+         '"Stops are set at a fixed percentage from entry" - and deliberately wide'),
+        (r"input double\s+InpStopPct\s+= 15\.0;",
+         '"Wider stops reduce the chance of being stopped out by manipulation.  The goal is staying in the trade, not tight precision"'),
+        (r"cfg\.breakEvenAtR\s+= 0\.0;",
+         'no break-even move: the fixed wide stop is the document logic'),
+        (r"input double\s+InpRiskPct\s+= 0\.30;",
+         '"Position size must be kept conservative.  No single trade should put the account at risk"'),
+        (r"cfg\.timeStopMinutes\s+= InpValidateMinutes;",
+         '"If the trade is working after ~30 minutes, holding makes sense.  If the price is reclaiming or stalling, reassess the position"'),
+        (r"cfg\.timeStopUnlessR\s+= InpValidateUnlessR;",
+         'the validation keeps a trade that is already working'),
+        (r"cfg\.partial1AtR\s+= InpPartialAtR;",
+         '"Take partial profits into sharp drops near support"'),
+        (r"cfg\.maxTradesPerDay\s+= InpMaxAttempts;",
+         '"Re-enter shorts on bounces near prior support that becomes resistance.  Repeat within a defined range" - the recycle loop needs a re-entry budget'),
+        (r"cfg\.noTradeAfterHour\s+= InpLastEntryHour;",
+         '"After ~12:00 p.m., edge decreases ... Trading is usually reduced or stopped after midday"'),
+        (r"cfg\.sessionEndFlat\s+= true;",
+         'day trading: no overnight holds'),
+        (r"input string\s+InpSymbolsToTrade",
+         'small caps are the user universe: market cap and ownership are not observable in MetaTrader (disclosed)'),
+        (r"input int\s+InpBehaviorCheckHour\s+= 16;",
+         'the 10:00 a.m. ET check, expressed on the EA London clock'),
+        (r"double upper = d\[i\]\.high - MathMax\(d\[i\]\.open, d\[i\]\.close\);",
+         'the upper wick share - the topping read the document names'),
+        (r"sc\.sessionLow\s+= \(sc\.sessionLow == 0\.0\)\s+\? m\[i\]\.low\s+: MathMin\(sc\.sessionLow,\s+m\[i\]\.low\);",
+         'the session low the flush guard measures against'),
+        (r"input double\s+InpFlushClearAtr\s+= 1\.00;",
+         'how far off the flush low the entry must be - an interpretation, labelled'),
+        (r"p\.reason\s+= StringFormat\(\"%s \(open %\.2f, low %\.2f\)\", why, sc\.openPrice, sc\.sessionLow\);",
+         'every entry carries the session frame it was taken against'),
+        (r"cfg\.signalTimeframe\s+= PERIOD_M5;",
+         'day trading with intraday behavior reads on the five-minute frame'),
+    ],
 }
 
 
@@ -1574,7 +1661,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_ParabolicShort.mq5",
                      "EA_CF_PriceAction.mq5",
                      "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5",
-                     "EA_CF_RealSimpleStrategy.mq5"):
+                     "EA_CF_RealSimpleStrategy.mq5",
+                     "EA_CF_ShortingStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
