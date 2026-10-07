@@ -415,6 +415,30 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/UIGZtoGGPH4.md"
+  },
+  {
+   "card": 18,
+   "slug": "liquidity-strategy",
+   "strategy": "Liquidity Strategy",
+   "ea": "EA_CF_LiquidityStrategy.mq5",
+   "class": "CCfLiquidityTrap",
+   "magic": 3221,
+   "timeframe": "M5",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "own M30 fractal liquidity map (SigFractals is bound to the signal timeframe)",
+    "equal highs/lows clustering (touches) - the playbook's one-pool reading",
+    "close-through consumption test (a swept level is spent, a wick is not)",
+    "M5 first-breach trap (intactness + rejection back inside)",
+    "engine position tracking (EA_TrackIndex / g_eaTrack) for entry, initial risk and partial state",
+    "g_eaExec.ClosePartial / Modify - partials at pools, structure stop",
+    "engine R-management disabled (partial1AtR / breakEvenAtR / trailAtR = 0)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/liquidity-strategy.pdf"
   }
  ]
 }

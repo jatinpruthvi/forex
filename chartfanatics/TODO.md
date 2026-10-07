@@ -4,14 +4,14 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 20 in progress ·
-⬜ 27 not started
+**Cards:** ✅ 0 done · 🟡 21 in progress ·
+⬜ 26 not started
 
-**EAs built:** 20/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 21/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 19 awaiting human · 28 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 20 awaiting human · 27 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 100/376 (27%)
+**Stages ticked:** 105/376 (28%)
 `▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -67,7 +67,7 @@ infrastructure needed to get a first verdict:
 | 12 | Full Psychology MasterClass | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/full-psychology-masterclass.pdf) 38.3 MB | [`PsychGuardrails.mq5`](mql5-eas/EA_CF_PsychGuardrails.mq5) mag 3216 (monitor) | [`full-psychology-masterclass.md`](todos/full-psychology-masterclass.md) |
 | 13 | Futures Trading Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/futures-trading-strategy.pdf) 5.3 MB | [`FuturesStrategy.mq5`](mql5-eas/EA_CF_FuturesStrategy.mq5) mag 3217 | [`futures-trading-strategy.md`](todos/futures-trading-strategy.md) |
 | 16 | Intraday Liquidity & Volatility Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/intraday-liquidity-volatility-model.pdf) 2.9 MB | [`Intraday_Liquidity.mq5`](mql5-eas/EA_CF_Intraday_Liquidity.mq5) mag 3206 | [`intraday-liquidity-volatility-model.md`](todos/intraday-liquidity-volatility-model.md) |
-| 18 | Liquidity Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/liquidity-strategy.pdf) 37.7 MB | _—_ | [`liquidity-strategy.md`](todos/liquidity-strategy.md) |
+| 18 | Liquidity Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/liquidity-strategy.pdf) 37.7 MB | [`LiquidityStrategy.mq5`](mql5-eas/EA_CF_LiquidityStrategy.mq5) mag 3221 | [`liquidity-strategy.md`](todos/liquidity-strategy.md) |
 | 19 | Low Volume Node | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/low-volume-node.pdf) 3.9 MB | _—_ | [`low-volume-node.md`](todos/low-volume-node.md) |
 | 20 | Market Auction theory | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/market-auction-theory.pdf) 2.1 MB | _—_ | [`market-auction-theory.md`](todos/market-auction-theory.md) |
 | 21 | Market DNA Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/market-dna-strategy.pdf) 30.9 MB | _—_ | [`market-dna-strategy.md`](todos/market-dna-strategy.md) |

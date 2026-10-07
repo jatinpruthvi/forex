@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "432619219e263a9a695b7da3006f8baae3fdc42a2499a31991bc27b63b6840eb",
+  "acceptance_hash": "2a58cac21f0469ce965a680d6cbff4d80380f6a09e962b5dc70506dc639b5e10",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_RealSimpleStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "27076c1e3d2915e35d8d1a868a384b932b9d6d757d23a273de3f48ae96820c7d",
-    "tests/test_chartfanatics_sync.py#other_cards": "20820b4d3d8eb73aa371a7aad316553625cf0c1d56c335572cc1c23ab90aee82"
+    "tests/test_chartfanatics_sync.py#machinery": "176af6807d384e83e346d4b14dd7a6f6f5cf9a84421e71c8053728e63e6845f6",
+    "tests/test_chartfanatics_sync.py#other_cards": "f676e89093eef2286e0b4619b21e0c4780db93ea2cf6e3112540cbab4a832d8b"
   },
   "magic": 3236,
-  "planned_at": "2026-10-07T12:05:34Z",
+  "planned_at": "2026-10-07T12:09:59Z",
   "rule_count": 3,
   "slug": "real-simple-strategy",
   "source": "chartfanatics/pdf/real-simple-strategy.pdf",

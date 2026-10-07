@@ -54,6 +54,15 @@ EA source too, so an invention can never quietly become a "documented rule":
     SigFractals is bound to the signal timeframe, so the daily swing geometry is local; the
     anchored-VWAP anchor is the phase anchor and its deviation bands are represented by the 1R
     partial; the MA exit context reads a daily close on the wrong side of both the 8 and the 21.
+  * EA_CF_LiquidityStrategy (card #18): the playbook states the method but no parameters, so every number
+    is labelled: swing strength and context depth (30-minute level chart, 5-minute execution, per its own
+    breakdown), the ATR move-away that qualifies a level as respected, the equal-highs/lows cluster
+    tolerance, trap freshness, the entry zone around the swept level (the doc's "sell above the high,
+    never below" plus its "entered right after the rejection"), the stop buffer, the 1R trade floor and
+    the 50% partial.  Partials are taken at liquidity pools (the engine's R grid is switched off) and the
+    stop only ratchets to a new structural higher low / lower high, never to break-even before a partial.
+    The session window is the doc's own example (New York open); the doc states no sizing rule, so the
+    engine risk percent applies - the same caveat as the playbook's "fits any asset" claim.
   * EA_CF_LiquidityInversion (card #17): the video teaches the ICT stack by example, so the reading is
     fixed in the code and labelled: "sweep" = a daily wick beyond the prior weekly (preferred: monthly)
     extreme that closes back inside; "inversion" = a displacement close through the gap followed by a
@@ -583,7 +592,7 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input int\s+InpStop15mBars\s*=\s*16;", '"stop loss above the current 15-minute high"'),
         (r"if\(bias > 0\) extreme = MathMin\(extreme, r\[i\]\.low\);", "long stops sit below the 15m low; the short side mirrors the high"),
         (r"input int\s+InpStopH4Bars\s*=\s*6;", "swing stops sit beyond the H4 structure instead"),
-        (r"input double InpStopBufferAtr\s*=\s*0\.15;", '"wide enough to allow the trade to breathe" - an ATR buffer beyond the level'),
+        (r"input double\s+InpStopBufferAtr\s*=\s*0\.15;", '"wide enough to allow the trade to breathe" - an ATR buffer beyond the level'),
         (r"input double InpMinRr\s*=\s*1\.5;", '"typically yields a 1.5:1 to 2:1 initial risk-reward"'),
         (r"if\(rr < InpMinRr\) return false;", "a setup that cannot reach the doc's R floor is not taken"),
         (r"double nyLevel = \(bias > 0\) \? nyHi : nyLo;", '"target prior sellside liquidity - the previous session low, the 9:30 open low"'),
@@ -600,6 +609,45 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"options-leap workflow is not implementable in an MT5 EA", "options leaps / prop-firm payouts are disclosed, not silently dropped"),
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
         (r"\[interpretation\]", "every number the video leaves open stays labelled"),
+    ],
+    # ------------------------------------------- Liquidity trap Playbook (card #18)
+    "EA_CF_LiquidityStrategy.mq5": [
+        (r"input ENUM_TIMEFRAMES\s+InpContextTf\s*=\s*PERIOD_M30;", '"the focus was on the 30-minute chart" - the level chart'),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", '"set up forms on the 5-minute chart" - the execution chart'),
+        (r"input int\s+InpFractalBars\s*=\s*2;", "[interpretation]: the swing strength that makes a level"),
+        (r"input double\s+InpAwayAtr\s*=\s*1\.0;", '"a high that was respected and caused the price to move away" - the move-away filter'),
+        (r"if\(away < InpAwayAtr \* atrCtx\) return false;", "a level that never moved price away holds no liquidity"),
+        (r"if\(MathAbs\(levels\[i\]\.level - level\) > InpEqualTolAtr \* atrCtx\) continue;", '"equal lows, meaning multiple lows sitting at the same level" - one pool, not many'),
+        (r"levels\[i\]\.touches\+\+;", "the cluster count that marks the playbook's equal highs/lows"),
+        (r"if\(side > 0 && r\[i\]\.close > level\) return false;", "a CLOSE through the level consumes the liquidity - the sweep only wicks through"),
+        (r"if\(run > InpTrapBars\) return false;", '"the entry came right after the trap was confirmed" - freshness'),
+        (r"for\(int i = run \+ 1; i < got; i\+\+\)", '"there was no trade before the level was run" - intactness before the sweep'),
+        (r"runExtreme = \(side > 0\) \? MathMax\(runExtreme, r\[i\]\.high\) : MathMin\(runExtreme, r\[i\]\.low\);", '"always cover the last high/low with your stop"'),
+        (r"bool rejected = \(side > 0\) \? \(r\[1\]\.close < level\) : \(r\[1\]\.close > level\);", '"right after the break, the price rejected back below the level" - the trap confirmation'),
+        (r"int\s+dir\s+= -side;", "the level was taken -> trade the reversal (buy below lows / sell above highs)"),
+        (r"if\(dir < 0 && \(ctx\.mid > levels\[i\]\.level \|\| ctx\.mid < levels\[i\]\.level - InpMaxChaseAtr \* ctx\.atr\)\) continue;", '"sell above the high, never below" - the short is taken at the level, never chased'),
+        (r"if\(dir > 0 && \(ctx\.mid < levels\[i\]\.level \|\| ctx\.mid > levels\[i\]\.level \+ InpMaxChaseAtr \* ctx\.atr\)\) continue;", "the mirrored buy discipline"),
+        (r"cfg\.useLimitEntry\s*=\s*false;", '"use market execution once the high/low is taken and the trap is confirmed"'),
+        (r"input double\s+InpStopBufferAtr\s*=\s*0\.10;", "stop just beyond the level that was taken ([interpretation]: the doc quotes no buffer)"),
+        (r"double firstPool = PoolTarget\(ctx, dir, entry, levels, count, risk, false\);", '"target liquidity at lows/highs" - the nearest opposing pool'),
+        (r"if\(firstPool <= 0\.0\) continue;", '"don\'t trade unless liquidity is built" - no resting pool ahead, no trade'),
+        (r"if\(dist < floorDist\) continue;", "[interpretation]: a 1R floor keeps a trade from aiming nearer than its own stop"),
+        (r"input double\s+InpClusterReach\s*=\s*1\.6;", "the playbook's own target example is the equal-lows cluster - it wins over a nearer single level"),
+        (r"cfg\.partial1AtR\s*=\s*0\.0;", '"don\'t take partials at arbitrary R-multiples" - the engine grid is off'),
+        (r"if\(firstPool > 0\.0 && TargetReached\(ctx, dir, firstPool\)\)", '"take them only at actual liquidity targets (internal or external)"'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, InpPartialPct\)\)", "the partial is executed at the pool"),
+        (r"cfg\.breakEvenAtR\s*=\s*0\.0;", '"no break-even stops unless partials have been taken"'),
+        (r"if\(dir > 0 && newSl >= entry\) continue;", "before a partial the stop may follow structure but never reach break-even"),
+        (r"if\(InpMoveStopAfterPartial && !g_eaTrack\[idx\]\.p1Done\) continue;", "no stop management at all before the first partial ([interpretation] of the same rule)"),
+        (r"bool improved = \(dir > 0\) \? \(first > second\) : \(first < second\);", '"only move your stop after price moves in your favour and forms a higher low or lower high"'),
+        (r"cfg\.trailAtR\s*=\s*0\.0;", '"let trades run to meaningful areas" - no R grid trailing'),
+        (r"double runTarget = PoolTarget\(ctx, dir, entry, levels, count, risk, true\);", "the runner is aimed at the furthest resting pool"),
+        (r"if\(!ctx\.inSession \|\| ctx\.atr <= 0\.0\) return false;", '"ignore price action outside your session"'),
+        (r"cfg\.sessionStartHour = InpSessionStartHour;", '"have a specific session window (e.g. New York Open)"'),
+        (r"input int\s+InpMaxTradesPerDay\s*=\s*2;", "[interpretation]: the doc sets no daily trade cap"),
+        (r"int idx = EA_TrackIndex\(ticket\);", "engine position tracking is reused for the entry, initial risk and partial state"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every number the playbook leaves open stays labelled"),
     ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
@@ -637,7 +685,7 @@ class SyncTests(unittest.TestCase):
         # a rule the playbook does not state must remain visibly marked in the source
         for name in ("EA_CF_Structure_OTE.mq5", "EA_CF_PO3_OTE_ADR.mq5",
                      "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
-                     "EA_CF_LiquidityInversion.mq5"):
+                     "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
