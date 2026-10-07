@@ -561,6 +561,28 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/measured-move-trend-strategy.pdf"
+  },
+  {
+   "card": 24,
+   "slug": "momentum-model-performance-development",
+   "strategy": "Momentum Model Performance Development",
+   "ea": "EA_CF_MomentumModelPerformanceDevelopment.mq5",
+   "class": "CCfMomentumModelReview",
+   "magic": 3227,
+   "timeframe": "M15",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "daily report card from the deal history (mechanical mistake list, no judgement)",
+    "five-whys prompt file for the week's top recurring mistake",
+    "trade grading A+/A/B/C with the doc's allocation-band audit",
+    "risk registry snapshotting live positions (the engine deletes its risk key on close)",
+    "one-goal-at-a-time focus lock (stop-loss first)",
+    "weekly small-wins row (rule-following trades, win/loss days, one-trade share)",
+    "one-playbook gate on the week's magic count",
+    "ungraded rows instead of a guessed R"
+   ],
+   "source": "chartfanatics/glimpse/WDdvnd9vLbM.md"
   }
  ]
 }

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "19c164a0b9a49fdcae066a008ef057cef45217f2f563a136e7f4013d50bd7b88",
+  "acceptance_hash": "f29a3d8b1c12b26eafd3bc90807ccf932ebecde6b974e2c391f0661481462950",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "e9fde5599ab912cf60ba6137cc3cfaab8f6503349f3a9eecf8958b1778469c42",
-    "tests/test_chartfanatics_sync.py#other_cards": "8dd4d804e900f8dc4ec77008b57d5084d5f52947a12b271dbaccb0816a066d51"
+    "tests/test_chartfanatics_sync.py#other_cards": "1b7fc2fb05cd3dc5bac7f97a90dd6f6b04b810a65c399012d77a9d5ae00e28a2"
   },
   "magic": 3234,
-  "planned_at": "2026-10-07T12:17:28Z",
+  "planned_at": "2026-10-07T12:27:37Z",
   "rule_count": 3,
   "slug": "price-action-strategy",
   "source": "chartfanatics/glimpse/70UtrLU6RAg.md",

@@ -104,6 +104,16 @@ EA source too, so an invention can never quietly become a "documented rule":
     steps are research-time work (they live in the validation harness); the EA carries their RESULT
     forward as the drawdown pause threshold.  The overnight 17.5 h hold is DST-proof; entering the
     Friday close is skipped so the exit cannot sit through a weekend (labelled).
+  * EA_CF_MomentumModelPerformanceDevelopment (card #24): the source is a process video, so the EA is a
+    monitor that runs the four-element momentum model against the account and never trades.  The daily
+    report-card slots are the three mistakes the document names ("sold too early, didn't respect stop,
+    held too long") plus the same discipline vocabulary's revenge entry, which is labelled; the grade
+    thresholds (A+ >= 2R, A >= 1R, B > 0, C <= 0 or flagged), the A allocation band (40% - the document
+    gives only A+/B/C), the early/late/oversized thresholds and the "held too long" holding-time proxy are
+    engineering numbers.  The R multiple is the engine's own planned risk, snapshotted into a registry
+    while the position is live because the executor deletes its risk key on close; a trade whose risk was
+    never captured is reported as ungraded, never guessed.  Pods, the 10-year horizon, "study the new
+    market" and the qualitative setup grade are organisational / human judgements: disclosed, not faked.
 """
 from __future__ import annotations
 
@@ -818,6 +828,66 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"plan\.score    = 68\.0 \+ \(stretched \? 8\.0 : 0\.0\)", "the doc's higher-probability structures rank first"),
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
         (r"\[interpretation\]", "every line the document draws by eye stays labelled"),
+    ],
+    # -------------------------------------- Momentum Model Performance Development (card #24)
+    "EA_CF_MomentumModelPerformanceDevelopment.mq5": [
+        (r"input string InpReportFile\s*=\s*\"cf_momentum_daily_report\.csv\";",
+         '"Each day, traders list 3-4 mistakes without judgment" -> the daily report card file'),
+        (r"DailyReportCard\(day - 86400\);", "the card is written for the day that just ended"),
+        (r"input double InpStopTolR\s*=\s*0\.10;",
+         '"didn\'t respect stop" -> a loss beyond -(1 + tol) R is a stop violation'),
+        (r"input double InpEarlyExitR\s*=\s*0\.50;", '"sold too early" -> a winner taken below 0.5R'),
+        (r"input int\s+InpEarlyExitMin\s*=\s*20;", '"sold too early" also read from the short hold'),
+        (r"input int\s+InpMaxHoldMinutes\s*=\s*240;", '"held too long" -> a small winner held for hours'),
+        (r"input int\s+InpRevengeMinutes\s*=\s*30;",
+         "[interpretation] the 4th mistake slot: an entry straight after a losing close"),
+        (r"fl\.grade\s*=\s*3;\s*// ungraded until proved otherwise",
+         "a trade whose risk was never captured is reported as ungraded, never guessed"),
+        (r"listed WITHOUT judgement", '"it is data collection, not self-criticism"'),
+        (r"input string InpPromptFile\s*=\s*\"cf_momentum_five_whys\.txt\";",
+         '"diagnose with five whys" -> the weekly prompt file'),
+        (r"why 4: why did that happen", '"the real solution emerges at the fourth or fifth level"'),
+        (r"the real solution appears at level 4-5", "the prompt says why the stop rules matter"),
+        (r"input ENUM_CF_FOCUS_SKILL InpFocusSkill\s*=\s*CF_FOCUS_STOPLOSS;",
+         '"one goal at a time ... risk management is the foundation"'),
+        (r"directive = \"LOCK: fix stop-loss discipline before anything else \(one goal at a time\)\";",
+         "with stop-loss as the one goal, a violation locks the day instead of being a note"),
+        (r"input double InpBandAPlusPct\s*=\s*80\.0;", '"A+ gets 80% of daily stop"'),
+        (r"input double InpBandBPct\s*=\s*15\.0;", '"B gets 15%"'),
+        (r"input double InpBandCPct\s*=\s*5\.0;", '"C gets 5%"'),
+        (r"input double InpBandAPct\s*=\s*40\.0;",
+         "[interpretation] the document names an A grade but prints no percentage for it"),
+        (r"\(rt\.riskMoney / InpDailyStopUsd\) \* 100\.0 > bandPct \+ InpBandTolPct",
+         '"this prevents oversizing on weak setups" -> the risk actually taken is audited against the band'),
+        (r"else if\(rt\.rMult >= 2\.0\)\s+fl\.grade = -1;",
+         '"A+ opportunities do not happen often" -> only a 2R-plus trade grades A+'),
+        (r"input int\s+InpMaxPlaybooksPerWeek\s*=\s*1;",
+         '"master one playbook before adding others"'),
+        (r"too many playbooks at once - master one first", "the weekly row flags trading several playbooks"),
+        (r"if\(!fl\.stopViolation && !fl\.earlyExit && !fl\.heldTooLong && !fl\.revenge && !fl\.oversized\)\s*\n\s*smallWins\+\+;",
+         '"stack small wins" -> rule-following trades are counted as the small wins'),
+        (r"if\(oneTradeShare > 0\.6\)",
+         '"not one big breakthrough moment" -> a week carried by a single trade is flagged'),
+        (r"input int\s+InpWeeksForReview\s*=\s*5;",
+         '"Track small wins weekly. After 4-5 weeks, review your progress"'),
+        (r"weeksLogged % MathMax\(1, InpWeeksForReview\) == 0",
+         "the process review fires every five logged weeks"),
+        (r"the number of small wins generated",
+         '"the number of small wins generated will dictate the success that you have as a trader"'),
+        (r"input string InpWinsFile\s*=\s*\"cf_momentum_weekly_wins\.csv\";",
+         "the weekly small-wins row is the deliverable the review reads"),
+        (r"bool AllowTrading\(SEAContext &ctx\) \{ return false; \}",
+         "a process is measured, not executed: the monitor never trades"),
+        (r"string rk = \"EA_\" \+ IntegerToString\(\(long\)magic\) \+ \"_R\" \+ IntegerToString\(\(long\)t\);",
+         "R is the engine's own planned risk: the executor's persisted key is snapshotted while live"),
+        (r"rt\.rMult\s*=\s*\(rt\.riskMoney > 0\.0\)\s*\?\s*money / rt\.riskMoney\s*:\s*0\.0;",
+         "R is defined exactly as the engine defines it (money over planned risk)"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every element the document leaves open stays labelled"),
+        (r"10-year horizon",
+         "pods, the 10-year career and studying a new market are disclosed, not faked"),
+        (r"cfg\.sourceDoc\s*=\s*\"chartfanatics/glimpse/WDdvnd9vLbM\.md \(card #24\)\";",
+         "the monitor names its source and board card"),
     ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [

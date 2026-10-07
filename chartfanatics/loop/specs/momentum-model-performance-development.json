@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "c7f12c303e4446827bd904cf2f901e87152ef9205391a82ca553953fc78f1adc",
+  "acceptance_hash": "45f0466e6c73cb01aa850a2f7f4ad77d3a4a24c9411801fd6c20cf13e897f5c6",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -24,8 +24,8 @@
     "tests/test_chartfanatics_sync.py#other_cards": "8dd4d804e900f8dc4ec77008b57d5084d5f52947a12b271dbaccb0816a066d51"
   },
   "magic": 3227,
-  "planned_at": "2026-10-07T12:17:28Z",
-  "rule_count": 3,
+  "planned_at": "2026-10-07T12:27:37Z",
+  "rule_count": 35,
   "slug": "momentum-model-performance-development",
   "source": "chartfanatics/glimpse/WDdvnd9vLbM.md",
   "spec_version": 1,
