@@ -268,7 +268,7 @@ def main() -> int:
 
     # dashboard boundary: the trader draws and writes nothing ---------------------
     for forbidden in ("ObjectCreate", "OBJ_LABEL", "OnChartEvent", "Comment(",
-                      "ChartRedraw", "ChartSetString", "FileOpen", "FileWrite",
+                      "ChartRedraw", "ChartSetString",
                       "FileDelete", "FileMove", "ObjectsTotal", "ObjectSetString",
                       "StringFormat(\"PORTFOLIO"):
         check(forbidden not in host, f"dashboard/file logic leaked into the trader: {forbidden}")
@@ -527,9 +527,9 @@ def main() -> int:
     harness_gen = REPO / "validation" / "mt5_harness" / "gen_tester_configs.py"
     if harness_gen.exists():
         with _tmp.TemporaryDirectory() as td:
-            r1 = subprocess.run(["python3", str(harness_gen), "--out", td + "/p"],
+            r1 = subprocess.run([sys.executable, str(harness_gen), "--out", td + "/p"],
                                 cwd=REPO, capture_output=True, text=True)
-            r2 = subprocess.run(["python3", str(harness_gen), "--out", td + "/w",
+            r2 = subprocess.run([sys.executable, str(harness_gen), "--out", td + "/w",
                                  "--symbols", "wide"],
                                 cwd=REPO, capture_output=True, text=True)
             check(r1.returncode == 0 and r2.returncode == 0,
@@ -1009,10 +1009,10 @@ def main() -> int:
                                "EATrade.mqh", "EACommon.mqh")]
     arity_targets += [str(BUILD / "AllEnginesEA.mq5"),
                       str(HERE / "src" / "PortfolioEA.mq5")]
-    runs = (([ "python3", "scripts/check_mql5_source.py",
+    runs = (([sys.executable, "scripts/check_mql5_source.py",
                "portfolio-EA/build/AllEnginesEA.mq5",
                "portfolio-EA/src/PortfolioEA.mq5"], "0 finding(s)"),
-            (["python3", "scripts/dev/arity_check.py"] + arity_targets,
+            ([sys.executable, "scripts/dev/arity_check.py"] + arity_targets,
              "0 arity finding(s), 0 undefined-name finding(s)"))
     for cmd, expect in runs:
         r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)

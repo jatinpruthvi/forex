@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R10OPUS_LSRA,2031,AllEnginesEA,"AUDNZD,EURGBP,AUDUSD,EURUSD,GBPUSD,XAUUSD,GER40,USDJPY,US100",EURUSD,M15,1.0,0,0,0,0.00,0.00,0.00,0.000,0.00,0.000,0.00,0.00,NO TRADES,2026.10.07 11:47

@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R11F_TRIAD_SLEEVES,2040,AllEnginesEA,"EURUSD,GBPUSD,USDJPY,AUDUSD,XAUUSD,EURGBP,AUDNZD,EURCHF,DAX,US30",EURUSD,M5,0.24,4,2,2,7.48,7.76,0.04,194.000,0.04,0.002,4.50,7.76,PROFITABLE,2026.10.07 11:47

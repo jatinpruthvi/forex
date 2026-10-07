@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R3A_TF_CASCADE,2006,AllEnginesEA,"EURUSD,GBPUSD,USDJPY,GBPJPY",EURUSD,M5,1.0,3,2,1,0.57,1.00,0.43,2.326,0.43,0.022,0.68,1.00,PROFITABLE,2026.10.07 11:47

@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R5A_PORTFOLIO_60_25_15,2016,AllEnginesEA,"EURUSD,GBPUSD,USDJPY,USDCAD,XAUUSD,EURGBP,AUDNZD",EURUSD,M5,0.8,1,0,1,-0.24,0.00,0.24,0.000,0.24,0.012,0.00,0.00,LOSS,2026.10.07 11:47

@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R8C_RECLAIM_LADDER,2028,AllEnginesEA,"EURUSD,GBPUSD",EURUSD,M5,0.5,1,0,1,-1.07,0.00,1.07,0.000,1.07,0.053,0.00,0.00,LOSS,2026.10.07 11:47
