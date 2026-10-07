@@ -813,6 +813,25 @@
     "midday cutoff and the live above-the-open reduce-risk exit; EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/shorting-strategy.pdf"
+  },
+  {
+   "card": 35,
+   "slug": "small-cap-short-statistics",
+   "strategy": "Small-Cap Short Statistics",
+   "ea": "EA_CF_SmallCapShortStatistics.mq5",
+   "class": "CCfSmallCapShortStats",
+   "magic": 3238,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "gap up short: 100%+ gap, 1-2 hour consolidation, the breakdown entry (partial) and the add when momentum cracks 3-5% below the consolidation low, stop above the consolidation high, the 26% fade target",
+    "bounce short: the old resistance (1+ year), the dollar block >= 150M, the trapped-to-intraday ratio (2:1 strong, 10:1 exceptional) driving size, Type 1 / Type 2 fade targets, gradual exits",
+    "first red day: 3+ green days with increasing volume and 300%+ range (1000%+ for the two-day variant), the 1/4 scout and the 3/4 add when the volume drops",
+    "the statistics database CSV the document asks for, with the win-rate band per setup",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/52ZsDmFHqyY.md"
   }
  ]
 }

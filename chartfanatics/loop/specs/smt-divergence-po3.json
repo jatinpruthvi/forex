@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "40c475d9609e689169b1776b1deadf0461f49e296f7567cad20388d3f86024d3",
+  "acceptance_hash": "01042d26734ec8f1a97b087d5e52b73490c7d2bc6d26c5488c7148bf935583c1",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_SMT_PO3.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "1244d4cb723f2591274470f8cc7bf65296e67a4c118628c84dcdadb31c0641aa",
-    "tests/test_chartfanatics_sync.py#other_cards": "353e5bf07551d26e3bcab10dac73462edb78432500c1880c32712bc73cca62ee"
+    "tests/test_chartfanatics_sync.py#machinery": "ce296e6d07597e5e0830e26d8c8fc28d4ed00e8e5df5ba972f20cae9303f937e",
+    "tests/test_chartfanatics_sync.py#other_cards": "ce4dd8eb78b99eb5e42670e3b64d9cf68b793a04c0af520769bb243df6fe43d7"
   },
   "magic": 3203,
-  "planned_at": "2026-10-07T15:59:54Z",
+  "planned_at": "2026-10-07T16:02:08Z",
   "rule_count": 10,
   "slug": "smt-divergence-po3",
   "source": "chartfanatics/pdf/smt-divergence-po3.pdf",

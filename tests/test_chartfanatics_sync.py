@@ -162,6 +162,21 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_SmallCapShortStatistics (card #35): the three statistical small-cap shorts with every observable
+    number from the document - the 100%+ gap and its 1-2 hour consolidation (breakdown entry partial, add
+    when momentum cracks 3-5% below the consolidation low, stop above the consolidation high, a 26% fade
+    target from the intraday high); the old-resistance bounce short (the dollar block must be 150M+, the
+    trapped-to-intraday ratio must be 2:1+ with 10:1 exceptional driving size, Type 1 vs Type 2 fade
+    targets, exit gradually); and the first red day (3+ green days, increasing volume, 300%+ range or
+    1000%+ for the two-day variant, a 1/4 scout on the final green day and the 3/4 add on the first red
+    day when the volume drops, stop above consolidation).  Market cap, float, the sector exclusions and
+    pre-market volume are not observable in MetaTrader - the universe carries the stock selection and the
+    document's own observable substitutes (gap, dollar block, ratio, day-count screens) do the rest
+    (disclosed).  The statistics database the document tells every trader to build is written to
+    cf_smallcap_short_stats.csv with the win-rate band for each setup logged.  "[interpretation]": the
+    consolidation tightness, the breakdown buffer, the add band, the fade centres, the old-resistance
+    scan, the reaction tolerance, the volume-pace estimate and the state machine that turns the 1/4 and
+    3/4 entries into two plans.
   * EA_CF_ShortingStrategy (card #34): the systematic spine of the small-cap shorting playbook - the gap
     gate ("smaller moves around 20-40% are avoided"), the 10:00 a.m. behavior check (below the open with
     volume declining), bounce entries off the flush low, the backside parabolic read (run-up, upper-wick
@@ -1628,6 +1643,87 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"cfg\.signalTimeframe\s+= PERIOD_M5;",
          'day trading with intraday behavior reads on the five-minute frame'),
     ],
+    # -------------------------------------- small-cap short statistics (card #35)
+    "EA_CF_SmallCapShortStatistics.mq5": [
+        (r"input double\s+InpMinGapPct\s+= 100\.0;",
+         '"Gap must be above 100%"'),
+        (r"if\(c\.gapPct < InpMinGapPct\) return false;",
+         'the 100%+ gap gate is enforced'),
+        (r"input int\s+InpConsolMinutes\s+= 60;",
+         '"After gap up and consolidation (typically 1-2 hours)"'),
+        (r"c\.breakdown = \(ctx\.bid < c\.consolLow - InpBreakBufferAtr \* ctx\.atr\);",
+         '"shorts the breakdown after consolidation ends"'),
+        (r"SetRiskMult\(ctx, InpFirstRiskMult\);",
+         '"enter partial position on first breakdown"'),
+        (r"ctx\.bid <= c\.consolLow \* \(1\.0 - InpAddBelowPct / 100\.0\)",
+         '"Add full position when momentum cracks 3-5% below consolidation"'),
+        (r"SetRiskMult\(ctx, 1\.0\);",
+         '"Add FULL position"'),
+        (r"stop = c\.consolHigh \+ InpBreakBufferAtr \* ctx\.atr;",
+         '"Stop loss above consolidation high"'),
+        (r"p\.target = c\.intradayHigh \* \(1\.0 - InpFadePct / 100\.0\);",
+         '"targeting a 20-35% fade from the intraday high"'),
+        (r"input double\s+InpFadePct\s+= 26\.0;",
+         '"Average fade is 26% from intraday high"'),
+        (r"c\.oldLevel = d\[blockIdx\]\.high;",
+         '"A stock spiked to resistance on high volume 1\+ year ago" - the level is that spike high'),
+        (r"dollars \+= \(double\)d\[k\]\.tick_volume \* d\[k\]\.close;",
+         '"Calculate the dollar amount stuck at the old resistance: volume traded at resistance x price"'),
+        (r"if\(c\.dollarBlock < InpMinDollarBlock\) return false;",
+         '"This must be 150M\+ to be ideal"'),
+        (r"double estIntraday = avgDollarVol \* 0\.85;",
+         '"Compare to estimated intraday volume (pre-market x 10, reduced 50-80% due to selling pressure)" - the reduction, centred'),
+        (r"if\(c\.trappedRatio < InpMinTrappedRatio\) return false;",
+         '"A 2:1 ratio (trapped volume 2x intraday volume) is strong"'),
+        (r"input double\s+InpStrongRatio\s+= 10\.0;",
+         '"10:1 is exceptional"'),
+        (r"input double\s+InpType1FadePct\s+= 75\.0;",
+         '"Type 1 fades 75% from top"'),
+        (r"double fadePct = c\.type1 \? InpType1FadePct : InpType2FadePct;",
+         '"Type 2 fades only 50%" - the type picks the target'),
+        (r"c\.type1 = \(d\[0\]\.open >= c\.oldLevel \* \(1\.0 - InpType1GapPct / 100\.0\)\);",
+         '"Type 1: Stock gaps directly to resistance without pre-market volume"'),
+        (r"c\.rejection = near && touched && \(m\[1\]\.close < c\.oldLevel\);",
+         'the rejection entry: near the old level, touched, closed back below'),
+        (r"if\(d\[i\]\.close <= d\[i\]\.open\) break;",
+         '"No red days allowed in between; one red day resets the count"'),
+        (r"c\.runRangeOk = \(rangePct >= need\);",
+         '"3\+ consecutive green days with increasing volume and 300%\+ range (or 1000%\+ for 2-day setup)"'),
+        (r"c\.volIncreasing = \(v0 > v1\);",
+         '"increasing volume" into the final green day'),
+        (r"SetRiskMult\(ctx, InpGreenDayRiskMult\);",
+         '"enter only 1/4 position"'),
+        (r"if\(!c\.todayRed \|\| !c\.volDropped\) return false;",
+         '"Wait for second day (first red day) when pre-market volume drops 50-80%"'),
+        (r"SetRiskMult\(ctx, 0\.75\);",
+         '"enter remaining 3/4 position"'),
+        (r"double expected = \(double\)d\[1\]\.tick_volume \* \(\(double\)elapsed / 390\.0\);",
+         'the volume drop is read from the day pace (pre-market volume is not observable - labelled)'),
+        (r"cfg\.maxOpenPositions\s+= 2;",
+         'the staged entries (the partial and its add) need the second slot'),
+        (r"cfg\.partial1AtR\s+= 1\.0;",
+         '"Exit gradually on the way down, not all at once"'),
+        (r"cfg\.sessionEndFlat\s+= true;",
+         'day trading: flat at the bell'),
+        (r"cfg\.signalTimeframe\s+= PERIOD_M5;",
+         'the intraday execution frame'),
+        (r"input string\s+InpStatsFile\s+= \"cf_smallcap_short_stats\.csv\";",
+         '"Create a spreadsheet to track market cap, float, volume, sector, and outcomes for every setup you encounter"'),
+        (r"\"time,symbol,magic,setup,phase,gap_pct,dollar_block_usd,trapped_ratio,green_run,fade_target_pct,risk_mult,win_rate_band",
+         'the statistics database columns'),
+        (r"string band = \(setup == CF_SC_GAP\) \? \"75%\+\" : \(setup == CF_SC_BOUNCE \? \"80-85%\" : \"90%\+\"\);",
+         'the documented win-rate bands ride along with every logged setup'),
+        (r"input string\s+InpSymbolsToTrade",
+         'the market cap, float and sector filters are not observable in MetaTrader - the universe carries them (disclosed)'),
+        (r"input int\s+InpOldDaysAgo\s+= 250;",
+         '"1\+ year ago" - the old-resistance lookback'),
+        (r"input int\s+InpMaxTradesPerDay\s+= 3;",
+         'the attempts budget (the add is the document own second plan)'),
+        (r"cfg\.noTradeAfterHour\s+= InpLastEntryHour;",
+         '"Volume concentrates 9:30-11:30 AM" - no new risk outside the documented window'),
+        (r"input double\s+InpMaxStopPct\s+= 45\.0;",
+         'small-cap stops can be enormous - the sanity cap is labelled'),
+    ],
 }
 
 
@@ -1662,7 +1758,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_PriceAction.mq5",
                      "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5",
                      "EA_CF_RealSimpleStrategy.mq5",
-                     "EA_CF_ShortingStrategy.mq5"):
+                     "EA_CF_ShortingStrategy.mq5",
+                     "EA_CF_SmallCapShortStatistics.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
