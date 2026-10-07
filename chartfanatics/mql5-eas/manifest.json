@@ -728,6 +728,28 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/parabolic-short-strategy.pdf"
+  },
+  {
+   "card": 31,
+   "slug": "price-action-strategy",
+   "strategy": "Price Action Strategy",
+   "ea": "EA_CF_PriceAction.mq5",
+   "class": "CCfPriceAction",
+   "magic": 3234,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "H1 trend from successive pivot highs and lows (higher highs + higher lows / lower highs + lower lows)",
+    "H1 levels at the pivot candle OPEN price, confidence-scored 5/5, 3/5 or 2.5/5",
+    "confidence-based position sizing through LotsMultiplier (full / half / quarter risk)",
+    "three M5 candle patterns: break and retest, bounce, rejection (with the optional M2 alignment)",
+    "stops at the pattern wick; target 2R (1.5R floor) capped by the next level",
+    "50% trim at 2R with the stop shifted above entry, a second trim, and the candle-by-candle trail",
+    "two attempts per setup from the day deal history; 2-3 trades a day; one-and-done after a win",
+    "one-hour execution window after the open, session-end flat, EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/70UtrLU6RAg.md"
   }
  ]
 }

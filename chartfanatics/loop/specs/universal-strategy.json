@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "f4173322b5cfdee42496157ddfa5606cc7d19a15816ac1e9d53da2ad5a007db3",
+  "acceptance_hash": "30c7a866f9b85062f2b4b004c1cb9c9d365dd8a554c062e632a48c4042de84c9",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_UniversalStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "26af8e0cc4c04157bf477b3b3664ce1f2d184bace34cedc740be26579fd80bbe",
-    "tests/test_chartfanatics_sync.py#other_cards": "758c09b4bdc26b019b82ee8e77658c46820731bac924a1e5e8a4ff36c4c52c06"
+    "tests/test_chartfanatics_sync.py#machinery": "22ea4899c001ca6b0969d025188d3c945007e65a85b2765fe28ed7a2bad96c7f",
+    "tests/test_chartfanatics_sync.py#other_cards": "97f1edd09494972fa6b93a8bcf64401788bc8e7a8eab3fe7f674da3bd69e80fd"
   },
   "magic": 3246,
-  "planned_at": "2026-10-07T14:54:21Z",
+  "planned_at": "2026-10-07T15:28:13Z",
   "rule_count": 3,
   "slug": "universal-strategy",
   "source": "chartfanatics/pdf/universal-strategy.pdf",

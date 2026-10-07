@@ -162,6 +162,17 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_PriceAction (card #31): the video-derived playbook is a discretionary routine, so the EA
+    implements the mechanical spine only - the H1 pivot levels taken from the pivot candle OPEN (the
+    document's own rule), their confidence scores (5/5 strong pivots, 3/5 opening prices, 2.5/5
+    invalidated), the three candle patterns on M5, and the stated risk plan (2R target, 50% trim at 2R,
+    stop shifted above entry, candle-by-candle trail, two attempts per setup, 2-3 trades a day, one and
+    done after a win).  The "[interpretation]" numbers are the pivot wing, tolerances, probe and entry
+    distances, the stop buffer, the break-even offset, the second trim and the trail buffer.  The
+    pre-market 10-name plan, the calendar check, hiding the P&L and the journaling stars stay human;
+    "optional orderflow" (bookmap) has no MT5 signal and is a labelled tick-volume skew, off by default.
+    SigFractals is bound to the signal timeframe and returns wick prices, so the H1 open-price scan is
+    local by necessity.
   * EA_CF_OrderflowTradingMasterclass (card #29): the document's tools - DOM, heatmap, footprint - do not
     exist in MetaTrader, so "aggression" is body-directional tick volume, the delta divergence is that
     skew failing to progress price, and a "liquidity wall" is a level the session has tested and held
@@ -1268,6 +1279,81 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"dt\.hour = InpSessionStartHour; dt\.min = InpSessionStartMin; dt\.sec = 0;",
          'the day-trading session anchors both the VWAP and the session high'),
     ],
+    # -------------------------------------- price action (card #31)
+    "EA_CF_PriceAction.mq5": [
+        (r"if\(hi0 > hi1 && lo0 > lo1\) return \+1;",
+         '"an uptrend has higher highs and higher lows ... This determines which direction (calls or puts) to trade"'),
+        (r"if\(hi0 < hi1 && lo0 < lo1\) return -1;",
+         '"a downtrend has lower highs and lower lows"'),
+        (r"openP\[n\] = h\[i\]\.open;",
+         '"focusing on candle open prices rather than wicks" - the level is the pivot candle OPEN'),
+        (r"lv\[m\]\.conf     = 3\.0;",
+         '"3/5 for opening prices"'),
+        (r"if\(lv\[j\]\.touches >= InpStrongTouches\) lv\[j\]\.conf = 5\.0;",
+         '"5/5 for strong pivots"'),
+        (r"if\(through\) \{ lv\[j\]\.conf = 2\.5; break; \}",
+         '"2.5/5 for invalidated levels"'),
+        (r"if\(conf >= 5\.0\) return 1\.00;",
+         '"high-confidence levels get full size"'),
+        (r"return InpMidConfSize;",
+         '"low-confidence or off-plan setups get 25-50% size"'),
+        (r"if\(InpAlignM2 && !M2Aligned\(ctx, s\.dir\)\) return false;",
+         '"Prefer 5-minute candles for conviction, but use 2-minute if both align"'),
+        (r"if\(ctx\.clockMinutes < openMin \+ InpSkipOpenMinutes\) return false;",
+         '"Skip the first 5 minutes of market open to avoid volatility and false breakouts"'),
+        (r"if\(ctx\.clockMinutes > InpEntryEndHour \* 60 \+ InpEntryEndMin\) return false;",
+         '"The trader executes for only 1 hour daily (typically market open)"'),
+        (r"double probe = \(m\[1\]\.low < level\) \? \(level - m\[1\]\.low\) : 0\.0;",
+         '"Ideal setup has a small wick below the level but body above it"'),
+        (r"out\.level = level; out\.stopLevel = m\[1\]\.low;",
+         '"Enter as close to the level as possible with a tight stop-loss just below the wick"'),
+        (r"out\.level = level; out\.stopLevel = m\[1\]\.high;",
+         'the downside break and retest - "Price breaks above (or below) a level ... then retests it"'),
+        (r"if\(MathMin\(m\[i\]\.open, m\[i\]\.close\) > level && m\[i\]\.low < level\)",
+         '"creates 2-3 candles with bodies above the level but wicks probing below it"'),
+        (r"out\.level = level; out\.stopLevel = lowest;",
+         '"Enter near the level with stop-loss at the lowest wick point"'),
+        (r"if\(MathMax\(m\[i\]\.open, m\[i\]\.close\) < level && m\[i\]\.high > level\)",
+         '"multiple candles with bodies below the level but wicks pushing up unsuccessfully"'),
+        (r"out\.level = level; out\.stopLevel = highest;",
+         'the resistance the puts setup risks - the highest wick'),
+        (r"if\(next > 0\.0 && next >= need\) dist = MathMin\(dist, next\);",
+         '"Enter near the level targeting the next lower level"'),
+        (r"input int\s+InpMaxAttemptsPerSetup = 2;",
+         '"take a maximum of two entries. If stopped out once, you may retry once more"'),
+        (r"if\(SameSetupAttempts\(ctx, s\.level, tol\) >= InpMaxAttemptsPerSetup\) return false;",
+         '"A third entry on the same setup is overtrading"'),
+        (r"HistoryDealGetDouble\(t, DEAL_PRICE\)",
+         'the attempts are counted from the day own deals at that level (restart-proof)'),
+        (r"cfg\.partial1AtR\s+= InpPartialAtR;",
+         '"Once price reaches 2R ... trim 50% of position"'),
+        (r"cfg\.beOffsetR\s+= InpBeOffsetR;",
+         '"Shift stop-loss above entry so remaining contracts are profitable even if stopped out"'),
+        (r"cfg\.partial2AtR\s+= InpPartial2AtR;",
+         '"Continue trimming at higher multiples"'),
+        (r"if\(moveR / risk < InpPartialAtR\) return;",
+         'the candle trail starts with the first trim'),
+        (r"if\(!better\) return;\s+// a trail never loosens",
+         '"shifting stop-loss with each green candle to reduce stress and lock in gains"'),
+        (r"double dist = InpTargetR \* risk;",
+         '"Aim for 2R or 1.5R per trade, not 5R or 10R home runs"'),
+        (r"if\(ctx\.tradesToday >= InpMaxTradesPerDay\) return false;",
+         '"Aim for 2-3 high-quality trades per day; 4+ is overtrading"'),
+        (r"cfg\.dayLockFirstWin\s+= true;",
+         '"After a winning trade, stop trading for the day" - the one-and-done rule'),
+        (r"//--- R10/R17: this setup may be entered at most twice a day",
+         '"Never re-enter the same setup on the same day" - a win locks the day, a stop-out earns one retry'),
+        (r"input bool\s+InpUseVolumeConfirm\s+= false;",
+         '"optional orderflow (bookmap) as confirmation on liquid instruments like SPY and QQQ" - off by default, as the document marks it optional'),
+        (r"double lean = VolumeLean\(ctx\.symbol, InpVolumeBars\);",
+         'bookmap has no MT5 signal: the confirmation is a labelled body-volume skew'),
+        (r"input string\s+InpSymbolsToTrade",
+         'the document trades options on TSLA/SPY/QQQ and futures ES/NQ; the universe is the user list'),
+        (r"input int\s+InpLevelLookbackHours\s+= 120;",
+         'the hourly level window is an input, not a hidden constant'),
+        (r"cfg\.sessionEndFlat\s+= true;",
+         'no overnight holds - "Day trading is about here-and-now execution"'),
+    ],
 }
 
 
@@ -1298,7 +1384,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_OptionsTradingMasterclass.mq5",
                      "EA_CF_OrderFlowStrategy.mq5",
                      "EA_CF_OrderflowTradingMasterclass.mq5",
-                     "EA_CF_ParabolicShort.mq5"):
+                     "EA_CF_ParabolicShort.mq5",
+                     "EA_CF_PriceAction.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

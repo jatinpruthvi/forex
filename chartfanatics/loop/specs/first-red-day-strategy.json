@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "770d31328fcb76ca03e6f438476737775168a16ff888a0abaa8eaad06340d54e",
+  "acceptance_hash": "d64fcdfe18a043670c9eafc14bfabca3befed0738fcc7ddf443a21616da7bbe8",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_FirstRedDayPro.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "26af8e0cc4c04157bf477b3b3664ce1f2d184bace34cedc740be26579fd80bbe",
-    "tests/test_chartfanatics_sync.py#other_cards": "fd1058323cc2918eb29eaaf784912f1786296997e3c03e29bbb6e93c17dfef5a"
+    "tests/test_chartfanatics_sync.py#machinery": "22ea4899c001ca6b0969d025188d3c945007e65a85b2765fe28ed7a2bad96c7f",
+    "tests/test_chartfanatics_sync.py#other_cards": "7abd25c53908bb3a6c106c8dd06754a769369156aa292cfe5827746978e34a53"
   },
   "magic": 3215,
-  "planned_at": "2026-10-07T14:54:21Z",
+  "planned_at": "2026-10-07T15:28:13Z",
   "rule_count": 23,
   "slug": "first-red-day-strategy",
   "source": "chartfanatics/pdf/first-red-day-strategy.pdf",
