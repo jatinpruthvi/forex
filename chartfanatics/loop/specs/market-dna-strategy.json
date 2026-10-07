@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "99d6c83e37f43cd5e2ccfa1d25c5bc6977197e4d1deddec999d2fa37a5e211a4",
+  "acceptance_hash": "81012591c089c9161852f11772417462acceac96766d64211a9ea635d38ce26c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_MarketDna.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "9f6fe7da76bb0d4519c0ebe5456a6b7f0236040b394bb2ca6a8e5c8744978d9c",
-    "tests/test_chartfanatics_sync.py#other_cards": "3a724a9282008714fd0c4370ca996ef34307bb2ec1e9c1bc427f020536b688c6"
+    "tests/test_chartfanatics_sync.py#machinery": "b9225f38e7b74d3384d8112d176c7e4c2604d44d1ed2b0d13a367a54f02326c8",
+    "tests/test_chartfanatics_sync.py#other_cards": "02d154e07fca71a65bfa53bbe6fe09a941cf0499ea86837cd3f7f145a0c75a95"
   },
   "magic": 3224,
-  "planned_at": "2026-10-07T13:06:51Z",
+  "planned_at": "2026-10-07T13:11:31Z",
   "rule_count": 28,
   "slug": "market-dna-strategy",
   "source": "chartfanatics/pdf/market-dna-strategy.pdf",

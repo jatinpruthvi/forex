@@ -610,6 +610,33 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/KkTTCKr-3Ew.md"
+  },
+  {
+   "card": 26,
+   "slug": "nq-liquidity-sweep-reversal-scalping-strategy",
+   "strategy": "NQ Liquidity Sweep & Reversal Scalping Strategy",
+   "ea": "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5",
+   "class": "CCfNqLiquiditySweepReverse",
+   "magic": 3229,
+   "timeframe": "M1",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "EST kill-zone windows (London 02:00-05:00, New York 09:30) on the document's fixed UTC-5 clock",
+    "liquidity sweep of the Asia range (SigAsianRange) or a recent swing extreme",
+    "inverted fair value gap entry: a counter-directional gap closed through by a fresh trigger candle",
+    "session stop caps in index points (London 25 / New York 40) with the document's rejection quote",
+    "HTF liquidity-pool targets (Asia range, daily and 1H FVG edges, RTH gap quarters, midnight open) with a 2R floor",
+    "RTH gap built from the 16:00 EST close and the 09:30 EST open, quarters in the document's marks",
+    "confluence count (Asia sweep, daily FVG sweep, 1H FVG fill, equal-highs/lows run, displacement)",
+    "LotsMultiplier: A+ full risk, B/C 0.40x (= 5 vs 2 contracts)",
+    "1H-FVG half-close and minor-sweep trail in Manage()",
+    "dollar-based daily loss limit as a percentage of the account",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/-kGVL93XfyE.md"
   }
  ]
 }

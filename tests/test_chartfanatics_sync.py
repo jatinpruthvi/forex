@@ -123,6 +123,17 @@ EA source too, so an invention can never quietly become a "documented rule":
     trades CME NQ.  The fractal strengths, sweep tolerance, gap floors, freshness windows, aggression
     ratio, POC bin count, the sketchy thresholds, the stop cap, the target floor, the partial and the flip
     confirmation are engineering numbers the document does not state.
+  * EA_CF_NqLiquiditySweepReversalScalpingStrategy (card #26): both windows are gated on the document's
+    fixed EST clock (UTC-5, never DST-shifted) rather than a local clock; 15/30-second monitoring is not a
+    MetaTrader timeframe, so "speed and displacement" is read from M1 bar internals (body share of range,
+    range against ATR, tick volume); the document's "points" are NQ index points - one index point = one
+    price unit, the family's existing 80/20 convention, exposed as InpIndexPointSize for brokers that quote
+    otherwise.  The sweep tolerance, gap floors, freshness windows, the equal-run tolerance and count, the
+    confluence threshold for A+ sizing, the daily loss percentage (the document quotes $3,000 on a $160,000
+    account = 1.875%) and the RTH scan depth are engineering numbers.  Disclosed, not faked: scale-ins on
+    additional FVGs (the engine holds one position per symbol), the "outage gap" reference, copy trading
+    across 20 Apex accounts, and the personality / lifestyle / back-test-the-templates / mental-capital
+    sections, which are human decisions.
 """
 from __future__ import annotations
 
@@ -964,6 +975,60 @@ SYNC: dict[str, list[tuple[str, str]]] = {
          '"He trailed his stop"'),
         (r"input double            InpCloseSketchyR\s*=\s*0\.50;",
          '"close at break-even ... Prioritize capital preservation"'),
+    ],    # -------------------------------------- NQ liquidity sweep & reversal scalping (card #26)
+    "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5": [
+        (r"input int\s+InpKzStartHourEst\s*=\s*2;",
+         '"Candice only trades London session between 2am-5am EST"'),
+        (r"input ENUM_CF_SESSION\s+InpSessions\s*=\s*CF_SESSION_BOTH;",
+         '"She trades London and New York sessions"'),
+        (r"return EA_ServerToUtc\(serverTime\) - \(datetime\)\(5 \* 3600\);",
+         "the document's windows live on the fixed EST clock (UTC-5, never DST-shifted)"),
+        (r"bool london = \(now >= kzS && now < kzE\);",
+         '"She avoids pre-2am setups despite temptation"'),
+        (r"bool sweptAsia  = haveAsia && \(\(dir > 0\) \? \(m\[sw\]\.low < asiaLo - tol\) : \(m\[sw\]\.high > asiaHi \+ tol\)\);",
+         '"identifying where price has swept liquidity (Asia high/low ...)"'),
+        (r"bool sweptSwing = \(dir > 0\) \? \(m\[sw\]\.low < prior - tol\) : \(m\[sw\]\.high > prior \+ tol\);",
+         '"... swing highs/lows"'),
+        (r"if\(!\(left\.low > right\.high && \(left\.low - right\.high\) >= minGap\)\) continue;",
+         '"A bearish FVG forms when price gaps down without filling the gap"'),
+        (r"if\(!\(m\[1\]\.close > gapFar \+ tol\)\) continue;",
+         '"When a bullish candle closes above it, it becomes an inverted FVG"'),
+        (r"if\(m\[2\]\.close > gapFar \+ tol\) continue;",
+         '"conservative traders wait for the candle to fully close above it" - a fresh inversion'),
+        (r"input double\s+InpLondonMaxStopPts = 25\.0;",
+         '"London session: 20-25 point max stop loss"'),
+        (r"input double\s+InpNyMaxStopPts\s*=\s*40\.0;",
+         '"New York session: 30-40 points"'),
+        (r"if\(MathAbs\(entry - candidate\) > maxStop\) continue;",
+         '"If I had to use a larger stop loss to enter, that means that is not the entry point."'),
+        (r"double need = InpMinRR \* risk;",
+         '"a 1:2 minimum ratio"'),
+        (r"q75 = lo \+ InpRthTargetPct / 100\.0 \* \(hi - lo\);",
+         '"she targets the 75 percent level"'),
+        (r"midnight = m\[i\]\.open;",
+         '"mark your higher timeframe liquidity (... RTH gap, midnight opening price)"'),
+        (r"return \(m_lastConf >= InpAPlusConfluences\) \? 1\.0 : InpBCSizeMult;",
+         '"A+ setups with multiple confluences: 5 contracts ... B/C setups: 2 contracts"'),
+        (r"return \(matches >= InpEqualCount\);",
+         '"a series of equal highs or lows showing price is building momentum"'),
+        (r"cfg\.dailyLossPct\s*=\s*InpDailyLossPct;",
+         '"set a fixed daily loss limit in dollars ... Once hit, she stops trading"'),
+        (r"cfg\.partial1AtR\s*=\s*1\.0;",
+         '"takes partial profits at the first internal liquidity or swing high"'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, \(double\)InpPartialPct\)\)",
+         '"if price enters it during a trade, she closes at least half the position"'),
+        (r"if\(newSl > sl \+ ctx\.point \* 0\.5\) g_eaExec\.Modify\(ticket, newSl, tp\);",
+         '"she trails her stop to a tighter level - sometimes to break-even"'),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M1;",
+         '"Candice enters on 1-minute charts"'),
+        (r"if\(IsDisplacement\(m\[1\], ctx\)\) conf\+\+;",
+         '"speed and displacement: why seconds matter" - read from M1 bar internals'),
+        (r"if\(InpOnlyAPlus && conf < InpAPlusConfluences\) continue;",
+         '"On your first 20 trades, focus only on A+ setups" - off by default'),
+        (r"if\(DailyFvgSwept\(ctx, m, s\.sweepBar, dir\)\) conf\+\+;",
+         '"daily FVG sweep" confluence'),
+        (r"if\(H1FvgAligned\(ctx, dir, h1a, h1b\)\) conf\+\+;",
+         '"1-hour FVG fill" confluence'),
     ],
 }
 
@@ -990,7 +1055,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
                      "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5",
                      "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5",
-                     "EA_CF_MarketDna.mq5", "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5"):
+                     "EA_CF_MarketDna.mq5", "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5",
+                     "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

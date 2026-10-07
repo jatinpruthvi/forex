@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "d8a0227aafa6b9c02e8273ba5df70b7eb341824747458bbf50343f5aa230b1ac",
+  "acceptance_hash": "21820e2d4381224f76672d45e1e5c761e95d8808d688485d5b01d33485733ea5",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_PsychGuardrails.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "9f6fe7da76bb0d4519c0ebe5456a6b7f0236040b394bb2ca6a8e5c8744978d9c",
-    "tests/test_chartfanatics_sync.py#other_cards": "241c78940a6bec1f3d93dd5c9b4276ae85fc32b26d80304c66ff6a9db2e5034e"
+    "tests/test_chartfanatics_sync.py#machinery": "b9225f38e7b74d3384d8112d176c7e4c2604d44d1ed2b0d13a367a54f02326c8",
+    "tests/test_chartfanatics_sync.py#other_cards": "6bdab83e7ef5a3747fb8ac4a15ce1c67139ec67c4c38a9153f5779896b1e4648"
   },
   "magic": 3216,
-  "planned_at": "2026-10-07T13:06:51Z",
+  "planned_at": "2026-10-07T13:11:31Z",
   "rule_count": 21,
   "slug": "full-psychology-masterclass",
   "source": "chartfanatics/pdf/full-psychology-masterclass.pdf",

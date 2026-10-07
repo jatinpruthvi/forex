@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "2a29ee830397dfb1f6413fc00576a85b0ddfce8e4c9f5e4adc49d7ae0cfee174",
+  "acceptance_hash": "894a6902d4be55cf1719bfbb344b5578813460f37b7fd76abb407aeecb50d417",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_EpisodicPivot.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "9f6fe7da76bb0d4519c0ebe5456a6b7f0236040b394bb2ca6a8e5c8744978d9c",
-    "tests/test_chartfanatics_sync.py#other_cards": "e9d92a0a2a45591dba2249d73df203f019c6a0ebc9001587aa37f29a0fb61feb"
+    "tests/test_chartfanatics_sync.py#machinery": "b9225f38e7b74d3384d8112d176c7e4c2604d44d1ed2b0d13a367a54f02326c8",
+    "tests/test_chartfanatics_sync.py#other_cards": "10b4b98ca6b41eb2cf9fd572ca0df33ae58a2469024c7706f1967fac5308b280"
   },
   "magic": 3212,
-  "planned_at": "2026-10-07T13:06:51Z",
+  "planned_at": "2026-10-07T13:11:31Z",
   "rule_count": 19,
   "slug": "episodic-pivot-strategy",
   "source": "chartfanatics/pdf/episodic-pivot-strategy.pdf",

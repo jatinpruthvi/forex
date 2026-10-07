@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "e9a120c4fc8020709faf6d6514ced0a53e0e74f91cefd67803621480213325a7",
+  "acceptance_hash": "b29e07267b03c36de8b51484af32ca54b7660017b955d63b3ee61f90a1eeb84d",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_MarketAuctionTheory.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "9f6fe7da76bb0d4519c0ebe5456a6b7f0236040b394bb2ca6a8e5c8744978d9c",
-    "tests/test_chartfanatics_sync.py#other_cards": "acf9fb6e5609559ab39fc9973298ae5f18ecd5cbdbd0e6a58d5e29be92479b00"
+    "tests/test_chartfanatics_sync.py#machinery": "b9225f38e7b74d3384d8112d176c7e4c2604d44d1ed2b0d13a367a54f02326c8",
+    "tests/test_chartfanatics_sync.py#other_cards": "0eaa51504c6ee063388d3aa6a0d631ec985ecfa58722f06838b1950dc14d1332"
   },
   "magic": 3223,
-  "planned_at": "2026-10-07T13:06:51Z",
+  "planned_at": "2026-10-07T13:11:31Z",
   "rule_count": 28,
   "slug": "market-auction-theory",
   "source": "chartfanatics/pdf/market-auction-theory.pdf",
