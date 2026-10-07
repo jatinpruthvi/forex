@@ -63,6 +63,9 @@ input double InpStopBufferAtr  = 0.15;   // Beyond the sweep extreme
 input double InpMinRR          = 1.50;   // Reject when the opposite session liquidity is closer
 input double InpTargetR        = 2.00;   // Fallback target when no session level is far enough
 input int    InpReclaimWindowBars = 3;   // MSS fallback: bars from the sweep to the reclaim
+input bool   InpUseBreakerBlock   = true; // "Breaker Block" confirmation (the playbook lists four)
+input int    InpTimeStopMinutes   = 90;   // [interpretation] "if the trade slows near midday, exit"
+input double InpTimeStopUnlessR   = 1.00; // ... unless it is already at least this far ahead
 
 //+------------------------------------------------------------------+
 //| Strategy class                                                   |
@@ -102,6 +105,8 @@ public:
       cfg.noTradeAfterHour      = 17;  cfg.noTradeAfterMin = 0;
       cfg.fridayFlat            = true;  cfg.fridayFlatHour = 19;  cfg.fridayFlatMin = 0;
       cfg.signalOnNewBarOnly    = true;
+      cfg.timeStopMinutes       = InpTimeStopMinutes;   // "if the trade slows near midday, exit"
+      cfg.timeStopUnlessR       = InpTimeStopUnlessR;   // keep a trade that is already working
       cfg.useLimitEntry         = false;
       cfg.pendingExpiryMinutes  = 15;
       cfg.breakEvenAtR          = 1.0;
@@ -171,6 +176,22 @@ public:
          s.tradeBothWays       = true;
          s.scoreBase           = 58.0;
          havePlan = SigSweepReclaim(ctx, s, found);
+      }
+      //--- confirmation 3: the breaker block the playbook also lists - the last opposing candle
+      //--- before the displacement, retested after the raid.  (Turtle Soup, the fourth
+      //--- confirmation, is the failed raid itself, which LiquidityRaid() already requires.)
+      if(!havePlan && InpUseBreakerBlock)
+      {
+         SOrderBlockParams b;
+         b.Reset();
+         b.displacementBody = InpImpulseBody;
+         b.touchTolAtr      = 0.20;
+         b.stopBufferAtr    = InpStopBufferAtr;
+         b.targetR          = InpTargetR;
+         b.requireHtfBias   = false;
+         b.tradeBothWays    = false;
+         b.onlyDir          = fadeDir;
+         havePlan = SigOrderBlockRetest(ctx, b, found);
       }
       if(!havePlan) return false;
       if(found.dir != fadeDir) return false;
@@ -243,6 +264,7 @@ private:
       if(got < 4) return false;
 
       double tol = InpRaidMaxAtr * ctx.atr;
+      int    bestBar = InpRaidLookbackBars + 3;      // sentinel: larger than any acceptable index
       for(int li = 0; li < n; li++)
       {
          double level = levels[li];
@@ -254,12 +276,17 @@ private:
             if(beyond <= 0.0 || beyond > tol) continue;             // no raid, or too deep to fade
             double backInside = (side > 0) ? (level - r[i].close) : (r[i].close - level);
             if(backInside <= 0.0) continue;                          // closed beyond: continuation
-            raidDir   = side;
-            raidLevel = (side > 0) ? r[i].high : r[i].low;
-            return true;
+            //--- the MOST RECENT raid is the one the model trades: an older raid on another
+            //--- level must not mask a fresher one (the loop used to return the first level hit)
+            if(i < bestBar)
+            {
+               bestBar   = i;
+               raidDir   = side;
+               raidLevel = (side > 0) ? r[i].high : r[i].low;
+            }
          }
       }
-      return false;
+      return (bestBar <= InpRaidLookbackBars);
    }
 };
 

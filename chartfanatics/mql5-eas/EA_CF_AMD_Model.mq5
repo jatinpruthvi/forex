@@ -63,6 +63,9 @@ input double InpMinStopAtr        = 0.20;   // Reject if the stop is tighter tha
 input double InpMaxStopAtr        = 2.50;   // Reject if the stop is wider than this
 input double InpTargetR           = 2.00;   // Target in R (opposite side of the accumulation range)
 input bool   InpRequireHtfAlign   = true;   // 1H + D1 must agree with the trade (playbook's HTF clarity)
+input bool   InpRequireCorrelation = true;  // "related markets are aligned" gate (NASDAQ vs S&P)
+input string InpCorrelationSymbol  = "US500"; // [interpretation] the twin; '' or the same symbol = gate off
+input double InpMinTargetR       = 1.00;   // A structural target must be at least this far to be used
 
 //+------------------------------------------------------------------+
 //| Strategy class                                                   |
@@ -155,6 +158,28 @@ public:
          plan.Reset();
          return false;
       }
+
+      //--- "Check Market Correlation": the twin market must be positioned the same way
+      if(!MarketsAligned(ctx))
+      {
+         plan.Reset();
+         return false;
+      }
+
+      //--- "There must be a clear target ... If there's no obvious destination, do not trade."
+      //--- The worked example targets the lows underneath the accumulation range, so that side
+      //--- of the range is preferred, then the nearest clean swing point; the R target is the
+      //--- fallback when neither is far enough to survive the spread.
+      double structural = 0.0;
+      if(AccumulationTarget(ctx, plan.dir, plan.entry, structural) ||
+         NearestSwingTarget(ctx, plan.dir, plan.entry, structural))
+      {
+         if(MathAbs(structural - plan.entry) / plan.riskDist >= InpMinTargetR)
+         {
+            plan.target  = structural;
+            plan.reason += " (structural target)";
+         }
+      }
       plan.reason = "AMD distribution leg: " + plan.reason;
       return true;
    }
@@ -167,6 +192,68 @@ private:
                                  InpMacro1ToMin / 60,   InpMacro1ToMin % 60)) return true;
       return EA_InWindow(ctx.nowClock, InpMacro2FromMin / 60, InpMacro2FromMin % 60,
                                      InpMacro2ToMin / 60,   InpMacro2ToMin % 60);
+   }
+
+   //--- "Make sure related markets (e.g., NASDAQ and S&P) are aligned.  If they diverge heavily,
+   //--- conditions are lower in probability."  [interpretation] "aligned" is read as: both markets
+   //--- on the same side of their own previous-day midpoint - the playbook gives no threshold, and
+   //--- a symbol the broker does not offer never blocks a trade (fail-open, as everywhere else).
+   bool MarketsAligned(SEAContext &ctx)
+   {
+      if(!InpRequireCorrelation || StringLen(InpCorrelationSymbol) == 0) return true;
+      if(InpCorrelationSymbol == ctx.symbol) return true;
+      if(!SymbolSelect(InpCorrelationSymbol, true)) return true;
+
+      double sHi = 0.0, sLo = 0.0, tHi = 0.0, tLo = 0.0;
+      int nb = 0;
+      if(!SigRangeForDay(ctx.symbol, g_eaIndTf, 0, 1440, 1, sHi, sLo, nb)) return true;
+      if(!SigRangeForDay(InpCorrelationSymbol, g_eaIndTf, 0, 1440, 1, tHi, tLo, nb)) return true;
+      double sMid = (sHi + sLo) * 0.5;
+      double tMid = (tHi + tLo) * 0.5;
+      if(sMid <= 0.0 || tMid <= 0.0) return true;
+
+      double sPx = (ctx.bid > 0.0 && ctx.ask > 0.0) ? (ctx.bid + ctx.ask) * 0.5 : ctx.mid;
+      double tPx = SymbolInfoDouble(InpCorrelationSymbol, SYMBOL_BID);
+      if(tPx <= 0.0) return true;
+      return ((sPx > sMid) == (tPx > tMid));
+   }
+
+   //--- the opposite side of the window that was accumulated, i.e. the playbook example's
+   //--- "pre-market lows and equal lows under the range"
+   bool AccumulationTarget(SEAContext &ctx, const int dir, const double entry, double &target)
+   {
+      double hi = 0.0, lo = 0.0;
+      int nb = 0;
+      if(!SigRangeForDay(ctx.symbol, g_eaIndTf, InpRangeFromMin, InpRangeToMin, 0, hi, lo, nb))
+         return false;
+      double cand = (dir > 0) ? hi : lo;
+      if(cand <= 0.0) return false;
+      if(dir > 0 && cand <= entry) return false;
+      if(dir < 0 && cand >= entry) return false;
+      target = cand;
+      return true;
+   }
+
+   //--- the nearest clean swing point ahead of the entry (the playbook's third target type)
+   bool NearestSwingTarget(SEAContext &ctx, const int dir, const double entry, double &target)
+   {
+      double hi[], lo[];
+      int hiIdx[], loIdx[];
+      int n = SigFractals(ctx.symbol, 20, hi, lo, hiIdx, loIdx);
+      if(n <= 0) return false;
+      double best = 0.0;
+      double bestDist = DBL_MAX;
+      for(int i = 0; i < n; i++)
+      {
+         double cand = (dir > 0) ? hi[i] : lo[i];
+         if(cand <= 0.0) continue;
+         double dist = (dir > 0) ? (cand - entry) : (entry - cand);
+         if(dist <= 0.0) continue;                 // behind the entry: not a destination
+         if(dist < bestDist) { bestDist = dist; best = cand; }
+      }
+      if(best <= 0.0) return false;
+      target = best;
+      return true;
    }
 
    //--- HTF clarity: D1 and H1 200-EMA agreement (the playbook reads 1H/4H/D1, not the M5 signal TF)

@@ -208,6 +208,7 @@ def check_file(path: Path, defined: set[str], is_ea: bool) -> list[str]:
         if re.search(rf"(?<![\w.]){name}\s*(?:=|\+\+|--)(?!=)", body):
             problems.append(f"assignment to input variable {name}")
 
+    problems += check_duplicate_members(path, src)
     problems += check_identifiers(path, src)
     problems += check_members(path, src)
     problems += check_duplicate_declarations(path, src)
@@ -314,6 +315,52 @@ def check_identifiers(path: Path, src: str) -> list[str]:
         line = src[:m.start()].count("\n") + 1
         problems.append(f"undeclared identifier {name} at line {line} (not defined in this file "
                         f"or the shared headers - compile error)")
+    return problems
+
+
+#--- duplicate-member rule ------------------------------------------------------
+# A class that defines the same method twice - e.g. a patched-in event handler landing
+# next to one that already existed - is a hard compile error in MQL5, and none of the
+# rules above inspects class bodies.  Overloads are legal, so the comparison is on the
+# normalised SIGNATURE (name + parameter TYPES), never on the name alone.
+_MEMBER_SIG_RE = re.compile(
+    r"(?m)^\s*(?:virtual\s+|static\s+)?(?:[A-Za-z_][\w:<>*&]*\s+)+"
+    r"([A-Za-z_]\w*)\s*\(([^;{)]*)\)\s*(?:const|override)?\s*\{")
+
+
+def _normalise_params(raw: str) -> str:
+    """Parameter types with names removed, so a redeclaration with renamed parameters matches."""
+    parts = []
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        tokens = chunk.replace("*", " * ").replace("&", " & ").split()
+        if len(tokens) >= 2 and re.fullmatch(r"[A-Za-z_]\w*(\[\])?", tokens[-1]):
+            tokens = tokens[:-1]                     # drop the parameter name
+        parts.append(" ".join(tokens))
+    return ", ".join(parts)
+
+
+def check_duplicate_members(path: Path, src: str) -> list[str]:
+    problems = []
+    for class_match in re.finditer(r"\b(?:class|struct)\s+([A-Za-z_]\w*)[^;{]*\{", src):
+        name = class_match.group(1)
+        i, depth, j = class_match.end(), 1, class_match.end()
+        while j < len(src) and depth:
+            depth += (src[j] == "{") - (src[j] == "}")
+            j += 1
+        body = src[i:j - 1]
+        seen: dict[tuple[str, str], int] = {}
+        for m in _MEMBER_SIG_RE.finditer(body):
+            params = _normalise_params(m.group(2))
+            sig = (m.group(1), params)
+            line = src[:i].count("\n") + 1 + body[:m.start()].count("\n")
+            if sig in seen:
+                problems.append(f"duplicate member '{m.group(1)}({params})' in {name} at line {line} "
+                                f"(already defined at line {seen[sig]}) - compile error")
+            else:
+                seen[sig] = line
     return problems
 
 

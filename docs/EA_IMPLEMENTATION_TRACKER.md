@@ -325,12 +325,12 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
 
 | # | EA File Name | Source Playbook | Magic | TF | Notes |
 |---|---|---|---|---|---|
-| 1 | `EA_CF_AMD_Model.mq5` | `chartfanatics/pdf/amd-model.pdf` (card #04) | `3201` | M5 | Distribution-leg entry off the manipulation sweep; NY macro windows 09:50-10:10 / 10:50-11:10 ET; 2 trades/day, two-loss day lock |
+| 1 | `EA_CF_AMD_Model.mq5` | `chartfanatics/pdf/amd-model.pdf` (card #04) | `3201` | M5 | Distribution-leg entry off the manipulation sweep; NY macro windows 09:50-10:10 / 10:50-11:10 ET; 2 trades/day, two-loss day lock; related-market alignment gate; target = opposite side of the accumulation range, else the nearest clean swing |
 | 2 | `EA_CF_Structure_OTE.mq5` | `chartfanatics/pdf/structure-ote.pdf` (card #26) | `3202` | M15 | HTF break -> POI -> LTF breaker; first premium/discount + OTE (62-79%) implementation in the repo; 2R floor |
 | 3 | `EA_CF_SMT_PO3.mq5` | `chartfanatics/pdf/smt-divergence-po3.pdf` (card #23) | `3203` | M5 | Direct symbol-vs-symbol SMT divergence (NQ vs ES) with the previous day's 50% level as the target |
-| 4 | `EA_CF_PO3_OTE_ADR.mq5` | `chartfanatics/pdf/po3-ote-adr.pdf` (card #22) | `3204` | M15 | PD-array raid + displacement, fib-anchored OTE limit (0.62-0.705), stop 1.0 fib / TP 0.0 fib, ADR budget gate |
-| 5 | `EA_CF_Break_Retest.mq5` | `chartfanatics/pdf/break-retest.pdf` (card #07) | `3205` | M5 | Battle-zone retest with rejection wick; previous-day no-trade-zone gate; partials at TP1, runners kept |
-| 6 | `EA_CF_Intraday_Liquidity.mq5` | `chartfanatics/pdf/intraday-liquidity-volatility-model.pdf` (card #12) | `3206` | M5 | Failed-raid fade of PDH/PDL, Asian and London extremes; FVG entry (MSS fallback); NY 09:30-11:30 window |
+| 4 | `EA_CF_PO3_OTE_ADR.mq5` | `chartfanatics/pdf/po3-ote-adr.pdf` (card #22) | `3204` | M15 | PD-array raid + displacement (close must clear the PD array), fib-anchored OTE limit from `InpOteFib`, stop at `InpStopFibLevel` (1.00 default / 0.90 tighter), TP at the 0.0 fib with R **derived** from the geometry, ADR budget gate (`[interpretation]`) |
+| 5 | `EA_CF_Break_Retest.mq5` | `chartfanatics/pdf/break-retest.pdf` (card #07) | `3205` | M5 | Battle-zone retest with rejection wick; previous-day no-trade-zone gate; TP1 = nearest swing extreme ahead (R fallback), 50% partial, runners kept |
+| 6 | `EA_CF_Intraday_Liquidity.mq5` | `chartfanatics/pdf/intraday-liquidity-volatility-model.pdf` (card #12) | `3206` | M5 | Failed-raid fade of PDH/PDL, Asian and London extremes, most-recent raid wins; FVG / MSS / breaker-block entries; NY 09:30-11:30 window; 90-minute time stop |
 | 7 | `EA_CF_Stage_Guardrails.mq5` | `chartfanatics/pdf/5-stage-trading-framework.pdf` (card #01) | `3207` | - | **Monitor, never trades.** Card #01 is a trader-development framework (no entry/exit rules), so the EA mechanizes its checkable content: account-wide deal sweep against the stage's thresholds (loss cut-off, trade cap, revenge entry, size jump, loss streak) and a journal CSV ("journaling is not optional") |
 
 * **Stage policy (card #01)** - `EA_ApplyStagePolicy(cfg, stage)` in `EACore.mqh` is the single stage
@@ -339,6 +339,15 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
   guardrail EA reads the same helper, so the table cannot drift. Tests in
   `tests/test_chartfanatics_family.py` pin the family contract (unique magics in the block, manifest vs
   files, checker-clean, the monitor never trading, stage 5 a true no-op).
+* **Doc sync + bug audit (2026-10-07)** - every playbook was re-read and each stated rule pinned to the
+  line implementing it in `tests/test_chartfanatics_sync.py` (rule -> code table, one test per rule;
+  deliberate deviations must stay labelled `[interpretation]`). The same pass fixed the findings in
+  `chartfanatics/mql5-eas/README.md` ("Rule -> code sync"): a duplicate `OnInitStrategy()` that would
+  not compile (SMT+PO3), an out-of-bounds rates read and a hardcoded R table (PO3/OTE+ADR), an
+  unguarded twin-bar comparison (SMT), a first-hit-wins raid detector (Intraday), a misread two-bar
+  confirmation (Break & Retest), liquidity that could be "swept" before it existed (Structure+OTE),
+  and the three rules the playbooks stated but the EAs did not implement (AMD correlation + clear
+  target, Break & Retest TP1, Intraday breaker block + midday time stop).
 * **Engine reuse** - the family is deliberately thin: signals come from `EASignals.mqh`
   (`SigSweepReclaim`, `SigOrderBlockRetest`, `SigFvgRetest`, `SigBreakRetest`, `SigEmaCascade`,
   `SigFractals`, `SigTwoBarReversal`, `SigRangeForDay`/`SigAsianRange`), windows from `EA_InWindow`,

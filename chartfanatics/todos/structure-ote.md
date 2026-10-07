@@ -28,11 +28,12 @@
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
+- **Verdict:** Tradable, implemented. HTF dealing range -> break of structure -> retrace into the zone that caused the move (order block, breaker fallback) with the ORIGINAL trend, entered inside the OTE band of that leg.
+  `[interpretation]`: the playbook names OTE but prints no fib numbers, so the band is the standard 62-79%.
+- **Instruments:** Futures / Crypto / Forex (playbook). EA: US100 / US500 / GER40 (`InpSymbolsToTrade`)
+- **Timeframe / session:** Playbook: top-down, HTF bias then execution on H1 or M15. EA: H4 dealing range, M15 signal (`InpLtfTimeframe`)
 - **EA file / magic:** [`EA_CF_Structure_OTE.mq5](../mql5-eas/EA_CF_Structure_OTE.mq5) / `3202` (static-checked)
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
+- **Priority:** P1 - first premium/discount + OTE implementation in the repo, reusable by later cards
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
 

@@ -28,11 +28,12 @@
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
+- **Verdict:** Tradable, implemented. Mark the level, wait for the clean break, refuse the no-trade zone, then trade the retest with a rejection confirmation.
+  `[interpretation]`: the playbook gives no execution timeframe ("works across timeframes") - the EA runs M5 with an intraday entry window; the partial is the engine's R-based 1R/50%.
+- **Instruments:** Stocks / Options / Futures (playbook). EA: US100 / US500 / GER40 (`InpSymbolsToTrade`)
+- **Timeframe / session:** Playbook: applies to intraday and swing alike; level = prior day high/low or premarket high/low. EA: M5 signal, premarket range 00:00-14:30 London, entries 14:30-19:00 London, TP1 = nearest swing ahead
 - **EA file / magic:** [`EA_CF_Break_Retest.mq5](../mql5-eas/EA_CF_Break_Retest.mq5) / `3205` (static-checked)
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
+- **Priority:** P2 - simple and mechanical; ready for the tester sweep
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
 

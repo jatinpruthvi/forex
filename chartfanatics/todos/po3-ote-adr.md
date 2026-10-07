@@ -28,11 +28,12 @@
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
+- **Verdict:** Tradable, implemented. Daily bias -> PD-array raid in one of the three sessions -> strong-body displacement past the level -> fib-anchored OTE limit with the stop at the 1.0 fib and TP at the 0.0 fib (R derived from the geometry: 1.63 / 2.39 / 3.76R for the 0.62 / 0.705 / 0.79 entries).
+  `[interpretation]`: the doc's printed R table contradicts its own fib geometry (labels shifted one row) - the geometry wins and the discrepancy is noted in the source. "ADR" appears only in the title, so the daily-range budget gate is an interpretation.
+- **Instruments:** Forex (playbook). EA: XAUUSD / US100 / US500 / EURUSD (`InpSymbolsToTrade`)
+- **Timeframe / session:** Playbook: Daily + 4H bias, 15m / 30m confirmation, 5m refinement, never 1m; London open / NY open / London close. EA: M15 signal, all three session blocks, D1-200EMA bias, resting limit
 - **EA file / magic:** [`EA_CF_PO3_OTE_ADR.mq5](../mql5-eas/EA_CF_PO3_OTE_ADR.mq5) / `3204` (static-checked)
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
+- **Priority:** P1 - the tightest geometry in the family; also the card where the doc needed the most interpretation
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
 

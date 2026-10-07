@@ -54,6 +54,8 @@ input bool              InpLedger             = true;               // Write the
 input double InpBiasBandAtr     = 0.15;   // |price - D1 200EMA| must exceed this to call a bias
 input double InpKeyLevelTolAtr  = 0.25;   // Price must open within this distance of the PD array
 input double InpAdrConsumedMax  = 0.60;   // Skip when the day already used this share of daily ATR
+                                          // [interpretation] "ADR" appears ONLY in the playbook title -
+                                          // the body states no ADR rule; daily ATR is the proxy here.
 //--- sessions (London clock; New York = London - 5)
 input int InpLondonOpenFromMin  = 420;    // 07:00 London = 02:00 ET
 input int InpLondonOpenToMin    = 600;    // 10:00 London = 05:00 ET
@@ -65,8 +67,9 @@ input bool InpUseLondonClose    = true;   // The third session works best after 
 //--- the leg and the fib
 input int    InpManipBars         = 16;    // Bars searched for the manipulation extreme
 input double InpDisplacementBody  = 0.55;  // Confirmation candle body ratio
-input double InpOteFib            = 0.705; // Limit level inside the 0.62-0.705 zone
-input double InpMinRR            = 2.00;   // Reject entries whose fixed geometry is under 2R
+input double InpOteFib            = 0.705; // Limit level: 0.50 / 0.62 / 0.705 / 0.79 (optional) per doc
+input double InpStopFibLevel      = 1.00;  // Stop fib: 1.0 = the leg high (doc default), 0.90 = tighter
+input double InpMinRR            = 1.50;   // Reject entries under this R (doc's tightest offered 0.62 entry = 1.63R)
 input double InpStopBufferAtr    = 0.15;
 input int    InpPendingExpiryMinutes = 45; // How long the OTE limit may rest
 
@@ -113,10 +116,21 @@ public:
       cfg.signalOnNewBarOnly    = true;
       cfg.useLimitEntry         = true;    // the OTE zone is a resting limit, never a chase
       cfg.pendingExpiryMinutes  = InpPendingExpiryMinutes;
-      cfg.breakEvenAtR          = 1.70;    // the 0.20 fib level, entered at 0.705
-      cfg.partial1AtR           = 2.39;    // 0.0 fib is 2.39R from a 0.705 entry
+      //--- the playbook fixes the geometry (entry at a fib level, first TP ALWAYS at the 0.0
+      //--- level, stop at the 1.0 level by default), so the R levels are DERIVED from the
+      //--- inputs instead of hardcoded - changing InpOteFib or InpStopFibLevel moves them.
+      //--- NOTE: the doc's printed R table ("62% entry = ~2.38R, 70.5% = ~3.75R, 50% = ~1.63R")
+      //--- has its labels shifted one row; the geometry (which the doc states separately and
+      //--- unambiguously) yields 1.63R / 2.39R / 3.76R for 0.62 / 0.705 / 0.79.  Geometry wins.
+      double riskFrac = MathAbs(InpStopFibLevel - InpOteFib);
+      if(riskFrac < 0.05) riskFrac = 0.05;          // guard: a degenerate fib pair cannot be sized
+      double tpR = InpOteFib / riskFrac;
+      double beR = (InpOteFib - 0.20) / riskFrac;   // "once the price closes past the 0.20 level"
+      if(beR < 0.0) beR = 0.0;
+      cfg.breakEvenAtR          = beR;
+      cfg.partial1AtR           = tpR;             // "your first TP is always at the 0.0 level"
       cfg.partial1Pct           = 60.0;
-      cfg.trailAtR              = 2.39;    // "make the old TP the new stop loss"
+      cfg.trailAtR              = tpR;             // "make the old TP your new stop loss"
       cfg.trailDistanceR        = 0.50;
       cfg.commissionPerLotRT    = InpCommissionPerLotRT;
       cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
@@ -197,23 +211,28 @@ public:
             }
          }
       }
+      //--- the fractal index is clamped to the fetched series: an anchor at `got` would make
+      //--- the displacement loop below read r[manipIdx] out of range (MQL5 aborts the run)
+      if(manipIdx >= got) manipIdx = got - 1;
       if(manipIdx < 2) return false;
       double tol = InpKeyLevelTolAtr * ctx.atr;
       if(bias < 0 && manipExtreme < pdh - tol) return false;    // the raid missed the PD array
       if(bias > 0 && manipExtreme > pdl + tol) return false;
 
-      //--- 2. displacement: a strong body bar NEWER than the raid that breaks structure back
+      //--- 2. displacement: "a strong candle that closes with body (not just wick) past the key
+      //--- level" - so the close must clear the PD array that was raided (pdh for a short, pdl
+      //--- for a long) AND break the bar structure.  The r[i + 1] read stays inside the series.
       bool   displaced  = false;
       double legExtreme = (bias < 0) ? DBL_MAX : -DBL_MAX;
-      for(int i = 1; i < manipIdx; i++)
+      for(int i = 1; i < manipIdx && i + 1 < got; i++)
       {
          if(EA_BodyRatio(r[i]) < InpDisplacementBody) continue;
-         if(bias < 0 && r[i].close < r[i].open && r[i].close < r[i + 1].low)
+         if(bias < 0 && r[i].close < r[i].open && r[i].close < r[i + 1].low && r[i].close < pdh)
          {
             displaced = true;
             if(r[i].low < legExtreme) legExtreme = r[i].low;
          }
-         if(bias > 0 && r[i].close > r[i].open && r[i].close > r[i + 1].high)
+         if(bias > 0 && r[i].close > r[i].open && r[i].close > r[i + 1].high && r[i].close > pdl)
          {
             displaced = true;
             if(r[i].high > legExtreme) legExtreme = r[i].high;
@@ -228,11 +247,11 @@ public:
       double span = MathAbs(manipExtreme - legExtreme);
       if(span <= 0.0) return false;
 
-      //--- 3. the OTE limit: 0.62-0.705 retracement, stop at 1.0 fib, target at 0.0 fib
+      //--- 3. the OTE limit: the doc's fib levels, stop at the stop fib (1.0 default), TP at 0.0
       double entry = (bias < 0) ? legExtreme + InpOteFib * span
                                 : legExtreme - InpOteFib * span;
-      double stop  = (bias < 0) ? manipExtreme + InpStopBufferAtr * ctx.atr
-                                : manipExtreme - InpStopBufferAtr * ctx.atr;
+      double stop  = (bias < 0) ? legExtreme + InpStopFibLevel * span + InpStopBufferAtr * ctx.atr
+                                : legExtreme - InpStopFibLevel * span - InpStopBufferAtr * ctx.atr;
       double risk  = MathAbs(entry - stop);
       if(risk <= 0.0) return false;
       double rr = MathAbs(legExtreme - entry) / risk;
@@ -262,11 +281,14 @@ private:
       return (distance > 0.0) ? +1 : -1;
    }
 
+   //--- "The setup only works well if the price opens close to a key level."  The level is
+   //--- side-specific: a short raids the sell-side (previous day HIGH), a long the buy-side LOW.
+   //--- (An earlier revision had two identical branches here, so the bias decided nothing.)
    bool NearKeyLevel(SEAContext &ctx, const int bias, const double pdh, const double pdl)
    {
-      double tol = InpKeyLevelTolAtr * ctx.atr;
-      if(bias < 0) return (MathAbs(ctx.mid - pdh) <= tol || MathAbs(ctx.mid - pdl) <= tol);
-      return (MathAbs(ctx.mid - pdl) <= tol || MathAbs(ctx.mid - pdh) <= tol);
+      double tol   = InpKeyLevelTolAtr * ctx.atr;
+      double level = (bias < 0) ? pdh : pdl;
+      return (MathAbs(ctx.mid - level) <= tol);
    }
 
    bool AdrRoomLeft(SEAContext &ctx)

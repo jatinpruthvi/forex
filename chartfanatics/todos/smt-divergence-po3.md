@@ -28,11 +28,12 @@
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
+- **Verdict:** Tradable, implemented. PD high/low manipulation, SMT divergence against the twin index, entry on the reclaim, target the 50% level of the range.
+  `[interpretation]`: the doc's "11:00 candle flips bearish -> break-even" becomes the engine's 1R BE; the 50% target is used only when it sits ahead of the entry.
+- **Instruments:** Futures / Crypto (playbook). EA: US100 vs US500 (`InpSmtSymbol`), `InpSmtFailClosed` refuses to trade when the twin is unavailable
+- **Timeframe / session:** Playbook: Daily -> 4H -> 1H -> intraday entry; manipulation typically ~10:00 ET. EA: M5 entries, H1 50% target, NY window 14:30-18:00 London
 - **EA file / magic:** [`EA_CF_SMT_PO3.mq5](../mql5-eas/EA_CF_SMT_PO3.mq5) / `3203` (static-checked)
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
+- **Priority:** P1 - the only cross-symbol implementation in the family; needs both symbols on the broker
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
 

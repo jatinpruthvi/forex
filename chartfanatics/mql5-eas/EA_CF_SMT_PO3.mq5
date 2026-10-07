@@ -76,10 +76,9 @@ public:
    void OnInitStrategy()
    {
       m_warnedSmt = false;
-   }
-
-   void OnInitStrategy()
-   {
+      //--- the twin is read directly: make sure the broker lists it before the first signal
+      if(StringLen(InpSmtSymbol) > 0 && !SymbolSelect(InpSmtSymbol, true))
+         EA_Log(EA_LOG_ERRORS, "SMT reference '" + InpSmtSymbol + "' could not be selected", true);
       EA_Log(EA_LOG_EVENTS, StringFormat("5-stage policy: stage %d active (risk %.3f%%, %d trades/day max)",
              InpStage, g_eaCfg.riskPct, g_eaCfg.maxTradesPerDay), true);
    }
@@ -183,21 +182,52 @@ public:
          return false;
       }
 
-      //--- the model is a base hit: target the 50% level of the dealing range
-      double rr = MathAbs(plan.entry - half) / plan.riskDist;
-      if(rr < InpMinRR)
+      //--- the model is a base hit: target the 50% level of the dealing range - but only when
+      //--- that level is actually AHEAD of the entry (a wrong-side target is a broken plan, and
+      //--- the primitive's R target is the safe fallback when it is behind)
+      bool targetAhead = (plan.dir < 0) ? (half < plan.entry) : (half > plan.entry);
+      if(targetAhead)
+      {
+         double rr = MathAbs(plan.entry - half) / plan.riskDist;
+         if(rr < InpMinRR)
+         {
+            plan.Reset();
+            return false;
+         }
+         plan.target = half;
+         plan.score  = plan.score + MathMin(20.0, rr * 5.0);
+         plan.reason = StringFormat("SMT+PO3 reversal into the 50%% level (%.2fR): ", rr) + plan.reason;
+         return true;
+      }
+      double fallbackR = MathAbs(plan.target - plan.entry) / plan.riskDist;
+      if(fallbackR < InpMinRR)
       {
          plan.Reset();
          return false;
       }
-      plan.target = half;
-      plan.score  = plan.score + MathMin(20.0, rr * 5.0);
-      plan.reason = StringFormat("SMT+PO3 reversal into the 50%% level (%.2fR): ", rr) + plan.reason;
+      plan.reason = StringFormat("SMT+PO3 reversal (50%% level behind the entry, %.2fR R-target kept): ",
+                                 fallbackR) + plan.reason;
       return true;
    }
 
 private:
    bool m_warnedSmt;
+
+   //--- the reference is unusable (absent symbol, thin history, or misaligned bars):
+   //--- the engine's own SMT gate is fail-closed by default, and so is this one unless the
+   //--- operator explicitly accepts fail-open behaviour
+   bool SmtUnavailable()
+   {
+      if(!m_warnedSmt)
+      {
+         m_warnedSmt = true;
+         if(InpSmtFailClosed)
+            EA_Log(EA_LOG_ERRORS, "SMT reference '" + InpSmtSymbol + "' unavailable/misaligned - no entries (fail closed)", true);
+         else
+            EA_Log(EA_LOG_ERRORS, "SMT reference '" + InpSmtSymbol + "' unavailable/misaligned - SMT gate skipped (fail open)", true);
+      }
+      return (!InpSmtFailClosed);
+   }
 
    //--- our symbol made a fresh extreme while the correlated twin did not
    bool SmtDivergence(SEAContext &ctx, const int dir)
@@ -209,18 +239,12 @@ private:
       int want = InpSmtLookbackBars;
       int gotA = EA_Rates(ctx.symbol, g_eaIndTf, 1, want, a);
       int gotB = EA_Rates(InpSmtSymbol, g_eaIndTf, 1, want, b);
-      if(gotA < want || gotB < want)
-      {
-         if(!m_warnedSmt)
-         {
-            m_warnedSmt = true;
-            if(InpSmtFailClosed)
-               EA_Log(EA_LOG_ERRORS, "SMT reference '" + InpSmtSymbol + "' unavailable - no entries (fail closed)", true);
-            else
-               EA_Log(EA_LOG_ERRORS, "SMT reference '" + InpSmtSymbol + "' unavailable - SMT gate skipped (fail open)", true);
-         }
-         return (!InpSmtFailClosed);
-      }
+      if(gotA < want || gotB < want) return SmtUnavailable();
+
+      //--- both series must describe the SAME bars: a gap (holiday, thin session, missing data)
+      //--- on either symbol would otherwise compare different times and invent a divergence
+      for(int i = 0; i < want; i++)
+         if(a[i].time != b[i].time) return SmtUnavailable();
 
       int recent = InpSmtRecentBars;
       if(recent < 1) recent = 1;

@@ -28,11 +28,12 @@
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
+- **Verdict:** Tradable, implemented. Daily bias + session liquidity raid during the NY window, entered on FVG / MSS / breaker confirmation, targeting the opposite session's liquidity.
+  `[interpretation]`: "if the trade slows near midday, consider exiting" becomes the engine time stop (90 min unless the trade is already at 1R).
+- **Instruments:** Futures / Forex (playbook). EA: US100 / US500 / GER40 / XAUUSD (`InpSymbolsToTrade`)
+- **Timeframe / session:** Playbook: daily bias, 15m / 5m confirmation, 9:30-11:30 ET. EA: M5 signal, London 14:30-16:30 = NY 09:30-11:30, raid lookback 12 bars
 - **EA file / magic:** [`EA_CF_Intraday_Liquidity.mq5](../mql5-eas/EA_CF_Intraday_Liquidity.mq5) / `3206` (static-checked)
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
+- **Priority:** P2 - the raid detector is reusable; swing variant (HTF alignment) is not implemented
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
 

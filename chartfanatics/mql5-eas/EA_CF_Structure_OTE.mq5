@@ -50,6 +50,8 @@ input int    InpHtfBars           = 120;    // HTF bars that define the dealing 
 input int    InpLegBars           = 40;     // LTF bars that define the active leg (checked with the HTF)
 input double InpOteMin            = 0.62;   // OTE band lower bound
 input double InpOteMax            = 0.79;   // OTE band upper bound
+                                          // [interpretation] the playbook names OTE but gives no
+                                          // fib numbers; 62-79% is the standard OTE definition.
 input bool   InpUseOte            = true;   // Require the entry to sit inside the OTE band
 input bool   InpRequireDiscount   = true;   // Longs only in discount, shorts only in premium
 input int    InpSessionFromMin    = 420;    // Entry window start (07:00 London)
@@ -248,15 +250,18 @@ private:
       double highs[], lows[];
       int    hiIdx[], loIdx[];
       if(SigFractals(ctx.symbol, 6, highs, lows, hiIdx, loIdx) < 2) return false;
+      //--- the swing must EXIST BEFORE it can be swept, so the fractal is required to sit at or
+      //--- older than the sweep bar (series index >= sweepBarsAgo).  Accepting a newer fractal
+      //--- let a swing that formed after the sweep pass as the liquidity that was taken out.
       double tol = 0.35 * ctx.atr;
       if(dir < 0)
       {
          for(int i = 0; i < ArraySize(highs); i++)
-            if(hiIdx[i] <= sweepBarsAgo && MathAbs(highs[i] - sweptExtreme) <= tol) return true;
+            if(hiIdx[i] >= sweepBarsAgo && MathAbs(highs[i] - sweptExtreme) <= tol) return true;
          return false;
       }
       for(int i = 0; i < ArraySize(lows); i++)
-         if(loIdx[i] <= sweepBarsAgo && MathAbs(lows[i] - sweptExtreme) <= tol) return true;
+         if(loIdx[i] >= sweepBarsAgo && MathAbs(lows[i] - sweptExtreme) <= tol) return true;
       return false;
    }
 

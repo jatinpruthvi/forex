@@ -5,10 +5,12 @@ strategy, each wired into the repository's shared engine (`MQL5_Master/Include/E
 with its own magic number, and each traceable back to its work card in
 [`../todos/`](../todos/).
 
-**Status: static-checked, not yet compiled.** `python3 scripts/check_mql5_source.py
+**Status: static-checked and doc-synced, not yet compiled.** `python3 scripts/check_mql5_source.py
 chartfanatics/mql5-eas/*.mq5` reports 0 findings (contract: `CEAStrategy` subclass, unique magic,
-engine delegation, no MQL4 contamination, declared identifiers, balanced blocks). Nothing here has
-been through MetaEditor yet — that is Stage 0 of
+engine delegation, no MQL4 contamination, declared identifiers, **duplicate declarations**,
+balanced blocks), and `tests/test_chartfanatics_sync.py` fails the build if any playbook rule stops
+matching the code that implements it (see *Rule -> code sync* below). Nothing here has been through
+MetaEditor yet — that is Stage 0 of
 [`docs/EA_VALIDATION_PLAYBOOK.md`](../../docs/EA_VALIDATION_PLAYBOOK.md) and the first thing to run
 on the Windows machine.
 
@@ -53,6 +55,46 @@ Deliberately **not** used: `SigSessionFade` (EASignals 14) fades a quiet range o
 hours *after* that range closes — the 02:00–05:00 ET window — while the Intraday Liquidity model
 trades 09:30–11:30 ET; `EA_BasketShouldAddLeg`/`EA_BasketManage` implement *adverse* grid legs, not
 the playbooks' "scale in only once the first entry is at break-even", which stays unimplemented.
+
+## Rule -> code sync
+
+Each playbook was read end to end and every stated number/rule was mapped to the line that
+implements it. `tests/test_chartfanatics_sync.py` holds that mapping as a table of
+`(regex, rule-quoted-from-the-pdf)` pairs — one per rule — and asserts all of them against the
+sources, so a changed threshold or a dropped gate fails the test suite instead of silently
+drifting away from the document. The same file asserts that every deliberate deviation stays
+labelled `[interpretation]` in the EA.
+
+Documented deviations (the playbook is silent or self-contradictory — the code follows the
+unambiguous geometry and says so):
+
+| EA | Playbook text | What the code does |
+|---|---|---|
+| `EA_CF_PO3_OTE_ADR` | R table printed on p.4 ("62 % = ~2.38R, 70.5 % = ~3.75R, 50 % = ~1.63R") contradicts the fib geometry on the same page | R is **derived** (`tpR = entryFib / (stopFib - entryFib)`), which yields 1.63R / 2.39R / 3.76R for 0.62 / 0.705 / 0.79 — the table's labels are shifted one row; the discrepancy is noted in the source. Stop levels 1.0 (default) and 0.90 (tighter option) are both inputs |
+| `EA_CF_PO3_OTE_ADR` | "ADR" appears only in the document title — the body states no ADR rule | The daily-range budget gate is marked `[interpretation]` (ADR ~ daily ATR) and is an input |
+| `EA_CF_Structure_OTE` | names OTE but prints no fib numbers | 62–79 % band, labelled `[interpretation]` |
+| `EA_CF_SMT_PO3` | "the 11:00 candle flips bearish -> break-even" | engine 1R break-even; the target (50 % of the range) is used only when it sits ahead of the entry |
+| `EA_CF_AMD_Model` | "high probability day" (CPI/NFP/FOMC) | calendar data is tester-incomplete, so the news gate is off |
+| `EA_CF_AMD_Model` | "make sure related markets (e.g., NASDAQ and S&P) are aligned" — no threshold given | `InpCorrelationSymbol` (default `US500`): both markets must sit on the same side of their own previous-day midpoint |
+| `EA_CF_Intraday_Liquidity` | "if the trade slows near midday, consider exiting" | engine time stop, 90 minutes unless the trade is already at 1R |
+
+### Bugs found by this audit (all fixed)
+
+| Where | Bug | Fix |
+|---|---|---|
+| `EA_CF_SMT_PO3` | two `OnInitStrategy()` bodies from the stage-policy wiring — a hard compile error | merged into one; `check_mql5_source.py` now also flags duplicate class members (signature = name + param types, overloads stay legal) |
+| `EA_CF_PO3_OTE_ADR` | fractal anchor could sit at index `got`, so the displacement loop read `r[manipIdx]` **out of bounds** (MQL5 aborts the run) | anchor clamped to the fetched series; loop bounded by `i + 1 < got` |
+| `EA_CF_PO3_OTE_ADR` | displacement only had to beat the previous bar's extreme, not close "past the key level" | the close must also clear the raided PD array (`pdh` / `pdl`) |
+| `EA_CF_PO3_OTE_ADR` | R targets hardcoded 1.70 / 2.39 (did not follow the inputs at all) | derived from geometry; `InpStopFibLevel` added; `InpMinRR` 2.00 -> 1.50 so the doc's own 0.62 entry (1.63R) can qualify |
+| `EA_CF_PO3_OTE_ADR` | a resting OTE limit was returned even when the market had already run through it | refuses when `ask <= entry` (short) / `bid >= entry` (long) |
+| `EA_CF_PO3_OTE_ADR` | `NearKeyLevel()` had two identical branches (both read `pdh`) | side-specific, per the playbook's raid example |
+| `EA_CF_SMT_PO3` | the twin's bars were compared by index without checking they were the *same* bars | `a[i].time != b[i].time` -> unavailable (fail-closed default, warn once) |
+| `EA_CF_Intraday_Liquidity` | the raid detector returned the *first* level hit, so an older raid masked a fresher one | returns the most recent raid (`bestBar`) |
+| `EA_CF_Break_Retest` | the two-bar reversal confirmation was used for retests that did not close on the last bar, but the engine detector only reads the last closed bar | gated on `barsAgo == 1` |
+| `EA_CF_Structure_OTE` | "engineered liquidity" could be a swing created *after* the sweep | requires the swing index to be older than the sweep bar |
+| `EA_CF_AMD_Model` | "related markets aligned" and "there must be a clear target" were stated in the playbook but not implemented | correlation gate added; the worked example's target (opposite side of the accumulation range, then the nearest clean swing) now overrides the R target when it is far enough |
+| `EA_CF_Break_Retest` | the playbook's TP1 ("the prior high / prior low") was implemented as a flat R target | nearest swing extreme ahead of the entry sets TP1, R stays the fallback |
+| `EA_CF_Intraday_Liquidity` | the playbook lists four confirmations (FVG, MSS, Turtle Soup, breaker block); only two were implemented | breaker-block path added via `SigOrderBlockRetest`; Turtle Soup *is* the failed raid the detector already requires |
 
 ## Deploy
 

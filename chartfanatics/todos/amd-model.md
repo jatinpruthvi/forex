@@ -28,11 +28,12 @@
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
+- **Verdict:** Tradable, implemented. Accumulation range -> manipulation sweep -> confirmed displacement, entering the retrace into the imbalance. EA takes the distribution leg only, in the two macro windows the playbook names.
+  `[interpretation]`: related-market alignment = same side of each symbol's PD midpoint; target = opposite side of the accumulation range (the worked example) else the nearest clean swing.
+- **Instruments:** Futures (playbook). EA: US100 / US500 / GER40 (`InpSymbolsToTrade`)
+- **Timeframe / session:** Playbook: 1H / 4H / Daily for the draw on liquidity, 1m / 5m / 15m for displacement and entries; New York session after the news. EA: M5 signal, NY windows 14:50-15:10 and 15:50-16:10 London, max 2 trades/day
 - **EA file / magic:** [`EA_CF_AMD_Model.mq5](../mql5-eas/EA_CF_AMD_Model.mq5) / `3201` (static-checked)
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
+- **Priority:** P1 - the two-trade day lock and the news-day concept are the cleanest risk rules in the set
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
 
