@@ -39,6 +39,9 @@ input double            InpMaxSpreadPoints  = 3.0;                  // Spread ga
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
 input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+input double            InpCommissionPerLotRT = 0.0;                // Round-turn commission per lot (engine cost gate)
+input double            InpMaxCostR           = 0.12;               // Reject setups whose all-in cost exceeds xR
+input bool              InpLedger             = true;               // Write the engine evidence ledger CSV
 //--- structure / OTE
 input ENUM_TIMEFRAMES InpHtfTimeframe   = PERIOD_H4;   // HTF range (Daily -> H1, H4 -> M15 in the playbook)
 input ENUM_TIMEFRAMES InpLtfTimeframe   = PERIOD_M15;  // Execution timeframe
@@ -54,6 +57,7 @@ input int    InpPoILookbackBars   = 12;     // Order-block search window (signal
 input double InpDisplacementBody  = 0.55;   // Displacement body ratio for the POI
 input double InpTouchTolAtr       = 0.20;   // How close price must come to the POI
 input int    InpReclaimWindowBars = 3;      // Breaker fallback: bars from sweep to reclaim
+input bool   InpRequireEngineeredLiquidity = true; // Swept extreme must be a swing point (engine SigFractals)
 input double InpEntryRetrace      = 0.50;   // Breaker fallback: limit at 50% of the body
 input double InpStopBufferAtr     = 0.15;   // Stop buffer beyond the swept extreme / block
 input double InpMinRR             = 2.00;   // "Must be at least 2:1 RR to qualify"
@@ -98,6 +102,10 @@ public:
       cfg.breakEvenAtR          = 1.0;
       cfg.partial1AtR           = 1.0;  cfg.partial1Pct = 40.0;
       cfg.trailAtR              = 1.5;  cfg.trailDistanceR = 1.0;
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
+      cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
+      cfg.ledgerEnabled         = InpLedger;               // engine ledger: one row per open / partial / close
+      cfg.ledgerFile            = "cf_structure_ote_ledger.csv";
       cfg.newsFilter            = false;
       cfg.logLevel              = InpLogLevel;
    }
@@ -159,12 +167,39 @@ private:
       return SigEmaCascade(ctx, c);
    }
 
-   //--- dealing range of the last HTF leg
-   bool DealingRange(SEAContext &ctx, double &hi, double &lo)
+   //--- HTF range from SWING structure: the playbook measures the dealing range from the last
+   //--- significant swing low to swing high, not from the window's raw extremes.  The engine's
+   //--- SigFractals() is locked to the signal timeframe, so its 3-bar fractal rule is applied to
+   //--- the HTF series here; raw window extremes are the fallback when no swing confirms.
+   bool HTFRange(SEAContext &ctx, const ENUM_TIMEFRAMES tf, const int bars, double &hi, double &lo)
    {
       MqlRates r[];
-      int got = EA_Rates(ctx.symbol, InpHtfTimeframe, 1, InpHtfBars, r);
-      if(got < 20) return false;
+      int got = EA_Rates(ctx.symbol, tf, 1, bars, r);
+      if(got < 10) return false;
+
+      double swingHi = 0.0, swingLo = 0.0;
+      int    hiIdx = -1,   loIdx = -1;
+      for(int i = 1; i < got - 2; i++)
+      {
+         if(hiIdx < 0 && r[i].high > r[i + 1].high && r[i].high > r[i + 2].high &&
+            r[i].high > r[i - 1].high)
+         {
+            swingHi = r[i].high; hiIdx = i;
+         }
+         if(loIdx < 0 && r[i].low < r[i + 1].low && r[i].low < r[i + 2].low &&
+            r[i].low < r[i - 1].low)
+         {
+            swingLo = r[i].low; loIdx = i;
+         }
+         if(hiIdx >= 0 && loIdx >= 0) break;
+      }
+      if(hiIdx >= 0 && loIdx >= 0 && swingHi > swingLo)
+      {
+         hi = swingHi;
+         lo = swingLo;
+         return true;
+      }
+
       hi = -DBL_MAX;
       lo =  DBL_MAX;
       for(int i = 0; i < got; i++)
@@ -175,23 +210,43 @@ private:
       return (hi > lo);
    }
 
+   //--- dealing range of the last HTF leg
+   bool DealingRange(SEAContext &ctx, double &hi, double &lo)
+   {
+      return HTFRange(ctx, InpHtfTimeframe, InpHtfBars, hi, lo);
+   }
+
    //--- OTE: the entry must sit in the 62-79% retracement of the active leg
    bool InOteBand(SEAContext &ctx, const int dir)
    {
-      MqlRates r[];
-      int got = EA_Rates(ctx.symbol, InpHtfTimeframe, 1, InpLegBars, r);
-      if(got < 10) return false;
-      double hi = -DBL_MAX;
-      double lo =  DBL_MAX;
-      for(int i = 0; i < got; i++)
-      {
-         if(r[i].high > hi) hi = r[i].high;
-         if(r[i].low  < lo) lo = r[i].low;
-      }
+      double hi = 0.0, lo = 0.0;
+      if(!HTFRange(ctx, InpHtfTimeframe, InpLegBars, hi, lo)) return false;
       double span = hi - lo;
       if(span <= 0.0) return false;
       double retrace = (dir > 0) ? (hi - ctx.mid) / span : (ctx.mid - lo) / span;
       return (retrace >= InpOteMin && retrace <= InpOteMax);
+   }
+
+   //--- "engineered liquidity (a swing low or high)" from the playbook, checked with the engine's
+   //--- own swing detector: the swept extreme must sit on a confirmed fractal within tolerance.
+   bool SweptEngineeredLiquidity(SEAContext &ctx, const int dir, const double sweptExtreme,
+                                 const int sweepBarsAgo)
+   {
+      if(!InpRequireEngineeredLiquidity) return true;
+      if(sweepBarsAgo < 1) return false;
+      double highs[], lows[];
+      int    hiIdx[], loIdx[];
+      if(SigFractals(ctx.symbol, 6, highs, lows, hiIdx, loIdx) < 2) return false;
+      double tol = 0.35 * ctx.atr;
+      if(dir < 0)
+      {
+         for(int i = 0; i < ArraySize(highs); i++)
+            if(hiIdx[i] <= sweepBarsAgo && MathAbs(highs[i] - sweptExtreme) <= tol) return true;
+         return false;
+      }
+      for(int i = 0; i < ArraySize(lows); i++)
+         if(loIdx[i] <= sweepBarsAgo && MathAbs(lows[i] - sweptExtreme) <= tol) return true;
+      return false;
    }
 
    //--- POI entry: the order block (or FVG) that produced the HTF break
@@ -235,13 +290,21 @@ private:
       //--- NOTE: the primitive evaluates the bullish sequence first, so for a bearish bias an
       //--- OLDER bullish sequence can mask a fresh bearish one.  This fallback therefore fires
       //--- less often than the order-block path, which supports `onlyDir` directly.
-      bool ok = SigSweepReclaim(ctx, sp, out);
-      if(ok && out.dir != dir)
+      if(!SigSweepReclaim(ctx, sp, out)) return false;
+      if(out.dir != dir)
       {
          out.Reset();
          return false;
       }
-      return ok;
+      //--- the sweep has to have taken out a SWING (engineered liquidity), not a random tick
+      double buffer = InpStopBufferAtr * ctx.atr;
+      double sweptExtreme = (out.dir < 0) ? (out.stop - buffer) : (out.stop + buffer);
+      if(!SweptEngineeredLiquidity(ctx, out.dir, sweptExtreme, out.sweepBarsAgo))
+      {
+         out.Reset();
+         return false;
+      }
+      return true;
    }
 };
 

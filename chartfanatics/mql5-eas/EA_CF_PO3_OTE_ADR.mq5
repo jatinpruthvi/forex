@@ -46,6 +46,9 @@ input double            InpMaxSpreadPoints  = 3.0;                  // Spread ga
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
 input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+input double            InpCommissionPerLotRT = 0.0;                // Round-turn commission per lot (engine cost gate)
+input double            InpMaxCostR           = 0.12;               // Reject setups whose all-in cost exceeds xR
+input bool              InpLedger             = true;               // Write the engine evidence ledger CSV
 //--- bias and key levels
 input double InpBiasBandAtr     = 0.15;   // |price - D1 200EMA| must exceed this to call a bias
 input double InpKeyLevelTolAtr  = 0.25;   // Price must open within this distance of the PD array
@@ -108,6 +111,10 @@ public:
       cfg.partial1Pct           = 60.0;
       cfg.trailAtR              = 2.39;    // "make the old TP the new stop loss"
       cfg.trailDistanceR        = 0.50;
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
+      cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
+      cfg.ledgerEnabled         = InpLedger;               // engine ledger: one row per open / partial / close
+      cfg.ledgerFile            = "cf_po3_ote_adr_ledger.csv";
       cfg.newsFilter            = false;
       cfg.logLevel              = InpLogLevel;
    }
@@ -116,7 +123,7 @@ public:
    {
       plan.Reset();
       if(ctx.atr <= 0.0 || ctx.atrD1 <= 0.0) return false;
-      if(!InTradingBlock(ctx.clockMinutes)) return false;
+      if(!InTradingBlock(ctx)) return false;
 
       int bias = DailyBias(ctx);
       if(bias == 0) return false;                       // no bias, no trade
@@ -131,20 +138,52 @@ public:
       int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, InpManipBars + 2, r);
       if(got < 8) return false;
 
-      //--- 1. manipulation: the extreme of the raid (the future 1.0 fib)
+      //--- 1. manipulation: the extreme of the raid and the future 1.0 fib.  A confirmed swing
+      //--- point is the faithful anchor ("the high of the day"), so the engine's own fractal
+      //--- detector decides first; the raw bar extreme is the fallback while no swing confirms.
       int    manipIdx     = -1;
-      double manipExtreme = (bias < 0) ? -DBL_MAX : DBL_MAX;
-      for(int i = 1; i <= InpManipBars && i < got; i++)
+      double manipExtreme = 0.0;
+      double fractalsHi[], fractalsLo[];
+      int    fractalsHiIdx[], fractalsLoIdx[];
+      int    nFractals = SigFractals(ctx.symbol, 4, fractalsHi, fractalsLo, fractalsHiIdx, fractalsLoIdx);
+      if(nFractals > 0)
       {
-         if(bias < 0 && r[i].high > manipExtreme)
+         if(bias < 0)
          {
-            manipExtreme = r[i].high;
-            manipIdx     = i;
+            for(int i = 0; i < ArraySize(fractalsHi); i++)
+               if(fractalsHiIdx[i] <= InpManipBars + 2)
+               {
+                  manipExtreme = fractalsHi[i];
+                  manipIdx     = fractalsHiIdx[i];
+                  break;
+               }
          }
-         if(bias > 0 && r[i].low < manipExtreme)
+         else
          {
-            manipExtreme = r[i].low;
-            manipIdx     = i;
+            for(int i = 0; i < ArraySize(fractalsLo); i++)
+               if(fractalsLoIdx[i] <= InpManipBars + 2)
+               {
+                  manipExtreme = fractalsLo[i];
+                  manipIdx     = fractalsLoIdx[i];
+                  break;
+               }
+         }
+      }
+      if(manipIdx < 0)
+      {
+         manipExtreme = (bias < 0) ? -DBL_MAX : DBL_MAX;
+         for(int i = 1; i <= InpManipBars && i < got; i++)
+         {
+            if(bias < 0 && r[i].high > manipExtreme)
+            {
+               manipExtreme = r[i].high;
+               manipIdx     = i;
+            }
+            if(bias > 0 && r[i].low < manipExtreme)
+            {
+               manipExtreme = r[i].low;
+               manipIdx     = i;
+            }
          }
       }
       if(manipIdx < 2) return false;
@@ -229,13 +268,17 @@ private:
       return (used <= InpAdrConsumedMax);
    }
 
-   bool InTradingBlock(const int clockMinutes)
+   //--- the engine's window helper (London clock, midnight-crossing safe); the three documented
+   //--- sessions are OR-ed, exactly as the playbook lists them.
+   bool InTradingBlock(SEAContext &ctx)
    {
-      if(clockMinutes >= InpLondonOpenFromMin  && clockMinutes < InpLondonOpenToMin)  return true;
-      if(clockMinutes >= InpNyOpenFromMin      && clockMinutes < InpNyOpenToMin)      return true;
-      if(InpUseLondonClose && clockMinutes >= InpLondonCloseFromMin &&
-         clockMinutes < InpLondonCloseToMin) return true;
-      return false;
+      if(EA_InWindow(ctx.nowClock, InpLondonOpenFromMin / 60, InpLondonOpenFromMin % 60,
+                                  InpLondonOpenToMin / 60,   InpLondonOpenToMin % 60)) return true;
+      if(EA_InWindow(ctx.nowClock, InpNyOpenFromMin / 60, InpNyOpenFromMin % 60,
+                                  InpNyOpenToMin / 60,   InpNyOpenToMin % 60)) return true;
+      if(!InpUseLondonClose) return false;
+      return EA_InWindow(ctx.nowClock, InpLondonCloseFromMin / 60, InpLondonCloseFromMin % 60,
+                                     InpLondonCloseToMin / 60,   InpLondonCloseToMin % 60);
    }
 };
 

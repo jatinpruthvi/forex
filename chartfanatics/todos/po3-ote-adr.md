@@ -44,5 +44,6 @@
 - **EA:** [`mql5-eas/EA_CF_PO3_OTE_ADR.mq5`](../mql5-eas/EA_CF_PO3_OTE_ADR.mq5), magic `3204`, M15.
 - **Encoded:** daily bias (D1 200-EMA with a band, "never trade both ways"); proximity to a PD array (previous day high/low); the three documented sessions (London open / NY open / London close); a raid + body-candle displacement; a resting LIMIT at the 0.62-0.705 retracement with the stop at the 1.0 fib and take-profit at the 0.0 fib (0.62 -> 1.63R, 0.705 -> 2.39R, 0.79 -> 3.76R); break-even at 1.70R (the 0.20 fib from a 0.705 entry); ADR budget gate.
 - **Gaps:** ADR is approximated by daily ATR (`ctx.atrD1`). The scale-in rule ("only when the first entry is at break-even or better") is not implemented - the engine holds one position per symbol.
+   - The manipulation extreme (the 1.0 fib) is anchored to a confirmed swing point via `SigFractals`, with the raw bar extreme as fallback; the three sessions use `EA_InWindow`.
 - **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

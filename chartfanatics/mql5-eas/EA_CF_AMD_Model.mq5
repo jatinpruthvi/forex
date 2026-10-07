@@ -42,6 +42,9 @@ input double            InpMaxSpreadPoints  = 3.0;                  // Spread ga
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
 input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+input double            InpCommissionPerLotRT = 0.0;                // Round-turn commission per lot (engine cost gate)
+input double            InpMaxCostR           = 0.12;               // Reject setups whose all-in cost exceeds xR
+input bool              InpLedger             = true;               // Write the engine evidence ledger CSV
 //--- AMD structure (clock minutes on the London wall clock; New York = London - 5)
 input int    InpRangeFromMin      = 0;      // Accumulation window start (00:00 London)
 input int    InpRangeToMin        = 870;    // Accumulation window end   (14:30 London = NY open)
@@ -98,6 +101,10 @@ public:
       cfg.breakEvenAtR          = 1.0;
       cfg.partial1AtR           = 1.0;  cfg.partial1Pct = 50.0;     // "take partial profits at logical targets"
       cfg.trailAtR              = 1.5;  cfg.trailDistanceR = 0.75;
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
+      cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
+      cfg.ledgerEnabled         = InpLedger;               // engine ledger: one row per open / partial / close
+      cfg.ledgerFile            = "cf_amd_model_ledger.csv";
       cfg.newsFilter            = false;   // the playbook's best setups ARE the post-news moves
       cfg.logLevel              = InpLogLevel;
    }
@@ -107,7 +114,7 @@ public:
       plan.Reset();
       if(!ctx.inSession) return false;
       if(ctx.atr <= 0.0) return false;
-      if(InpMacroWindowsOnly && !InMacroWindow(ctx.clockMinutes)) return false;
+      if(InpMacroWindowsOnly && !InMacroWindow(ctx)) return false;
 
       SSweepParams p;
       p.Reset();
@@ -142,11 +149,13 @@ public:
    }
 
 private:
-   bool InMacroWindow(const int clockMinutes)
+   //--- engine window helper (handles the midnight crossing, reads the configured clock)
+   bool InMacroWindow(SEAContext &ctx)
    {
-      if(clockMinutes >= InpMacro1FromMin && clockMinutes < InpMacro1ToMin) return true;
-      if(clockMinutes >= InpMacro2FromMin && clockMinutes < InpMacro2ToMin) return true;
-      return false;
+      if(EA_InWindow(ctx.nowClock, InpMacro1FromMin / 60, InpMacro1FromMin % 60,
+                                 InpMacro1ToMin / 60,   InpMacro1ToMin % 60)) return true;
+      return EA_InWindow(ctx.nowClock, InpMacro2FromMin / 60, InpMacro2FromMin % 60,
+                                     InpMacro2ToMin / 60,   InpMacro2ToMin % 60);
    }
 
    //--- HTF clarity: D1 and H1 200-EMA agreement (the playbook reads 1H/4H/D1, not the M5 signal TF)

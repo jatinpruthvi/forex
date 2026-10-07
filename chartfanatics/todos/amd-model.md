@@ -44,5 +44,6 @@
 - **EA:** [`mql5-eas/EA_CF_AMD_Model.mq5`](../mql5-eas/EA_CF_AMD_Model.mq5), magic `3201`, M5.
 - **Encoded:** accumulation window 00:00-14:30 London; sweep -> reclaim -> displacement via `SigSweepReclaim`; retracement limit entry; macro windows 09:50-10:10 / 10:50-11:10 ET enforced; 2 trades/day; two-loss day lock; D1+H1 cascade gate ("if the higher timeframe is unclear, do not force a setup").
 - **Gaps:** the "high probability day" news filter (CPI/NFP/FOMC days) is a calendar decision and is OFF - the playbook trades the *post-news* move, so blocking news windows would veto its best setups. Scale-down on pre-news days is not implemented.
+   - Uses `EA_InWindow` for both macro windows (engine helper, midnight-crossing safe) and `SigEmaCascade` for the HTF clarity gate; the engine cost gate (`maxCostR`) and evidence ledger are on.
 - **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled** - run `validation/mt5_harness/compile_all.ps1`, then a tester sweep.
 <!-- /edit:notes -->

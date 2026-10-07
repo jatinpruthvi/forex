@@ -40,6 +40,9 @@ input double            InpMaxSpreadPoints  = 3.0;                  // Spread ga
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
 input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+input double            InpCommissionPerLotRT = 0.0;                // Round-turn commission per lot (engine cost gate)
+input double            InpMaxCostR           = 0.12;               // Reject setups whose all-in cost exceeds xR
+input bool              InpLedger             = true;               // Write the engine evidence ledger CSV
 //--- the level, the break and the retest
 input int    InpRangeFromMin   = 0;      // Premarket range start (00:00 London)
 input int    InpRangeToMin     = 870;    // Premarket range end   (14:30 London = NY open)
@@ -50,8 +53,9 @@ input double InpBreakBufferAtr = 0.10;   // "Clean break": closed bar beyond the
 input double InpRetestTolAtr   = 0.15;   // How close the retest must come to the level
 input double InpStopBufferAtr  = 0.20;   // Stop beyond the retest structure
 input double InpTargetR        = 2.00;   // TP1 in R (then partials + runners)
-input bool   InpRequireRejection = true; // The retest bar must show a rejection wick
+input bool   InpRequireRejection = true; // The retest must show a rejection (wick or engulf)
 input double InpRejectWickRatio  = 0.30; // Rejection wick / bar range
+input bool   InpUseTwoBarConfirm = true; // Also accept the engine's pin+engulf (SigTwoBarReversal)
 input bool   InpRespectNoTradeZone = true; // Never trade between the previous day's high and low
 
 //+------------------------------------------------------------------+
@@ -94,6 +98,10 @@ public:
       cfg.partial1AtR           = 1.0;  cfg.partial1Pct = 50.0;    // "take 25-50% off at TP1"
       cfg.partial2AtR           = 2.0;  cfg.partial2Pct = 25.0;
       cfg.trailAtR              = 1.5;  cfg.trailDistanceR = 0.75; // hold runners
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
+      cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
+      cfg.ledgerEnabled         = InpLedger;               // engine ledger: one row per open / partial / close
+      cfg.ledgerFile            = "cf_break_retest_ledger.csv";
       cfg.newsFilter            = false;
       cfg.logLevel              = InpLogLevel;
    }
@@ -130,8 +138,8 @@ public:
       p.scoreBase       = 62.0;
       if(!SigBreakRetest(ctx, p, plan)) return false;
 
-      //--- the rejection: the retest bar must wick against the level
-      if(InpRequireRejection && !RejectionAtLevel(ctx, plan.dir, plan.barsAgo))
+      //--- confirmation the playbook names: rejection candle / engulfing / wick at the level
+      if(InpRequireRejection && !ConfirmedAtLevel(ctx, plan.dir, plan.barsAgo))
       {
          plan.Reset();
          return false;
@@ -142,13 +150,22 @@ public:
    }
 
 private:
-   bool RejectionAtLevel(SEAContext &ctx, const int dir, const int barsAgo)
+   //--- The playbook accepts a rejection candle, an engulfing close or a wick at the level.
+   //--- The wick test covers the first and third cases; `SigTwoBarReversal` is the engine's own
+   //--- pin+engulf rule (EASignals section 13) and covers the engulfing case - both are existing
+   //--- engine utilities rather than a second hand-rolled candle matcher.
+   bool ConfirmedAtLevel(SEAContext &ctx, const int dir, const int barsAgo)
    {
       if(barsAgo < 1) return false;
       MqlRates r[];
       int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, barsAgo + 2, r);
       if(got < barsAgo + 1) return false;
-      return (EA_WickRatio(r[barsAgo], dir) >= InpRejectWickRatio);
+      if(EA_WickRatio(r[barsAgo], dir) >= InpRejectWickRatio) return true;
+      if(!InpUseTwoBarConfirm) return false;
+      SSignalPlan reversal;
+      if(!SigTwoBarReversal(ctx, InpRejectWickRatio, InpStopBufferAtr, InpTargetR, true, reversal))
+         return false;
+      return (reversal.dir == dir);
    }
 };
 

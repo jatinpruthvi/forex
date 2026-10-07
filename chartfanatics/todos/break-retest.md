@@ -44,5 +44,6 @@
 - **EA:** [`mql5-eas/EA_CF_Break_Retest.mq5`](../mql5-eas/EA_CF_Break_Retest.mq5), magic `3205`, M5.
 - **Encoded:** premarket range (00:00-14:30 London) with a clean break + buffer and a LATER retest bar that holds (`SigBreakRetest`); rejection-wick confirmation on the retest bar; stop beyond the retest structure; TP1 partial 50% at 1R with runners trailed.
 - **Gaps (approximation):** the No Trade Zone is implemented as the previous day's high-to-low band, while the playbook describes it as "between the previous day's high and the premarket low" - the narrower BIS-style band would need a premarket-specific low rather than a PDH/PDL pair.
+   - The playbook's "rejection / engulfing" confirmation is the engine's own pin+engulf detector (`SigTwoBarReversal`) alongside the wick test, not a second hand-rolled candle matcher.
 - **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

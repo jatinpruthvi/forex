@@ -45,5 +45,6 @@
 - **Encoded:** D1+H1 cascade bias; dealing range over 120 H4 bars with a premium/discount gate; OTE band 62-79% of the active leg; `SigOrderBlockRetest` POI entry (direction-locked) with a sweep-reclaim breaker fallback; target = next external liquidity when it delivers >= 2R.
 - **Note:** `docs/ICT_SMC_COVERAGE.md` records premium/discount and OTE as not implemented anywhere in this repo - this EA is the first implementation.
 - **Gaps:** the breaker fallback inherits `SigSweepReclaim`'s bullish-first evaluation order, so a fresh bearish breaker can be masked by an older bullish sequence (the OB path is direction-locked, the fallback merely fires less often).
+   - Swing structure now comes from the engine's 3-bar fractal rule (`SigFractals` for the breaker's engineered-liquidity check; the same rule applied to HTF bars for the dealing range), and the swept extreme must sit on a swing unless `InpRequireEngineeredLiquidity=false`.
 - **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

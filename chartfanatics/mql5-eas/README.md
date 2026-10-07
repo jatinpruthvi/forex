@@ -27,6 +27,31 @@ Magic block **3201–3247** is reserved for this family (one per card). `manifes
 machine-readable source of truth and is read by [`../gen_todos.py`](../gen_todos.py) to fill each
 card's Tracking block.
 
+### Engine utilities these EAs lean on
+
+Nothing here re-implements what `MQL5_Master/Include/` already provides:
+
+| Engine utility | Used for | Where |
+|---|---|---|
+| `SigSweepReclaim` | range sweep → reclaim → displacement → retrace entry | AMD, SMT+PO3, Structure+OTE (breaker) |
+| `SigOrderBlockRetest` | POI entry with a direction lock (`onlyDir`) | Structure+OTE |
+| `SigFvgRetest` | imbalance retest entry | Intraday Liquidity |
+| `SigBreakRetest` | accepted break + later retest bar | Break & Retest |
+| `SigEmaCascade` | D1/H1/HTF bias and clarity gates | AMD, Structure+OTE |
+| `SigRangeForDay` / `SigPrevSessionRange` / `SigAsianRange` | session windows and previous-day levels | all six |
+| `SigFractals` | swing structure: engineered liquidity (Structure+OTE) and the manipulation anchor (PO3) | Structure+OTE, PO3 |
+| `SigTwoBarReversal` | pin + engulf confirmation ("rejection / engulfing") | Break & Retest |
+| `EA_InWindow` | every session/macro window (midnight-crossing safe, London clock) | AMD, PO3, SMT+PO3 |
+| `EA_WickRatio` / `EA_BodyRatio` / `EA_Rates` / `EA_Buf` | candle and series maths | all six |
+| `cfg.maxCostR` + `EA_CostInR` | all-in cost gate: reject a setup when (spread + commission) > xR | all six |
+| `cfg.ledgerEnabled` / `ledgerFile` | engine evidence ledger, one CSV row per open / partial / close | all six |
+| `RiskGovernor` (`dailyLossPct`, `maxTradesPerDay`, `dayLockAfterLosses`, HWM tiers) | the playbooks' daily discipline rules | all six |
+
+Deliberately **not** used: `SigSessionFade` (EASignals 14) fades a quiet range only in the three
+hours *after* that range closes — the 02:00–05:00 ET window — while the Intraday Liquidity model
+trades 09:30–11:30 ET; `EA_BasketShouldAddLeg`/`EA_BasketManage` implement *adverse* grid legs, not
+the playbooks' "scale in only once the first entry is at break-even", which stays unimplemented.
+
 ## Deploy
 
 Each EA includes `..\..\Include\EACommon.mqh`, so the folder has to sit at

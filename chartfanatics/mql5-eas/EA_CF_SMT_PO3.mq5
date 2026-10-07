@@ -41,6 +41,9 @@ input double            InpMaxSpreadPoints  = 3.0;                  // Spread ga
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
 input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+input double            InpCommissionPerLotRT = 0.0;                // Round-turn commission per lot (engine cost gate)
+input double            InpMaxCostR           = 0.12;               // Reject setups whose all-in cost exceeds xR
+input bool              InpLedger             = true;               // Write the engine evidence ledger CSV
 //--- the pair
 input string InpSmtSymbol       = "US500"; // Correlated twin (the ES side of NQ vs ES)
 input bool   InpRequireSmt      = true;    // The divergence is the model's confirmation
@@ -105,6 +108,10 @@ public:
       cfg.breakEvenAtR          = 1.0;    // the playbook moves to BE once the 11:00 candle flips
       cfg.partial1AtR           = 1.0;  cfg.partial1Pct = 50.0;
       cfg.trailAtR              = 0.0;    // base hits only: no runner management
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
+      cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
+      cfg.ledgerEnabled         = InpLedger;               // engine ledger: one row per open / partial / close
+      cfg.ledgerFile            = "cf_smt_po3_ledger.csv";
       cfg.newsFilter            = false;
       cfg.logLevel              = InpLogLevel;
    }

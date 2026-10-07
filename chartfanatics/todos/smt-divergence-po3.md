@@ -44,5 +44,6 @@
 - **EA:** [`mql5-eas/EA_CF_SMT_PO3.mq5`](../mql5-eas/EA_CF_SMT_PO3.mq5), magic `3203`, M5.
 - **Encoded:** previous day's range and its 50% level; premium/discount gate; Asian accumulation -> NY-session sweep via `SigSweepReclaim`; direct symbol-vs-symbol SMT divergence (`InpSmtSymbol`, default `US500` for a `US100` leg) instead of the engine's RSI-on-DXY proxy, which is inert without DXY; target = the 50% level with a 1.5R floor.
 - **Gaps:** the pair symbol must exist at the broker. Without it the SMT gate fails OPEN by default (loud log); set `InpSmtFailClosed=true` to refuse entries instead. The "11:00 candle flips bearish" break-even rule is approximated by the engine's 1R break-even.
+   - Sessions come from the engine's session window machinery; the direct NQ-vs-ES comparison remains local because the engine's own SMT check is an RSI-on-DXY proxy that goes inert without DXY.
 - **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

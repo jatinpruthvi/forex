@@ -44,5 +44,6 @@
 - **EA:** [`mql5-eas/EA_CF_Intraday_Liquidity.mq5`](../mql5-eas/EA_CF_Intraday_Liquidity.mq5), magic `3206`, M5.
 - **Encoded:** daily bias gate (D1 200-EMA with a band); a marked-level raid that FAILS to continue (custom detector over previous day high/low, Asian high/low and London high/low); 09:30-11:30 New York window; `SigFvgRetest` entry (sweep-reclaim MSS fallback); stop forced beyond the sweep extreme; target = opposite Asian session liquidity when >= 1.5R.
 - **Gaps:** the playbook's "second entry" (a re-test of the same FVG after price dips) is largely covered by the FVG retest window but is not tracked as a distinct second setup; London range inclusion is an input (default on).
+   - Entry/confirmation come from `SigFvgRetest` and `SigSweepReclaim` (MSS), levels from `SigRangeForDay`/`SigAsianRange`. `SigSessionFade` is deliberately not used: it only fades within 3 hours of a range closing (02:00-05:00 ET), while this model trades 09:30-11:30 ET.
 - **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

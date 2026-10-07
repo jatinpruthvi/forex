@@ -1,6 +1,9 @@
 {
   "_comment": "Machine-readable link between a ChartFanatics strategy card and its EA. Read by chartfanatics/gen_todos.py (board + card Tracking fields) and by humans deploying the files. Magic block 3201-3247 is reserved for this family; keep it in sync with docs/EA_IMPLEMENTATION_TRACKER.md.",
-  "magic_block": [3201, 3247],
+  "magic_block": [
+    3201,
+    3247
+  ],
   "deploy_to": "MQL5\\Experts\\chartfanatics\\",
   "eas": [
     {
@@ -11,7 +14,13 @@
       "class": "CCfAmdModel",
       "magic": 3201,
       "timeframe": "M5",
-      "primitives": ["SigSweepReclaim", "SigEmaCascade"],
+      "primitives": [
+        "SigSweepReclaim",
+        "SigEmaCascade",
+        "EA_InWindow (macro windows)",
+        "cfg.maxCostR",
+        "evidence ledger"
+      ],
       "source": "chartfanatics/pdf/amd-model.pdf",
       "wave": 1,
       "status": "static-checked"
@@ -24,7 +33,13 @@
       "class": "CCfStructureOte",
       "magic": 3202,
       "timeframe": "M15",
-      "primitives": ["SigOrderBlockRetest", "SigSweepReclaim", "SigEmaCascade", "custom premium/discount + OTE band"],
+      "primitives": [
+        "SigOrderBlockRetest",
+        "SigSweepReclaim",
+        "SigEmaCascade",
+        "SigFractals (engineered liquidity)",
+        "custom premium/discount + OTE band"
+      ],
       "source": "chartfanatics/pdf/structure-ote.pdf",
       "wave": 1,
       "status": "static-checked"
@@ -37,7 +52,13 @@
       "class": "CCfSmtPo3",
       "magic": 3203,
       "timeframe": "M5",
-      "primitives": ["SigSweepReclaim", "SigRangeForDay", "custom NQ-vs-ES SMT divergence"],
+      "primitives": [
+        "SigSweepReclaim",
+        "SigRangeForDay",
+        "custom NQ-vs-ES SMT divergence (engine SMT is DXY-RSI)",
+        "cfg.maxCostR",
+        "evidence ledger"
+      ],
       "source": "chartfanatics/pdf/smt-divergence-po3.pdf",
       "wave": 1,
       "status": "static-checked"
@@ -50,7 +71,12 @@
       "class": "CCfPo3OteAdr",
       "magic": 3204,
       "timeframe": "M15",
-      "primitives": ["SigRangeForDay", "custom fib-anchored OTE limit (0.62-0.705) + ADR gate"],
+      "primitives": [
+        "SigRangeForDay",
+        "SigFractals (manipulation anchor)",
+        "EA_InWindow (3 sessions)",
+        "custom fib-anchored OTE limit 0.62-0.705 + ADR gate"
+      ],
       "source": "chartfanatics/pdf/po3-ote-adr.pdf",
       "wave": 1,
       "status": "static-checked"
@@ -63,7 +89,12 @@
       "class": "CCfBreakRetest",
       "magic": 3205,
       "timeframe": "M5",
-      "primitives": ["SigBreakRetest", "SigRangeForDay", "custom no-trade-zone gate"],
+      "primitives": [
+        "SigBreakRetest",
+        "SigTwoBarReversal (rejection/engulf)",
+        "SigRangeForDay",
+        "custom no-trade-zone gate"
+      ],
       "source": "chartfanatics/pdf/break-retest.pdf",
       "wave": 1,
       "status": "static-checked"
@@ -76,7 +107,13 @@
       "class": "CCfIntradayLiquidity",
       "magic": 3206,
       "timeframe": "M5",
-      "primitives": ["SigFvgRetest", "SigSweepReclaim", "SigAsianRange", "custom failed-raid detector"],
+      "primitives": [
+        "SigFvgRetest",
+        "SigSweepReclaim (MSS)",
+        "SigAsianRange",
+        "SigRangeForDay",
+        "custom failed-raid detector (SigSessionFade timing does not fit)"
+      ],
       "source": "chartfanatics/pdf/intraday-liquidity-volatility-model.pdf",
       "wave": 1,
       "status": "static-checked"

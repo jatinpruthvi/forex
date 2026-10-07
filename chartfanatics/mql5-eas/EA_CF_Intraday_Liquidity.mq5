@@ -21,9 +21,13 @@
 //|      the opposite session liquidity.                             |
 //|   6. Setups form between 09:30 and 11:30 New York.               |
 //|                                                                  |
-//| Engine mapping: `LiquidityRaid()` (custom: failed breakout of    |
-//| PDH/PDL, Asian or London extreme) + `SigFvgRetest` (the 1H FVG   |
-//| entry of the example) with a sweep-reclaim (MSS) fallback.        |
+//| Engine mapping: `SigFvgRetest` (the example's 1H FVG entry),     |
+//| `SigSweepReclaim` (MSS / breaker confirmation), `SigAsianRange`  |
+//| and `SigRangeForDay` (the marked session liquidity). The levels  |
+//| themselves (PDH/PDL, Asian, London) need `LiquidityRaid()`: the  |
+//| engine's `SigSessionFade` (EASignals 14) fades a quiet range only|
+//| in the 3 hours AFTER that range closes, which is the 02:00-05:00 |
+//| ET window - while this model trades the 09:30-11:30 ET one.      |
 //+------------------------------------------------------------------+
 #property copyright "Master Strategy"
 #property link      ""
@@ -40,6 +44,9 @@ input double            InpMaxSpreadPoints  = 3.0;                  // Spread ga
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
 input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+input double            InpCommissionPerLotRT = 0.0;                // Round-turn commission per lot (engine cost gate)
+input double            InpMaxCostR           = 0.12;               // Reject setups whose all-in cost exceeds xR
+input bool              InpLedger             = true;               // Write the engine evidence ledger CSV
 //--- daily bias and the raid (London clock; New York = London - 5)
 input bool   InpBiasGate       = true;   // Require the daily bias to agree with the fade
 input double InpBiasBandAtr    = 0.15;   // |price - D1 200EMA| must exceed this to call a bias
@@ -93,6 +100,10 @@ public:
       cfg.breakEvenAtR          = 1.0;
       cfg.partial1AtR           = 1.0;  cfg.partial1Pct = 50.0;
       cfg.trailAtR              = 1.5;  cfg.trailDistanceR = 0.75;
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
+      cfg.maxCostR              = InpMaxCostR;             // engine cost gate: (spread + commission) <= xR
+      cfg.ledgerEnabled         = InpLedger;               // engine ledger: one row per open / partial / close
+      cfg.ledgerFile            = "cf_intraday_liquidity_ledger.csv";
       cfg.newsFilter            = false;
       cfg.logLevel              = InpLogLevel;
    }

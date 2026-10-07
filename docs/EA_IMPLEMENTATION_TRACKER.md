@@ -332,6 +332,14 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
 | 5 | `EA_CF_Break_Retest.mq5` | `chartfanatics/pdf/break-retest.pdf` (card #07) | `3205` | M5 | Battle-zone retest with rejection wick; previous-day no-trade-zone gate; partials at TP1, runners kept |
 | 6 | `EA_CF_Intraday_Liquidity.mq5` | `chartfanatics/pdf/intraday-liquidity-volatility-model.pdf` (card #12) | `3206` | M5 | Failed-raid fade of PDH/PDL, Asian and London extremes; FVG entry (MSS fallback); NY 09:30-11:30 window |
 
+* **Engine reuse** - the family is deliberately thin: signals come from `EASignals.mqh`
+  (`SigSweepReclaim`, `SigOrderBlockRetest`, `SigFvgRetest`, `SigBreakRetest`, `SigEmaCascade`,
+  `SigFractals`, `SigTwoBarReversal`, `SigRangeForDay`/`SigAsianRange`), windows from `EA_InWindow`,
+  discipline from the `RiskGovernor` config, and cost/evidence from the engine's `maxCostR` gate and
+  per-EA evidence ledger (`cfg.ledgerEnabled`). Only two detectors are local, both documented:
+  `SmtDivergence()` (the engine's own SMT is an RSI-on-DXY proxy that is inert without DXY) and
+  `LiquidityRaid()` (`SigSessionFade` only fades in the three hours after a range closes, i.e. the
+  02:00-05:00 ET window, while the model trades 09:30-11:30 ET).
 * **Static contract validation** - `python3 scripts/check_mql5_source.py chartfanatics/mql5-eas/*.mq5`:
   **6 files, 6 EAs, 0 findings** (CEAStrategy-derived, unique magic, engine delegation, declared
   identifiers, balanced blocks, no MQL4 patterns).
