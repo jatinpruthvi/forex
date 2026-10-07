@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 12 in progress ·
-⬜ 35 not started
+**Cards:** ✅ 0 done · 🟡 14 in progress ·
+⬜ 33 not started
 
-**EAs built:** 12/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 14/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 12 awaiting human · 35 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 14 awaiting human · 33 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 60/376 (16%)
-`▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 70/376 (19%)
+`▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -61,8 +61,8 @@ infrastructure needed to get a first verdict:
 | 05 | Auction Market Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/auction-market-strategy.pdf) 5.6 MB | [`AuctionMarket.mq5`](mql5-eas/EA_CF_AuctionMarket.mq5) mag 3210 | [`auction-market-strategy.md`](todos/auction-market-strategy.md) |
 | 06 | Auction Market Theory Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/auction-market-theory-strategy.pdf) 12.4 MB | [`AuctionMarketTheory.mq5`](mql5-eas/EA_CF_AuctionMarketTheory.mq5) mag 3211 | [`auction-market-theory-strategy.md`](todos/auction-market-theory-strategy.md) |
 | 07 | Break & Retest | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/break-retest.pdf) 20.9 MB | [`Break_Retest.mq5`](mql5-eas/EA_CF_Break_Retest.mq5) mag 3205 | [`break-retest.md`](todos/break-retest.md) |
-| 08 | Episodic Pivot Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/episodic-pivot-strategy.pdf) 26.4 MB | _—_ | [`episodic-pivot-strategy.md`](todos/episodic-pivot-strategy.md) |
-| 10 | First Red Day | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/first-red-day.pdf) 29.8 MB | _—_ | [`first-red-day.md`](todos/first-red-day.md) |
+| 08 | Episodic Pivot Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/episodic-pivot-strategy.pdf) 26.4 MB | [`EpisodicPivot.mq5`](mql5-eas/EA_CF_EpisodicPivot.mq5) mag 3212 | [`episodic-pivot-strategy.md`](todos/episodic-pivot-strategy.md) |
+| 10 | First Red Day | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/first-red-day.pdf) 29.8 MB | [`FirstRedDay.mq5`](mql5-eas/EA_CF_FirstRedDay.mq5) mag 3214 | [`first-red-day.md`](todos/first-red-day.md) |
 | 11 | First Red Day Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/first-red-day-strategy.pdf) 4.3 MB | _—_ | [`first-red-day-strategy.md`](todos/first-red-day-strategy.md) |
 | 12 | Full Psychology MasterClass | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/full-psychology-masterclass.pdf) 38.3 MB | _—_ | [`full-psychology-masterclass.md`](todos/full-psychology-masterclass.md) |
 | 13 | Futures Trading Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/futures-trading-strategy.pdf) 5.3 MB | _—_ | [`futures-trading-strategy.md`](todos/futures-trading-strategy.md) |

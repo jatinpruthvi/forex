@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "ca3da6c9c9b07f94100d48fa44730a954a29a4109ec786733d242547c230cacb",
+  "acceptance_hash": "964b50f57346bb1f63dcccea067cd2b97211f9680ff50fe9f5e6fd59f39601a8",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "2c2a348c636c113a689a9d10783b63e5476f88644c05a57be57ef71487579f9b",
     "tests/test_chartfanatics_sync.py#machinery": "df7f60ea011a36fc9f0fa3d7c297a543fa2f2267961937fd987dc60b72ffb814",
-    "tests/test_chartfanatics_sync.py#other_cards": "2bb92bd1afe40d4da3d287c39cb67d9d96bb0ffeb4351e24bc4882fe31eb6a0f"
+    "tests/test_chartfanatics_sync.py#other_cards": "8d9dfeddacd6b8f46f126f0655373d16e4f70ddc54c90bcbea30616e7e030f22"
   },
   "magic": 3201,
-  "planned_at": "2026-10-07T11:41:10Z",
+  "planned_at": "2026-10-07T11:45:47Z",
   "rule_count": 20,
   "slug": "amd-model",
   "source": "chartfanatics/pdf/amd-model.pdf",

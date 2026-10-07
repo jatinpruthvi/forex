@@ -337,6 +337,8 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
 | 10 | `EA_CF_AuctionMarket.mq5` | `chartfanatics/pdf/auction-market-strategy.pdf` (card #05) | `3210` | M5 | Two setups selected by market state: trend model (impulse-leg LVN -> aggression -> previous-balance POC) and mean-reversion model (failed auction outside value -> reclaim -> LVN -> POC); tick-volume profile proxy; risk 0.25-0.5% band |
 | 11 | `EA_CF_AuctionMarketTheory.mq5` | `chartfanatics/pdf/auction-market-theory-strategy.pdf` (card #06) | `3211` | M5 | Failed auctions at VAL/VAH -> POC rotation; accepted opening-range breakouts (body vs wick); custom Manage() flow exit on opposing pressure; value area from the tick-volume profile |
 | 12 | `EA_CF_FairPricingTheory.mq5` | `chartfanatics/glimpse/-kGVL93XfyE.md` (card #09) | `3213` | M1 | 1-minute fair-pricing: displacement, break of structure, session-open reversions; static TP-first R:R (stop = TP/ratio), three-loss session lock, NY AM / Asia / NY PM 90-minute windows |
+| 13 | `EA_CF_EpisodicPivot.mq5` | `chartfanatics/pdf/episodic-pivot-strategy.pdf` (card #08) | `3212` | M5 | Neglect + catalyst + repricing: day-1 OR break, EP 9M, delayed-reaction long/short; daily-low trail via custom Manage() |
+| 14 | `EA_CF_FirstRedDay.mq5` | `chartfanatics/pdf/first-red-day.pdf` (card #10) | `3214` | M5 | Short the first close below the previous day's close after a 3+ day run; stop above the line; partials into the weakness |
 
 * **Stage policy (card #01)** - `EA_ApplyStagePolicy(cfg, stage)` in `EACore.mqh` is the single stage
   table derived from the 5-Stage framework (quoted per stage, `[interpretation]` marked where the

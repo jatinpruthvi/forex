@@ -32,6 +32,13 @@ EA source too, so an invention can never quietly become a "documented rule":
   * EA_CF_FairPricingTheory (card #09): the A+ news-reversion setup needs scheduled-news timestamps;
     the engine has no reliable calendar in the tester, so the session-open reversion - the same
     mechanic of an unfair displacement snapping back to fair price - stands in (documented here).
+  * EA_CF_EpisodicPivot (card #08): the playbook picks single stocks for their catalyst; an EA sees
+    prices and volume only, so the catalyst is read as its mechanical footprint (outsized gap/move on
+    abnormal volume) and the symbol list is the user's universe.  EP 9M uses real share volume where
+    the broker publishes it.  The starter-then-add schedule is not implemented (engine opens one
+    risk-sized position at confirmation).
+  * EA_CF_FirstRedDay (card #10): same single-stock selection caveat; the parabolic threshold (25%)
+    is an interpretation - the doc gives no number - and the one-loss day lock is labelled in code.
 """
 from __future__ import annotations
 
@@ -306,6 +313,50 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"InpNyAmFromMin\s*=\s*870;", '"trade only the first 90 minutes of each session: New York open (9:30-11:00 a.m. EST)"'),
         (r"InpAsiaFromMin\s*=\s*60;", "the Asia open window"),
         (r"InpNyPmFromMin\s*=\s*1140;", '"New York PM open (2:00-3:30 p.m. EST)"'),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+    # ------------------------------------------------- Episodic Pivot (card #08)
+    "EA_CF_EpisodicPivot.mq5": [
+        (r"bool Neglected\(const string sym\)", '"the stock has been ignored for a long time" - the neglect leg'),
+        (r"bool deadRange = \(hi - lo\) < InpNeglectRange \* atrLong \* 40\.0;", '"trading near lows or stuck in a dead range"'),
+        (r"bool CatalystDay\(const string sym, const bool positive, double &gapPct, double &volMult\)",
+         '"new catalyst ... large gap and strong follow-through, huge increase in volume"'),
+        (r"volMult < InpCatVolMult", '"extremely abnormal trading volume (implied catalyst)"'),
+        (r"InpOrMinutes\s*=\s*30;", '"enter near the open ... within the first 5-10 minutes if strength confirms"'),
+        (r"if\(!\(ctx\.mid > orHi \+ InpStrengthAtr \* ctx\.atr\)\) return false;", '"if strength confirms"'),
+        (r"double stop  = orLo - InpStopBufferAtr \* ctx\.atr;", '"place the stop below the opening-range low"'),
+        (r"cfg\.breakEvenAtR\s*=\s*1\.0;", '"stop moved to break-even once the trade pushed favorably"'),
+        (r"double trail = d\[InpTrailDays\]\.low - InpStopBufferAtr \* ctx\.atr;", '"trail the position under daily swing lows"'),
+        (r"bool ClosedBelowPriorLow\(", '"exit if the trend breaks"'),
+        (r"InpNineMShares\s*=\s*9000000;", '"EP 9 Million: any stock that trades 9 million shares or more in a single day"'),
+        (r"InpNineMVolMult\s*=\s*5\.0;", '"when this is far above its normal volume"'),
+        (r"double support = m\[1\]\.low;", '"enter intraday once volume above 9 million shares aligns with a clear trend"'),
+        (r"bool DelayedLong\(SEAContext &ctx, SSignalPlan &plan\)", '"Delayed Reaction EP (Long): a breakout from a tight range formed after the catalyst day"'),
+        (r"InpTightRangeAtr\s*=\s*3\.0;", "the tight post-catalyst range"),
+        (r"bool DelayedShort\(SEAContext &ctx, SSignalPlan &plan\)", '"Delayed Reaction EP (Short): enter short once the bounce shows signs of failure"'),
+        (r"double stop  = m\[1\]\.high \+ InpStopBufferAtr \* ctx\.atr;", '"place the stop above the high of the bounce"'),
+        (r"double vol = \(realVol > 0\.0\) \? realVol : \(double\)d\[1\]\.tick_volume;",
+         "share volume is preferred where the broker publishes it (stocks) - tick volume is the fallback"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+    # -------------------------------------------------- First Red Day (card #10)
+    "EA_CF_FirstRedDay.mq5": [
+        (r"input int    InpRunDays\s*=\s*3;", '"three or more strong days ... one green day is not enough"'),
+        (r"if\(d\[i\]\.close <= d\[i \+ 1\]\.close\) return false;", '"ideally with each day stronger than the last"'),
+        (r"if\(runPct < InpRunMinPct\) return false;", '"a parabolic move, not just a slow trend up"'),
+        (r"double line = d\[1\]\.close;", '"draw a line at the previous day\'s close. This is your key level"'),
+        (r"if\(!\(m\[1\]\.close < line - InpBreakBufferAtr \* ctx\.atr\)\) return false;",
+         '"the trade does not start until price goes under that line"'),
+        (r"cfg\.useLimitEntry\s*=\s*false;", '"do not anticipate ... the key is waiting for confirmation"'),
+        (r"bool gapUpFade   = \(m\[2\]\.high > line\) && \(m\[1\]\.close < line\);",
+         'path 1: "if it gaps up ... wait for it to break under the previous close"'),
+        (r"bool gapDownFail = \(m\[1\]\.high <= line && m\[1\]\.high >= line - InpBounceTouchAtr \* ctx\.atr\);",
+         'path 2: "if it gaps down ... look for a bounce that fails near the previous close"'),
+        (r"double stop  = line \+ InpStopBufferAtr \* ctx\.atr;",
+         '"if the price reclaims the previous day\'s close and holds above it ... cut the trade"'),
+        (r"input double InpPartial1AtR\s*=\s*1\.0;", '"cover portions of your position into the weakness"'),
+        (r"input double InpTrailAtR\s*=\s*1\.5;", '"hold a small portion of the trade to catch any further drop"'),
+        (r"\[interpretation\]: the doc warns that messing up the first trade", "the one-loss day lock is labelled an interpretation"),
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
     ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)

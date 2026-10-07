@@ -217,6 +217,28 @@
       "status": "static-checked"
     },
     {
+      "card": 8,
+      "slug": "episodic-pivot-strategy",
+      "strategy": "Episodic Pivot",
+      "ea": "EA_CF_EpisodicPivot.mq5",
+      "class": "CCfEpisodicPivot",
+      "magic": 3212,
+      "timeframe": "M5",
+      "primitives": [
+        "daily-catalyst detection (gap/move + volume multiple)",
+        "neglect gate (range + volume)",
+        "SigRangeForDay (opening range)",
+        "iVolumeReal (EP 9M share count)",
+        "custom Manage() daily-low trail + g_eaExec.Modify",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/pdf/episodic-pivot-strategy.pdf",
+      "wave": 2,
+      "status": "static-checked"
+    },
+    {
       "card": 9,
       "slug": "fair-pricing-theory-strategy",
       "strategy": "Fair Pricing Theory",
@@ -234,6 +256,27 @@
         "EA_ApplyStagePolicy"
       ],
       "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
+      "wave": 2,
+      "status": "static-checked"
+    },
+    {
+      "card": 10,
+      "slug": "first-red-day",
+      "strategy": "First Red Day",
+      "ea": "EA_CF_FirstRedDay.mq5",
+      "class": "CCfFirstRedDay",
+      "magic": 3214,
+      "timeframe": "M5",
+      "primitives": [
+        "daily run detection (green streak + strength)",
+        "previous-day-close line",
+        "gap-up fade / bounce-failure trigger",
+        "engine partials + trail",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/pdf/first-red-day.pdf",
       "wave": 2,
       "status": "static-checked"
     }
