@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "454a0703167ccfab783e1046a35fbaacc1b6c735e66929be712d3679088eaba2",
+  "acceptance_hash": "868b827be7d07281979312dc21a2f55c942781aa3f402bcffb2bc38b97af13c1",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "2c2a348c636c113a689a9d10783b63e5476f88644c05a57be57ef71487579f9b",
     "tests/test_chartfanatics_sync.py#machinery": "df7f60ea011a36fc9f0fa3d7c297a543fa2f2267961937fd987dc60b72ffb814",
-    "tests/test_chartfanatics_sync.py#other_cards": "8273a6f7f9ccbf614d52cd5aeaa9c553b32588ed694cb9f65cc8a20e3b765720"
+    "tests/test_chartfanatics_sync.py#other_cards": "05312b1c4466179a2b3fe28b6d61f23544e44fcd7f7816716ad72ac1f21d58f1"
   },
   "magic": 3210,
-  "planned_at": "2026-10-07T11:52:02Z",
+  "planned_at": "2026-10-07T11:57:51Z",
   "rule_count": 19,
   "slug": "auction-market-strategy",
   "source": "chartfanatics/pdf/auction-market-strategy.pdf",

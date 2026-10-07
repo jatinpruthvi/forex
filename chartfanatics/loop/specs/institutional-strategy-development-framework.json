@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "d9c203976fcd5d8f1ff0b75323fd74e8cc390c65b5159b744801329d0575cc95",
+  "acceptance_hash": "e3270839ce5f576713cccd401773624f7bcdf1a4717f0fff5b387c03657ea0d6",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "2c2a348c636c113a689a9d10783b63e5476f88644c05a57be57ef71487579f9b",
     "tests/test_chartfanatics_sync.py#machinery": "df7f60ea011a36fc9f0fa3d7c297a543fa2f2267961937fd987dc60b72ffb814",
-    "tests/test_chartfanatics_sync.py#other_cards": "e46413788d18a53a5e14789b7c0f8ff5bf91e50f0a77291b4c63631da2bb04a3"
+    "tests/test_chartfanatics_sync.py#other_cards": "e40d8145d62c1c98c55593d3609825a30b70ad864a808dbb1b7c5695389348a2"
   },
   "magic": 3219,
-  "planned_at": "2026-10-07T11:52:02Z",
+  "planned_at": "2026-10-07T11:57:51Z",
   "rule_count": 3,
   "slug": "institutional-strategy-development-framework",
   "source": "chartfanatics/glimpse/yW6c0K8uGvw.md",

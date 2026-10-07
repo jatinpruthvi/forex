@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "73dec83050d634972428cef0f24ebc9d7e2f7f87ce7ff5322a69f000fea168df",
+  "acceptance_hash": "36681831003e0bdbdb34df8ec05d2ed0d3d9c58d953107c7394a43fef6a2e7c3",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -17,15 +17,15 @@
     "boundaries_intact",
     "windows_report"
   ],
-  "ea": "EA_CF_InstitutionalOptionsFlowGammaReversalStrategy.mq5",
+  "ea": "EA_CF_GammaReversal.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "2c2a348c636c113a689a9d10783b63e5476f88644c05a57be57ef71487579f9b",
     "tests/test_chartfanatics_sync.py#machinery": "df7f60ea011a36fc9f0fa3d7c297a543fa2f2267961937fd987dc60b72ffb814",
-    "tests/test_chartfanatics_sync.py#other_cards": "e46413788d18a53a5e14789b7c0f8ff5bf91e50f0a77291b4c63631da2bb04a3"
+    "tests/test_chartfanatics_sync.py#other_cards": "cc1968f409450eb680fdb959110cbc9db1608d62bfb3d53696a1b918df5654c9"
   },
   "magic": 3218,
-  "planned_at": "2026-10-07T11:52:02Z",
-  "rule_count": 3,
+  "planned_at": "2026-10-07T11:57:51Z",
+  "rule_count": 22,
   "slug": "institutional-options-flow-gamma-reversal-strategy",
   "source": "chartfanatics/glimpse/35cyqDz-ej8.md",
   "spec_version": 1,

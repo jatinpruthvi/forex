@@ -48,6 +48,18 @@ EA source too, so an invention can never quietly become a "documented rule":
     stand-in for "emotion rising", the 15-minute break is the doc's own number, and the zone-map
     signs get event proxies (revenge = entry soon after a losing close, escalation = bigger re-entry
     after a loss, burst = entries packed into a window, off-window = entries outside the session).
+  * EA_CF_FuturesStrategy (card #13): the Beacon is a proprietary auto-tool the doc describes in
+    words only, so the levels are the standard retracements of the leg the two band peaks delimit;
+    "contracting/expanding" is a ratio against the 20-day average bandwidth; the engine's
+    SigFractals is bound to the signal timeframe, so the daily swing geometry is local; the
+    anchored-VWAP anchor is the phase anchor and its deviation bands are represented by the 1R
+    partial; the MA exit context reads a daily close on the wrong side of both the 8 and the 21.
+  * EA_CF_GammaReversal (card #14): gamma/put/call walls are options-platform data (the video names
+    Guestbot) that no MetaTrader EA can read, so the levels are inputs the trader fills in - the
+    video's own action item - and everything the document states mechanically (window, OPEX /
+    witching / "spiration" calendar, tick stops and tick targets, partial + runner, the 2-day
+    post-loss rule) is implemented.  "Spiration" is non-standard and is read verbatim as a day 30
+    days before a monthly OPEX; approach/reclaim/volume tolerances are inputs.
 """
 from __future__ import annotations
 
@@ -426,6 +438,78 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input string InpJournalFile\s*=\s*\"cf_psych_journal\.csv\";", '"journaling is not optional" -> the journal file'),
         (r"if\(yst\.closes <= 0 \|\| yst\.pl >= 0\.0\) return;", 'carryover is read from yesterday\'s realised result'),
         (r"\[interpretation\]", "the doc is subjective - the mechanical thresholds stay labelled"),
+    ],
+    # ------------------------------------------------ Futures Strategy (card #13)
+    "EA_CF_FuturesStrategy.mq5": [
+        (r"input int\s+InpBbPeriod\s*=\s*20;", '"Bollinger Bands: Length: 20" (core indicator, required)'),
+        (r"input double InpBbDeviations\s*=\s*3\.0;", '"Standard deviations: 3" - the doc explains why not tighter'),
+        (r"bool contracting = \(bw\[1\] <= bw\[2\] && bw\[1\] < avgBw \* InpContractRatio\);",
+         '"Bollinger Bands contract (they come in / narrow)" -> consolidation'),
+        (r"bool expanding\s*=\s*\(bw\[1\] > bw\[2\]\s*&& bw\[1\] > avgBw \* InpExpandRatio\);",
+         '"Bands expand (range expansion)" -> trend / expansion'),
+        (r"if\(lv\.legUp && lv\.peakHigh > lv\.legLow\)", "the leg the Bollinger peaks delimit supplies the Beacon levels"),
+        (r"lv\.l30 = lv\.peakHigh - InpBeacon30 \* span;", '"30% / 50% (main target) / 70%" applied to that leg'),
+        (r"if\(dir < 0 && !\(d\[1\]\.close < trig\)\) return false;", '"Once there is a daily close below the 30% line" - the trigger'),
+        (r"if\(dir < 0 && ctx\.mid <= dst\) return false;", '"Once 50% is hit, the mean reversion objective is considered done" - the hands-in-pocket zone'),
+        (r"target = dst;", '"the target becomes 50%"'),
+        (r"stop = \(dir < 0\) \? trig \+ InpStopBufferAtr \* ctx\.atrD1 :",
+         '"buy puts or short futures until a daily close back above the relevant level" - the line is the invalidation'),
+        (r"counter = primaryUp;", '"trade against the primary trend, but that\'s where discretion = smaller sizing"'),
+        (r"m_sizeMult = counter \? InpCounterTrendRiskMult : 1\.0;", '"smaller size if against the primary trend"'),
+        (r"if\(dir > 0 && !\(close > box \+ InpBreakBufferAtr \* ctx\.atrD1 && close > m\[1\]\.open && ctx\.mid > box\)\) return false;",
+         '"Expansion: enter after breakout/confirmation" - a closed M30 bar beyond the old box'),
+        (r"why    = \(dir > 0\) \? \"bullish expansion breakout\" : \"bearish expansion breakdown\";",
+         '"Bullish expansion ... Long-only / Bearish expansion ... Short-only"'),
+        (r"if\(\(risk / entry\) \* 100\.0 > InpMaxStopPct\) return false;",
+         '"If the stop becomes unrealistically wide ... use options instead" - an EA cannot, so it stands aside'),
+        (r"if\(ctx\.mid <= lv\.consLo \+ zone && lowerWick >= InpWickRatio \* range && m\[1\]\.close > m\[1\]\.open\)",
+         '"Trade the edges of the range. Stay out of the middle."'),
+        (r"target = \(mid > entry \+ risk\) \? mid : entry \+ InpTargetR \* risk;",
+         '"expect stop-runs ... and reversion back into the range" -> the range midpoint target'),
+        (r"bool fracHigh = \(d\[i\]\.high > d\[i \+ 1\]\.high && d\[i\]\.high > d\[i \+ 2\]\.high &&",
+         '"The \'correct\' stop may be above a key high (or below a key low)" - daily swing geometry'),
+        (r"unfinished = \(dir > 0\) \? lv\.peakHigh : lv\.troughLow;",
+         '"A prior Bollinger Band peak becomes a future target" ("unfinished business")'),
+        (r"bool haveWeek = SigDonchian\(ctx\.symbol, 5, wHi, wLo\);",
+         '"Higher timeframe levels (weekly highs/lows, major reference points)"'),
+        (r"if\(InpUseMaExitContext && MaContextBroken\(ctx, dir\)\)", '"8/21/34 moving averages (exit context, not entry signals)"'),
+        (r"double av = AnchoredVwap\(ctx\.symbol\);", '"anchored VWAP ... Can it stay below VWAP?" - the bear case, mirrored'),
+        (r"if\(opened > 0 && TradingDaysSince\(opened\) > InpMaxHoldDays\)", '"Typical holding time: 1 to 5 trading days"'),
+        (r"cfg\.partial1AtR\s*=\s*InpPartial1AtR;", '"scale out into targets/levels"'),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "the Beacon / bandwidth / VWAP details the doc leaves open stay labelled"),
+    ],
+    # ------------------------------------------------ Gamma Reversal (card #14)
+    "EA_CF_GammaReversal.mq5": [
+        (r"input double InpPutWall\s*=\s*0\.0;", '"Identify the maximum put gamma and call gamma levels ... using 90-day open interest" - platform data, so an input'),
+        (r"input double InpCallWall\s*=\s*0\.0;", "the call wall is the short side of the same rule"),
+        (r"input string InpGammaLevels\s*=\s*\"\";", '"target the next gamma level" - the listed gamma / convexity levels'),
+        (r"input int\s+InpStopTicks\s*=\s*40;", '"Set stop losses at 30-50 ticks"'),
+        (r"input int\s+InpTargetTicks\s*=\s*350;", '"Risking 30-50 ticks to make 300-400 ticks"'),
+        (r"double stop\s*=\s*\(dir > 0\) \? wall - InpStopTicks \* tick : wall \+ InpStopTicks \* tick;",
+         '"Entry at the wall, stop loss 30-40 ticks below"'),
+        (r"double target = NextLevel\(entry, dir, risk, tick\);", '"wait for the level, enter, ... target the next gamma level"'),
+        (r"bool tapped = \(dir > 0\) \? \(bar\.low <= wall \+ tol\) : \(bar\.high >= wall - tol\);",
+         '"Price approached the maximum put gamma level ... Market rejected it, reversed"'),
+        (r"if\(EA_WickRatio\(bar, dir\) < InpWickRatio\) return false;", "the rejection wick the entry bar must show"),
+        (r"if\(avgVol > 0\.0 && \(double\)bar\.tick_volume < InpVolMult \* avgVol\) return false;",
+         '"Combine gamma levels with order flow or footprint analysis to confirm" - the engine has volume, not prints'),
+        (r"cfg\.partial1AtR\s*=\s*InpPartial1AtR;\s*cfg\.partial1Pct = 50\.0;",
+         '"Use 2-3 contracts to allow partial profit-taking while keeping one contract running"'),
+        (r"cfg\.trailAtR\s*=\s*3\.0;", "the runner rides toward the next level"),
+        (r"if\(InpRiskUsd > 0\.0 && equity > 0\.0\) riskPct = InpRiskUsd / equity \* 100\.0;",
+         '"Risk 30-50 ticks ($150-200)" - the fixed dollar risk drives sizing'),
+        (r"cfg\.sessionStartHour\s*=\s*InpWindowStartHour;", '"Trade only the first two hours after market open (9:30-11:30 ET)"'),
+        (r"if\(InpSkipOpex && \(IsOpexDate\(ctx\.nowClock\) \|\| IsWitchingDate\(ctx\.nowClock\)\)\)",
+         '"Avoid OPEX and Triple Witching Days" - computed from the calendar'),
+        (r"if\(InpSkipSpiration && IsSpirationDate\(ctx\.nowClock\)\)", '"spiration days (30 days before OPEX)"'),
+        (r"if\(PostLossLockActive\(ctx\.nowClock\)\)", '"Take 2 days off after a stop loss" - the EA stops itself'),
+        (r"int offset = \(5 - f\.day_of_week \+ 7\) % 7;", "third-Friday OPEX, the calendar the document names"),
+        (r"input int\s+InpMaxTradesPerDay\s*=\s*2;", '"1-2 high-probability setups per day"'),
+        (r"if\(ctx\.clockMinutes < InpWindowEndHour \* 60 \+ InpWindowEndMin\) return;",
+         '"avoid trading late in the day" - flat when the window closes (charm phase)'),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "what the video leaves open (tolerances, spiration reading) stays labelled"),
     ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [

@@ -341,6 +341,8 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
 | 14 | `EA_CF_FirstRedDay.mq5` | `chartfanatics/pdf/first-red-day.pdf` (card #10) | `3214` | M5 | Short the first close below the previous day's close after a 3+ day run; stop above the line; partials into the weakness |
 | 15 | `EA_CF_FirstRedDayPro.mq5` | `chartfanatics/pdf/first-red-day-strategy.pdf` (card #11) | `3215` | M5 | Fuller FRD: minimum criteria (no red day, 80-100%+ extension, expanding volume/range), three entry methods, overextended-gap-down veto, VWAP magnet + 2-3% fallback, M15-high trail |
 | 16 | `EA_CF_PsychGuardrails.mq5` | `chartfanatics/pdf/full-psychology-masterclass.pdf` (card #12) | `3216` | M15 | **Monitor, never trades.** Shutdown ladder (caution/cooldown/breach/session over), carryover shift, zone-map proxies, pre/during/post session journal |
+| 17 | `EA_CF_FuturesStrategy.mq5` | `chartfanatics/pdf/futures-trading-strategy.pdf` (card #13) | `3217` | M30 | Environment first (D1 Bollinger bandwidth): consolidation edge trades, one-directional expansion breakouts with unfinished-business/week targets, 30%/50% mean-reversion trigger; structural daily-swing stops, counter-trend half size, 8/21/34 + anchored-VWAP exits, 1-5 trading day hold |
+| 18 | `EA_CF_GammaReversal.mq5` | `chartfanatics/glimpse/35cyqDz-ej8.md` (card #14) | `3218` | M1 | Put/call wall reversal entries (levels are platform-data inputs); tick stops/targets, dollar-risk sizing, OPEX/witching/spiration gates, 2-day post-loss lock, flat at the window end |
 
 * **Stage policy (card #01)** - `EA_ApplyStagePolicy(cfg, stage)` in `EACore.mqh` is the single stage
   table derived from the 5-Stage framework (quoted per stage, `[interpretation]` marked where the

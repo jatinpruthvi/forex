@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 16 in progress ·
-⬜ 31 not started
+**Cards:** ✅ 0 done · 🟡 18 in progress ·
+⬜ 29 not started
 
-**EAs built:** 16/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 18/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 16 awaiting human · 31 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 18 awaiting human · 29 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 80/376 (21%)
-`▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 90/376 (24%)
+`▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -65,7 +65,7 @@ infrastructure needed to get a first verdict:
 | 10 | First Red Day | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/first-red-day.pdf) 29.8 MB | [`FirstRedDay.mq5`](mql5-eas/EA_CF_FirstRedDay.mq5) mag 3214 | [`first-red-day.md`](todos/first-red-day.md) |
 | 11 | First Red Day Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/first-red-day-strategy.pdf) 4.3 MB | [`FirstRedDayPro.mq5`](mql5-eas/EA_CF_FirstRedDayPro.mq5) mag 3215 | [`first-red-day-strategy.md`](todos/first-red-day-strategy.md) |
 | 12 | Full Psychology MasterClass | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/full-psychology-masterclass.pdf) 38.3 MB | [`PsychGuardrails.mq5`](mql5-eas/EA_CF_PsychGuardrails.mq5) mag 3216 (monitor) | [`full-psychology-masterclass.md`](todos/full-psychology-masterclass.md) |
-| 13 | Futures Trading Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/futures-trading-strategy.pdf) 5.3 MB | _—_ | [`futures-trading-strategy.md`](todos/futures-trading-strategy.md) |
+| 13 | Futures Trading Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/futures-trading-strategy.pdf) 5.3 MB | [`FuturesStrategy.mq5`](mql5-eas/EA_CF_FuturesStrategy.mq5) mag 3217 | [`futures-trading-strategy.md`](todos/futures-trading-strategy.md) |
 | 16 | Intraday Liquidity & Volatility Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/intraday-liquidity-volatility-model.pdf) 2.9 MB | [`Intraday_Liquidity.mq5`](mql5-eas/EA_CF_Intraday_Liquidity.mq5) mag 3206 | [`intraday-liquidity-volatility-model.md`](todos/intraday-liquidity-volatility-model.md) |
 | 18 | Liquidity Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/liquidity-strategy.pdf) 37.7 MB | _—_ | [`liquidity-strategy.md`](todos/liquidity-strategy.md) |
 | 19 | Low Volume Node | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/low-volume-node.pdf) 3.9 MB | _—_ | [`low-volume-node.md`](todos/low-volume-node.md) |
@@ -96,7 +96,7 @@ infrastructure needed to get a first verdict:
 | 02 | 80/20 Nasdaq Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=jsUTbjwpFVk) · [summary](glimpse/jsUTbjwpFVk.md) | [`8020NasdaqStrategy.mq5`](mql5-eas/EA_CF_8020NasdaqStrategy.mq5) mag 3208 | [`80-20-nasdaq-strategy.md`](todos/80-20-nasdaq-strategy.md) |
 | 03 | Algorithmic Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=TyHTEtArsS4) · [summary](glimpse/TyHTEtArsS4.md) | [`AlgoPortfolioMonitor.mq5`](mql5-eas/EA_CF_AlgoPortfolioMonitor.mq5) mag 3209 (monitor) | [`algorithmic-strategy.md`](todos/algorithmic-strategy.md) |
 | 09 | Fair Pricing Theory Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=KHEQ5g55dQ4) · [summary](glimpse/KHEQ5g55dQ4.md) | [`FairPricingTheory.mq5`](mql5-eas/EA_CF_FairPricingTheory.mq5) mag 3213 | [`fair-pricing-theory-strategy.md`](todos/fair-pricing-theory-strategy.md) |
-| 14 | Institutional Options Flow & Gamma Reversal Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=35cyqDz-ej8) · [summary](glimpse/35cyqDz-ej8.md) | _—_ | [`institutional-options-flow-gamma-reversal-strategy.md`](todos/institutional-options-flow-gamma-reversal-strategy.md) |
+| 14 | Institutional Options Flow & Gamma Reversal Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=35cyqDz-ej8) · [summary](glimpse/35cyqDz-ej8.md) | [`GammaReversal.mq5`](mql5-eas/EA_CF_GammaReversal.mq5) mag 3218 | [`institutional-options-flow-gamma-reversal-strategy.md`](todos/institutional-options-flow-gamma-reversal-strategy.md) |
 | 15 | Institutional Strategy Development Framework | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=yW6c0K8uGvw) · [summary](glimpse/yW6c0K8uGvw.md) | _—_ | [`institutional-strategy-development-framework.md`](todos/institutional-strategy-development-framework.md) |
 | 17 | Liquidity Inversion Model | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=UIGZtoGGPH4) · [summary](glimpse/UIGZtoGGPH4.md) | _—_ | [`liquidity-inversion-model.md`](todos/liquidity-inversion-model.md) |
 | 24 | Momentum Model Performance Development | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=WDdvnd9vLbM) · [summary](glimpse/WDdvnd9vLbM.md) | _—_ | [`momentum-model-performance-development.md`](todos/momentum-model-performance-development.md) |

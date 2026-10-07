@@ -321,6 +321,53 @@
       ],
       "source": "chartfanatics/pdf/full-psychology-masterclass.pdf",
       "trades": false
+    },
+    {
+      "card": 13,
+      "slug": "futures-trading-strategy",
+      "strategy": "Futures Trading Strategy",
+      "ea": "EA_CF_FuturesStrategy.mq5",
+      "class": "CCfFuturesStrategy",
+      "magic": 3217,
+      "timeframe": "M30",
+      "wave": 2,
+      "status": "static-checked",
+      "primitives": [
+        "Bollinger bandwidth classification (D1, 20/3sigma)",
+        "Donchian box (SigDonchian) for the consolidation range and week levels",
+        "Beacon 30/50/70 levels on the band-peak leg",
+        "daily fractal structural stop (engine geometry, D1)",
+        "anchored VWAP + 8/21/34 MA exit context (custom Manage())",
+        "LotsMultiplier for counter-trend smaller size",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/pdf/futures-trading-strategy.pdf"
+    },
+    {
+      "card": 14,
+      "slug": "institutional-options-flow-gamma-reversal-strategy",
+      "strategy": "Institutional Options Flow & Gamma Reversal",
+      "ea": "EA_CF_GammaReversal.mq5",
+      "class": "CCfGammaReversal",
+      "magic": 3218,
+      "timeframe": "M1",
+      "wave": 3,
+      "status": "static-checked",
+      "primitives": [
+        "wall levels as inputs (options-platform data)",
+        "EA_WickRatio rejection geometry (engine reuse)",
+        "volume confirmation vs the M1 average",
+        "tick-based stop/target geometry",
+        "OPEX / witching / spiration calendar gates",
+        "2-day post-loss lock from the EA's own deal history",
+        "engine partial + trail (contract scale-out)",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/glimpse/35cyqDz-ej8.md"
     }
   ]
 }

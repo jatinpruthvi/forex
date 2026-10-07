@@ -127,6 +127,14 @@ signoff re-verifies the hashes; state changes are one-way apart from the human-o
   (`EA_CF_FairPricingTheory.mq5`, magic 3213, 17 rules, M1). Static TP-first R:R (stop = TP/ratio),
   three-loss session lock, the three source windows; the A+ news-reversion setup is documented as
   needing a calendar and the session-open reversion stands in. → `awaiting_human`.
+* 2026-10-07 — batch 5: cards **#13 `futures-trading-strategy`** (`EA_CF_FuturesStrategy.mq5`, magic
+  3217, 26 rules: environment first - D1 Bollinger bandwidth picks consolidation / expansion / mean
+  reversion, then edges, one-directional breakouts or the 30%->50% reversion; structural daily-swing
+  stops, counter-trend half size, 8/21/34 + anchored-VWAP exits, 1-5 trading day hold) and **#14
+  `institutional-options-flow-gamma-reversal-strategy`** (`EA_CF_GammaReversal.mq5`, magic 3218, 22
+  rules: wall reversals - levels are inputs because they are options-platform data - tick stops and
+  targets, dollar-risk sizing, OPEX/witching/spiration gates, 2-day post-loss lock).  Both →
+  `awaiting_human`.
 * 2026-10-07 — batch 4: cards **#11 `first-red-day-strategy`** (`EA_CF_FirstRedDayPro.mq5`, magic 3215,
   21 rules: non-negotiable minimum criteria, run walked back to its true start, three entry methods,
   overextended-gap-down veto, VWAP magnet + 2-3% fallback, M15-high trail) and **#12
@@ -181,7 +189,7 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 ## Status
 
 <!-- loop:status -->
-**awaiting_human**: 16 · **planned**: 31
+**awaiting_human**: 18 · **planned**: 29
 
 | card | loop state | attempts | signed off by | spec |
 |---|---|---|---|---|
@@ -197,8 +205,8 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 | `first-red-day` | awaiting_human | 1 | — | yes |
 | `first-red-day-strategy` | awaiting_human | 1 | — | yes |
 | `full-psychology-masterclass` | awaiting_human | 1 | — | yes |
-| `futures-trading-strategy` | planned | 0 | — | yes |
-| `institutional-options-flow-gamma-reversal-strategy` | planned | 0 | — | yes |
+| `futures-trading-strategy` | awaiting_human | 1 | — | yes |
+| `institutional-options-flow-gamma-reversal-strategy` | awaiting_human | 1 | — | yes |
 | `institutional-strategy-development-framework` | planned | 0 | — | yes |
 | `intraday-liquidity-volatility-model` | awaiting_human | 1 | — | yes |
 | `liquidity-inversion-model` | planned | 0 | — | yes |
