@@ -14,6 +14,13 @@ Tick the boxes in the cards; `python3 gen_todos.py` refreshes the board and neve
 between the `edit:` markers (checkbox state, Tracking fields, Notes). Card #s and slugs are stable,
 so they are safe to reference in commits and issues.
 
+**[`LOOP.md`](LOOP.md) is the plan / build / judge loop** that works the 40 remaining cards: each
+card gets a spec with a machine-decidable acceptance list (`loop/specs/`), the agent builds the EA,
+and deterministic gates — the static checker, the doc rule→code table, the manifest, the card's own
+Tracking block — judge it independently. The judge stops at `awaiting_human`; a person flips `done`
+with `python3 loop/cf_loop.py signoff <card> --by "Name"`. Run `python3 loop/cf_loop.py status` for
+the board, `next` for the next dispatch.
+
 **[`mql5-eas/`](mql5-eas/) holds the EAs built from these playbooks** — one `.mq5` per strategy,
 wired into the shared engine (`MQL5_Master/Include/EACommon.mqh`), one magic each from the reserved
 `3201-3247` block, and registered in `mql5-eas/manifest.json` so the board and each card's Tracking

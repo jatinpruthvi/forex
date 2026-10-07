@@ -9,6 +9,8 @@ with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) co
 
 **EAs built:** 7/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
+**Loop:** 7 awaiting human · 40 planned — see [`LOOP.md`](LOOP.md)
+
 **Stages ticked:** 35/376 (9%)
 `▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 

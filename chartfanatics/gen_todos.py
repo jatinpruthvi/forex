@@ -270,6 +270,33 @@ infrastructure needed to get a first verdict:
 """
 
 
+def read_loop_state() -> dict[str, str]:
+    """Loop states per slug, if the plan/build/judge loop has been run (chartfanatics/loop/)."""
+    path = ROOT / "loop" / "state.json"
+    if not path.is_file():
+        return {}
+    try:
+        cards = json.loads(path.read_text(encoding="utf-8")).get("cards", {})
+    except (OSError, ValueError):
+        return {}
+    return {slug: str(entry.get("state", "")) for slug, entry in cards.items()}
+
+
+def loop_line(metas: list[dict]) -> str:
+    states = read_loop_state()
+    if not states:
+        return ""
+    per_state: dict[str, int] = {}
+    for meta in metas:
+        st = states.get(meta["slug"])
+        if st:
+            per_state[st] = per_state.get(st, 0) + 1
+    if not per_state:
+        return ""
+    parts = [f"{per_state[k]} {k.replace('_', ' ')}" for k in sorted(per_state)]
+    return "\n**Loop:** " + " · ".join(parts) + " — see [`LOOP.md`](LOOP.md)\n"
+
+
 def ea_cell(meta: dict) -> str:
     ea = meta.get("ea")
     if not ea:
@@ -313,6 +340,7 @@ def board(metas: list[dict], cards: dict[str, str], existing: str) -> str:
         stages_done += done
     total_stages = len(STAGES) * len(metas)
     eas_built = sum(1 for m in metas if m.get("ea"))
+    loop_summary = loop_line(metas)
 
     return f"""# ChartFanatics — Strategy Work Board
 
@@ -324,7 +352,7 @@ with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) co
 {STATUS_ICON['todo']} {counts['todo']} not started
 
 **EAs built:** {eas_built}/{len(metas)} — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
-
+{loop_summary}
 **Stages ticked:** {stages_done}/{total_stages} ({round(stages_done / total_stages * 100)}%)
 `{bar(stages_done, total_stages, 32)}`
 

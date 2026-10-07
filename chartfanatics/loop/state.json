@@ -1,0 +1,338 @@
+{
+  "cards": {
+    "5-stage-trading-framework": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:29Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T10:01:29Z"
+    },
+    "80-20-nasdaq-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "algorithmic-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "amd-model": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:28Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "reset_by": "loop self-test",
+      "reset_note": "re-demo attempt counting",
+      "state": "awaiting_human",
+      "state_before_reset": "awaiting_human",
+      "updated": "2026-10-07T10:01:28Z"
+    },
+    "auction-market-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "auction-market-theory-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "break-retest": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:32Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T10:01:32Z"
+    },
+    "episodic-pivot-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "fair-pricing-theory-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "first-red-day": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "first-red-day-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "full-psychology-masterclass": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "futures-trading-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "institutional-options-flow-gamma-reversal-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "institutional-strategy-development-framework": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "intraday-liquidity-volatility-model": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:33Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T10:01:33Z"
+    },
+    "liquidity-inversion-model": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "liquidity-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "low-volume-node": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "market-auction-theory": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "market-dna-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "mean-reversion-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "measured-move-trend-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "momentum-model-performance-development": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "nasdaq-ict-and-order-flow-scalping-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "nq-liquidity-sweep-reversal-scalping-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "options-trading-masterclass": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "order-flow-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "orderflow-trading-masterclass": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "parabolic-short-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "po3-ote-adr": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:31Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T10:01:31Z"
+    },
+    "price-action-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "price-cycle-continuation-failed-base-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "real-simple-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "shorting-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "small-cap-short-statistics": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "smt-divergence-po3": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:31Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T10:01:31Z"
+    },
+    "stage-analysis-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "structure-ote": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T10:01:30Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T10:01:30Z"
+    },
+    "support-and-resistance": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "the-vix-futures-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "trading-first-principles-framework": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "trendline-break-pocket-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "trendline-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "unique-high-rr": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "universal-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    },
+    "volume-profile-strategy": {
+      "attempts": 0,
+      "planner": "seed: the 7 built EAs + 40 queued cards",
+      "state": "planned",
+      "updated": "2026-10-07T10:00:52Z"
+    }
+  }
+}

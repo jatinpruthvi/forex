@@ -1,0 +1,52 @@
+{
+  "acceptance_hash": "bdd46f4c2c7f8c91b7002bff54fc3c2046acaa7546491077f869984ea6a17e22",
+  "attempt_cap": 3,
+  "boundaries": [
+    "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
+    "the judge scripts (checker + sync test) must not change after plan",
+    "no test file may be deleted or weakened",
+    "`done` is flipped by a human only - the judge stops at awaiting_human"
+  ],
+  "checks": [
+    "ea_exists",
+    "magic_ok",
+    "checker_clean",
+    "sync_rules",
+    "manifest_entry",
+    "card_tracking",
+    "boundaries_intact",
+    "windows_report"
+  ],
+  "ea": "EA_CF_EpisodicPivotStrategy.mq5",
+  "judge_hash": {
+    "scripts/check_mql5_source.py": "2c2a348c636c113a689a9d10783b63e5476f88644c05a57be57ef71487579f9b",
+    "tests/test_chartfanatics_sync.py": "a4a5ac89115cf88d90e90a8a1f4bbe7f773cf7e810378c20dec207d7f276955a"
+  },
+  "magic": 3212,
+  "planned_at": "2026-10-07T10:00:52Z",
+  "rule_count": 3,
+  "slug": "episodic-pivot-strategy",
+  "source": "chartfanatics/pdf/episodic-pivot-strategy.pdf",
+  "spec_version": 1,
+  "tests_snapshot": [
+    "test_ablation_scaffold.py",
+    "test_bugfix_regressions.py",
+    "test_chartfanatics_family.py",
+    "test_chartfanatics_sync.py",
+    "test_compile_class_guards.py",
+    "test_extended_validation.py",
+    "test_harness_scripts.py",
+    "test_ict_smc_fixes.py",
+    "test_news_timeframes.py",
+    "test_optimizer_fill_logic.py",
+    "test_order_selector.py",
+    "test_portfolio_tracker.py",
+    "test_reference.py",
+    "test_risk_flow_fixes.py",
+    "test_screen_ea_contract.py",
+    "test_source_contract.py",
+    "test_triad_fixes.py",
+    "test_validation.py"
+  ],
+  "title": "Episodic Pivot Strategy"
+}
