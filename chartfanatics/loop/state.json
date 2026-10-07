@@ -9,11 +9,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "80-20-nasdaq-strategy": {
       "attempts": 1,
@@ -24,11 +24,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "algorithmic-strategy": {
       "attempts": 1,
@@ -39,11 +39,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "amd-model": {
       "attempts": 1,
@@ -54,14 +54,14 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "reset_by": "loop self-test",
       "reset_note": "re-demo attempt counting",
       "state": "awaiting_human",
       "state_before_reset": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "auction-market-strategy": {
       "attempts": 1,
@@ -72,12 +72,14 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "reset_by": "agent",
       "reset_note": "boundary was the batch's own table addition",
       "state": "awaiting_human",
       "state_before_reset": "planned",
-      "updated": "2026-10-07T11:39:35Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "auction-market-theory-strategy": {
       "attempts": 1,
@@ -88,12 +90,14 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "reset_by": "agent",
       "reset_note": "boundary was the batch's own table addition",
       "state": "awaiting_human",
       "state_before_reset": "planned",
-      "updated": "2026-10-07T11:39:36Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "break-retest": {
       "attempts": 1,
@@ -104,59 +108,66 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "episodic-pivot-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "fair-pricing-theory-strategy": {
-      "attempts": 0,
-      "planner": "agent: batch 1",
-      "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "attempts": 1,
+      "built_by": "agent: batch 2",
+      "last_checked": "2026-10-07T11:41:11Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "agent: batch 2",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T11:41:11Z"
     },
     "first-red-day": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "first-red-day-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "full-psychology-masterclass": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "futures-trading-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "institutional-options-flow-gamma-reversal-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "institutional-strategy-development-framework": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "intraday-liquidity-volatility-model": {
       "attempts": 1,
@@ -167,95 +178,95 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "liquidity-inversion-model": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "liquidity-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "low-volume-node": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "market-auction-theory": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "market-dna-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "mean-reversion-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "measured-move-trend-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "momentum-model-performance-development": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "nasdaq-ict-and-order-flow-scalping-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "nq-liquidity-sweep-reversal-scalping-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "options-trading-masterclass": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "order-flow-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "orderflow-trading-masterclass": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "parabolic-short-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "po3-ote-adr": {
       "attempts": 1,
@@ -266,41 +277,41 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "price-action-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "price-cycle-continuation-failed-base-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "real-simple-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "shorting-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "small-cap-short-statistics": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "smt-divergence-po3": {
       "attempts": 1,
@@ -311,17 +322,17 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "stage-analysis-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "structure-ote": {
       "attempts": 1,
@@ -332,59 +343,59 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "agent: batch 1",
-      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
-      "replanned_at": "2026-10-07T11:39:34Z",
+      "planner": "agent: batch 2",
+      "replan_reason": "batch 2: rule table for card #09",
+      "replanned_at": "2026-10-07T11:41:10Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "support-and-resistance": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "the-vix-futures-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "trading-first-principles-framework": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "trendline-break-pocket-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "trendline-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "unique-high-rr": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "universal-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     },
     "volume-profile-strategy": {
       "attempts": 0,
-      "planner": "agent: batch 1",
+      "planner": "agent: batch 2",
       "state": "planned",
-      "updated": "2026-10-07T11:39:34Z"
+      "updated": "2026-10-07T11:41:10Z"
     }
   }
 }

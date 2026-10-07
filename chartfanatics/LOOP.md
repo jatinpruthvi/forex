@@ -123,6 +123,10 @@ signoff re-verifies the hashes; state changes are one-way apart from the human-o
   that adds several tables runs `plan --all --reason ...` once after the tables are in, then
   `handoff` + `judge` per card. Failing a card for the batch's own table addition would be a false
   positive; the re-plan records it instead.
+* 2026-10-07 — batch 2: card **#09 `fair-pricing-theory-strategy`**
+  (`EA_CF_FairPricingTheory.mq5`, magic 3213, 17 rules, M1). Static TP-first R:R (stop = TP/ratio),
+  three-loss session lock, the three source windows; the A+ news-reversion setup is documented as
+  needing a calendar and the session-open reversion stands in. → `awaiting_human`.
 * Fingerprint scheme **v3**: the sync test's module docstring joined the rule table as a per-card
   surface (a build records its `[interpretation]` notes there), so the frozen machinery is now the
   judging logic alone. Two further fingerprints bugs were found by this migration and fixed with
@@ -166,7 +170,7 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 ## Status
 
 <!-- loop:status -->
-**awaiting_human**: 11 · **planned**: 36
+**awaiting_human**: 12 · **planned**: 35
 
 | card | loop state | attempts | signed off by | spec |
 |---|---|---|---|---|
@@ -178,7 +182,7 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 | `auction-market-theory-strategy` | awaiting_human | 1 | — | yes |
 | `break-retest` | awaiting_human | 1 | — | yes |
 | `episodic-pivot-strategy` | planned | 0 | — | yes |
-| `fair-pricing-theory-strategy` | planned | 0 | — | yes |
+| `fair-pricing-theory-strategy` | awaiting_human | 1 | — | yes |
 | `first-red-day` | planned | 0 | — | yes |
 | `first-red-day-strategy` | planned | 0 | — | yes |
 | `full-psychology-masterclass` | planned | 0 | — | yes |

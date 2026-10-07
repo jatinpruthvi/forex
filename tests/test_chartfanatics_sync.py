@@ -29,6 +29,9 @@ EA source too, so an invention can never quietly become a "documented rule":
   * EA_CF_AuctionMarketTheory (card #06): same tick-volume profile proxy; the 70% value area is the
     standard convention (the doc does not quantify it); the doc's order-flow exit is a custom
     Manage() that closes on a strong opposing body back through value once the trade is in profit.
+  * EA_CF_FairPricingTheory (card #09): the A+ news-reversion setup needs scheduled-news timestamps;
+    the engine has no reliable calendar in the tester, so the session-open reversion - the same
+    mechanic of an unfair displacement snapping back to fair price - stands in (documented here).
 """
 from __future__ import annotations
 
@@ -279,6 +282,30 @@ SYNC: dict[str, list[tuple[str, str]]] = {
          '"the exit occurred when buyers began to get absorbed near the highs and sellers started to take control"'),
         (r"InpFlowExitR\s*=\s*0\.50;", "the flow exit waits until the trade is working"),
         (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", "[interpretation] 15m/5m context in the video -> M5 signal"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+    # ------------------------------------------- Fair Pricing Theory (card #09)
+    "EA_CF_FairPricingTheory.mq5": [
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M1;", '"pure price action on 1-minute NASDAQ futures charts"'),
+        (r"input double InpRewardRatio\s*=\s*1\.50;", '"a 1:1 or 1:1.5 ratio works best for evaluations; funded accounts use 1:4 or higher"'),
+        (r"double stopDist = tpDist / InpRewardRatio;",
+         '"optimize take profit first, stop loss second ... the stop loss is then set as a static reciprocal of the take profit"'),
+        (r"double tpDist = \(dir > 0\) \? \(fair - entry\) : \(entry - fair\);",
+         '"the take profit ... should be set based on account rules and available points to fair price"'),
+        (r"cfg\.dayLockAfterLosses\s*=\s*3;", '"if three consecutive reversion trades lose in a single session, stop trading"'),
+        (r"input bool   InpUseDisplacement\s*=\s*true;", '"the three core entry signals" - 1: displacement candles'),
+        (r"double bodyNow  = MathAbs\(r\[1\]\.close - r\[1\]\.open\);",
+         '"displacement candles (body larger than previous, closes below the wick)"'),
+        (r"bool closesBeyondWick = \(dir > 0\) \? \(r\[1\]\.close > r\[2\]\.high\)", "the close must clear the previous wick"),
+        (r"input bool   InpUseBreakOfStructure\s*=\s*true;", "signal 2: break of structure"),
+        (r"bool isSwing = \(dir > 0\) \? \(r\[i\]\.low < r\[i - 1\]\.low && r\[i\]\.low < r\[i \+ 1\]\.low\)",
+         '"break of structure (wick lower than two adjacent candles, then broken)"'),
+        (r"input bool   InpUseReversion\s*=\s*true;", "signal 3: news/session-open reversion"),
+        (r"if\(stretch < InpUnfairAtr \* ctx\.atr\) continue;", '"trades reversions back to that fair price" - only when the move was unfair'),
+        (r"double fair = PreviousDayClose\(ctx\.symbol\);", '"the initial candle after release is unfair ... back to the pre-news price" - the day close is the fair anchor'),
+        (r"InpNyAmFromMin\s*=\s*870;", '"trade only the first 90 minutes of each session: New York open (9:30-11:00 a.m. EST)"'),
+        (r"InpAsiaFromMin\s*=\s*60;", "the Asia open window"),
+        (r"InpNyPmFromMin\s*=\s*1140;", '"New York PM open (2:00-3:30 p.m. EST)"'),
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
     ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)

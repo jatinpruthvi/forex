@@ -215,6 +215,27 @@
       "source": "chartfanatics/pdf/auction-market-theory-strategy.pdf",
       "wave": 2,
       "status": "static-checked"
+    },
+    {
+      "card": 9,
+      "slug": "fair-pricing-theory-strategy",
+      "strategy": "Fair Pricing Theory",
+      "ea": "EA_CF_FairPricingTheory.mq5",
+      "class": "CCfFairPricingTheory",
+      "magic": 3213,
+      "timeframe": "M1",
+      "primitives": [
+        "EA_Rates (M1 signals, D1 fair price)",
+        "EA_BodyRatio",
+        "EA_InWindow (3 session windows)",
+        "cfg.dayLockAfterLosses (three-loss rule)",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
+      "wave": 2,
+      "status": "static-checked"
     }
   ]
 }
