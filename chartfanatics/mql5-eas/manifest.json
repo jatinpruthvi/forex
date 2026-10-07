@@ -684,6 +684,28 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/hvyf6frvCcA.md"
+  },
+  {
+   "card": 29,
+   "slug": "orderflow-trading-masterclass",
+   "strategy": "OrderFlow Trading Masterclass",
+   "ea": "EA_CF_OrderflowTradingMasterclass.mq5",
+   "class": "CCfOrderflowMasterclass",
+   "magic": 3232,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "Context gate: a real push (ImpulseContext) before any level can be defended",
+    "Location gate: documented levels (previous day high/low, session extreme, value-area edges / POC, repeated-touch levels via TouchCount)",
+    "Confirmation gate: absorption (heavy volume, no progress, rejection wick, control flip) and the delta divergence proxy",
+    "stop run and reclaim: a flush through the level, then the reclaim close, with the structural stop beyond the flush low",
+    "target: the rotation to the session's far extreme with a minimum R floor",
+    "LotsMultiplier hook for the 4-5-touch levels the case study names",
+    "no engine partial / break-even / trail (the document states no management rules)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/orderflow-trading-masterclass.pdf"
   }
  ]
 }

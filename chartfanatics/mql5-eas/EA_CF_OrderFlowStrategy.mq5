@@ -197,6 +197,7 @@ public:
       cfg.newsFilter            = false;
       cfg.ledgerEnabled         = InpLedger;
       cfg.ledgerFile            = "cf_order_flow_ledger.csv";
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
       cfg.logLevel              = InpLogLevel;
       //--- "only trade the first 1-3 hours": the 09:30 ET open in the London frame,
       //--- ending at the input's last-entry minute (default 17:30 London = 12:30 ET)

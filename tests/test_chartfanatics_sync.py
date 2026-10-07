@@ -154,6 +154,15 @@ EA source too, so an invention can never quietly become a "documented rule":
     the engine holds one position per symbol: the confirmation instead banks the 1R partial and moves the
     stop to break-even.  NQ runs 2-minute and ES 3-minute charts; one signal timeframe per EA means M2 for
     both.  The DOM speed read and the trader's psychology sections are human, disclosed, not faked.
+  * EA_CF_OrderflowTradingMasterclass (card #29): the document's tools - DOM, heatmap, footprint - do not
+    exist in MetaTrader, so "aggression" is body-directional tick volume, the delta divergence is that
+    skew failing to progress price, and a "liquidity wall" is a level the session has tested and held
+    repeatedly (plus a high-volume node in the tick-volume value profile).  The document states no stop
+    size, no target rule, no sizing ladder and no session window: the stop is structural (beyond the
+    flush / test extreme), the target is the rotation back to the session's far extreme with a minimum R
+    floor, the size is single-risk (a hook exists for the 4-5-touch levels the case study names), and the
+    RTH window is the case studies' own context.  The engine's partial / break-even / trailing machinery
+    is off because the document states no management rules - the plan's target is the exit.
 """
 from __future__ import annotations
 
@@ -1137,6 +1146,49 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input double InpRangeMinRR\s+= 2\.00;",
          'aggressive entries target 3-4 R, confirmation entries 2 R'),
     ],
+    # -------------------------------------- orderflow masterclass (card #29)
+    "EA_CF_OrderflowTradingMasterclass.mq5": [
+        (r"input double InpAbsorbVolMult\s+= 2\.00;",
+         '"Absorption happens when aggressive orders hit the market, but the price barely moves"'),
+        (r"if\(\(double\)r\[i\]\.tick_volume < InpAbsorbVolMult \* med\) continue;",
+         'the aggressive-side read comes from volume - it must be heavy to count'),
+        (r"input int\s+InpDeltaBars\s+= 12;",
+         '"Delta shows the difference between aggressive buyers and aggressive sellers" - body-volume proxy'),
+        (r"if\(dir < 0 && lean <  InpDeltaLeanCut\) return false;",
+         '"if you see a strong positive delta but the price fails to move higher, it means buyers were absorbed"'),
+        (r"input double InpAbsorbMaxProgress\s+= 0\.25;",
+         '"moving higher" never happened: progress beyond the level must stay tiny'),
+        (r"if\(EA_WickRatio\(r\[i\], -1\) < InpWickPct\) continue;",
+         'the rejection wick - the price was pushed back from the level'),
+        (r"input int\s+InpStrongTouchCount\s+= 4;",
+         '"it had already acted as support four or five times earlier in the session"'),
+        (r"int TouchCount\(const string sym, const double price, const double tol\)",
+         'a liquidity wall, proxied as a level the session has tested and held repeatedly'),
+        (r"bool StopRunReclaim\(const SEAContext &ctx, const MqlRates &r\[\], const int got,",
+         '"A stop run happens when the market pushes through obvious highs or lows to trigger stop losses"'),
+        (r"if\(r\[k\]\.close > lvl\.price\) \{ reclaimed = true; break; \}",
+         '"Once the price reclaimed the previous day.s low, that confirmed buyers had absorbed the selling"'),
+        (r"out\.stop = r\[i\]\.low - buf;",
+         '"a stop just below the low of the flush"'),
+        (r"input int\s+InpReclaimBars\s+= 3;",
+         '"the long entry came on the reclaim" - within this many bars'),
+        (r"bool ImpulseContext\(const SEAContext &ctx\)",
+         '"Context" - "aggressive participants reveal intent": a real push must exist'),
+        (r"bool CollectLevels\(const SEAContext &ctx, const SVolProfile &prof, SLevelInfo &lv\[\], int &n\)",
+         '"Location" - a documented level (previous day, session extreme, value area, repeated test)'),
+        (r"bool AbsorptionAt\(const SEAContext &ctx, const MqlRates &r\[\], const int got,",
+         '"Confirmation" - absorption at the level'),
+        (r"input double InpValueAreaPct\s+= 0\.70;",
+         '"The volume profile shows ... where the market accepted the value and where it rejected it"'),
+        (r"input double InpMinRR\s+= 1\.50;",
+         'the document states no target rule - the rotation must at least pay for the risk'),
+        (r"cfg\.partial1AtR\s+= 0\.0;",
+         'the document states no management rules: the plan.s target is the exit'),
+        (r"return \(m_lastTouches >= InpStrongTouchCount\) \? InpStrongSizeMult : 1\.0;",
+         'the well-tested levels get the size hook the document.s silence leaves open'),
+        (r"input int\s+InpSessionStartHour\s+= 14;",
+         'day trading: the regular session, 14:30 London = 09:30 ET'),
+    ],
 }
 
 
@@ -1165,7 +1217,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_MarketDna.mq5", "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5",
                      "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5",
                      "EA_CF_OptionsTradingMasterclass.mq5",
-                     "EA_CF_OrderFlowStrategy.mq5"):
+                     "EA_CF_OrderFlowStrategy.mq5",
+                     "EA_CF_OrderflowTradingMasterclass.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

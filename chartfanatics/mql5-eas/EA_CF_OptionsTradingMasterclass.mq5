@@ -164,6 +164,7 @@ public:
       cfg.newsFilter            = false;
       cfg.ledgerEnabled         = InpLedger;
       cfg.ledgerFile            = "cf_options_masterclass_ledger.csv";
+      cfg.commissionPerLotRT    = InpCommissionPerLotRT;
       cfg.logLevel              = InpLogLevel;
       cfg.sessionStartHour      = 0; cfg.sessionStartMin = 0;
       cfg.sessionEndHour        = 23; cfg.sessionEndMin  = 59;
