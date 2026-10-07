@@ -114,6 +114,15 @@ EA source too, so an invention can never quietly become a "documented rule":
     while the position is live because the executor deletes its risk key on close; a trade whose risk was
     never captured is reported as ungraded, never guessed.  Pods, the 10-year horizon, "study the new
     market" and the qualitative setup grade are organisational / human judgements: disclosed, not faked.
+  * EA_CF_NasdaqIctAndOrderFlowScalpingStrategy (card #25): bookmap's heatmap, volume dots and spoof
+    detection cannot be read from an EA, so the orderflow layer is a tick-volume proxy - the session POC,
+    VWAP and body-direction aggression the document itself names - with absorption read as a heavy
+    directional bar that fails to take the prior extreme; "watch for spoofing" stays a human task and is
+    not faked.  Asia is the default window because the document prefers it, with the New-York window
+    alongside it because a CFD broker's US100 may be closed or untradeably wide in Asia while the doc
+    trades CME NQ.  The fractal strengths, sweep tolerance, gap floors, freshness windows, aggression
+    ratio, POC bin count, the sketchy thresholds, the stop cap, the target floor, the partial and the flip
+    confirmation are engineering numbers the document does not state.
 """
 from __future__ import annotations
 
@@ -901,6 +910,60 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"If\(m_streakThreshold > 0 && st\.maxStreak >= m_streakThreshold\)",
          '"breaking rules after a few losing trades" -> streak flag'),
         (r'input string InpJournalFile\s*=\s*"cf_stage_journal\.csv"', '"journaling is not optional" -> the journal file'),
+    ],    # -------------------------------------- Nasdaq ICT + Order Flow Scalping (card #25)
+    "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5": [
+        (r"input ENUM_TIMEFRAMES   InpMacroTf\s*=\s*PERIOD_H4;",
+         '"Use 4-hour and daily charts to identify the overall trend"'),
+        (r"if\(sh\[0\] > sh\[1\] && sl\[0\] > sl\[1\]\) bias = \+1;",
+         '"Markets move in trends with higher highs/lows"'),
+        (r"if\(retrace < InpRetraceMin \|\| retrace > InpRetraceMax\) return false;",
+         '"then pull back to fair value (internal range liquidity) before continuing" - the pullback-depth band'),
+        (r"input bool              InpUseD1Filter\s*=\s*true;",
+         '"4-hour and daily charts" - the daily sanity check beside the H4 structure'),
+        (r"input ENUM_TIMEFRAMES   InpSecondTf\s*=\s*PERIOD_H1;",
+         'STEP 2 - "On 15-minute and 1-hour charts"'),
+        (r"if\(r\[1\]\.close >= sh\[0\]\) return false;",
+         '"weakness in the secondary structure (volume, closure below previous highs) before shorting"'),
+        (r"if\(dir < 0\) return \(dn >= InpVolumeMult \* up\);",
+         '"... (volume, closure below previous highs)" - the volume half of the weakness read'),
+        (r"if\(!\(left\.high < right\.low && \(right\.low - left\.high\) >= InpMinGapAtr \* ctx\.atr\)\) continue;",
+         'IFBG - "creates a fair value gap"'),
+        (r"bool swept = \(dir < 0\) \? \(m\[s\]\.high > prior \+ tol\) : \(m\[s\]\.low < prior - tol\);",
+         '"Price takes liquidity above a previous high" / "Requires liquidity to be swept first"'),
+        (r"bool closedThrough = \(dir < 0\) \? \(m\[1\]\.close < gapLow - tol\) : \(m\[1\]\.close > gapHigh \+ tol\);",
+         'IFBG - "then closes with volume below that gap"'),
+        (r"retest = \(m\[1\]\.high >= level - tol && m\[1\]\.close < level - tol\);",
+         'change of character - "breaks, retests, and closes below with volume"'),
+        (r"if\(!HasGap\(m, got, j, dir, level, ctx\.atr\)\) continue;",
+         'break and retest - "Must see a fair value gap displacing the previous high"'),
+        (r"if\(dn >= InpVolumeMult \* up\) return -1;",
+         '"large volume spikes on the sell side (red), sellers are aggressive"'),
+        (r"if\(flow\.poc > flow\.vwap\) return false;",
+         '"If POC is moving down, bearish volume is dominating"'),
+        (r"if\(prior > 0\.0 && m\[i\]\.high < prior - InpSweepTolAtr \* ctx\.atr\) return true;",
+         '"If buyers can\'t push price above a level despite high buy volume, sellers are absorbing those buys"'),
+        (r"input ENUM_CF_WINDOW    InpWindow\s*=\s*CF_WINDOW_ASIA;",
+         '"Asia session on NASDAQ tends to have clearer structure and less manipulation"'),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M1;",
+         '"Trading 30-second or 1-minute charts reveals crystal-clear structure and allows tight stops"'),
+        (r"return \(risk <= InpMaxStopAtr \* ctx\.atr\);",
+         '"trading 5-minute charts results in huge stop-losses" - setups needing a wider stop are skipped'),
+        (r"bool havePd = SigDonchian\(ctx\.symbol, \(int\)MathMax\(1, InpPoolDays\), pdHi, pdLo\);",
+         '"took profit before hitting a strong resistance (previous daily high)"'),
+        (r"g_eaExec\.Close\(ticket, .orderflow flipped - close early rather than risk reversal.\);",
+         '"he closed early rather than risk reversal"'),
+        (r"if\(flow\.sessionAvgVol > 0\.0 && recent < InpSketchyVolMult \* flow\.sessionAvgVol\) return true;",
+         '"low volume" -> close at break-even or skip the trade'),
+        (r"if\(flow\.sessionHi > flow\.sessionLo && \(flow\.sessionHi - flow\.sessionLo\) < InpSketchyRangeAtr \* ctx\.atr\)",
+         '"piano-like price action"'),
+        (r"if\(flow\.pocDominance > 0\.0 && flow\.pocDominance < InpSketchyPocDom\) return true;",
+         '"unclear POC" from the action items'),
+        (r"cfg\.partial1AtR\s*=\s*1\.0;",
+         '"took profit before hitting a strong resistance" - the 1R partial'),
+        (r"cfg\.trailAtR\s*=\s*1\.0;",
+         '"He trailed his stop"'),
+        (r"input double            InpCloseSketchyR\s*=\s*0\.50;",
+         '"close at break-even ... Prioritize capital preservation"'),
     ],
 }
 
@@ -927,7 +990,7 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
                      "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5",
                      "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5",
-                     "EA_CF_MarketDna.mq5"):
+                     "EA_CF_MarketDna.mq5", "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "ac13f7bf8812ca0aeb1a3d4bcdc3126f5444a8c4697d9a83aab4a267c0b10900",
+  "acceptance_hash": "c3298665e882d3a95aeec5996fad13a0b691004b34d06e0947e058518093c221",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_OptionsTradingMasterclass.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "e9fde5599ab912cf60ba6137cc3cfaab8f6503349f3a9eecf8958b1778469c42",
-    "tests/test_chartfanatics_sync.py#other_cards": "1b7fc2fb05cd3dc5bac7f97a90dd6f6b04b810a65c399012d77a9d5ae00e28a2"
+    "tests/test_chartfanatics_sync.py#machinery": "9f6fe7da76bb0d4519c0ebe5456a6b7f0236040b394bb2ca6a8e5c8744978d9c",
+    "tests/test_chartfanatics_sync.py#other_cards": "230a6667b0e3c3e79342fee36184b75ed4ac46b7640bfef3a1d0d7d0b6953644"
   },
   "magic": 3230,
-  "planned_at": "2026-10-07T12:27:37Z",
+  "planned_at": "2026-10-07T13:06:51Z",
   "rule_count": 3,
   "slug": "options-trading-masterclass",
   "source": "chartfanatics/pdf/options-trading-masterclass.pdf",

@@ -583,6 +583,33 @@
     "ungraded rows instead of a guessed R"
    ],
    "source": "chartfanatics/glimpse/WDdvnd9vLbM.md"
+  },
+  {
+   "card": 25,
+   "slug": "nasdaq-ict-and-order-flow-scalping-strategy",
+   "strategy": "Nasdaq ICT and Order Flow Scalping Strategy",
+   "ea": "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5",
+   "class": "CCfNasdaqIctOrderFlow",
+   "magic": 3228,
+   "timeframe": "M1",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "H4 macro structure (higher highs/lows) with the D1 EMA200 sanity check and the fair-value pullback band",
+    "H1 secondary-structure weakness: lower highs, a close below the previous high, sell-side volume dominance",
+    "IFBG entry: liquidity taken above a high, a fair value gap, then a close with volume below the gap",
+    "change-of-character entry (preferred): sweep, break with volume, failed retest close",
+    "break-and-retest continuation entry with a fair value gap displacing the level",
+    "orderflow proxy: session POC from tick-volume bins, VWAP, body-direction aggression, absorption failure",
+    "tight-stop cap in M1 ATR that skips wide setups",
+    "liquidity-pool target (session extreme / prior day) with an R floor",
+    "flip exit and sketchy-market capital-preservation exit in Manage()",
+    "per-bar session-flow cache (Manage runs every tick)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/KkTTCKr-3Ew.md"
   }
  ]
 }
