@@ -108,6 +108,17 @@ signoff re-verifies the hashes; state changes are one-way apart from the human-o
 * 2026-10-07 — loop landed; 7 built cards judged → `awaiting_human`, 40 planned.
 * 2026-10-07 — card **#02 `80-20-nasdaq-strategy`** built (`EA_CF_8020NasdaqStrategy.mq5`, magic 3208),
   29 doc rules pinned, all gates pass → `awaiting_human`.
+* 2026-10-07 — card **#03 `algorithmic-strategy`** is a *process* document (how to build, rank and
+  monitor algorithms), so it delivered a monitor instead of invented entries:
+  `EA_CF_AlgoPortfolioMonitor.mq5` (magic 3209, never trades) ranks the account's live algorithms
+  per magic against the document's own filters — PF 1.5+, return/DD 4:1, 2+ trades/month, average
+  loss ≤ 0.5 %, implied allocation 5-25 %, drawdown past 20-25 %, expectancy — into
+  `cf_algo_ranking.csv`. 15 rules pinned; all gates pass → `awaiting_human`.
+* Fingerprint scheme **v3**: the sync test's module docstring joined the rule table as a per-card
+  surface (a build records its `[interpretation]` notes there), so the frozen machinery is now the
+  judging logic alone. Two further fingerprints bugs were found by this migration and fixed with
+  tests — and a test of mine that had `rmtree`d the whole `tests/` directory was caught by the
+  suite failing, repaired from git, and rewritten to scope its temp dir properly.
 * Two loop bugs surfaced and were fixed while working #02, each with a regression test:
   the boundary fingerprint froze the *whole* sync test (so a build could never add its own card's rule
   table) → now freezes machinery + other cards; and `plan --all` was not idempotent (a second run
@@ -146,13 +157,13 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 ## Status
 
 <!-- loop:status -->
-**awaiting_human**: 8 · **planned**: 39
+**awaiting_human**: 9 · **planned**: 38
 
 | card | loop state | attempts | signed off by | spec |
 |---|---|---|---|---|
 | `5-stage-trading-framework` | awaiting_human | 1 | — | yes |
 | `80-20-nasdaq-strategy` | awaiting_human | 1 | — | yes |
-| `algorithmic-strategy` | planned | 0 | — | yes |
+| `algorithmic-strategy` | awaiting_human | 1 | — | yes |
 | `amd-model` | awaiting_human | 1 | — | yes |
 | `auction-market-strategy` | planned | 0 | — | yes |
 | `auction-market-theory-strategy` | planned | 0 | — | yes |

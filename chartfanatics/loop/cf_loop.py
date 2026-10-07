@@ -149,20 +149,28 @@ SYNC_TABLE_END = "\nclass SyncTests"
 
 
 def sync_machinery_hash() -> str:
-    """The sync test's LOGIC, with the per-card rule table blanked out.
+    """The sync test's LOGIC: everything except the two per-card surfaces.
 
-    A build must be able to ADD its own card's rule table (that is the deliverable), so the table
-    itself cannot be part of the frozen judge - but the machinery that judges with it can be, and the
-    other cards' tables are frozen separately (see ``other_cards_rules_hash``).  Raises (fail-closed)
-    if the file stops looking like what this hash assumes.
+    Per-card surfaces a build is allowed to touch (they ARE the card's deliverable):
+      * the module docstring, where each card records its `[interpretation]` notes;
+      * the rule table, where each card pins its rule -> code pairs.
+    Frozen: the imports, the helpers and the test class - the code that actually judges.
+    The other cards' TABLES are frozen separately (``other_cards_rules_hash``).
+    Raises (fail-closed) if the file stops looking like what this hash assumes.
     """
     text = SYNC_TEST.read_text(encoding="utf-8")
+    body = text
+    stripped = text.lstrip()
+    if stripped.startswith('"""'):                     # drop the module docstring
+        first = text.index('"""')
+        second = text.index('"""', first + 3) + 3
+        body = text[:first] + text[second:]
     try:
-        start = text.index(SYNC_TABLE_MARK)
-        end = text.index(SYNC_TABLE_END)
+        start = body.index(SYNC_TABLE_MARK)
+        end = body.index(SYNC_TABLE_END)
     except ValueError as exc:
         raise RuntimeError(f"cannot locate the rule table in {SYNC_TEST.name}: {exc}") from exc
-    return sha_text(text[:start] + "\n#<per-card rule table>\n" + text[end:])
+    return sha_text(body[:start] + "\n#<per-card rule table>\n" + body[end:])
 
 
 def other_cards_rules_hash(exclude_ea: str) -> str:

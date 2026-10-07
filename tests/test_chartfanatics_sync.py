@@ -19,6 +19,9 @@ EA source too, so an invention can never quietly become a "documented rule":
     closest); the fork's "targeting the previous low" reads oddly for a long, so the fixed 10-point
     stop / 15-point target the same document states are used and the fork low stays the reference;
     cross-sections are direction-neutral in the source, so the retest side decides.
+  * EA_CF_AlgoPortfolioMonitor: the source is a process document, so the EA is a portfolio monitor
+    (never trades) that applies its ranking filters to live deal history; Sharpe / UPI are not
+    computable from deal history alone, so the return/DD ratio the same page quotes is reported.
 """
 from __future__ import annotations
 
@@ -190,6 +193,28 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"InpRequireLevelTap\s+=\s+true;", 'p.3 "the best entries combine all elements: level, structure, and candle pattern"'),
         (r"cfg\.maxTradesPerDay\s*=\s*0;", 'p.3 "rather than a hard rule like three trades per day max, Okala uses market conditions" - no cap'),
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+
+    # ------------------------------------------- Algo Portfolio Monitor (card #03)
+    # The source is a process document (build + rank + monitor algos), not a strategy, so the pinned
+    # rules are the ranking filters and risk bands it states - the EA invents no entry rule.
+    "EA_CF_AlgoPortfolioMonitor.mq5": [
+        (r"input double InpMinProfitFactor\s*=\s*1\.50;", '"profit factor (e.g., 1.5+)" ranking filter'),
+        (r"input double InpMinReturnDD\s*=\s*4\.00;", '"return-to-drawdown ratio (e.g., 4:1)" ranking filter'),
+        (r"input double InpMinTradesPerMonth\s*=\s*2\.00;", '"average trades per month (e.g., 2+)" ranking filter'),
+        (r"input double InpMaxAvgLossPct\s*=\s*0\.50;", '"average loss as a percentage of account (e.g., 0.5%)"'),
+        (r"input double InpAvgLossRulePct\s*=\s*0\.50;", '"average loss does not exceed 0.5% of that allocated amount"'),
+        (r"input double InpMinAllocPct\s*=\s*5\.0;", '"allocate 5-25% of total account to a single algorithm"'),
+        (r"input double InpMaxAllocPct\s*=\s*25\.0;", "the top of the 5-25% allocation band"),
+        (r"input double InpExpectedDdPct\s*=\s*25\.0;", '"realistic drawdowns of 20-25%"'),
+        (r"algos\[a\]\.impliedAllocPct = \(balance > 0\.0 && InpAvgLossRulePct", "the allocation rule is inverted from the average loss"),
+        (r"expectancyR\s*<=\s*0\.0\)\s+notes \+= \"negative-expectancy;\"",
+         '"breakout traders can be profitable with only a 40% success rate ... risking $1 to make $2"'),
+        (r"cfg\.riskPct\s*=\s*0\.0;", "the document teaches how to RUN algorithms - this EA trades none"),
+        (r"bool AllowTrading\(SEAContext &ctx\) \{ return false; \}", "the monitor cannot open a position"),
+        (r"HistorySelect\(from, TimeTradeServer\(\) \+ 60\)", "it measures the account's own algorithms, not itself"),
+        (r'input string InpJournalFile\s*=\s*"cf_algo_ranking\.csv"', "one ranking row per algorithm per scan"),
+        (r"InpScanMinutes\s*=\s*240;", '"continuous monitoring rather than passive automation"'),
     ],
 
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)

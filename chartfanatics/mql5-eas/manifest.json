@@ -156,6 +156,25 @@
       "source": "chartfanatics/glimpse/jsUTbjwpFVk.md",
       "wave": 2,
       "status": "static-checked"
+    },
+    {
+      "card": 3,
+      "slug": "algorithmic-strategy",
+      "strategy": "Algorithmic Strategy",
+      "ea": "EA_CF_AlgoPortfolioMonitor.mq5",
+      "class": "CCfAlgoPortfolioMonitor",
+      "magic": 3209,
+      "timeframe": "-",
+      "primitives": [
+        "account-wide deal history per magic",
+        "ranking filters (PF / return-DD / trades per month)",
+        "allocation rule inversion",
+        "ranking journal CSV"
+      ],
+      "source": "chartfanatics/glimpse/TyHTEtArsS4.md",
+      "wave": 2,
+      "trades": false,
+      "status": "static-checked"
     }
   ]
 }

@@ -31,6 +31,7 @@ on the Windows machine.
 | Card | Strategy | EA | Magic | TF | Reads from the engine |
 |---|---|---|---|---|---|
 | [#02](../todos/80-20-nasdaq-strategy.md) | 80/20 Nasdaq | `EA_CF_8020NasdaqStrategy.mq5` | 3208 | M3 (structure M10) | NASDAQ mean reversion at price levels ending in 80/20 (`EA_Rates` + candle maths, no indicator at all): fork long, H-pattern short, cross-section retest, repair-candle magnet targets; fixed 10-point stop / 15-point TP1 (half off, break-even, runners); NY-open window with the lunch hour excluded; **no daily trade cap** (the source trades conditionally) |
+| [#03](../todos/algorithmic-strategy.md) | Algorithmic Strategy | `EA_CF_AlgoPortfolioMonitor.mq5` | 3209 | - | **Monitor, never trades.** The video is a process document (build + rank + monitor algorithms), so the EA applies its ranking filters to the account's own deal history per magic: profit factor, return/DD, trades per month, average loss band, implied allocation 5-25%, drawdown past 20-25%, expectancy. One row per algorithm per scan in `MQL5/Files/cf_algo_ranking.csv` |
 
 `[interpretation]` for card #02 (the source is a video summary, not a rule sheet):
 

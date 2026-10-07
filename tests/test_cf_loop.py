@@ -143,6 +143,29 @@ class JudgeBoundaryTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("other_cards", detail)
 
+    def test_sync_machinery_hash_ignores_per_card_surfaces(self) -> None:
+        # the docstring (where cards record their [interpretation] notes) must not freeze the judge
+        before = cf.sync_machinery_hash()
+        original = cf.SYNC_TEST
+        text = original.read_text(encoding="utf-8")
+        first = text.index('"""')
+        second = text.index('"""', first + 3) + 3
+        edited = text[:first] + text[first:second].replace("interpretation", "INTERPRETATION") + text[second:]
+        self.assertNotEqual(edited, text)
+        tmpdir = Path(tempfile.mkdtemp())          # the temp COPY lives here; the repo file is untouched
+        try:
+            cf.SYNC_TEST = tmpdir / "sync.py"
+            cf.SYNC_TEST.write_text(edited, encoding="utf-8")
+            self.assertEqual(before, cf.sync_machinery_hash(),
+                             "the machinery hash must not depend on the docstring")
+            cf.SYNC_TEST.write_text(edited.replace("class SyncTests", "class SyncTestsRenamed"),
+                                    encoding="utf-8")
+            self.assertNotEqual(before, cf.sync_machinery_hash(),
+                                "changing the judging class IS a machinery change")
+        finally:
+            cf.SYNC_TEST = original                # never leave the module pointing at the temp copy
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
     def test_sync_machinery_hash_ignores_the_table_content(self) -> None:
         # the hash must be blind to which rules are listed, and sensitive to the logic around them
         before = cf.sync_machinery_hash()

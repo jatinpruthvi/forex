@@ -3,347 +3,366 @@
     "5-stage-trading-framework": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:17:37Z",
+      "last_checked": "2026-10-07T11:22:28Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
-      "replan_reason": "judge fingerprint v2 + idempotent plan",
-      "replanned_at": "2026-10-07T11:17:54Z",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:28Z"
     },
     "80-20-nasdaq-strategy": {
       "attempts": 1,
       "built_by": "agent: card #02 build",
-      "last_checked": "2026-10-07T11:18:09Z",
+      "last_checked": "2026-10-07T11:22:29Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
-      "replan_reason": "judge fingerprint v2 + idempotent plan",
-      "replanned_at": "2026-10-07T11:17:54Z",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:18:09Z"
+      "updated": "2026-10-07T11:22:29Z"
     },
     "algorithmic-strategy": {
-      "attempts": 0,
+      "attempts": 1,
+      "built_by": "agent: card #03 build",
+      "last_checked": "2026-10-07T11:22:30Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
       "planner": "loop migration",
-      "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "state": "awaiting_human",
+      "updated": "2026-10-07T11:22:30Z"
     },
     "amd-model": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:17:55Z",
+      "last_checked": "2026-10-07T11:22:31Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "reset_by": "loop self-test",
       "reset_note": "re-demo attempt counting",
       "state": "awaiting_human",
       "state_before_reset": "awaiting_human",
-      "updated": "2026-10-07T11:17:55Z"
+      "updated": "2026-10-07T11:22:31Z"
     },
     "auction-market-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "auction-market-theory-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "break-retest": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:17:59Z",
+      "last_checked": "2026-10-07T11:22:35Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:17:59Z"
+      "updated": "2026-10-07T11:22:35Z"
     },
     "episodic-pivot-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "fair-pricing-theory-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "first-red-day": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "first-red-day-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "full-psychology-masterclass": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "futures-trading-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "institutional-options-flow-gamma-reversal-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "institutional-strategy-development-framework": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "intraday-liquidity-volatility-model": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:18:00Z",
+      "last_checked": "2026-10-07T11:22:37Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:18:00Z"
+      "updated": "2026-10-07T11:22:37Z"
     },
     "liquidity-inversion-model": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "liquidity-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "low-volume-node": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "market-auction-theory": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "market-dna-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "mean-reversion-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "measured-move-trend-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "momentum-model-performance-development": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "nasdaq-ict-and-order-flow-scalping-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "nq-liquidity-sweep-reversal-scalping-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "options-trading-masterclass": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "order-flow-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "orderflow-trading-masterclass": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "parabolic-short-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "po3-ote-adr": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:17:58Z",
+      "last_checked": "2026-10-07T11:22:34Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:17:58Z"
+      "updated": "2026-10-07T11:22:34Z"
     },
     "price-action-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "price-cycle-continuation-failed-base-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "real-simple-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "shorting-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "small-cap-short-statistics": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "smt-divergence-po3": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:17:57Z",
+      "last_checked": "2026-10-07T11:22:33Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:17:57Z"
+      "updated": "2026-10-07T11:22:33Z"
     },
     "stage-analysis-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "structure-ote": {
       "attempts": 1,
       "built_by": "audit session",
-      "last_checked": "2026-10-07T11:17:56Z",
+      "last_checked": "2026-10-07T11:22:32Z",
       "last_reason": "all deterministic gates pass",
       "last_verdict": "pass",
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
       "planner": "loop migration",
+      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
+      "replanned_at": "2026-10-07T11:22:27Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:17:56Z"
+      "updated": "2026-10-07T11:22:32Z"
     },
     "support-and-resistance": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "the-vix-futures-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "trading-first-principles-framework": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "trendline-break-pocket-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "trendline-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "unique-high-rr": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "universal-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     },
     "volume-profile-strategy": {
       "attempts": 0,
       "planner": "loop migration",
       "state": "planned",
-      "updated": "2026-10-07T11:17:54Z"
+      "updated": "2026-10-07T11:22:27Z"
     }
   }
 }
