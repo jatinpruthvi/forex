@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "8dc5ff1cf8b0071d02ee9047afc47b12a78c17c33d1fa64d3b1fdbed4efb4c04",
+  "acceptance_hash": "b8c9551f086738c1e63e0d88bc91f2d1ac2d43f8a697a685fa6c91ec7399b6c2",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_Structure_OTE.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "5902521bfeef5f0d104895f03181ee7b9b401508ffd7c1440e4a7c08c6c7ea7d",
-    "tests/test_chartfanatics_sync.py#other_cards": "b8f6c797840650a4419073c24283ecc0651eb9a7d70614d32f4481743c0b1b1f"
+    "tests/test_chartfanatics_sync.py#machinery": "c54adc0353d6adedfb5d597d96fd57366a8807895083209aab94fbed6e593d8a",
+    "tests/test_chartfanatics_sync.py#other_cards": "c9c076870b0bdda691e6163eb1e33b16a3e8edf633092fc8837d4ac7fa2f57b3"
   },
   "magic": 3202,
-  "planned_at": "2026-10-07T15:55:36Z",
+  "planned_at": "2026-10-07T15:57:54Z",
   "rule_count": 13,
   "slug": "structure-ote",
   "source": "chartfanatics/pdf/structure-ote.pdf",

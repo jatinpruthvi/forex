@@ -772,6 +772,26 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/0_NSmOWVbpA.md"
+  },
+  {
+   "card": 33,
+   "slug": "real-simple-strategy",
+   "strategy": "Real Simple Strategy",
+   "ea": "EA_CF_RealSimpleStrategy.mq5",
+   "class": "CCfRealSimpleStrategy",
+   "magic": 3236,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "six documented setups, each with its own entry and stop: EP (first five-minute-bar ORB), delayed HVC (reclaim of the gap-day close), flat base breakout (prior-day-high break, tight-candle stop rule), U&R and MA U&R reclaims, high tight flag break",
+    "gap and volume-multiple detection from the D1 series (earnings-gap footprints)",
+    "market and relative-strength alignment gate (broader market healthy, stock leading it)",
+    "management: partial profits after several strong days, the 10/20-day EMA trail, the high-volume close-below-20-EMA exit",
+    "D1 setup identification with M5 execution (the document two timeframes)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/real-simple-strategy.pdf"
   }
  ]
 }

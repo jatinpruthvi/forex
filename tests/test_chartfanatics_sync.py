@@ -162,6 +162,16 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_RealSimpleStrategy (card #33): the six swing setups are implemented with the document's own
+    entries and stops (EP via the first five-minute-bar ORB, delayed HVC reclaim of the gap-day close,
+    flat base breakout above the prior day high with the tight-candle / wide-candle stop rule, U&R and
+    MA U&R reclaims, and the high tight flag break).  "[interpretation]" numbers: the gap size and volume
+    multiple, the HVC freshness, the base window and tightness, the MA convergence, the flag length and
+    height, the "near highs" band, the volume contraction, the strong-day trim count, the reclaim
+    distance and the far TP placeholder.  Two disclosures: sector / group strength is unobservable in an
+    EA, so relative strength versus a market proxy stands in (the same page's own confirmation); and
+    "the upper half of the tight range" is taken at the flag high, the unambiguous boundary.  Progressive
+    exposure stays a human scaling discipline - the engine opens one risk-sized position per setup.
   * EA_CF_PriceCycleContinuationFailedBaseStrategy (card #32): both cycles of the champion's playbook in
     one EA - the bullish continuation (base + breakout with volume, or the pullback into the 10/20-day
     EMAs) and the failed base (20-EMA violation on volume, the minimal-volume wedge to a lower high, the
@@ -1446,6 +1456,91 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"cfg\.sessionEndFlat\s+= false;",
          'the playbook holds for days (a 20% move in 3 days) - the positions are not flattened at the bell'),
     ],
+    # -------------------------------------- real simple (card #33)
+    "EA_CF_RealSimpleStrategy.mq5": [
+        (r"input bool\s+InpUseEp\s+= true;",
+         'the Episodic Pivot is one of the five-to-six repeatable setups'),
+        (r"ctx\.mid <= orb\) return false;",
+         '"Use an Opening Range Break (ORB) on the five-minute chart.  Enter above the high of the first five-minute bar"'),
+        (r"double stop = lowDay - InpStopBufferAtr \* c\.atrD1;",
+         '"Stop-loss is placed at the low of day"'),
+        (r"bool gap = \(d\[i\]\.open > prevHigh \* \(1\.0 \+ InpGapMinPct / 100\.0\)\);",
+         '"Look for a trending stock that gaps up on unexpected news or earnings"'),
+        (r"input double\s+InpGapVolMult\s+= 2\.0;",
+         '"volume is multiple times the normal daily average"'),
+        (r"if\(d\[1\]\.close >= c\.hvc\) return false;",
+         '"Identify the closing price on the day of the earnings gap" - the HVC level'),
+        (r"if\(ctx\.bid <= c\.hvc\) return false;",
+         '"Enter as price breaks back through that close on any day afterward"'),
+        (r"MathAbs\(d\[i\]\.close - c\.hvc\) <= 0\.5 \*",
+         '"This approach works best if the stock consolidates near the HVC for several days"'),
+        (r"input int\s+InpFlatBaseBars\s+= 15;",
+         '"a tight range over multiple weeks, often following a strong prior trend"'),
+        (r"double converge = MathAbs\(c\.ema10 - c\.ema20\)",
+         '"The 10-day or 20-day moving average should tighten up near the price"'),
+        (r"bool shrinking = \(baseRange / InpFlatBaseBars\)",
+         '"Look for progressively smaller daily ranges near the breakout level"'),
+        (r"if\(!\(ctx\.bid > d\[1\]\.high && ctx\.bid > c\.baseHigh\)\) return false;",
+         '"Enter above the prior day.s high, which also clears the flat base resistance"'),
+        (r"double stopLevel = tightCandle \? d\[1\]\.low : SessionLow\(ctx, m\);",
+         '"If the daily candle is very tight, the stop-loss is placed at the previous day.s low ... If the candle is wide ... the low of the breakout day"'),
+        (r"bool undercutToday = \(d\[0\]\.low < c\.priorLow\);",
+         '"Wait for a quick undercut of that low, followed by a reversal back above"'),
+        (r"if\(ctx\.bid <= c\.priorLow\) return false;",
+         '"Enter when price reclaims the prior low"'),
+        (r"plan\.reason = StringFormat\(\"U&R: reclaim of the prior low",
+         '"Stop-loss is placed at the new swing low formed during the undercut" - the stop below'),
+        (r"bool below = \(d\[1\]\.close < ma\);",
+         '"Price moves below a significant daily moving average (such as the 10-day, 20-day, or 50-day)"'),
+        (r"bool reclaimed = \(ctx\.bid > ma\);",
+         '"then reclaims the moving average with strength, ideally supported by increased volume"'),
+        (r"double distPct = \(ctx\.bid - c\.maUrLevel\) / c\.maUrLevel \* 100\.0;",
+         '"Enter as price rallies back through the moving average"'),
+        (r"double strongVol = \(\(double\)m\[1\]\.tick_volume >= InpReclaimVolMult \* recentVol\) \? 6\.0 : 0\.0;",
+         '"ideally supported by increased volume" - scored, not gated'),
+        (r"if\(advancePct >= InpHtfMinAdvancePct && flagPct <= InpHtfMaxRangePct && nearHighs && volContract\)",
+         '"Price advances 50% to 100% in a short period.  A tight flag forms, lasting two to five weeks"'),
+        (r"input int\s+InpHtfFlagBars\s+= 15;",
+         '"a tight flag ... lasting two to five weeks" - the window is an input'),
+        (r"bool nearHighs    = \(advHigh > 0\.0\) && \(fLo >= advHigh",
+         '"price holding near highs"'),
+        (r"bool volContract  = \(advVol <= 0\.0\) \|\| \(flagVol <= InpHtfVolFrac \* advVol\);",
+         '"Volume contracts during the flag formation"'),
+        (r"if\(ctx\.bid <= c\.flagHigh\) return false;",
+         '"Enter when the price breaks through the upper half of the tight range" - taken at the flag high, the unambiguous boundary'),
+        (r"if\(!c\.marketHealthy\) return false;",
+         '"Trades are only taken when the broader market and the stock.s sector or group support the trade.s direction"'),
+        (r"c\.marketHealthy = \(mktEma > 0\.0 && mkt\[1\]\.close > mktEma\);",
+         'the market proxy must hold its own 20-day EMA'),
+        (r"if\(c\.rs < InpMinRsPct\) return false;",
+         '"strong closes, expanding volume on breakout days, and relative strength vs. the market"'),
+        (r"cfg\.signalTimeframe\s+= PERIOD_M5;",
+         '"The setup is always based on the daily chart.  The 5-minute chart is used to refine execution"'),
+        (r"if\(strong >= InpStrongDaysForTrim\)",
+         '"Take partial profits into strength, especially after three to five strong days"'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, InpTrimPct\)",
+         '"Take partial profits into strength"'),
+        (r"if\(emaT > 0\.0 && d\[1\]\.close < emaT\)",
+         '"Trail the remaining position using rising moving averages like the 10-day or 20-day to stay in winning trades"'),
+        (r"\(double\)d\[1\]\.tick_volume >= InpExitVolMult \* avgVol\)",
+         '"If the stock violates your trailing stop or closes below key levels on high volume, exit the trade without hesitation"'),
+        (r"input double\s+InpRiskPct\s+= 0\.75;",
+         '"Typical risk ranges from 0.5% to 1% of total equity"'),
+        (r"double risk = entry - stop;",
+         '"Every setup includes a precise stop-loss level based on price structure, typically the low of the day, a recent swing low, or a major moving average"'),
+        (r"input string\s+InpSymbolsToTrade",
+         'the playbook trades stocks; the universe is the user list'),
+        (r"cfg\.sessionEndFlat\s+= false;",
+         'swing trading: the trailing stop manages the exit, not the bell'),
+        (r"input int\s+InpTrailEma\s+= 10;",
+         'the trail EMA is the document own choice - the 10 or the 20-day'),
+        (r"int got = EA_Rates\(ctx\.symbol, PERIOD_D1, 0",
+         'the daily chart carries the setup: the D1 series is the signal context'),
+        (r"plan\.score = 82\.0;",
+         'the EP is the playbook flagship setup and scores highest of the six'),
+        (r"input double\s+InpTargetR\s+= 8\.0;",
+         'no fixed target is stated for the setups - the far TP is a placeholder and the EMA trail is the exit'),
+    ],
 }
 
 
@@ -1478,7 +1573,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_OrderflowTradingMasterclass.mq5",
                      "EA_CF_ParabolicShort.mq5",
                      "EA_CF_PriceAction.mq5",
-                     "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5"):
+                     "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5",
+                     "EA_CF_RealSimpleStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
