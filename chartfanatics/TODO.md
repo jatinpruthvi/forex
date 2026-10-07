@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 22 in progress ·
-⬜ 25 not started
+**Cards:** ✅ 0 done · 🟡 23 in progress ·
+⬜ 24 not started
 
-**EAs built:** 22/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 23/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 21 awaiting human · 26 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 22 awaiting human · 25 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 110/376 (29%)
-`▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 115/376 (31%)
+`▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -69,7 +69,7 @@ infrastructure needed to get a first verdict:
 | 16 | Intraday Liquidity & Volatility Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/intraday-liquidity-volatility-model.pdf) 2.9 MB | [`Intraday_Liquidity.mq5`](mql5-eas/EA_CF_Intraday_Liquidity.mq5) mag 3206 | [`intraday-liquidity-volatility-model.md`](todos/intraday-liquidity-volatility-model.md) |
 | 18 | Liquidity Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/liquidity-strategy.pdf) 37.7 MB | [`LiquidityStrategy.mq5`](mql5-eas/EA_CF_LiquidityStrategy.mq5) mag 3221 | [`liquidity-strategy.md`](todos/liquidity-strategy.md) |
 | 19 | Low Volume Node | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/low-volume-node.pdf) 3.9 MB | [`LowVolumeNode.mq5`](mql5-eas/EA_CF_LowVolumeNode.mq5) mag 3222 | [`low-volume-node.md`](todos/low-volume-node.md) |
-| 20 | Market Auction theory | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/market-auction-theory.pdf) 2.1 MB | _—_ | [`market-auction-theory.md`](todos/market-auction-theory.md) |
+| 20 | Market Auction theory | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/market-auction-theory.pdf) 2.1 MB | [`MarketAuctionTheory.mq5`](mql5-eas/EA_CF_MarketAuctionTheory.mq5) mag 3223 | [`market-auction-theory.md`](todos/market-auction-theory.md) |
 | 21 | Market DNA Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/market-dna-strategy.pdf) 30.9 MB | _—_ | [`market-dna-strategy.md`](todos/market-dna-strategy.md) |
 | 22 | Mean Reversion Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/mean-reversion-strategy.pdf) 10.1 MB | _—_ | [`mean-reversion-strategy.md`](todos/mean-reversion-strategy.md) |
 | 23 | Measured Move Trend Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/measured-move-trend-strategy.pdf) 9.5 MB | _—_ | [`measured-move-trend-strategy.md`](todos/measured-move-trend-strategy.md) |

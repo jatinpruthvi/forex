@@ -463,6 +463,29 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/low-volume-node.pdf"
+  },
+  {
+   "card": 20,
+   "slug": "market-auction-theory",
+   "strategy": "Market Auction theory",
+   "ea": "EA_CF_MarketAuctionTheory.mq5",
+   "class": "CCfMarketAuctionTheory",
+   "magic": 3223,
+   "timeframe": "M5",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "SigRangeForDay (the post-open auction zone)",
+    "local daily EMA 21/50 (the engine carries the daily 200)",
+    "daily 45-degree slope gate (ATR-normalised travel)",
+    "prior-day body bias + gap context",
+    "rejection-candle entry with a stop beyond the setup candle",
+    "cfg.newsFilter (the 'conflicting news' stand-in)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/market-auction-theory.pdf"
   }
  ]
 }

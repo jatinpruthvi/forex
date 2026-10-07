@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "4adadc3558d4f85a07af66f7b3359bb45c82f785bbb9d6974d1fe4a5a00c8178",
+  "acceptance_hash": "9a50bc7bf943c59480a348ba5452915d4cb30432ce7c7c9a00ffef21d9934f4c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_LiquidityInversion.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "aaecc947be15219cfc62c89e4c2b2407b9d3c9c1002319992fe2d35714a8bead",
-    "tests/test_chartfanatics_sync.py#other_cards": "31c4a6623a420144b0937be7f0d502f75b21c91bdec6cd34e8f7323e3ca35377"
+    "tests/test_chartfanatics_sync.py#machinery": "831ff1c50217442a788edb9825ced8284623722fa3f46d404429a75f9131fbca",
+    "tests/test_chartfanatics_sync.py#other_cards": "4fe5c9c0cbf9ffb3847b5837add177358c973fd4e67acba5981ce658730b5d5e"
   },
   "magic": 3220,
-  "planned_at": "2026-10-07T12:11:51Z",
+  "planned_at": "2026-10-07T12:13:17Z",
   "rule_count": 35,
   "slug": "liquidity-inversion-model",
   "source": "chartfanatics/glimpse/UIGZtoGGPH4.md",

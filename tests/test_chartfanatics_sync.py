@@ -54,6 +54,12 @@ EA source too, so an invention can never quietly become a "documented rule":
     SigFractals is bound to the signal timeframe, so the daily swing geometry is local; the
     anchored-VWAP anchor is the phase anchor and its deviation bands are represented by the 1R
     partial; the MA exit context reads a daily close on the wrong side of both the 8 and the 21.
+  * EA_CF_MarketAuctionTheory (card #20): the document's numbers are illustrative, so the post-open
+    formation window and the congestion cap that define the auction zone, the daily 45-degree slope
+    threshold, the "strongly" body threshold, the stop tick buffer and the second-entry allowance are
+    labelled.  The daily 21/50 pair the document quotes is computed locally (the engine only carries the
+    daily 200), with the same EMA definition; "conflicting news headlines" is read as the engine's
+    calendar gate, and the extended window is an input that is off by default.
   * EA_CF_LowVolumeNode (card #19): the playbook confirms with heatmaps, footprint charts and delta - data
     no MetaTrader EA can read - so the defense is read as absorption on the revisit (a wick into the node,
     the close back inside it, no close through) with above-average participation, and the LVN itself from
@@ -687,6 +693,37 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
         (r"\[interpretation\]", "every number the playbook leaves open stays labelled"),
     ],
+    # ------------------------------------------- Market Auction Theory (card #20)
+    "EA_CF_MarketAuctionTheory.mq5": [
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", '"5-minute chart: execution timeframe"'),
+        (r"input double InpBiasBodyMin\s*=\s*0\.60;", '"if the prior day closed strongly bearish, the next day\'s bias is short"'),
+        (r"bias = \(d\[1\]\.close < d\[1\]\.open\) \? -1 : \+1;", "the bias comes from the previous day's daily candle"),
+        (r"if\(MathAbs\(travel\) < InpSlopeAtr \* ctx\.atrD1\) return false;", '"the daily chart must show a clear 45-degree trend"'),
+        (r"if\(bias < 0 && travel >= 0\.0\) return false;", "the slope must run in the bias direction (the mirror check follows)"),
+        (r"double ema21 = EmaClose\(d, 21, 1\);", '"use moving average (e.g., 21/50 MAs)" - computed locally, the engine carries the daily 200'),
+        (r"if\(bias > 0 && !\(d\[1\]\.close > ema21 && d\[1\]\.close > ema50\)\) return false;", '"for longs: the price must be above the moving averages in both timeframes"'),
+        (r"if\(bias < 0 && !\(d\[1\]\.close < ema21 && d\[1\]\.close < ema50\)\) return false;", "the short side of the same rule"),
+        (r"if\(bias > 0 && d\[0\]\.open < priorClose\) return false;", '"SPY opened with a gap down ... this added to the bearish sentiment"'),
+        (r"if\(bias < 0 && d\[0\]\.open > priorClose\) return false;", "the mirrored gap check"),
+        (r"if\(!Aligned\(ctx, bias\)\) return false;", '"if the daily and 5-minute trades are not aligned, skip the trade"'),
+        (r"if\(bias > 0\) return \(px > ctx\.ema20 && px > ctx\.ema50 && ctx\.ema20 > ctx\.ema50\);", '"5-minute chart must mirror the daily trend and be aligned with the moving average direction"'),
+        (r"if\(!SigRangeForDay\(ctx\.symbol, g_eaIndTf, fromMin, toMin, 0, hi, lo, bars\)\) return false;", "the auction zone: the post-open congestion where price found balance"),
+        (r"if\(\(zoneHi - zoneLo\) > InpZoneMaxAtr \* ctx\.atr\) return false;", '"if the auction structure is messy ... stay out"'),
+        (r"if\(bias > 0 && m\[i\]\.close > zoneHi\) return true;", '"SPY broke down from this zone shortly after it formed, confirming trend continuation"'),
+        (r"if\(m\[i\]\.time < sessionServer\) break;", "only today's bars count for the breakout"),
+        (r"bool entered = \(bias < 0\) \? \(m\[i\]\.high >= zoneLo\) : \(m\[i\]\.low <= zoneHi\);", '"it went into the zone"'),
+        (r"bool heldOut = \(bias < 0\) \? \(m\[i\]\.close < zoneLo\) : \(m\[i\]\.close > zoneHi\);", '"but then closed below it" - the rejection candle'),
+        (r"if\(rejectBar < 0\) return false;", '"if price does not retest the auction zone ... skip"'),
+        (r"cfg\.signalOnNewBarOnly\s*=\s*true;", '"entry is made immediately after candle confirmation"'),
+        (r"double stop   = \(bias > 0\) \? m\[rejectBar\]\.low  - buffer : m\[rejectBar\]\.high \+ buffer;", '"place the stop loss just beyond the structure\'s high/low of the setup candle"'),
+        (r"input double InpTargetR\s*=\s*2\.0;", '"use a minimum 2:1 risk-to-reward ratio"'),
+        (r"int endMin = InpOpenMin \+ InpWindowMinutes;", '"focus on the first hour after the open"'),
+        (r"input bool\s+InpExtendedWindow\s*=\s*false;", '"avoid trading in the middle or late session unless conditions clearly align"'),
+        (r"cfg\.newsFilter\s*=\s*true;", '"if ... sentiment is unclear (e.g., conflicting news headlines), stay out" - the engine calendar gate'),
+        (r"input int\s+InpMaxTradesPerDay\s*=\s*2;", "the breakdown's first and second retest"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every number the document leaves open stays labelled"),
+    ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
         (r"EA_ApplyStagePolicy\(policy, InpStage\);", "the stage table is read from the engine helper, not duplicated"),
@@ -724,7 +761,7 @@ class SyncTests(unittest.TestCase):
         for name in ("EA_CF_Structure_OTE.mq5", "EA_CF_PO3_OTE_ADR.mq5",
                      "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
                      "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5",
-                     "EA_CF_LowVolumeNode.mq5"):
+                     "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
