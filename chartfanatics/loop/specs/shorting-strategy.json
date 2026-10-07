@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "f0b04bfc108a514da23029fd17dafb25f603b38e2185ad5a6d6ab90be2a889e5",
+  "acceptance_hash": "233356bef78811b7f5afa62ee174d4f7b92453c2705574e590ee88b93f163265",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_ShortingStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "98f26e0a8f9acbbf4c60a1fcd360f2e6a0f0ec295f9eff2ae859bdcbf3d93711",
-    "tests/test_chartfanatics_sync.py#other_cards": "65a1a6b13ba2d72723cb747f6850ef35e96eb6f6b85bb811b84aa18c9a9b5b99"
+    "tests/test_chartfanatics_sync.py#machinery": "30122975b1bc71b0e005302386cd3245bcd58ff82f9e7fecb4b0a0a4ec3e5b3d",
+    "tests/test_chartfanatics_sync.py#other_cards": "591226ec6433a12cdf015c7f859e8703fea2bb7e596f73a877cb8e993389cc26"
   },
   "magic": 3237,
-  "planned_at": "2026-10-07T16:32:52Z",
+  "planned_at": "2026-10-07T16:37:01Z",
   "rule_count": 36,
   "slug": "shorting-strategy",
   "source": "chartfanatics/pdf/shorting-strategy.pdf",

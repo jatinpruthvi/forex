@@ -162,6 +162,32 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_UniversalStrategy (card #43): the Travelling Traders' three-part story - liquidity catalyst,
+    displacement, retracement into a logical area - and the EA refuses a trade unless all three are
+    present.  The catalysts are the document's own list, detected on price: "a sweep of equal highs/lows"
+    (two equal levels, then a wick through them closed back on-side, which is also the document's "sharp
+    rejection from a significant level"), "a break of a major support/resistance zone" (a level respected
+    at least twice, closed through decisively), and "a break of a well-respected trendline" (the worked
+    S&P 500 example's catalyst: a falling line broken upward for longs, a rising support broken downward
+    for shorts).  Displacement then has to be real - "a decisive move away from that area", "a noticeable
+    shift in price behavior", and "a break in the prior swing structure" - because "without meaningful
+    displacement, there is no evidence that the market intends to move".  The entry is the document's
+    hardest rule: "entries are taken only on the retracement", so the engine runs with `useLimitEntry`
+    and every story is a resting order at the proximal edge of a confluence zone, whose life is capped
+    ("if the retracement zone is never reached ... you simply move on"), and a story already worked once
+    is never re-armed ("missing a trade is not a mistake").  The zone itself is built from the document's
+    confluence list - the level, a fair value gap, an order block, the 21 EMA (the worked example's own
+    overlap), a prior swing level, higher-timeframe alignment and, at sweeps, RSI divergence - and
+    "no trade is taken based on a single signal", so at least two factors must line up.  Invalidation is
+    structural: the stop sits beyond the zone and the catalyst's extremity with "no arbitrary breathing
+    room", and a completed close back through the level closes the trade - "if that level breaks, the
+    trade is invalid, and you exit without hesitation".  Targets are the next liquidity pool ("markets
+    move from one liquidity zone to the next").  "[interpretation]": the signal timeframe (the document
+    is timeframe-agnostic), the tolerances, the displacement thresholds, the confluence minimum, the
+    zone's life, the stop buffer and cap, the target swing width / minimum distance / fallback, the
+    invalidation close count, the higher-timeframe MA and the caps.  Disclosed, not faked: the confluence
+    list's "macro conditions, seasonality, or significant news" is a fundamental input a backtest does not
+    have, and it is not simulated.
   * EA_CF_UniqueHighRr (card #42): TG Capital's "Unique High RR" - the Trident Pattern, traded only
     inside the London kill zone.  The clock is the document's: entries "between 3:00 AM and 6:30 AM New
     York time", the three-candle FVG itself "between 2:30 and 4:00 AM" ("ignore FVGs outside the kill
@@ -2468,6 +2494,90 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"Bull Trading Candle Strength",
          'the proprietary four-state candle classifier is disclosed as not simulated, never faked'),
     ],
+    "EA_CF_UniversalStrategy.mq5": [
+        (r"input string            InpSymbolsToTrade     = \"US500,US100\";",
+         'the worked example the document prints is the S&P 500, and "the playbook applies to any market" - so the universe is an input'),
+        (r"cfg\.signalTimeframe       = InpSignalTf;",
+         '"any timeframe" - the signal frame is an input; the document is timeframe-agnostic'),
+        (r"cfg\.useLimitEntry         = true;",
+         '"Entries Are Taken Only on the Retracement" - the engine refuses to chase a market fill'),
+        (r"p\.isLimit  = true;",
+         '... and every story is a resting order at the zone, not a market order'),
+        (r"bool CatalystSweep\(const MqlRates &d\[\], const int got, const int dir, SCatalyst &c\)",
+         '"A sweep of equal highs/lows" - one of the catalysts the document names'),
+        (r"bool swept = \(dir > 0\) \? \(d\[i\]\.low < level && d\[i\]\.close > level\)",
+         'the sweep must close back on the story\'s side - "a sharp rejection from a significant level"'),
+        (r"bool CatalystLevelBreak\(const MqlRates &d\[\], const int got, const int dir, SCatalyst &c\)",
+         '"A break of a major support/resistance zone"'),
+        (r"if\(touches < InpMinLevelTouches\) continue;",
+         '"a major" level means one respected more than once'),
+        (r"bool CatalystLineBreak\(const MqlRates &d\[\], const int got, const int dir, SCatalyst &c\)",
+         '"A break of a well-respected trendline" - the worked example\'s own catalyst'),
+        (r"if\(dir > 0 && !\(px\[0\] < px\[1\]\)\) return false;",
+         'a falling resistance line, broken upward for a long'),
+        (r"if\(dir < 0 && !\(px\[0\] > px\[1\]\)\) return false;",
+         'a rising support line, broken downward for a short - exactly the S&P 500 breakdown the document walks through'),
+        (r"if\(touches < 2\) return false;",
+         'the line has to be respected before it is a story'),
+        (r"if\(best < InpDisplaceAtr \* ctx\.atr\) return false;",
+         '"After the catalyst, you want to see a decisive move away from that area"'),
+        (r"if\(body < InpDisplaceBodyAtr \* ctx\.atr\) return false;",
+         '"A noticeable shift in price behavior" - one candle body in the leg'),
+        (r"if\(dir > 0 && !\(best > prior - c\.level\)\) return false;",
+         '"A break in the prior swing structure" - the displacement must clear the prior swing, or "the story is incomplete"'),
+        (r"if\(dir < 0 && !\(best > c\.level - prior\)\) return false;",
+         'the same structure-shift test for a short story'),
+        (r"int confluence = ConfluenceCount\(ctx, d, got, c, dir, c\.level, cluster, zoneLow, zoneHigh\);",
+         '"A complete story contains three core components" - the third is the retracement zone, built from the document\'s confluence list'),
+        (r"if\(confluence < InpMinConfluence\) return false;",
+         '"No trade is taken based on a single signal" - the level itself plus at least one more factor'),
+        (r"double entry = \(dir > 0\) \? zoneHigh : zoneLow;",
+         'the entry is the proximal edge of the zone: the retracement, never the first impulsive move'),
+        (r"p\.expiry   = TimeTradeServer\(\) \+ \(datetime\)\(InpZoneLifeBars \* PeriodSeconds\(g_eaIndTf\)\);",
+         '"If the retracement zone is never reached, the market did not fulfill your criteria.  You do not chase." - the order simply expires'),
+        (r"if\(ArmedSeen\(ctx\.symbol, dir, c\.time\)\) return false;",
+         '"Missing a Trade Is Not a Mistake" - a story that was already worked once is not re-armed'),
+        (r"double far = \(dir > 0\) \? MathMin\(zoneLow, c\.extreme\) : MathMax\(zoneHigh, c\.extreme\);",
+         '"the stop must sit beyond the level that proves the narrative wrong" - the zone and the catalyst\'s own extremity'),
+        (r"double stop = \(dir > 0\) \? far - InpStopBufferAtr \* ctx\.atr : far \+ InpStopBufferAtr \* ctx\.atr;",
+         '"no arbitrary breathing room" - a minimal structural buffer, nothing else'),
+        (r"if\(risk > entry \* InpMaxStopPct / 100\.0\) return false;",
+         '"No wide stops out of fear" - a stop that wide means the story is not tradeable'),
+        (r"double tgt = TargetPool\(d, got, dir, entry, risk\);",
+         '"Your profit targets should align with the narrative ... liquidity pools, prior highs or lows"'),
+        (r"if\(dir > 0 && px\[i\] > entry \+ InpMinTargetR \* risk\)",
+         'the nearest pool above is the target - "markets move from one liquidity zone to the next"'),
+        (r"if\(beyond >= need\)",
+         '"If that level breaks, the trade is invalid, and you exit without hesitation" - counted on completed closes'),
+        (r"if\(g_eaExec\.Close\(t, \"the story is invalid - the level it was built on no longer holds\"\)\)",
+         '... and the exit is a real close, not a note'),
+        (r"double ema = EmaVal\(es\.hEma21, 1\);",
+         '"A moving average used as dynamic support/resistance" - the worked example\'s 21 EMA inside the zone'),
+        (r"n\.hEma21 = iMA\(sym, g_eaIndTf, InpEma21Period, 0, MODE_EMA, PRICE_CLOSE\);",
+         '... created on the document\'s own 21 period'),
+        (r"if\(dir > 0 && dd\[0\]\.close > htf\) count\+\+;",
+         '"Higher-timeframe alignment" - a confluence the document lists'),
+        (r"if\(dir > 0 && d\[c\.idx\]\.low < d\[c\.prevIdx\]\.low && nowRsi > oldRsi\) count\+\+;",
+         '"Divergence" - price took the older equal low out, the RSI did not confirm it'),
+        (r"//--- \"an order block\": the last opposing candle before the leg, inside the zone",
+         '"An order block" - one of the zone types the document lists'),
+        (r"if\(!\(d\[k - 2\]\.high <= d\[k\]\.low\)\) continue;",
+         '"A fair value gap" - another zone type the document lists'),
+        (r"p\.score = 80\.0 \+ 3\.0 \* \(double\)confluence;",
+         '"When several elements point in the same direction, the trade idea becomes valid" - confluence is the score'),
+        (r"cfg\.breakEvenAtR          = 0\.0;",
+         '"Manage the Trade According to the Story, Not Emotion" - no break-even'),
+        (r"cfg\.trailAtR              = 0\.0;",
+         'no trail either: the narrative, not a level, ends the trade'),
+        (r"cfg\.partial1AtR           = 0\.0;",
+         'no partials - the document warns against "the desire to protect profits prematurely"'),
+        (r"cfg\.maxTradesPerDay       = InpMaxTradesPerDay;",
+         '"Less Temptation to Overtrade" - a small attempt budget'),
+        (r"\(c\.kind == 1 \? \"sweep of equal levels\" : \(c\.kind == 2 \? \"level break\" : \"trendline break\"\)\),",
+         'the story names its own catalyst in the ledger'),
+        (r"conditions, seasonality, or significant news\"",
+         'the document\'s fundamental confluences are disclosed as not simulated in a backtest, never faked'),
+    ],
 }
 
 
@@ -2510,7 +2620,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_TradingFirstPrinciplesFramework.mq5",
                      "EA_CF_TrendlineBreakPocketStrategy.mq5",
                      "EA_CF_TrendlineStrategy.mq5",
-                     "EA_CF_UniqueHighRr.mq5"):
+                     "EA_CF_UniqueHighRr.mq5",
+                     "EA_CF_UniversalStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

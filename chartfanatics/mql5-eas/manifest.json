@@ -974,5 +974,26 @@
    ],
    "source": "chartfanatics/pdf/unique-high-rr.pdf"
   }
+,
+  {
+   "card": 43,
+   "slug": "universal-strategy",
+   "strategy": "Universal Strategy",
+   "ea": "EA_CF_UniversalStrategy.mq5",
+   "class": "CCfUniversalStrategy",
+   "magic": 3246,
+   "timeframe": "H4",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the three-part story: a liquidity catalyst (sweep of equal levels, level break, trendline break), displacement that clears the prior swing structure, and a retracement into a confluence zone",
+    "the confluence zone from the document's own list - the level, a fair value gap, an order block, the 21 EMA, a prior swing, higher-timeframe alignment, RSI divergence - at least two factors",
+    "entries only on the retracement: a resting order at the zone's proximal edge, capped in life, never a chase",
+    "structural invalidation: the stop beyond the zone and the catalyst's extremity with no arbitrary breathing room, and a completed close back through the level closes the trade",
+    "targets as the next liquidity pool; no partials, no break-even, no trail ('manage the trade according to the story, not emotion')",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/universal-strategy.pdf"
+  }
  ]
 }
