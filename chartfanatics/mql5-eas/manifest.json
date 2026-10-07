@@ -536,6 +536,31 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/mean-reversion-strategy.pdf"
+  },
+  {
+   "card": 23,
+   "slug": "measured-move-trend-strategy",
+   "strategy": "Measured Move Trend Strategy",
+   "ea": "EA_CF_MeasuredMove.mq5",
+   "class": "CCfMeasuredMove",
+   "magic": 3226,
+   "timeframe": "H4",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "fractal swing scan (the mechanical trend/structure read)",
+    "trendline through the pullback anchors with the measured move projected from the structure extreme",
+    "rejection trigger on the trendline",
+    "structure stop (trendline/swing) with a buffer",
+    "local Bollinger context (the doc's stretch reading)",
+    "structure-count and shrinking-structure exhaustion gates",
+    "trendline-invalidation exit in Manage()",
+    "daily context filter",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/measured-move-trend-strategy.pdf"
   }
  ]
 }
