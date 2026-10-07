@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R5F_STATARB_GATES,2021,AllEnginesEA,"EURCHF,EURGBP,AUDNZD,EURUSD,GBPUSD,XAUUSD,USDJPY,USDCAD",EURUSD,M15,1.0,8,2,6,-54.82,0.50,55.03,0.009,54.87,2.743,0.30,0.00,LOSS,2026.10.07 11:47

@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R1B_SMC_ORDER_BLOCK,2001,AllEnginesEA,"EURUSD,GBPUSD,XAUUSD",EURUSD,M15,1.0,1,0,1,10.00,0.00,0.02,0.000,0.02,0.001,0.00,0.00,PROFITABLE,2026.10.07 11:47

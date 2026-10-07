@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R4C_24H_MATRIX,2011,AllEnginesEA,"AUDNZD,EURGBP,EURUSD,GBPUSD,XAUUSD,USDCAD",EURUSD,M15,1.5,4,0,4,-75.96,0.00,75.96,0.000,75.96,3.798,0.00,0.00,LOSS,2026.10.07 11:47

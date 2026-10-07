@@ -5,10 +5,12 @@ MQL5/Files/TRIAD_R_HS_*.csv
 # MetaEditor build output
 *.ex5
 *.ex4
+*.log
 
 # Python local artifacts
 __pycache__/
 *.py[cod]
+.freebuff/
 
 # Offline validation data/reports (the frozen registry remains tracked)
 validation/*.csv

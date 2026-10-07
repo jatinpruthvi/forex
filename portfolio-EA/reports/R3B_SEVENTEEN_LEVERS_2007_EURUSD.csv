@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R3B_SEVENTEEN_LEVERS,2007,AllEnginesEA,"EURUSD,GBPUSD,XAUUSD",EURUSD,M15,1.0,2,1,1,0.61,0.52,0.07,7.429,0.07,0.004,0.52,0.45,PROFITABLE,2026.10.07 11:47

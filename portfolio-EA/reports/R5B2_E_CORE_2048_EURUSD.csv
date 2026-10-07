@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R5B2_E_CORE,2048,AllEnginesEA,"EURGBP,AUDNZD,EURUSD,GBPUSD,USDJPY,XAUUSD",EURUSD,M15,1.0,1,0,1,-12.70,0.00,12.70,0.000,12.70,0.635,0.00,0.00,LOSS,2026.10.07 11:47

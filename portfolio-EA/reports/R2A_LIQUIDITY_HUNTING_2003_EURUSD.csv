@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R2A_LIQUIDITY_HUNTING,2003,AllEnginesEA,"EURUSD,GBPUSD,AUDUSD,USDJPY",EURUSD,M15,1.0,3,1,2,0.64,0.68,0.04,17.000,0.02,0.001,0.68,0.66,PROFITABLE,2026.10.07 11:47

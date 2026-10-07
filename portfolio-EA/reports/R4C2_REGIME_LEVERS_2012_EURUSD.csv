@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R4C2_REGIME_LEVERS,2012,AllEnginesEA,"EURUSD,GBPUSD,EURGBP,USDJPY,XAUUSD",EURUSD,M15,1.0,6,2,4,-30.89,0.51,31.40,0.016,31.08,1.554,0.43,0.00,LOSS,2026.10.07 11:47

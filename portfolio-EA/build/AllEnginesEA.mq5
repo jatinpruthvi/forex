@@ -12085,6 +12085,7 @@ input bool   InpSummary             = true;   // print one '[portfolio] ... read
 input bool   InpNewsCalendar        = true;   // engines with a news gate read the terminal
                                               // calendar live (no CSV needed; the tester
                                               // always uses the CSV - it has no calendar)
+input bool   InpLogPerformance      = true;   // log per-strategy performance breakdown (profit, DD, orders, win rate) on deinit
 
 //--- per-strategy switches (magic = strategy) ------------------------------
 //--- After demo testing, untick a strategy here to disable it - no recompile.
@@ -13193,6 +13194,524 @@ void OnTick()
 void OnTimer()
 {
    PortProcess();
+   static datetime lastPerfWrite = 0;
+   if(TimeCurrent() - lastPerfWrite >= 30)
+   {
+      lastPerfWrite = TimeCurrent();
+      PortReportPerformance(false);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Performance accounting and report per strategy                   |
+//+------------------------------------------------------------------+
+struct SPortPerf
+{
+   int      index;
+   long     magic;
+   string   name;
+   string   label;
+   string   symbols;
+   string   tf;
+   int      totalOrders;   // closed round-turn trades
+   int      wins;
+   int      losses;
+   int      breakeven;
+   double   winRatePct;
+   double   grossProfit;
+   double   grossLoss;
+   double   netProfit;     // closed P/L (profit + swap + commission)
+   double   profitFactor;
+   double   maxWinTrade;   // largest single winning trade
+   double   maxLossTrade;  // largest single losing trade
+   double   peakProfit;    // peak cumulative net profit
+   double   maxDd;         // maximum closed drawdown in currency
+   double   maxDdPct;      // max DD as percentage of deposit
+   int      openPos;
+   double   openFloating;
+   string   verdict;       // PROFITABLE, LOSS, BREAKEVEN, NO TRADES
+};
+
+struct SPortPending
+{
+   long   magic;
+   long   posId;
+   double money;
+};
+
+void PortPendingAdd(SPortPending &store[], const long magic, const long posId, const double money)
+{
+   if(posId == 0) return;
+   for(int i = 0; i < ArraySize(store); i++)
+   {
+      if(store[i].magic == magic && store[i].posId == posId)
+      {
+         store[i].money += money;
+         return;
+      }
+   }
+   int n = ArraySize(store);
+   if(ArrayResize(store, n + 1) == n + 1)
+   {
+      store[n].magic = magic;
+      store[n].posId = posId;
+      store[n].money = money;
+   }
+}
+
+double PortPendingTake(SPortPending &store[], const long magic, const long posId)
+{
+   if(posId == 0) return 0.0;
+   for(int i = 0; i < ArraySize(store); i++)
+   {
+      if(store[i].magic == magic && store[i].posId == posId)
+      {
+         double money = store[i].money;
+         ArrayRemove(store, i, 1);
+         return money;
+      }
+   }
+   return 0.0;
+}
+
+long PortExtractMagic(const ulong ticket)
+{
+   long mg = (long)HistoryDealGetInteger(ticket, DEAL_MAGIC);
+   if(mg > 0) return mg;
+   string comment = HistoryDealGetString(ticket, DEAL_COMMENT);
+   if(StringFind(comment, "P") == 0)
+   {
+      int pipe = StringFind(comment, "|");
+      if(pipe > 1)
+      {
+         string numStr = StringSubstr(comment, 1, pipe - 1);
+         long parsed = (long)StringToInteger(numStr);
+         if(parsed > 0) return parsed;
+      }
+   }
+   return 0;
+}
+
+void PortReportPerformance(const bool printLog = true)
+{
+   if(g_portCount <= 0) return;
+
+   datetime toTime = TimeCurrent() + 86400;
+   HistorySelect(0, toTime);
+
+   SPortPerf perf[];
+   ArrayResize(perf, g_portCount);
+
+   double runSum[];
+   double peakVal[];
+   ArrayResize(runSum, g_portCount);
+   ArrayResize(peakVal, g_portCount);
+
+   for(int i = 0; i < g_portCount; i++)
+   {
+      perf[i].index        = i;
+      perf[i].magic        = g_portMagic[i];
+      perf[i].name         = g_portName[i];
+      perf[i].label        = g_portLabel[i];
+      perf[i].symbols      = g_portSymbolsTxt[i];
+      perf[i].tf           = g_portTfTxt[i];
+      perf[i].totalOrders  = 0;
+      perf[i].wins         = 0;
+      perf[i].losses       = 0;
+      perf[i].breakeven    = 0;
+      perf[i].winRatePct   = 0.0;
+      perf[i].grossProfit  = 0.0;
+      perf[i].grossLoss    = 0.0;
+      perf[i].netProfit    = 0.0;
+      perf[i].profitFactor = 0.0;
+      perf[i].maxWinTrade  = 0.0;
+      perf[i].maxLossTrade = 0.0;
+      perf[i].peakProfit   = 0.0;
+      perf[i].maxDd        = 0.0;
+      perf[i].maxDdPct     = 0.0;
+      perf[i].openPos      = 0;
+      perf[i].openFloating = 0.0;
+      perf[i].verdict      = "NO TRADES";
+      runSum[i]            = 0.0;
+      peakVal[i]           = 0.0;
+   }
+
+   //--- detect initial deposit if available
+   double initialDeposit = 0.0;
+   int dealsTotal = HistoryDealsTotal();
+   for(int d = 0; d < dealsTotal; d++)
+   {
+      ulong dt = HistoryDealGetTicket(d);
+      if(dt == 0) continue;
+      long dtype = HistoryDealGetInteger(dt, DEAL_TYPE);
+      if(dtype == DEAL_TYPE_BALANCE)
+      {
+         double prof = HistoryDealGetDouble(dt, DEAL_PROFIT);
+         if(prof > 0.0 && initialDeposit == 0.0)
+         {
+            initialDeposit = prof;
+            break;
+         }
+      }
+   }
+   if(initialDeposit <= 0.0)
+      initialDeposit = AccountInfoDouble(ACCOUNT_BALANCE);
+
+   //--- pass 1: closed trades and DD curve
+   SPortPending pend[];
+   for(int d = 0; d < dealsTotal; d++)
+   {
+      ulong dt = HistoryDealGetTicket(d);
+      if(dt == 0) continue;
+      long mg = PortExtractMagic(dt);
+      if(mg <= 0) continue;
+      int idx = PortIndexOf(mg);
+      if(idx < 0) continue;
+
+      long   dtype = HistoryDealGetInteger(dt, DEAL_TYPE);
+      long   entry = HistoryDealGetInteger(dt, DEAL_ENTRY);
+      long   posId = HistoryDealGetInteger(dt, DEAL_POSITION_ID);
+      double money = HistoryDealGetDouble(dt, DEAL_PROFIT)
+                   + HistoryDealGetDouble(dt, DEAL_SWAP)
+                   + HistoryDealGetDouble(dt, DEAL_COMMISSION);
+      bool isTrade = (dtype == DEAL_TYPE_BUY || dtype == DEAL_TYPE_SELL);
+
+      if(isTrade && entry == DEAL_ENTRY_IN)
+      {
+         PortPendingAdd(pend, mg, posId, money);
+         continue;
+      }
+
+      if(isTrade && (entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY || entry == DEAL_ENTRY_INOUT))
+      {
+         double pl = money + PortPendingTake(pend, mg, posId);
+         perf[idx].totalOrders++;
+         perf[idx].netProfit += pl;
+
+         if(pl > 0.0001)
+         {
+            perf[idx].wins++;
+            perf[idx].grossProfit += pl;
+            if(pl > perf[idx].maxWinTrade) perf[idx].maxWinTrade = pl;
+         }
+         else if(pl < -0.0001)
+         {
+            perf[idx].losses++;
+            perf[idx].grossLoss += MathAbs(pl);
+            if(pl < perf[idx].maxLossTrade) perf[idx].maxLossTrade = pl;
+         }
+         else
+         {
+            perf[idx].breakeven++;
+         }
+
+         runSum[idx] += pl;
+         if(runSum[idx] > peakVal[idx]) peakVal[idx] = runSum[idx];
+         double dd = peakVal[idx] - runSum[idx];
+         if(dd > perf[idx].maxDd) perf[idx].maxDd = dd;
+         continue;
+      }
+
+      //--- other charges/rollovers
+      perf[idx].netProfit += money;
+      runSum[idx] += money;
+      if(runSum[idx] > peakVal[idx]) peakVal[idx] = runSum[idx];
+      double dd = peakVal[idx] - runSum[idx];
+      if(dd > perf[idx].maxDd) perf[idx].maxDd = dd;
+   }
+
+   //--- pass 2: open positions
+   for(int p = PositionsTotal() - 1; p >= 0; p--)
+   {
+      ulong pt = PositionGetTicket(p);
+      if(pt == 0) continue;
+      if(!PositionSelectByTicket(pt)) continue;
+      long mg = (long)PositionGetInteger(POSITION_MAGIC);
+      int idx = PortIndexOf(mg);
+      if(idx >= 0)
+      {
+         perf[idx].openPos++;
+         perf[idx].openFloating += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      }
+   }
+
+   //--- finalize metrics
+   int totalProfitableCount = 0;
+   int totalLosingCount     = 0;
+   int totalInactiveCount   = 0;
+   int totalClosedTrades    = 0;
+   int totalWins            = 0;
+   int totalLosses          = 0;
+   double totalBookNet      = 0.0;
+   double totalProfitablePl = 0.0;
+   double totalLosingPl     = 0.0;
+
+   for(int i = 0; i < g_portCount; i++)
+   {
+      perf[i].peakProfit = peakVal[i];
+      if(perf[i].totalOrders > 0)
+         perf[i].winRatePct = ((double)perf[i].wins / (double)perf[i].totalOrders) * 100.0;
+      if(perf[i].grossLoss > 0.0001)
+         perf[i].profitFactor = perf[i].grossProfit / perf[i].grossLoss;
+      else if(perf[i].grossProfit > 0.0001)
+         perf[i].profitFactor = 999.99;
+      else
+         perf[i].profitFactor = 0.0;
+
+      if(initialDeposit > 0.0)
+         perf[i].maxDdPct = (perf[i].maxDd / initialDeposit) * 100.0;
+
+      double effectivePl = perf[i].netProfit + perf[i].openFloating;
+      if(perf[i].totalOrders == 0 && perf[i].openPos == 0)
+      {
+         perf[i].verdict = "NO TRADES";
+         totalInactiveCount++;
+      }
+      else if(effectivePl > 0.0001)
+      {
+         perf[i].verdict = "PROFITABLE";
+         totalProfitableCount++;
+         totalProfitablePl += effectivePl;
+      }
+      else if(effectivePl < -0.0001)
+      {
+         perf[i].verdict = "LOSS";
+         totalLosingCount++;
+         totalLosingPl += effectivePl;
+      }
+      else
+      {
+         perf[i].verdict = "BREAKEVEN";
+      }
+
+      totalClosedTrades += perf[i].totalOrders;
+      totalWins         += perf[i].wins;
+      totalLosses       += perf[i].losses;
+      totalBookNet      += effectivePl;
+   }
+
+   //--- sort descending by net profit (active highest first, then inactive)
+   SPortPerf sorted[];
+   ArrayResize(sorted, g_portCount);
+   for(int i = 0; i < g_portCount; i++) sorted[i] = perf[i];
+
+   for(int i = 0; i < g_portCount - 1; i++)
+   {
+      for(int j = i + 1; j < g_portCount; j++)
+      {
+         bool jActive = (sorted[j].totalOrders > 0 || sorted[j].openPos > 0);
+         bool iActive = (sorted[i].totalOrders > 0 || sorted[i].openPos > 0);
+         bool swapNeeded = false;
+
+         if(jActive && !iActive)
+            swapNeeded = true;
+         else if(jActive && iActive)
+         {
+            double jPl = sorted[j].netProfit + sorted[j].openFloating;
+            double iPl = sorted[i].netProfit + sorted[i].openFloating;
+            if(jPl > iPl)
+               swapNeeded = true;
+         }
+         else if(!jActive && !iActive)
+         {
+            if(sorted[j].magic < sorted[i].magic)
+               swapNeeded = true;
+         }
+
+         if(swapNeeded)
+         {
+            SPortPerf tmp = sorted[i];
+            sorted[i] = sorted[j];
+            sorted[j] = tmp;
+         }
+      }
+   }
+
+   //--- prepare whitelist and blacklist strings
+   string profitableList = "";
+   string losingList     = "";
+   string inactiveList   = "";
+
+   for(int i = 0; i < g_portCount; i++)
+   {
+      string mStr = IntegerToString(sorted[i].magic);
+      if(sorted[i].verdict == "PROFITABLE")
+      {
+         if(StringLen(profitableList) > 0) profitableList += ",";
+         profitableList += mStr;
+      }
+      else if(sorted[i].verdict == "LOSS")
+      {
+         if(StringLen(losingList) > 0) losingList += ",";
+         losingList += mStr;
+      }
+      else if(sorted[i].verdict == "NO TRADES")
+      {
+         if(StringLen(inactiveList) > 0) inactiveList += ",";
+         inactiveList += mStr;
+      }
+   }
+
+   //--- WRITE CSV REPORTS TO Common\Files\EA_TestReports
+   string repDir = "EA_TestReports";
+   FolderCreate(repDir, FILE_COMMON);
+
+   // 1. Master summary CSV with all 65 strategies ranked
+   string masterFile = repDir + "/00_STRATEGY_PERFORMANCE_SUMMARY.csv";
+   int hm = FileOpen(masterFile, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(hm != INVALID_HANDLE)
+   {
+      FileWriteString(hm, "Rank,Magic,Tag,Strategy,Orders,Wins,Losses,WinRatePct,NetProfit,GrossProfit,GrossLoss,ProfitFactor,MaxDrawdown,MaxWinTrade,PeakProfit,Verdict,EnableInput\r\n");
+      for(int i = 0; i < g_portCount; i++)
+      {
+         FileWriteString(hm, StringFormat("%d,%d,P%d|,\"%s\",%d,%d,%d,%.1f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%s,InpRun_%d\r\n",
+            i + 1,
+            (int)sorted[i].magic,
+            (int)sorted[i].magic,
+            sorted[i].label,
+            sorted[i].totalOrders,
+            sorted[i].wins,
+            sorted[i].losses,
+            sorted[i].winRatePct,
+            sorted[i].netProfit + sorted[i].openFloating,
+            sorted[i].grossProfit,
+            sorted[i].grossLoss,
+            sorted[i].profitFactor,
+            sorted[i].maxDd,
+            sorted[i].maxWinTrade,
+            sorted[i].peakProfit,
+            sorted[i].verdict,
+            (int)sorted[i].magic));
+      }
+      FileWriteString(hm, "\r\nSUMMARY\r\n");
+      FileWriteString(hm, StringFormat("InitialDeposit,%.2f\r\n", initialDeposit));
+      FileWriteString(hm, StringFormat("TotalClosedOrders,%d\r\n", totalClosedTrades));
+      FileWriteString(hm, StringFormat("TotalWins,%d\r\n", totalWins));
+      FileWriteString(hm, StringFormat("TotalLosses,%d\r\n", totalLosses));
+      FileWriteString(hm, StringFormat("PortfolioNetPL,%.2f\r\n", totalBookNet));
+      FileWriteString(hm, StringFormat("ProfitableStrategiesCount,%d\r\n", totalProfitableCount));
+      FileWriteString(hm, StringFormat("ProfitableStrategiesGain,%.2f\r\n", totalProfitablePl));
+      FileWriteString(hm, StringFormat("LosingStrategiesCount,%d\r\n", totalLosingCount));
+      FileWriteString(hm, StringFormat("LosingStrategiesLoss,%.2f\r\n", totalLosingPl));
+      FileWriteString(hm, StringFormat("InactiveStrategiesCount,%d\r\n", totalInactiveCount));
+      FileWriteString(hm, StringFormat("InpOnlyMagics_Whitelist,\"%s\"\r\n", profitableList));
+      FileWriteString(hm, StringFormat("InpDisableMagics_Blacklist,\"%s\"\r\n", losingList));
+      FileClose(hm);
+   }
+
+   // 2. Overwrite each individual strategy's CSV with its REAL individual stats
+   for(int i = 0; i < g_portCount; i++)
+   {
+      string sFile = repDir + "/" + g_portLabel[i] + "_" + IntegerToString(g_portMagic[i]) + "_" + _Symbol + ".csv";
+      int hs = FileOpen(sFile, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+      if(hs != INVALID_HANDLE)
+      {
+         FileWriteString(hs,
+            "strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct," +
+            "trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss," +
+            "profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time\r\n");
+         FileWriteString(hs, StringFormat(
+            "%s,%d,%s,\"%s\",%s,%s,%s," +
+            "%d,%d,%d,%.2f,%.2f,%.2f," +
+            "%.3f,%.2f,%.3f,%.2f,%.2f,%s,%s\r\n",
+            g_portLabel[i], (int)g_portMagic[i], MQLInfoString(MQL_PROGRAM_NAME),
+            g_portSymbolsTxt[i], _Symbol, g_portTfTxt[i], g_portRiskTxt[i],
+            perf[i].totalOrders,
+            perf[i].wins,
+            perf[i].losses,
+            perf[i].netProfit + perf[i].openFloating,
+            perf[i].grossProfit,
+            perf[i].grossLoss,
+            perf[i].profitFactor,
+            perf[i].maxDd,
+            perf[i].maxDdPct,
+            perf[i].maxWinTrade,
+            perf[i].peakProfit,
+            perf[i].verdict,
+            TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES)));
+         FileClose(hs);
+      }
+   }
+
+   if(!printLog) return;
+
+   //--- print formatted log report to Journal
+   Print("========================================================================================================================");
+   Print("[PORTFOLIO TEST REPORT] STRATEGY PERFORMANCE BREAKDOWN (SORTED BY NET PROFIT)");
+   Print("========================================================================================================================");
+   Print("Rank | Magic | Tag     | Strategy Name            | Orders | Wins | Loss |  Win% | Net Profit |   Max DD   | Max Win Trd| Peak Profit| Verdict");
+   Print("-----+-------+---------+--------------------------+--------+------+------+-------+------------+------------+------------+------------+-----------");
+
+   int rank = 1;
+   for(int i = 0; i < g_portCount; i++)
+   {
+      if(sorted[i].totalOrders == 0 && sorted[i].openPos == 0) continue;
+
+      PrintFormat("#%-2d  | %-5d | P%-4d| | %-24s | %6d | %4d | %4d | %5.1f%%| %+10.2f | %10.2f | %10.2f | %10.2f | %s",
+                  rank,
+                  (int)sorted[i].magic,
+                  (int)sorted[i].magic,
+                  StringSubstr(sorted[i].label, 0, 24),
+                  sorted[i].totalOrders,
+                  sorted[i].wins,
+                  sorted[i].losses,
+                  sorted[i].winRatePct,
+                  sorted[i].netProfit + sorted[i].openFloating,
+                  sorted[i].maxDd,
+                  sorted[i].maxWinTrade,
+                  sorted[i].peakProfit,
+                  sorted[i].verdict);
+      rank++;
+   }
+
+   Print("------------------------------------------------------------------------------------------------------------------------");
+   PrintFormat("[SUMMARY] Initial Deposit: $%.2f | Total Closed Orders: %d (Wins: %d, Loss: %d) | Total Net P/L: %+$%.2f",
+               initialDeposit, totalClosedTrades, totalWins, totalLosses, totalBookNet);
+   PrintFormat("Profitable Strategies : %d engines (Total Gain: +$%.2f)", totalProfitableCount, totalProfitablePl);
+   PrintFormat("Losing Strategies     : %d engines (Total Loss: -$%.2f)", totalLosingCount, MathAbs(totalLosingPl));
+   PrintFormat("Inactive Strategies   : %d engines (0 orders placed)", totalInactiveCount);
+
+   if(totalProfitableCount > 0)
+   {
+      PrintFormat("Top Strategy          : Magic %d (%s) -> Profit: %+$%.2f | Max DD: $%.2f | Orders: %d | Win Rate: %.1f%%",
+                  (int)sorted[0].magic, sorted[0].label, sorted[0].netProfit + sorted[0].openFloating, sorted[0].maxDd, sorted[0].totalOrders, sorted[0].winRatePct);
+   }
+
+   Print("------------------------------------------------------------------------------------------------------------------------");
+   Print(">>> ACTIONABLE STRATEGY SELECTION (COPY-PASTE READY) <<<");
+   PrintFormat("To test or trade ONLY profitable strategies, paste this into 'InpOnlyMagics':");
+   PrintFormat("InpOnlyMagics = \"%s\"", profitableList);
+   PrintFormat("To disable all losing strategies, paste this into 'InpDisableMagics':");
+   PrintFormat("InpDisableMagics = \"%s\"", losingList);
+   if(StringLen(inactiveList) > 0)
+   {
+      PrintFormat("Inactive strategies (0 orders): %s", inactiveList);
+   }
+   Print("------------------------------------------------------------------------------------------------------------------------");
+   Print("[CSV DATA START]");
+   Print("Rank,Magic,Tag,Strategy,Orders,Wins,Losses,WinRatePct,NetProfit,MaxDD,MaxWinTrade,PeakProfit,Verdict");
+   for(int i = 0; i < g_portCount; i++)
+   {
+      if(sorted[i].totalOrders > 0 || sorted[i].openPos > 0)
+      {
+         PrintFormat("%d,%d,P%d|,%s,%d,%d,%d,%.1f,%.2f,%.2f,%.2f,%.2f,%s",
+                     i + 1,
+                     (int)sorted[i].magic,
+                     (int)sorted[i].magic,
+                     sorted[i].label,
+                     sorted[i].totalOrders,
+                     sorted[i].wins,
+                     sorted[i].losses,
+                     sorted[i].winRatePct,
+                     sorted[i].netProfit + sorted[i].openFloating,
+                     sorted[i].maxDd,
+                     sorted[i].maxWinTrade,
+                     sorted[i].peakProfit,
+                     sorted[i].verdict);
+      }
+   }
+   Print("[CSV DATA END]");
+   Print("========================================================================================================================");
 }
 
 void OnDeinit(const int reason)
@@ -13206,6 +13725,8 @@ void OnDeinit(const int reason)
       EA_Deinit(reason);            // tester: one result row per strategy
       g_portEnabled[i] = false;
    }
+   if(InpLogPerformance)
+      PortReportPerformance(true);
    for(int i = 0; i < g_portCount; i++)      // also the disabled/failed engines
       if(g_portStrategy[i] != NULL)
       {

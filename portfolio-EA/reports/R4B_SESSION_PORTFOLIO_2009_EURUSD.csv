@@ -1,0 +1,2 @@
+strategy,magic,expert,symbols,test_symbol,timeframe,risk_pct,trades,profit_trades,loss_trades,net_profit,gross_profit,gross_loss,profit_factor,max_drawdown,equity_dd_pct,max_win_trade,peak_profit,verdict,end_time
+R4B_SESSION_PORTFOLIO,2009,AllEnginesEA,"EURUSD,GBPUSD,XAUUSD,AUDNZD,EURCHF,GBPJPY,USDJPY",EURUSD,M15,1.5,1,0,1,-28.09,0.00,30.64,0.000,30.64,1.532,0.00,0.00,LOSS,2026.10.07 11:47
