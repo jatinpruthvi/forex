@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "9779ca7dce99d38d8c701de4e11b17de1a74e570cde7999b3cbcd13e873cf168",
+  "acceptance_hash": "b8eb5025126f754b4e21a06376c56a8ad1132b7ceea5b91079ab99748e878680",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_Intraday_Liquidity.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
-    "tests/test_chartfanatics_sync.py#other_cards": "81d8c20f9050870e1d0e42a5e754593659ce38f00e30200ed1660873742b10f0"
+    "tests/test_chartfanatics_sync.py#machinery": "98f26e0a8f9acbbf4c60a1fcd360f2e6a0f0ec295f9eff2ae859bdcbf3d93711",
+    "tests/test_chartfanatics_sync.py#other_cards": "a8f1feca7f4cab0d581b286487fd3d7e5f31601e7c65d2fd44aeb4b3b06fe2d6"
   },
   "magic": 3206,
-  "planned_at": "2026-10-07T16:23:31Z",
+  "planned_at": "2026-10-07T16:32:52Z",
   "rule_count": 15,
   "slug": "intraday-liquidity-volatility-model",
   "source": "chartfanatics/pdf/intraday-liquidity-volatility-model.pdf",

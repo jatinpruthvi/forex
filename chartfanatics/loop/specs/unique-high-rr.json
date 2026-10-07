@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "b027c67dee5a5bfb9a189c7902e9d51a47ac9fcb9d595d552db7d7f49acb9108",
+  "acceptance_hash": "4df1e926b62a52b31931a9b0cd7907c36939083165e13ee0b8e7ac34ad627515",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,12 +20,12 @@
   "ea": "EA_CF_UniqueHighRr.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
+    "tests/test_chartfanatics_sync.py#machinery": "98f26e0a8f9acbbf4c60a1fcd360f2e6a0f0ec295f9eff2ae859bdcbf3d93711",
     "tests/test_chartfanatics_sync.py#other_cards": "b9a4b88cd847771094210bd2509a95e6817b0bd115fc718a6f6e027bd253bea3"
   },
   "magic": 3245,
-  "planned_at": "2026-10-07T16:23:32Z",
-  "rule_count": 3,
+  "planned_at": "2026-10-07T16:32:52Z",
+  "rule_count": 50,
   "slug": "unique-high-rr",
   "source": "chartfanatics/pdf/unique-high-rr.pdf",
   "spec_version": 1,

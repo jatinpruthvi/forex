@@ -952,5 +952,27 @@
    ],
    "source": "chartfanatics/pdf/trendline-strategy.pdf"
   }
+,
+  {
+   "card": 42,
+   "slug": "unique-high-rr",
+   "strategy": "Unique High RR",
+   "ea": "EA_CF_UniqueHighRr.mq5",
+   "class": "CCfUniqueHighRr",
+   "magic": 3245,
+   "timeframe": "M30",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the New York clock: entries only inside 03:00-06:30 NY, the FVG only between 02:30 and 04:00 NY, converted server -> UTC -> NY with the US DST rule",
+    "the Trident Pattern: a three-candle fair value gap, its 50% (consequent encroachment) mark, a small-bodied doji whose range contains that 50%, and the confirmation close relative to the doji's extreme",
+    "the entry two ways: market on the confirmation candle, or a resting limit at the FVG 50% whose life never outlives the kill zone",
+    "the frame: 5 / 9 / 13 / 21 EMAs clearly stacked in the trade's direction, daily 200-EMA bias (above = longs only, below = shorts only)",
+    "the stop: below the low of the FVG candle, with the document's gold exception (no hard stop; a completed close beyond the level decides)",
+    "the exits: the daily-structure target, the EMA stack flip, the significant opposing candle that invalidates the structure",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/unique-high-rr.pdf"
+  }
  ]
 }

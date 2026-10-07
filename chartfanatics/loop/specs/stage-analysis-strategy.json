@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "a5f65cd1e8226833670553e194248a10aae5620c07c61f4382ecc4e4f3a61adb",
+  "acceptance_hash": "4b509143b63c96162c5ffab131db946f5063d4313c7ee97cd89c103951ef9f40",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_StageAnalysisStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
-    "tests/test_chartfanatics_sync.py#other_cards": "b4c02ae2ec943de4cb0c1dc982d103567872c3f0b7c56fe3d1041be8af79ded4"
+    "tests/test_chartfanatics_sync.py#machinery": "98f26e0a8f9acbbf4c60a1fcd360f2e6a0f0ec295f9eff2ae859bdcbf3d93711",
+    "tests/test_chartfanatics_sync.py#other_cards": "d6440847f7bc2bef72d444489ae7777836eb76a768b589b4b7bf4ee8ec0fe2ef"
   },
   "magic": 3239,
-  "planned_at": "2026-10-07T16:23:32Z",
+  "planned_at": "2026-10-07T16:32:52Z",
   "rule_count": 41,
   "slug": "stage-analysis-strategy",
   "source": "chartfanatics/glimpse/VDK200OHNSo.md",

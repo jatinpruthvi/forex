@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "1793f4f7768876c9596e4b9e31ea3efc994de243695dec2ad0e692d0dd83329f",
+  "acceptance_hash": "5c46d81e234758640b67d39ef172e4e1150b7667b65408359dab9e3f279a37f4",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_VixFuturesStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
-    "tests/test_chartfanatics_sync.py#other_cards": "2a9a7deb627167a178a6aed2f896c90aff3450e4a7ff9c2796df209c65eb532d"
+    "tests/test_chartfanatics_sync.py#machinery": "98f26e0a8f9acbbf4c60a1fcd360f2e6a0f0ec295f9eff2ae859bdcbf3d93711",
+    "tests/test_chartfanatics_sync.py#other_cards": "8cb61a879a5553ead8ab09dd22d4fdb85fbefe7bb30f20f51124b2c4fdc31e1b"
   },
   "magic": 3241,
-  "planned_at": "2026-10-07T16:23:32Z",
+  "planned_at": "2026-10-07T16:32:52Z",
   "rule_count": 43,
   "slug": "the-vix-futures-strategy",
   "source": "chartfanatics/pdf/the-vix-futures-strategy.pdf",

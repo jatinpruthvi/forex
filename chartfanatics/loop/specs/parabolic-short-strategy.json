@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "6b4ea479fed416d50424a8499239d684f8ae6419ca950e5aee1cd6aa7ac5a47b",
+  "acceptance_hash": "eff9d2461c55dcf7aef798b82a403d7ac62f8450e890c4614337846dc6316dc3",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_ParabolicShort.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "8f081044fef3483955a06b0323ff63f521ae068a47781c07483b400203bf1607",
-    "tests/test_chartfanatics_sync.py#other_cards": "d9833649e9ee08c66825ded1a6681dcaf919461758db825427cbae1a76aa515e"
+    "tests/test_chartfanatics_sync.py#machinery": "98f26e0a8f9acbbf4c60a1fcd360f2e6a0f0ec295f9eff2ae859bdcbf3d93711",
+    "tests/test_chartfanatics_sync.py#other_cards": "a999e9da14b6c1bacc6d57a2619c53a43976620c974925e13feae847cd89a7fc"
   },
   "magic": 3233,
-  "planned_at": "2026-10-07T16:23:32Z",
+  "planned_at": "2026-10-07T16:32:52Z",
   "rule_count": 34,
   "slug": "parabolic-short-strategy",
   "source": "chartfanatics/pdf/parabolic-short-strategy.pdf",

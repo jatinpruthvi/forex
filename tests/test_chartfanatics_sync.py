@@ -162,6 +162,30 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_UniqueHighRr (card #42): TG Capital's "Unique High RR" - the Trident Pattern, traded only
+    inside the London kill zone.  The clock is the document's: entries "between 3:00 AM and 6:30 AM New
+    York time", the three-candle FVG itself "between 2:30 and 4:00 AM" ("ignore FVGs outside the kill
+    zone").  The engine knows London and server clocks only, so the EA converts server -> UTC -> New York
+    with the US DST rule and the explicit conversion is disclosed in the header.  The pattern is the
+    document's sequence on the 30-minute chart: a three-candle fair value gap, its 50% level (consequent
+    encroachment) marked, "a small-bodied doji candle must form next" whose range contains that 50%, and
+    then "the candle after the doji must close below the doji high.  If it closes above the doji high,
+    the trade is invalid".  Entry is either "on that confirmation candle" or as "a limit at the FVG 50%
+    if you're early" - the resting order's life is capped by the kill zone's end, so entries stay inside
+    the window the document insists on.  The frame is the document's too: the 5 / 9 / 13 / 21 EMAs "must
+    be clearly stacked in the direction of the trade ... if they are crossing or tangled, the setup is
+    invalid", and the daily 200 EMA gives the side ("above 200 EMA -> only take longs").  The stop is
+    "below the low of the candle that forms FVG", and on gold the document's own exception is coded:
+    "a hard stop isn't used ... a closing candle filter prevents getting stopped out prematurely" - the
+    hard stop is moved out of wick range and a completed close beyond the level is the exit.  The daily
+    chart supplies the target ("used ... to target take-profit levels") and the two stated management
+    rules run in Manage(): "the EMAs begin to reverse direction" and "a significant bearish candlestick
+    appears that invalidates the current structure".  "[interpretation]": the doji body threshold, the
+    stop buffer and width cap, the gold disaster stop, the daily swing width / lookback / minimum target
+    distance, the far fallback target, the "significant" candle body, the attempt and open-position caps,
+    the "clean" gap that only raises the score.  Disclosed, not faked: the "Bull Trading Candle Strength"
+    indicator is a proprietary four-state classifier; the EA has no such feed, says so, and implements the
+    two momentum reads the document does state as rules (the stack and the 200 EMA).
   * EA_CF_TrendlineStrategy (card #41): Tori Trade's Action Line / Safety Line pair - the bounce ("enter
     when the price reaches or tests the trendline") and the 2T/3T break ("enter when the price breaks
     through an established trendline").  The lines are drawn by rule, because an EA cannot read a
@@ -2342,6 +2366,108 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"manually drawn trendlines\" are drawn here",
          'the document assumes hand-drawn lines; the EA says out loud what it draws instead'),
     ],
+    "EA_CF_UniqueHighRr.mq5": [
+        (r"cfg\.signalTimeframe       = PERIOD_M30;",
+         '"30-minute chart is the only chart used to find the entry"'),
+        (r"input string            InpSymbolsToTrade     = \"EURUSD,GBPUSD,USDJPY,NZDUSD,USDCAD,XAUUSD\";",
+         'the document\'s "Valid Pairs" list, exactly as printed'),
+        (r"int nowNy = NyMinutesOfDay\(TimeTradeServer\(\)\);",
+         '"Only trades between 3:00 AM and 6:30 AM New York time ... Entries must occur inside this window"'),
+        (r"if\(!InWindow\(nowNy, InpKzStartHourNy, InpKzStartMinNy, InpKzEndHourNy, InpKzEndMinNy\)\) return false;",
+         '... and no plan is built outside it'),
+        (r"int fvgNy = NyMinutesOfDay\(d\[3\]\.time\);",
+         '"Look for a 3-candle FVG to form on the 30M chart - must occur between 2:30 and 4:00 AM"'),
+        (r"if\(!InWindow\(fvgNy, InpFvgStartHourNy, InpFvgStartMinNy, InpFvgEndHourNy, InpFvgEndMinNy\)\) return false;",
+         '"Ignore FVGs outside the kill zone"'),
+        (r"bool InDstWindow\(const datetime nyLocal\)",
+         'the document\'s New York clock: the engine knows London and server only, so the EA converts server -> UTC -> NY'),
+        (r"datetime start = NthSunday\(dt\.year, 3, 2, 2\);   // 2nd Sunday of March, 02:00",
+         '... with the US DST rule, so the windows are exact all year (disclosed in the header)'),
+        (r"cfg\.clock                 = EA_CLOCK_SERVER;",
+         'the clock itself is left to the server; every window above is converted explicitly'),
+        (r"cfg\.signalOnNewBarOnly    = true;",
+         'one decision per completed 30-minute bar'),
+        (r"input bool              InpRequireStack       = true;",
+         '"These EMAs must be clearly stacked in the direction of the trade.  If they are crossing or tangled, the setup is invalid"'),
+        (r"if\(InpRequireStack && !StackOrdered\(ctx\.symbol, dir, ctx\.atr\)\) return false;",
+         '... the gate'),
+        (r"if\(InpExitOnStackFlip && !StackOrdered\(ctx\.symbol, isLong \? \+1 : -1, ctx\.atr\)\)",
+         '"The EMAs begin to reverse direction, signaling a potential shift in trend"'),
+        (r"double f = EmaVal\(s\.hFast, 1\), m1 = EmaVal\(s\.hMid1, 1\), m2 = EmaVal\(s\.hMid2, 1\), sl = EmaVal\(s\.hSlow, 1\);",
+         'the four EMAs of the stack, read on the entry frame\'s last closed bar'),
+        (r"if\(dir > 0\) return \(f > m1 \+ gap && m1 > m2 \+ gap && m2 > sl \+ gap\);",
+         'the ordering that "clearly stacked" means, direction-aware'),
+        (r"n\.hFast = iMA\(sym, g_eaIndTf, InpEmaFast, 0, MODE_EMA, PRICE_CLOSE\);",
+         '"5 EMA"'),
+        (r"n\.hSlow = iMA\(sym, g_eaIndTf, InpEmaSlow, 0, MODE_EMA, PRICE_CLOSE\);",
+         '"21 EMA" (and the 9 / 13 beside them)'),
+        (r"input int               InpEmaBiasPeriod      = 200;",
+         '"200 EMA: for trend bias"'),
+        (r"n\.hBias = iMA\(sym, PERIOD_D1,     InpEmaBiasPeriod, 0, MODE_EMA, PRICE_CLOSE\);",
+         '... read on the daily chart the document uses for bias'),
+        (r"if\(d\[0\]\.close > ema\) return \+1;",
+         '"Above 200 EMA -> only take longs"'),
+        (r"if\(d\[0\]\.close < ema\) return -1;",
+         '"Below 200 EMA -> only take shorts"'),
+        (r"if\(!\(d\[3\]\.low > d\[5\]\.high\)\) return false;",
+         'a bullish 3-candle FVG: the third candle\'s low above the first candle\'s high'),
+        (r"if\(!\(d\[3\]\.high < d\[5\]\.low\)\) return false;",
+         'the bearish mirror - "the model is directional and can be applied to both longs and shorts"'),
+        (r"double mid = \(gapLow \+ gapHigh\) / 2\.0;",
+         '"Identify the 50% Level (Consequent Encroachment) - mark the midpoint of the FVG"'),
+        (r"if\(body > rng \* InpDojiBodyMaxPct / 100\.0\) return false;",
+         '"A small-bodied doji candle must form next" - the body threshold is labelled [interpretation]'),
+        (r"if\(!\(d\[2\]\.low <= mid && d\[2\]\.high >= mid\)\) return false;",
+         '"The candle must wick into the FVG 50% zone" - the midpoint is inside the doji\'s range'),
+        (r"if\(dir > 0\) \{ if\(!\(d\[1\]\.close < d\[2\]\.high\)\) return false; \}",
+         '"The candle after the doji must close below the doji high.  If it closes above the doji high, the trade is invalid"'),
+        (r"else        \{ if\(!\(d\[1\]\.close > d\[2\]\.low\)\)  return false; \}",
+         'the short mirror of that confirmation, which the document leaves implicit'),
+        (r"bool canRest = \(InpUseLimitAtMid && \(KzEndServer\(\) - TimeTradeServer\(\) > \(datetime\)120\)\);",
+         '"place a limit at the FVG 50% if you\'re early"'),
+        (r"double entry = canRest \? mid : \(\(dir > 0\) \? ctx\.ask : ctx\.bid\);",
+         '"You can enter the market on that confirmation candle"'),
+        (r"p\.expiry = \(exp < kz\) \? exp : kz;",
+         'the resting order never outlives the kill zone - entries stay inside the window'),
+        (r"double structural = \(dir > 0\) \? MathMin\(d\[3\]\.low, d\[4\]\.low\) - InpStopBufferAtr \* ctx\.atr",
+         '"Stop Loss: Below the low of the candle that forms FVG"'),
+        (r"bool closeStop = \(InpGoldCloseStop && StringFind\(ctx\.symbol, \"XAU\"\) >= 0\);",
+         '"On Gold, a hard stop isn\'t used"'),
+        (r"hardStop = \(dir > 0\) \? structural - InpGoldDisasterAtr \* ctx\.atr",
+         '... but the risk stays bounded by a far hard stop while the closing candle decides'),
+        (r"if\(lvl > 0\.0 && \(isLong \? \(m\[1\]\.close < lvl\) : \(m\[1\]\.close > lvl\)\)\)",
+         '"Using a closing candle filter prevents getting stopped out prematurely"'),
+        (r"double tgt = DailyTarget\(ctx\.symbol, dir, entry, risk\);",
+         '"The daily chart is used ... to target take-profit levels"'),
+        (r"if\(dir > 0 && hi && d\[i\]\.high > entry \+ InpMinTargetR \* risk\)",
+         'the nearest daily swing high beyond the minimum distance is the target'),
+        (r"if\(InpExitOnBigCandle && InvalidCandle\(m, got, isLong, ctx\.atr\)\)",
+         '"A significant bearish candlestick appears that invalidates the current structure"'),
+        (r"if\(body < InpInvalidBodyAtr \* atr\) return false;",
+         '"significant" made numeric in 30M ATR - an input, labelled [interpretation]'),
+        (r"bool beyond = isLong \? \(m\[1\]\.close < swing\) : \(m\[1\]\.close > swing\);",
+         '... and "invalidates the current structure" is the close beyond the structure swing'),
+        (r"cfg\.partial1AtR           = 0\.0;",
+         '"Price may go +10R and pull back to +5R before running again" - so no partials are layered on the model'),
+        (r"cfg\.breakEvenAtR          = 0\.0;",
+         'no break-even rule is stated'),
+        (r"cfg\.trailAtR              = 0\.0;",
+         'no R trail is stated - the document\'s own exits are the exits'),
+        (r"cfg\.timeStopMinutes       = 0;",
+         'no clock exit either: "ride the trend for as long as it remains intact"'),
+        (r"if\(SetupBusy\(SetupIndex\(dir\)\)\) continue;",
+         'one live position per approach - the portfolio layer the document describes'),
+        (r"cfg\.maxTradesPerDay       = InpMaxTradesPerDay;",
+         '"Quality over quantity" - a small daily attempt budget'),
+        (r"cfg\.maxOpenPositions      = InpMaxOpenPositions;",
+         '"Scale through portfolio, not leverage" - the open-position cap'),
+        (r"if\(\(gapHigh - gapLow\) >= InpCleanGapAtr \* ctx\.atr\) p\.score \+= 3\.0;",
+         '"Look for a 3-candle FVG ... a clean 3-candle Fair Value Gap" - a clean gap only raises the score'),
+        (r"cfg\.maxCostR              = InpMaxCostR;",
+         'the cost gate every house EA carries - the document is explicit that fees consume the edge'),
+        (r"Bull Trading Candle Strength",
+         'the proprietary four-state candle classifier is disclosed as not simulated, never faked'),
+    ],
 }
 
 
@@ -2383,7 +2509,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_VixFuturesStrategy.mq5",
                      "EA_CF_TradingFirstPrinciplesFramework.mq5",
                      "EA_CF_TrendlineBreakPocketStrategy.mq5",
-                     "EA_CF_TrendlineStrategy.mq5"):
+                     "EA_CF_TrendlineStrategy.mq5",
+                     "EA_CF_UniqueHighRr.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
