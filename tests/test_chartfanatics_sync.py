@@ -22,6 +22,13 @@ EA source too, so an invention can never quietly become a "documented rule":
   * EA_CF_AlgoPortfolioMonitor: the source is a process document, so the EA is a portfolio monitor
     (never trades) that applies its ranking filters to live deal history; Sharpe / UPI are not
     computable from deal history alone, so the return/DD ratio the same page quotes is reported.
+  * EA_CF_AuctionMarket (card #05): the playbook reads footprint prints and CVD; the engine has bars,
+    so the profile is built from tick volume and "aggression" is body + above-average volume. The
+    trend model's "target the previous balance POC" is projected one value-area width beyond the POC
+    (price has already left it); the CVD-early break-even is the engine's 1R break-even.
+  * EA_CF_AuctionMarketTheory (card #06): same tick-volume profile proxy; the 70% value area is the
+    standard convention (the doc does not quantify it); the doc's order-flow exit is a custom
+    Manage() that closes on a strong opposing body back through value once the trade is in profit.
 """
 from __future__ import annotations
 
@@ -217,6 +224,63 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"InpScanMinutes\s*=\s*240;", '"continuous monitoring rather than passive automation"'),
     ],
 
+    # ------------------------------------------------- Auction Market (card #05)
+    "EA_CF_AuctionMarket.mq5": [
+        (r"input double\s+InpRiskPct\s*=\s*0\.40;", '"keep risk small, 0.25% to 0.5% of the account per trade"'),
+        (r'double target = \(dir > 0\) \? prev\.poc \+ width : prev\.poc - width;',
+         'step 5: "target the previous balance POC" (projected one value-area width for the trend model)'),
+        (r'double target = prev\.poc;', 'MR model: "target the balance POC (center of value). Exit full position there"'),
+        (r"bool outOfBalance = \(MathAbs\(ctx\.mid - prev\.poc\) > InpImbalanceAtr \* ctx\.atr\)",
+         'step 1: "market state - read whether the market is in balance or out of balance"'),
+        (r"ctx\.adx14 >= InpMinAdx", "imbalance needs displacement AND momentum"),
+        (r"LowestVolumeNode\(ctx\.symbol, 1, InpLegBars, ctx\.mid, extreme, lvn\)",
+         'step 2: "identify Low-Volume Nodes (LVNs) inside that move"'),
+        (r"if\(dir > 0 && !\(r\[1\]\.low <= lvn \+ tol\)\) continue;",
+         'step 2: the pullback must reach the node - "place alerts just before LVNs"'),
+        (r"bool AggressiveBar", 'no aggression = no trade ("only enter when you see aggression")'),
+        (r"EA_BodyRatio\(r\[1\]\) < bodyMin\) return false;", "aggression shows in the candle body"),
+        (r"InpAggressionVol", "aggression needs above-average volume (big prints proxy)"),
+        (r"double print = \(dir > 0\) \? MathMin\(r\[1\]\.low, MathMin\(r\[2\]\.low, r\[3\]\.low\)\)",
+         'step 4: "place just beyond the aggressive print"'),
+        (r'InpStopBufferTicks\s*=\s*2;', '"add a 1-2 tick buffer before the obvious swing high/low"'),
+        (r"InpNyFromMin\s*=\s*870;", '"works best in the New York session (NASDAQ, ES)"'),
+        (r"InpLdnFromMin\s*=\s+480;", '"works best in the London session" (mean-reversion model)'),
+        (r"bool backIn = \(dir > 0\) \? \(r\[i\]\.close > edge\)", 'step 1 MR: "watch for the price to push out of balance and then fail"'),
+        (r"if\(failIdx <= 2\) continue;", '"do not take the first move back - that\'s risky"'),
+        (r"cfg\.breakEvenAtR\s*=\s*1\.0;", "break-even management (the CVD-early variant is documented as unavailable)"),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", "[interpretation] order-flow scalping with bar data -> M5"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+    # ----------------------------------------- Auction Market Theory (card #06)
+    "EA_CF_AuctionMarketTheory.mq5": [
+        (r"if\(!BuildProfile\(ctx\.symbol, 1, InpValueBars, prev\)\) return false;",
+         "the value area (fair value) is the reference for every setup"),
+        (r"input double\s+InpValueAreaPct\s*=\s*0\.70;", "[interpretation] 70% value area (the doc does not quantify it)"),
+        (r"bool FailedAuction\(SEAContext &ctx, const SVolProfile &prev, SSignalPlan &plan\)",
+         '"Failed auctions below/above value (reversal long/short)"'),
+        (r"bool backIn = \(dir > 0\) \? \(r\[i\]\.close > edge\) : \(r\[i\]\.close < edge\);",
+         '"price moves below a fair value area ... if those sellers fail ... the rejection of lower prices"'),
+        (r"if\(!StrongBody\(ctx, dir, InpAcceptBody\)\) continue;",
+         '"the entry occurs when buyers clearly take control after the failed attempt"'),
+        (r"double print = \(dir > 0\) \? r\[failIdx\]\.low : r\[failIdx\]\.high;",
+         '"the stop is placed below the area where sellers attempted to dominate"'),
+        (r"double target = \(dir > 0\) \? MathMax\(prev\.poc, prev\.vah\)",
+         '"the target is a return to fair value, and potentially the opposite side of the range"'),
+        (r"bool AcceptedBreakout\(SEAContext &ctx, const SVolProfile &prev, const bool haveOrb,",
+         '"Breakout with Acceptance (Continuation)"'),
+        (r"bool holds = \(dir > 0\) \? \(r\[1\]\.low >= level", '"acceptance means: price holds outside the level"'),
+        (r"EA_BodyRatio\(r\[i\]\) >= InpAcceptBody\) \{ brkIdx = i; break; \}",
+         '"most of the activity appeared on the wick ... effort, but not acceptance" -> body required'),
+        (r"if\(dir > 0 && now\.poc < prev\.poc\) continue;", "acceptance must keep value building in the move's direction"),
+        (r"SigRangeForDay\(ctx\.symbol, g_eaIndTf, InpOrbFromMin, InpOrbToMin, 0, orbHi, orbLo, orbBars\)",
+         '"Opening Range Integration: wait to see whether the move is supported by real participation"'),
+        (r"void Manage\(SEAContext &ctx\)", '"manage the trade by monitoring shifts in participation"'),
+        (r'g_eaExec\.Close\(ticket, "opposing pressure"\);',
+         '"the exit occurred when buyers began to get absorbed near the highs and sellers started to take control"'),
+        (r"InpFlowExitR\s*=\s*0\.50;", "the flow exit waits until the trade is working"),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", "[interpretation] 15m/5m context in the video -> M5 signal"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
         (r"EA_ApplyStagePolicy\(policy, InpStage\);", "the stage table is read from the engine helper, not duplicated"),

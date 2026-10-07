@@ -175,6 +175,46 @@
       "wave": 2,
       "trades": false,
       "status": "static-checked"
+    },
+    {
+      "card": 5,
+      "slug": "auction-market-strategy",
+      "strategy": "Auction Market",
+      "ea": "EA_CF_AuctionMarket.mq5",
+      "class": "CCfAuctionMarket",
+      "magic": 3210,
+      "timeframe": "M5",
+      "primitives": [
+        "local tick-volume profile (POC / value area / LVN)",
+        "EA_Rates / EA_BodyRatio",
+        "EA_InWindow (NY trend window, London reversion window)",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/pdf/auction-market-strategy.pdf",
+      "wave": 2,
+      "status": "static-checked"
+    },
+    {
+      "card": 6,
+      "slug": "auction-market-theory-strategy",
+      "strategy": "Auction Market Theory",
+      "ea": "EA_CF_AuctionMarketTheory.mq5",
+      "class": "CCfAuctionMarketTheory",
+      "magic": 3211,
+      "timeframe": "M5",
+      "primitives": [
+        "local tick-volume profile (POC / value area)",
+        "SigRangeForDay (opening range)",
+        "custom Manage() flow exit (g_eaExec.Close)",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/pdf/auction-market-theory-strategy.pdf",
+      "wave": 2,
+      "status": "static-checked"
     }
   ]
 }

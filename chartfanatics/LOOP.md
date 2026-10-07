@@ -114,6 +114,15 @@ signoff re-verifies the hashes; state changes are one-way apart from the human-o
   per magic against the document's own filters — PF 1.5+, return/DD 4:1, 2+ trades/month, average
   loss ≤ 0.5 %, implied allocation 5-25 %, drawdown past 20-25 %, expectancy — into
   `cf_algo_ranking.csv`. 15 rules pinned; all gates pass → `awaiting_human`.
+* 2026-10-07 — batch 1 of the grind: cards **#05 `auction-market-strategy`**
+  (`EA_CF_AuctionMarket.mq5`, magic 3210, 19 rules) and **#06 `auction-market-theory-strategy`**
+  (`EA_CF_AuctionMarketTheory.mq5`, magic 3211, 17 rules). Both build a tick-volume value profile
+  (POC / value area / LVN) locally, since the engine has no profile primitive; #06 also carries the
+  playbook's own order-flow exit as a custom `Manage()`. All gates pass → `awaiting_human`.
+  **Batch workflow:** because each card's fingerprint freezes the *other* cards' rule tables, a batch
+  that adds several tables runs `plan --all --reason ...` once after the tables are in, then
+  `handoff` + `judge` per card. Failing a card for the batch's own table addition would be a false
+  positive; the re-plan records it instead.
 * Fingerprint scheme **v3**: the sync test's module docstring joined the rule table as a per-card
   surface (a build records its `[interpretation]` notes there), so the frozen machinery is now the
   judging logic alone. Two further fingerprints bugs were found by this migration and fixed with
@@ -157,7 +166,7 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 ## Status
 
 <!-- loop:status -->
-**awaiting_human**: 9 · **planned**: 38
+**awaiting_human**: 11 · **planned**: 36
 
 | card | loop state | attempts | signed off by | spec |
 |---|---|---|---|---|
@@ -165,8 +174,8 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 | `80-20-nasdaq-strategy` | awaiting_human | 1 | — | yes |
 | `algorithmic-strategy` | awaiting_human | 1 | — | yes |
 | `amd-model` | awaiting_human | 1 | — | yes |
-| `auction-market-strategy` | planned | 0 | — | yes |
-| `auction-market-theory-strategy` | planned | 0 | — | yes |
+| `auction-market-strategy` | awaiting_human | 1 | — | yes |
+| `auction-market-theory-strategy` | awaiting_human | 1 | — | yes |
 | `break-retest` | awaiting_human | 1 | — | yes |
 | `episodic-pivot-strategy` | planned | 0 | — | yes |
 | `fair-pricing-theory-strategy` | planned | 0 | — | yes |

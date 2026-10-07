@@ -9,11 +9,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:28Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "80-20-nasdaq-strategy": {
       "attempts": 1,
@@ -24,11 +24,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:29Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "algorithmic-strategy": {
       "attempts": 1,
@@ -39,9 +39,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:30Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "amd-model": {
       "attempts": 1,
@@ -52,26 +54,46 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "reset_by": "loop self-test",
       "reset_note": "re-demo attempt counting",
       "state": "awaiting_human",
       "state_before_reset": "awaiting_human",
-      "updated": "2026-10-07T11:22:31Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "auction-market-strategy": {
-      "attempts": 0,
-      "planner": "loop migration",
-      "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "attempts": 1,
+      "built_by": "agent: batch 1",
+      "last_checked": "2026-10-07T11:39:35Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "agent: batch 1",
+      "reset_by": "agent",
+      "reset_note": "boundary was the batch's own table addition",
+      "state": "awaiting_human",
+      "state_before_reset": "planned",
+      "updated": "2026-10-07T11:39:35Z"
     },
     "auction-market-theory-strategy": {
-      "attempts": 0,
-      "planner": "loop migration",
-      "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "attempts": 1,
+      "built_by": "agent: batch 1",
+      "last_checked": "2026-10-07T11:39:36Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "agent: batch 1",
+      "reset_by": "agent",
+      "reset_note": "boundary was the batch's own table addition",
+      "state": "awaiting_human",
+      "state_before_reset": "planned",
+      "updated": "2026-10-07T11:39:36Z"
     },
     "break-retest": {
       "attempts": 1,
@@ -82,59 +104,59 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:35Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "episodic-pivot-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "fair-pricing-theory-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "first-red-day": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "first-red-day-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "full-psychology-masterclass": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "futures-trading-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "institutional-options-flow-gamma-reversal-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "institutional-strategy-development-framework": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "intraday-liquidity-volatility-model": {
       "attempts": 1,
@@ -145,95 +167,95 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:37Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "liquidity-inversion-model": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "liquidity-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "low-volume-node": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "market-auction-theory": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "market-dna-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "mean-reversion-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "measured-move-trend-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "momentum-model-performance-development": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "nasdaq-ict-and-order-flow-scalping-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "nq-liquidity-sweep-reversal-scalping-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "options-trading-masterclass": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "order-flow-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "orderflow-trading-masterclass": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "parabolic-short-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "po3-ote-adr": {
       "attempts": 1,
@@ -244,41 +266,41 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:34Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "price-action-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "price-cycle-continuation-failed-base-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "real-simple-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "shorting-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "small-cap-short-statistics": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "smt-divergence-po3": {
       "attempts": 1,
@@ -289,17 +311,17 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:33Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "stage-analysis-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "structure-ote": {
       "attempts": 1,
@@ -310,59 +332,59 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "loop migration",
-      "replan_reason": "judge fingerprint v3: the sync test's module docstring is a per-card surface too (interpretation notes); the frozen machinery is the judging logic",
-      "replanned_at": "2026-10-07T11:22:27Z",
+      "planner": "agent: batch 1",
+      "replan_reason": "batch 1: added the rule tables for cards #05/#06",
+      "replanned_at": "2026-10-07T11:39:34Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T11:22:32Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "support-and-resistance": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "the-vix-futures-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "trading-first-principles-framework": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "trendline-break-pocket-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "trendline-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "unique-high-rr": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "universal-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     },
     "volume-profile-strategy": {
       "attempts": 0,
-      "planner": "loop migration",
+      "planner": "agent: batch 1",
       "state": "planned",
-      "updated": "2026-10-07T11:22:27Z"
+      "updated": "2026-10-07T11:39:34Z"
     }
   }
 }

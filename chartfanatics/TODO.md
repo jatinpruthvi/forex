@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 9 in progress ·
-⬜ 38 not started
+**Cards:** ✅ 0 done · 🟡 11 in progress ·
+⬜ 36 not started
 
-**EAs built:** 9/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 11/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 9 awaiting human · 38 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 11 awaiting human · 36 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 45/376 (12%)
-`▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 55/376 (15%)
+`▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -58,8 +58,8 @@ infrastructure needed to get a first verdict:
 |---|---|---|---|---|---|---|
 | 01 | 5 Stage Trading Framework | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/5-stage-trading-framework.pdf) 7.0 MB | [`Stage_Guardrails.mq5`](mql5-eas/EA_CF_Stage_Guardrails.mq5) mag 3207 (monitor) | [`5-stage-trading-framework.md`](todos/5-stage-trading-framework.md) |
 | 04 | AMD Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/amd-model.pdf) 25.8 MB | [`AMD_Model.mq5`](mql5-eas/EA_CF_AMD_Model.mq5) mag 3201 | [`amd-model.md`](todos/amd-model.md) |
-| 05 | Auction Market Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/auction-market-strategy.pdf) 5.6 MB | _—_ | [`auction-market-strategy.md`](todos/auction-market-strategy.md) |
-| 06 | Auction Market Theory Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/auction-market-theory-strategy.pdf) 12.4 MB | _—_ | [`auction-market-theory-strategy.md`](todos/auction-market-theory-strategy.md) |
+| 05 | Auction Market Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/auction-market-strategy.pdf) 5.6 MB | [`AuctionMarket.mq5`](mql5-eas/EA_CF_AuctionMarket.mq5) mag 3210 | [`auction-market-strategy.md`](todos/auction-market-strategy.md) |
+| 06 | Auction Market Theory Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/auction-market-theory-strategy.pdf) 12.4 MB | [`AuctionMarketTheory.mq5`](mql5-eas/EA_CF_AuctionMarketTheory.mq5) mag 3211 | [`auction-market-theory-strategy.md`](todos/auction-market-theory-strategy.md) |
 | 07 | Break & Retest | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/break-retest.pdf) 20.9 MB | [`Break_Retest.mq5`](mql5-eas/EA_CF_Break_Retest.mq5) mag 3205 | [`break-retest.md`](todos/break-retest.md) |
 | 08 | Episodic Pivot Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/episodic-pivot-strategy.pdf) 26.4 MB | _—_ | [`episodic-pivot-strategy.md`](todos/episodic-pivot-strategy.md) |
 | 10 | First Red Day | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/first-red-day.pdf) 29.8 MB | _—_ | [`first-red-day.md`](todos/first-red-day.md) |
