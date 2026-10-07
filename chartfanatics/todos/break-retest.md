@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | ⬜ TODO — 0/8 stages |
+| **Status** | 🟡 WIP — 5/8 stages |
 | **Slug** | `break-retest` |
 | **Type** | published PDF |
 | **Source** | [PDF](../pdf/break-retest.pdf) (20.9 MB) |
@@ -16,12 +16,12 @@
 
 ## Stages
 
-- [ ] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
-- [ ] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
-- [ ] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
-- [ ] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
+- [x] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
+- [x] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
+- [x] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
+- [x] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
 - [ ] **5. Backtest** — Run through validation/mt5_harness; record symbol, period, PF, DD, trades <!-- id:backtest -->
-- [ ] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
+- [x] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
 - [ ] **7. Validate** — Strategy Tester gates + scripts/check_mql5_source.py pass <!-- id:validate -->
 - [ ] **8. Demo / forward** — Forward phase per docs/EA_VALIDATION_PLAYBOOK.md, then live decision <!-- id:demo -->
 
@@ -31,7 +31,7 @@
 - **Verdict:** _TBD_
 - **Instruments:** _TBD_
 - **Timeframe / session:** _TBD_
-- **EA file / magic:** _unassigned_
+- **EA file / magic:** [`EA_CF_Break_Retest.mq5](../mql5-eas/EA_CF_Break_Retest.mq5) / `3205` (static-checked)
 - **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
@@ -39,5 +39,10 @@
 ## Notes
 
 <!-- edit:notes -->
-_Nothing yet._
+### EA implemented 2026-10-07
+- **Source read:** `pdf/break-retest.pdf` (7 pp, Vincent Desiano) - break the level, never trade the break; trade the retest inside the battle zone.
+- **EA:** [`mql5-eas/EA_CF_Break_Retest.mq5`](../mql5-eas/EA_CF_Break_Retest.mq5), magic `3205`, M5.
+- **Encoded:** premarket range (00:00-14:30 London) with a clean break + buffer and a LATER retest bar that holds (`SigBreakRetest`); rejection-wick confirmation on the retest bar; stop beyond the retest structure; TP1 partial 50% at 1R with runners trailed.
+- **Gaps (approximation):** the No Trade Zone is implemented as the previous day's high-to-low band, while the playbook describes it as "between the previous day's high and the premarket low" - the narrower BIS-style band would need a premarket-specific low rather than a PDH/PDL pair.
+- **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

@@ -1,0 +1,85 @@
+{
+  "_comment": "Machine-readable link between a ChartFanatics strategy card and its EA. Read by chartfanatics/gen_todos.py (board + card Tracking fields) and by humans deploying the files. Magic block 3201-3247 is reserved for this family; keep it in sync with docs/EA_IMPLEMENTATION_TRACKER.md.",
+  "magic_block": [3201, 3247],
+  "deploy_to": "MQL5\\Experts\\chartfanatics\\",
+  "eas": [
+    {
+      "card": 4,
+      "slug": "amd-model",
+      "strategy": "AMD Model",
+      "ea": "EA_CF_AMD_Model.mq5",
+      "class": "CCfAmdModel",
+      "magic": 3201,
+      "timeframe": "M5",
+      "primitives": ["SigSweepReclaim", "SigEmaCascade"],
+      "source": "chartfanatics/pdf/amd-model.pdf",
+      "wave": 1,
+      "status": "static-checked"
+    },
+    {
+      "card": 26,
+      "slug": "structure-ote",
+      "strategy": "Structure + OTE",
+      "ea": "EA_CF_Structure_OTE.mq5",
+      "class": "CCfStructureOte",
+      "magic": 3202,
+      "timeframe": "M15",
+      "primitives": ["SigOrderBlockRetest", "SigSweepReclaim", "SigEmaCascade", "custom premium/discount + OTE band"],
+      "source": "chartfanatics/pdf/structure-ote.pdf",
+      "wave": 1,
+      "status": "static-checked"
+    },
+    {
+      "card": 23,
+      "slug": "smt-divergence-po3",
+      "strategy": "SMT Divergence + PO3",
+      "ea": "EA_CF_SMT_PO3.mq5",
+      "class": "CCfSmtPo3",
+      "magic": 3203,
+      "timeframe": "M5",
+      "primitives": ["SigSweepReclaim", "SigRangeForDay", "custom NQ-vs-ES SMT divergence"],
+      "source": "chartfanatics/pdf/smt-divergence-po3.pdf",
+      "wave": 1,
+      "status": "static-checked"
+    },
+    {
+      "card": 22,
+      "slug": "po3-ote-adr",
+      "strategy": "PO3, OTE + ADR",
+      "ea": "EA_CF_PO3_OTE_ADR.mq5",
+      "class": "CCfPo3OteAdr",
+      "magic": 3204,
+      "timeframe": "M15",
+      "primitives": ["SigRangeForDay", "custom fib-anchored OTE limit (0.62-0.705) + ADR gate"],
+      "source": "chartfanatics/pdf/po3-ote-adr.pdf",
+      "wave": 1,
+      "status": "static-checked"
+    },
+    {
+      "card": 7,
+      "slug": "break-retest",
+      "strategy": "Break & Retest",
+      "ea": "EA_CF_Break_Retest.mq5",
+      "class": "CCfBreakRetest",
+      "magic": 3205,
+      "timeframe": "M5",
+      "primitives": ["SigBreakRetest", "SigRangeForDay", "custom no-trade-zone gate"],
+      "source": "chartfanatics/pdf/break-retest.pdf",
+      "wave": 1,
+      "status": "static-checked"
+    },
+    {
+      "card": 12,
+      "slug": "intraday-liquidity-volatility-model",
+      "strategy": "Intraday Liquidity & Volatility Model",
+      "ea": "EA_CF_Intraday_Liquidity.mq5",
+      "class": "CCfIntradayLiquidity",
+      "magic": 3206,
+      "timeframe": "M5",
+      "primitives": ["SigFvgRetest", "SigSweepReclaim", "SigAsianRange", "custom failed-raid detector"],
+      "source": "chartfanatics/pdf/intraday-liquidity-volatility-model.pdf",
+      "wave": 1,
+      "status": "static-checked"
+    }
+  ]
+}

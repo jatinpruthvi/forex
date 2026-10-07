@@ -2,6 +2,7 @@
 #
 # Compiles, with MetaEditor's command line:
 #   * the 65 delivered EAs      (MQL5\Experts\additionalEAs\*.mq5)
+#   * the ChartFanatics family  (MQL5\Experts\chartfanatics\*.mq5)
 #   * the portfolio trader      (MQL5\Experts\...\AllEnginesEA.mq5)
 #   * the portfolio tracker     (MQL5\Experts\...\PortfolioEA.mq5)
 # and prints one line per file plus a total.  Exit code 1 when anything failed,
@@ -49,6 +50,15 @@ if (Test-Path $additional) {
     Get-ChildItem "$additional\*.mq5" | ForEach-Object { $targets.Add($_) }
 } else {
     $expected += "MQL5\Experts\additionalEAs\*.mq5          (the 65 delivered EAs)"
+}
+
+# ChartFanatics playbook EAs: source of truth chartfanatics/mql5-eas/, deployed
+# into Experts\chartfanatics\ so their "..\\..\\Include\\EACommon.mqh" resolves.
+$chartfanatics = Join-Path $Mql5 "Experts\chartfanatics"
+if (Test-Path $chartfanatics) {
+    Get-ChildItem "$chartfanatics\*.mq5" | ForEach-Object { $targets.Add($_) }
+} else {
+    $expected += "MQL5\Experts\chartfanatics\*.mq5       (the ChartFanatics playbook EAs)"
 }
 
 foreach ($name in @("AllEnginesEA.mq5", "PortfolioEA.mq5")) {

@@ -14,6 +14,12 @@ Tick the boxes in the cards; `python3 gen_todos.py` refreshes the board and neve
 between the `edit:` markers (checkbox state, Tracking fields, Notes). Card #s and slugs are stable,
 so they are safe to reference in commits and issues.
 
+**[`mql5-eas/`](mql5-eas/) holds the EAs built from these playbooks** — one `.mq5` per strategy,
+wired into the shared engine (`MQL5_Master/Include/EACommon.mqh`), one magic each from the reserved
+`3201-3247` block, and registered in `mql5-eas/manifest.json` so the board and each card's Tracking
+block name the EA that belongs to it. See [`mql5-eas/README.md`](mql5-eas/README.md) for the
+deployment steps and the known gaps.
+
 ## Downloaded (32)
 
 | Strategy | File | Size |

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | ⬜ TODO — 0/8 stages |
+| **Status** | 🟡 WIP — 5/8 stages |
 | **Slug** | `amd-model` |
 | **Type** | published PDF |
 | **Source** | [PDF](../pdf/amd-model.pdf) (25.8 MB) |
@@ -16,12 +16,12 @@
 
 ## Stages
 
-- [ ] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
-- [ ] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
-- [ ] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
-- [ ] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
+- [x] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
+- [x] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
+- [x] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
+- [x] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
 - [ ] **5. Backtest** — Run through validation/mt5_harness; record symbol, period, PF, DD, trades <!-- id:backtest -->
-- [ ] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
+- [x] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
 - [ ] **7. Validate** — Strategy Tester gates + scripts/check_mql5_source.py pass <!-- id:validate -->
 - [ ] **8. Demo / forward** — Forward phase per docs/EA_VALIDATION_PLAYBOOK.md, then live decision <!-- id:demo -->
 
@@ -31,7 +31,7 @@
 - **Verdict:** _TBD_
 - **Instruments:** _TBD_
 - **Timeframe / session:** _TBD_
-- **EA file / magic:** _unassigned_
+- **EA file / magic:** [`EA_CF_AMD_Model.mq5](../mql5-eas/EA_CF_AMD_Model.mq5) / `3201` (static-checked)
 - **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
@@ -39,5 +39,10 @@
 ## Notes
 
 <!-- edit:notes -->
-_Nothing yet._
+### EA implemented 2026-10-07
+- **Source read:** `pdf/amd-model.pdf` (8 pp, Tanja Trades) - accumulation / manipulation / distribution, entry only on the retrace into the imbalance.
+- **EA:** [`mql5-eas/EA_CF_AMD_Model.mq5`](../mql5-eas/EA_CF_AMD_Model.mq5), magic `3201`, M5.
+- **Encoded:** accumulation window 00:00-14:30 London; sweep -> reclaim -> displacement via `SigSweepReclaim`; retracement limit entry; macro windows 09:50-10:10 / 10:50-11:10 ET enforced; 2 trades/day; two-loss day lock; D1+H1 cascade gate ("if the higher timeframe is unclear, do not force a setup").
+- **Gaps:** the "high probability day" news filter (CPI/NFP/FOMC days) is a calendar decision and is OFF - the playbook trades the *post-news* move, so blocking news windows would veto its best setups. Scale-down on pre-news days is not implemented.
+- **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled** - run `validation/mt5_harness/compile_all.ps1`, then a tester sweep.
 <!-- /edit:notes -->

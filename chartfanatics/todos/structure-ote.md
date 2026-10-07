@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | ⬜ TODO — 0/8 stages |
+| **Status** | 🟡 WIP — 5/8 stages |
 | **Slug** | `structure-ote` |
 | **Type** | published PDF |
 | **Source** | [PDF](../pdf/structure-ote.pdf) (6.9 MB) |
@@ -16,12 +16,12 @@
 
 ## Stages
 
-- [ ] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
-- [ ] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
-- [ ] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
-- [ ] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
+- [x] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
+- [x] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
+- [x] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
+- [x] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
 - [ ] **5. Backtest** — Run through validation/mt5_harness; record symbol, period, PF, DD, trades <!-- id:backtest -->
-- [ ] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
+- [x] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
 - [ ] **7. Validate** — Strategy Tester gates + scripts/check_mql5_source.py pass <!-- id:validate -->
 - [ ] **8. Demo / forward** — Forward phase per docs/EA_VALIDATION_PLAYBOOK.md, then live decision <!-- id:demo -->
 
@@ -31,7 +31,7 @@
 - **Verdict:** _TBD_
 - **Instruments:** _TBD_
 - **Timeframe / session:** _TBD_
-- **EA file / magic:** _unassigned_
+- **EA file / magic:** [`EA_CF_Structure_OTE.mq5](../mql5-eas/EA_CF_Structure_OTE.mq5) / `3202` (static-checked)
 - **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
 - **Blocked by:** _nothing_
 <!-- /edit:tracking -->
@@ -39,5 +39,11 @@
 ## Notes
 
 <!-- edit:notes -->
-_Nothing yet._
+### EA implemented 2026-10-07
+- **Source read:** `pdf/structure-ote.pdf` (10 pp, Trader Mayne) - HTF break of structure -> POI (OB/breaker) -> LTF confirmation, min 2R.
+- **EA:** [`mql5-eas/EA_CF_Structure_OTE.mq5`](../mql5-eas/EA_CF_Structure_OTE.mq5), magic `3202`, M15 execution on an H4 range.
+- **Encoded:** D1+H1 cascade bias; dealing range over 120 H4 bars with a premium/discount gate; OTE band 62-79% of the active leg; `SigOrderBlockRetest` POI entry (direction-locked) with a sweep-reclaim breaker fallback; target = next external liquidity when it delivers >= 2R.
+- **Note:** `docs/ICT_SMC_COVERAGE.md` records premium/discount and OTE as not implemented anywhere in this repo - this EA is the first implementation.
+- **Gaps:** the breaker fallback inherits `SigSweepReclaim`'s bullish-first evaluation order, so a fresh bearish breaker can be masked by an older bullish sequence (the OB path is direction-locked, the fallback merely fires less often).
+- **Status:** passes `scripts/check_mql5_source.py` (0 findings); **not yet compiled**.
 <!-- /edit:notes -->

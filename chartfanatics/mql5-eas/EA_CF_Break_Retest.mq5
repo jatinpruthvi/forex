@@ -1,0 +1,174 @@
+//+------------------------------------------------------------------+
+//|                                         EA_CF_Break_Retest.mq5   |
+//|                                  Copyright 2026, Master Strategy |
+//|                                                                  |
+//| ChartFanatics playbook: Break & Retest (Vincent Desiano)         |
+//| Card    : chartfanatics/todos/break-retest.md  (#07)             |
+//| Source  : chartfanatics/pdf/break-retest.pdf                     |
+//| Magic   : 3205                                                   |
+//|                                                                  |
+//| The trade is never the breakout - it is the RETEST:              |
+//|   1. Mark the major prior level (previous day high/low,          |
+//|      premarket high/low, supply/demand zone).                    |
+//|   2. Wait for a CLEAN break with momentum (closed bar beyond     |
+//|      the level + buffer). No entry on the break itself.          |
+//|   3. The No Trade Zone: the area between the previous day's high |
+//|      and low is where price chops and traps - nothing is taken   |
+//|      there.                                                      |
+//|   4. The battle zone: wait for the pullback to the level, then   |
+//|      require a rejection (wick + close back on the right side).  |
+//|   5. Stop just beyond the retest structure (above the wick high  |
+//|      for shorts, below the wick low for longs). TP1 at the prior |
+//|      extreme, take 25-50% off, hold runners.                     |
+//|                                                                  |
+//| Engine mapping: `SigBreakRetest` (session range -> accepted      |
+//| break -> later retest bar that holds) plus an explicit           |
+//| rejection-wick confirmation and the NTZ gate.                    |
+//+------------------------------------------------------------------+
+#property copyright "Master Strategy"
+#property link      ""
+#property version   "1.00"
+#property description "ChartFanatics Break & Retest - trade the retest inside the battle zone, never the breakout"
+
+#include "..\..\Include\EACommon.mqh"
+
+//--- identity / risk
+input string            InpSymbolsToTrade   = "US100,US500,GER40";  // Universe (playbook: stocks / options / futures)
+input ulong             InpMagicNumber      = 3205;                 // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
+input double            InpRiskPct          = 0.50;                 // Risk per trade (% of equity)
+input double            InpMaxSpreadPoints  = 3.0;                  // Spread gate in points (0 = off)
+input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
+input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
+input ENUM_EA_LOG_LEVEL InpLogLevel         = EA_LOG_EVENTS;        // Log verbosity
+//--- the level, the break and the retest
+input int    InpRangeFromMin   = 0;      // Premarket range start (00:00 London)
+input int    InpRangeToMin     = 870;    // Premarket range end   (14:30 London = NY open)
+input int    InpEntryFromMin   = 870;    // Entry window start    (14:30 London)
+input int    InpEntryToMin     = 1140;   // Entry window end      (19:00 London)
+input double InpMinRangeAtr    = 0.30;   // The marked range must be at least this wide
+input double InpBreakBufferAtr = 0.10;   // "Clean break": closed bar beyond the level
+input double InpRetestTolAtr   = 0.15;   // How close the retest must come to the level
+input double InpStopBufferAtr  = 0.20;   // Stop beyond the retest structure
+input double InpTargetR        = 2.00;   // TP1 in R (then partials + runners)
+input bool   InpRequireRejection = true; // The retest bar must show a rejection wick
+input double InpRejectWickRatio  = 0.30; // Rejection wick / bar range
+input bool   InpRespectNoTradeZone = true; // Never trade between the previous day's high and low
+
+//+------------------------------------------------------------------+
+//| Strategy class                                                   |
+//+------------------------------------------------------------------+
+class CCfBreakRetest : public CEAStrategy
+{
+public:
+   void Configure(SEASettings &cfg)
+   {
+      cfg.strategyName          = "CF_BREAK_RETEST";
+      cfg.sourceDoc             = "chartfanatics/pdf/break-retest.pdf (card #07)";
+      cfg.symbols               = InpSymbolsToTrade;
+      cfg.magic                 = InpMagicNumber;
+      cfg.riskPct               = InpRiskPct;
+      cfg.signalTimeframe       = PERIOD_M5;
+      cfg.clock                 = EA_CLOCK_LONDON;
+      cfg.serverWinterGmtOffset = InpServerGmtOffset;
+      cfg.maxSpreadPoints       = InpMaxSpreadPoints;
+      cfg.dailyLossPct          = InpDailyLossPct;
+      cfg.weeklyLossPct         = 3.0;
+      cfg.totalDdPct            = 8.0;
+      cfg.maxTradesPerDay       = 3;
+      cfg.maxOpenPositions      = 1;
+      cfg.minSecondsBetweenTrades = 180;
+      cfg.useHwmThrottle        = true;
+      cfg.hwmTier1Dd            = 2.0;  cfg.hwmTier1Mult = 0.50;
+      cfg.hwmTier2Dd            = 4.0;  cfg.hwmTier2Mult = 0.25;
+      cfg.hwmHaltDd             = 6.0;
+      cfg.sessionStartHour      = InpEntryFromMin / 60;
+      cfg.sessionStartMin       = InpEntryFromMin % 60;
+      cfg.sessionEndHour        = InpEntryToMin / 60;
+      cfg.sessionEndMin         = InpEntryToMin % 60;
+      cfg.noTradeAfterHour      = 19;  cfg.noTradeAfterMin = 0;
+      cfg.fridayFlat            = true;  cfg.fridayFlatHour = 19;  cfg.fridayFlatMin = 0;
+      cfg.signalOnNewBarOnly    = true;
+      cfg.useLimitEntry         = false;   // the retest is confirmed, then taken at market
+      cfg.pendingExpiryMinutes  = 15;
+      cfg.breakEvenAtR          = 1.0;
+      cfg.partial1AtR           = 1.0;  cfg.partial1Pct = 50.0;    // "take 25-50% off at TP1"
+      cfg.partial2AtR           = 2.0;  cfg.partial2Pct = 25.0;
+      cfg.trailAtR              = 1.5;  cfg.trailDistanceR = 0.75; // hold runners
+      cfg.newsFilter            = false;
+      cfg.logLevel              = InpLogLevel;
+   }
+
+   bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
+   {
+      plan.Reset();
+      if(!ctx.inSession) return false;
+      if(ctx.atr <= 0.0) return false;
+
+      //--- the No Trade Zone: between the previous day's high and low
+      if(InpRespectNoTradeZone)
+      {
+         double pdh = 0.0, pdl = 0.0;
+         int bars = 0;
+         if(SigRangeForDay(ctx.symbol, g_eaIndTf, 0, 1440, 1, pdh, pdl, bars))
+         {
+            if(ctx.mid < pdh && ctx.mid > pdl) return false;
+         }
+      }
+
+      SBreakRetestParams p;
+      p.Reset();
+      p.rangeFromMin    = InpRangeFromMin;
+      p.rangeToMin      = InpRangeToMin;
+      p.entryFromMin    = InpEntryFromMin;
+      p.entryToMin      = InpEntryToMin;
+      p.minRangeAtr     = InpMinRangeAtr;
+      p.breakBufferAtr  = InpBreakBufferAtr;
+      p.retestTolAtr    = InpRetestTolAtr;
+      p.stopBufferAtr   = InpStopBufferAtr;
+      p.targetR         = InpTargetR;
+      p.tradeBothWays   = true;
+      p.scoreBase       = 62.0;
+      if(!SigBreakRetest(ctx, p, plan)) return false;
+
+      //--- the rejection: the retest bar must wick against the level
+      if(InpRequireRejection && !RejectionAtLevel(ctx, plan.dir, plan.barsAgo))
+      {
+         plan.Reset();
+         return false;
+      }
+      plan.score  = plan.score + 5.0;
+      plan.reason = "Break & Retest (battle zone): " + plan.reason;
+      return true;
+   }
+
+private:
+   bool RejectionAtLevel(SEAContext &ctx, const int dir, const int barsAgo)
+   {
+      if(barsAgo < 1) return false;
+      MqlRates r[];
+      int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, barsAgo + 2, r);
+      if(got < barsAgo + 1) return false;
+      return (EA_WickRatio(r[barsAgo], dir) >= InpRejectWickRatio);
+   }
+};
+
+CCfBreakRetest g_cfBreakRetest;
+
+//+------------------------------------------------------------------+
+//| MQL5 event handlers                                              |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   return EA_Init(&g_cfBreakRetest);
+}
+
+void OnTick()
+{
+   EA_Tick();
+}
+
+void OnDeinit(const int reason)
+{
+   EA_Deinit(reason);
+}
+//+------------------------------------------------------------------+

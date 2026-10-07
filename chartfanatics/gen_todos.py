@@ -112,15 +112,26 @@ def human(size: int) -> str:
     return f"{size / 1024 / 1024:.1f} MB"
 
 
+def read_ea_manifest() -> dict[str, dict]:
+    """mql5-eas/manifest.json -> {slug: {ea, magic, class, ...}} (absent = no EA yet)."""
+    path = ROOT / "mql5-eas" / "manifest.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {entry["slug"]: entry for entry in data.get("eas", [])}
+
+
 def build_meta() -> list[dict]:
     links = read_links()
+    eas = read_ea_manifest()
     vids = read_video_only()
     glim = read_glimpse_index()
     meta = []
     for slug, rec in links.items():
         name = rec["name"] or slug.replace("-", " ").title()
         m = {"slug": slug, "name": name, "number": len(meta) + 1, "pdf": None, "drive": rec["drive"],
-             "video": None, "glimpse": None, "md": None, "glimpse_pdf": None, "channel": None}
+             "video": None, "glimpse": None, "md": None, "glimpse_pdf": None, "channel": None,
+             "ea": eas.get(slug)}
         pdf = ROOT / "pdf" / f"{slug}.pdf"
         if pdf.exists():
             m["pdf"] = {"path": f"../pdf/{pdf.name}", "bytes": pdf.stat().st_size}
@@ -151,14 +162,27 @@ def edit_block(text: str, name: str, default: str) -> str:
 
 
 def default_tracking(meta: dict) -> str:
+    ea = meta.get("ea") or {}
+    ea_line = (f"- **EA file / magic:** [`{ea['ea']}`](../mql5-eas/{ea['ea']}) / `{ea['magic']}` "
+               f"({ea.get('status', 'n/a')})" if ea else "- **EA file / magic:** _unassigned_")
     return "\n".join([
         "- **Verdict:** _TBD_",
         "- **Instruments:** _TBD_",
         "- **Timeframe / session:** _TBD_",
-        "- **EA file / magic:** _unassigned_",
+        ea_line,
         "- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)",
         "- **Blocked by:** _nothing_",
     ])
+
+
+def fill_ea_line(body: str, meta: dict) -> str:
+    """Fill the EA/magic Tracking line while it is still the placeholder (never overwrite an edit)."""
+    ea = meta.get("ea")
+    if not ea or "_unassigned_" not in body:
+        return body
+    line = (f"- **EA file / magic:** [`{ea['ea']}](../mql5-eas/{ea['ea']}) / `{ea['magic']}` "
+            f"({ea.get('status', 'n/a')})")
+    return body.replace("- **EA file / magic:** _unassigned_", line)
 
 
 def card(meta: dict, existing: str) -> str:
@@ -220,7 +244,7 @@ def card(meta: dict, existing: str) -> str:
 
 ## Tracking
 
-{EDIT_BLOCK.format(name='tracking', body=edit_block(existing, 'tracking', default_tracking(meta)))}
+{EDIT_BLOCK.format(name='tracking', body=fill_ea_line(edit_block(existing, 'tracking', default_tracking(meta)), meta))}
 
 ## Notes
 
@@ -246,6 +270,13 @@ infrastructure needed to get a first verdict:
 """
 
 
+def ea_cell(meta: dict) -> str:
+    ea = meta.get("ea")
+    if not ea:
+        return "_—_"
+    return f"[`{ea['ea'].replace('EA_CF_', '')}`](mql5-eas/{ea['ea']}) mag {ea['magic']}"
+
+
 def status_of(body: str) -> tuple[str, int]:
     done = sum(1 for sid in STAGE_IDS
                if re.search(rf"^- \[[xX]\] .*<!-- id:{sid} -->$", body, re.M))
@@ -254,8 +285,8 @@ def status_of(body: str) -> tuple[str, int]:
 
 
 def table(metas: list[dict], cards: dict[str, str]) -> str:
-    lines = ["| # | Strategy | Status | Progress | Source | Card |",
-             "|---|---|---|---|---|---|"]
+    lines = ["| # | Strategy | Status | Progress | Source | EA | Card |",
+             "|---|---|---|---|---|---|---|"]
     for m in metas:
         status, done = status_of(cards[m["slug"]])
         if m["pdf"]:
@@ -264,7 +295,7 @@ def table(metas: list[dict], cards: dict[str, str]) -> str:
             src = f"[video](https://www.youtube.com/watch?v={m['video']}) · [summary]({m['md']})"
         lines.append(
             f"| {m['number']:02d} | {m['name']} | {STATUS_ICON[status]} {status} | "
-            f"`{bar(done, len(STAGES))}` {done}/{len(STAGES)} | {src} | "
+            f"`{bar(done, len(STAGES))}` {done}/{len(STAGES)} | {src} | {ea_cell(m)} | "
             f"[`{m['slug']}.md`](todos/{m['slug']}.md) |"
         )
     return "\n".join(lines)
@@ -280,6 +311,7 @@ def board(metas: list[dict], cards: dict[str, str], existing: str) -> str:
         counts[status] += 1
         stages_done += done
     total_stages = len(STAGES) * len(metas)
+    eas_built = sum(1 for m in metas if m.get("ea"))
 
     return f"""# ChartFanatics — Strategy Work Board
 
@@ -289,6 +321,8 @@ with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) co
 
 **Cards:** {STATUS_ICON['done']} {counts['done']} done · {STATUS_ICON['wip']} {counts['wip']} in progress ·
 {STATUS_ICON['todo']} {counts['todo']} not started
+
+**EAs built:** {eas_built}/{len(metas)} — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
 **Stages ticked:** {stages_done}/{total_stages} ({round(stages_done / total_stages * 100)}%)
 `{bar(stages_done, total_stages, 32)}`

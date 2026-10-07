@@ -201,6 +201,11 @@ forex/
 │       ├── ExecutionManager.mqh        # Dual-bracket + staged exits + time stops
 │       ├── NewsManager.mqh             # Live XML news ingestion + blackout
 │       └── RiskGovernor.mqh            # Breakers + prop-firm capital governor
+├── chartfanatics/                      # ChartFanatics playbook archive + work tracker
+│   ├── TODO.md                         # 47-strategy board (status/progress)
+│   ├── todos/                          # one card per strategy (stages + tracking + notes)
+│   ├── pdf/ · glimpse/ · glimpse-pdf/  # sources
+│   └── mql5-eas/                       # EAs built from the playbooks (§6), magic block 3201-3247
 └── docs/
     └── EA_IMPLEMENTATION_TRACKER.md    # This file
 ```
@@ -304,3 +309,37 @@ forex/
 * **Top-25 fix pass (2026-10-04)** - all code-side findings of the priority sweep are fixed at the source with 32 new verifier checks (1 846 -> 1 878) and 16 new tests: the Triad risk governor (order-type risk test, magic-filtered heat/exposure, account+magic state keys, split daily/trailing freezes, server-day PnL), the Triad strategies (a real liquidity-sweep precondition, mirrored structure search, M15 cooldown, an SMT gate that is a parameter and says when it is inert), the Triad news module (fail-closed gate, case-insensitive impact, validated timestamps) and the harness tools (compile-log detection, mtime tie-break, generated preflight symbol list, synth-template warning). Behaviour changes are disclosed in `docs/EA_TOP25_BUGS.md`; compilation and the tester sweep remain the two Windows-side steps.
 * **Validation tooling (2026-10-02)** - MT5 allows one EA per chart, so the 65 EAs are validated headlessly instead: `validation/mt5_harness/gen_tester_configs.py` generates one Strategy Tester config and `.set` per EA (read straight from the generator, so configs cannot drift), `run_all.ps1`/`run_all.bat` drive `terminal64.exe /config:` for all 65, every run writes one machine-readable row via the new tester-only `EA_TestReport()` (`EACommon.mqh`; no effect live), and `validation/mt5_harness/parse_results.py` produces a PASS/WARN/FAIL portfolio table plus the list of EAs that produced no row at all (i.e. compile failures). `MQL5_Master/Scripts/UniversePreflight.mq5` reports which of the EAs' symbols the broker actually offers and which index alias it uses, because the engine skips-and-logs unavailable symbols and an inert sleeve otherwise looks like "the EA does not trade". See `docs/EA_VALIDATION_PLAYBOOK.md`. For running the set for real, `MQL5_Master/Scripts/PortfolioLauncher.mq5` + `validation/mt5_harness/gen_launcher.py` reduce "65 manual attaches" to one: the generator stamps a per-EA template (EA + inputs) from a single template saved by the user, and the script opens every chart, attaches each EA, skips what is already running, and writes `MQL5\Files\EA_Launch\launch_status.csv` (START / STOP / DRYRUN, optional group split across terminals).
 * **Documented approximations (disclosed)** - `EA_studyarena_round12_contestant_c` turns its document's "20th-85th ATR percentile band" into an ATR-vs-median ratio of 0.6-1.6 and says so in a code comment. The four EAs whose documents name a spread-versus-history gate that the first pass had served with a round-local sample ring (`EA_studyarena_round8_contestant_d` and `EA_studyarena_round12_contestant_a`: "median for that time of day"; `EA_studyarena_round5_contestant_a_2047`: "1.5x that pair's normal spread for the same time"; `EA_TRIAD_SURVIVE`: "at most 1.5x the 20-day average spread") now query the engine baseline `EA_SpreadBaseline(sym, 30)` / `(sym, 720)` first and fall back to the local ring only while the engine has no evidence yet, so the statistic matches the documents (live-learned 20-day per-minute-of-day average, 30-minute or whole-day window).
+
+
+---
+
+## 6. ChartFanatics playbook family (2026-10-07)
+
+EAs built from the ChartFanatics playbooks archived in `chartfanatics/`. Source of truth is
+**`chartfanatics/mql5-eas/`** (one `.mq5` per strategy), deployed to `MQL5\Experts\chartfanatics\`
+so their `..\..\Include\EACommon.mqh` resolves; `validation/mt5_harness/compile_all.ps1` compiles
+that folder alongside `additionalEAs/`. `chartfanatics/mql5-eas/manifest.json` is the machine-readable
+card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic into each work card.
+
+**Magic block 3201-3247 is reserved for this family** (one per card, 47 cards). Wave 1 uses 3201-3206:
+
+| # | EA File Name | Source Playbook | Magic | TF | Notes |
+|---|---|---|---|---|---|
+| 1 | `EA_CF_AMD_Model.mq5` | `chartfanatics/pdf/amd-model.pdf` (card #04) | `3201` | M5 | Distribution-leg entry off the manipulation sweep; NY macro windows 09:50-10:10 / 10:50-11:10 ET; 2 trades/day, two-loss day lock |
+| 2 | `EA_CF_Structure_OTE.mq5` | `chartfanatics/pdf/structure-ote.pdf` (card #26) | `3202` | M15 | HTF break -> POI -> LTF breaker; first premium/discount + OTE (62-79%) implementation in the repo; 2R floor |
+| 3 | `EA_CF_SMT_PO3.mq5` | `chartfanatics/pdf/smt-divergence-po3.pdf` (card #23) | `3203` | M5 | Direct symbol-vs-symbol SMT divergence (NQ vs ES) with the previous day's 50% level as the target |
+| 4 | `EA_CF_PO3_OTE_ADR.mq5` | `chartfanatics/pdf/po3-ote-adr.pdf` (card #22) | `3204` | M15 | PD-array raid + displacement, fib-anchored OTE limit (0.62-0.705), stop 1.0 fib / TP 0.0 fib, ADR budget gate |
+| 5 | `EA_CF_Break_Retest.mq5` | `chartfanatics/pdf/break-retest.pdf` (card #07) | `3205` | M5 | Battle-zone retest with rejection wick; previous-day no-trade-zone gate; partials at TP1, runners kept |
+| 6 | `EA_CF_Intraday_Liquidity.mq5` | `chartfanatics/pdf/intraday-liquidity-volatility-model.pdf` (card #12) | `3206` | M5 | Failed-raid fade of PDH/PDL, Asian and London extremes; FVG entry (MSS fallback); NY 09:30-11:30 window |
+
+* **Static contract validation** - `python3 scripts/check_mql5_source.py chartfanatics/mql5-eas/*.mq5`:
+  **6 files, 6 EAs, 0 findings** (CEAStrategy-derived, unique magic, engine delegation, declared
+  identifiers, balanced blocks, no MQL4 patterns).
+* **Never compiled.** No MetaEditor on Linux - Stage 0 of `docs/EA_VALIDATION_PLAYBOOK.md` is the
+  first thing to run on the Windows machine, and `compile_all.ps1` now includes this folder.
+* **Disclosed approximations** (also on each card): the AMD "high probability day" news filter is a
+  calendar decision and stays off; the PO3/AMD scale-in rules are not implemented because the engine
+  holds one position per symbol; `EA_CF_PO3_OTE_ADR` uses daily ATR as the ADR proxy; the
+  Structure+OTE breaker fallback inherits `SigSweepReclaim`'s bullish-first evaluation order (the
+  order-block path supports `onlyDir` directly); index universes (`US100`/`US500`/`GER40`) are
+  broker-dependent and skipped-with-a-log when absent.
