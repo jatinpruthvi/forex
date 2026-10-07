@@ -162,6 +162,17 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_PriceCycleContinuationFailedBaseStrategy (card #32): both cycles of the champion's playbook in
+    one EA - the bullish continuation (base + breakout with volume, or the pullback into the 10/20-day
+    EMAs) and the failed base (20-EMA violation on volume, the minimal-volume wedge to a lower high, the
+    turn lower with the stop above the high of day, market confirmation from a proxy symbol, and the
+    undercut-and-rally / EMA10 covers).  The document states its headline numbers (50M ADV, 3% ADR, 2x
+    ADR, 8-10x ATR, 1/3s, 20/10 EMA, 3 attempts); the "[interpretation]" surface is the base window and
+    tightness, the pullback tolerance, the volume ratios, the relative-strength threshold, the stop
+    buffers, the wedge lookback, the prior-low window and the far take-profit placeholders.  The dollar
+    volume filter needs share volume and falls back to tick volume where brokers publish none (labelled);
+    the market proxy defaults to a QQQ analogue and is an input; the year-by-year chart study, the
+    fundamental research and the cycle opinion stay human.
   * EA_CF_PriceAction (card #31): the video-derived playbook is a discretionary routine, so the EA
     implements the mechanical spine only - the H1 pivot levels taken from the pivot candle OPEN (the
     document's own rule), their confidence scores (5/5 strong pivots, 3/5 opening prices, 2.5/5
@@ -1354,6 +1365,87 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"cfg\.sessionEndFlat\s+= true;",
          'no overnight holds - "Day trading is about here-and-now execution"'),
     ],
+    # -------------------------------------- price cycle continuation / failed base (card #32)
+    "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5": [
+        (r"input double\s+InpMinAdvUsd\s+= 50000000\.0;",
+         '"at least $50 million average daily dollar volume"'),
+        (r"input double\s+InpMinAdrPct\s+= 3\.0;",
+         '"more than 3% average daily range (ADR)"'),
+        (r"if\(c\.rs20 < InpMinRsPct\) return false;",
+         '"relative strength versus the market during consolidation periods"'),
+        (r"input double\s+InpBaseMaxVolFrac\s+= 0\.90;",
+         '"receding volume during consolidation signals low supply"'),
+        (r"c\.brokeOut = \(d\[1\]\.close > c\.baseHigh && d\[1\]\.close > d\[1\]\.open\)",
+         '"Buy when price breaks above the horizontal consolidation level (the breakout level) with confirmation"'),
+        (r"\(\(double\)d\[1\]\.tick_volume >= InpBreakoutVolMult \* baseVol\)",
+         '"large volume on the wedge pop confirms demand"'),
+        (r"stop = MathMin\(dayLow, m\[1\]\.low\) - InpStopBufferAtr \* ctx\.atrD1;",
+         '"Set stop loss at the low of the current or prior day"'),
+        (r"c\.near10 = \(d\[1\]\.low <= c\.ema10 \* \(1\.0 \+ tol\)",
+         '"buy pullbacks into the 10 and 20-day EMAs"'),
+        (r"why  = c\.near10 \? \"pullback into the 10-day EMA",
+         '"This provides much tighter risk-reward than buying on strength" - the pullback stop is the pullback low'),
+        (r"c\.ema10  = EmaOf\(d, MathMin\(got, 60\),  10\);",
+         'the 10-day EMA the playbook trails and covers on'),
+        (r"c\.ema20  = EmaOf\(d, MathMin\(got, 80\),  20\);",
+         'the 20-day EMA of the invalidation and the short re-entry'),
+        (r"c\.ema50  = EmaOf\(d, MathMin\(got, 160\), 50\);",
+         'the 50-day moving average the 8-10x ATR extension is measured from'),
+        (r"d\[1\]\.close > c\.ema200 && c\.ema50 > c\.ema200;",
+         'the bullish cycle context - "wedge pop above the 200-day moving average as the market turned"'),
+        (r"bool rising50 = \(ema50Then > 0\.0 && c\.ema50 > ema50Then\);",
+         'an established uptrend: the 50-day EMA is rising'),
+        (r"if\(!FlagDone\(ticket, \"P1\"\) && profit >= InpAdrProfitMult \* adr\)",
+         '"Take 1/3 of position off when profit reaches 2x the average daily range"'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, InpPartial1Pct\)",
+         '"Take 1/3 of position off"'),
+        (r"double extTarget = \(ema50 > 0\.0\) \? ema50 \+ InpAtrExtMult \* ctx\.atrD1 : 0\.0;",
+         '"Take another 1/3 when price extends 8-10x ATR from the 50-day moving average"'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, InpPartial2Pct\)",
+         '"Take another 1/3"'),
+        (r"double emaT = DailyEma\(ctx\.symbol, InpTrailEma\);",
+         '"Trail the final 1/3 using the 10 or 20-day EMA as a stop, exiting on violation"'),
+        (r"if\(g_eaExec\.Close\(ticket, StringFormat\(\"daily close below the %d-day EMA",
+         'the violation is a completed daily close below the trail EMA'),
+        (r"cfg\.signalTimeframe\s+= PERIOD_M5;",
+         '"the 5-minute chart is used for precise entry timing and stop placement"'),
+        (r"bool poked  = \(d\[i\]\.high > bHi\);",
+         '"formed a base, attempted to break out but failed" - the poke above the base high'),
+        (r"bool failed = \(d\[i\]\.close < bHi\);",
+         '"this is a late-stage failed base pattern" - the breakout closes back inside the base'),
+        (r"if\(d\[i\]\.close < ema20Now && \(double\)d\[i\]\.tick_volume >= InpInvalidVolMult \* avg\)",
+         '"violates its 20-day exponential moving average on larger volume than recent bars"'),
+        (r"bool minimalVol = \(recentAvg <= 0\.0\) \|\| \(recVol <= InpWeakVolFrac \* recentAvg\);",
+         '"form a wedge pattern on minimal volume - this shows weak buying demand"'),
+        (r"bool lowerHigh  = \(recHi > 0\.0 && recHi < c\.failedBaseHigh\);",
+         'the recovery stalls at a lower high than the failed base'),
+        (r"bool turning    = \(d\[1\]\.close < c\.ema20 && d\[1\]\.close < d\[1\]\.open\);",
+         '"Short the turn lower" - the completed bar closes back under the 20 EMA'),
+        (r"double stopLevel = MathMax\(m\[0\]\.high, c\.recoveryHigh\);",
+         '"with stop just above the high of day"'),
+        (r"if\(!c\.marketDown\) return false;",
+         '"Ideal short entries occur when the broader market (QQQ) is also declining"'),
+        (r"c\.marketDown = \(mktEma > 0\.0 && mkt\[1\]\.close < mktEma\);",
+         'the market proxy reads as declining when it closes under its own 20-day EMA'),
+        (r"input string\s+InpMarketSymbol\s+= \"US100\";",
+         'the QQQ analogue is an input - the document names QQQ, the broker may not carry it'),
+        (r"if\(undercut && reclaimed\)",
+         '"Cover half the position when price undercuts prior lows and then reclaims them"'),
+        (r"if\(g_eaExec\.ClosePartial\(ticket, 50\.0\)",
+         '"Cover half the position"'),
+        (r"if\(ema10 > 0\.0 && d\[1\]\.close > ema10\)",
+         '"Cover the remaining half when price reclaims the 10-day EMA"'),
+        (r"if\(g_eaExec\.Close\(ticket, \"price reclaimed the 10-day EMA - the cover completes\"\)\)",
+         '"Cover the remaining half"'),
+        (r"input int\s+InpMaxShortAttempts\s+= 3;",
+         '"limit re-entries to a maximum of 3 attempts per ticker"'),
+        (r"ShortAttempts\(ctx\) >= InpMaxShortAttempts\) return false;",
+         '"maximum of 3 attempts per ticker" is a hard gate, counted from the day deals'),
+        (r"input ENUM_CF_PC_SIDE\s+InpSide",
+         'both cycles of the document are implemented: the bullish continuation and the bearish failed base'),
+        (r"cfg\.sessionEndFlat\s+= false;",
+         'the playbook holds for days (a 20% move in 3 days) - the positions are not flattened at the bell'),
+    ],
 }
 
 
@@ -1385,7 +1477,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_OrderFlowStrategy.mq5",
                      "EA_CF_OrderflowTradingMasterclass.mq5",
                      "EA_CF_ParabolicShort.mq5",
-                     "EA_CF_PriceAction.mq5"):
+                     "EA_CF_PriceAction.mq5",
+                     "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

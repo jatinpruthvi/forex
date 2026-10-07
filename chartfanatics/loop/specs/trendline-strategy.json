@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "ec8c3fe5812a25a8a0fa2de74f96b6fdaf7b41c5f6003299aa23206736f91da8",
+  "acceptance_hash": "f50e102193d1c5a5465b4bb70cb32a53110bdda400d7b56fdb73ed1e435f0472",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_TrendlineStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "22ea4899c001ca6b0969d025188d3c945007e65a85b2765fe28ed7a2bad96c7f",
-    "tests/test_chartfanatics_sync.py#other_cards": "97f1edd09494972fa6b93a8bcf64401788bc8e7a8eab3fe7f674da3bd69e80fd"
+    "tests/test_chartfanatics_sync.py#machinery": "5902521bfeef5f0d104895f03181ee7b9b401508ffd7c1440e4a7c08c6c7ea7d",
+    "tests/test_chartfanatics_sync.py#other_cards": "306cf2e6b3395f87125bf57449a554bc57ea42fec1c44f4210fab23021cd8e6b"
   },
   "magic": 3244,
-  "planned_at": "2026-10-07T15:28:13Z",
+  "planned_at": "2026-10-07T15:55:36Z",
   "rule_count": 3,
   "slug": "trendline-strategy",
   "source": "chartfanatics/pdf/trendline-strategy.pdf",

@@ -750,6 +750,28 @@
     "one-hour execution window after the open, session-end flat, EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/70UtrLU6RAg.md"
+  },
+  {
+   "card": 32,
+   "slug": "price-cycle-continuation-failed-base-strategy",
+   "strategy": "Price Cycle Continuation & Failed Base Strategy",
+   "ea": "EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5",
+   "class": "CCfPriceCycle",
+   "magic": 3235,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "long side (bullish cycle): established uptrend (rising 50 EMA, price over the 200 EMA), a tight base on receding volume, the breakout above the base with volume, or the pullback into the 10/20-day EMAs",
+    "long scaling: 1/3 at 2x ADR profit, 1/3 at 8-10x ATR from the 50-day EMA, the final 1/3 trailed on the 10/20-day EMA and exited on violation",
+    "stock selection: $50M average daily dollar volume, 3%+ ADR, relative strength versus a market proxy",
+    "short side (failed base): the base whose breakout failed, the 20-EMA violation on larger volume, the minimal-volume wedge to a lower high, the turn lower with the stop above the high of day, market confirmation",
+    "short covers: half on the undercut and rally, the rest on the 10-day EMA reclaim",
+    "re-entry discipline: 3 attempts per ticker",
+    "daily context on D1, entries timed on M5 (the document two timeframes)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/0_NSmOWVbpA.md"
   }
  ]
 }
