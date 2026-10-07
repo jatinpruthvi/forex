@@ -1,0 +1,15 @@
+80-20-nasdaq-strategy	80/20 Nasdaq Strategy	jsUTbjwpFVk	youtube.com/@Okala8020
+algorithmic-strategy	Algorithmic Strategy 	TyHTEtArsS4	youtube.com/@chart-fanatics
+fair-pricing-theory-strategy	Fair Pricing Theory Strategy	KHEQ5g55dQ4	youtube.com/@itsjjsimon
+institutional-options-flow-gamma-reversal-strategy	Institutional Options Flow & Gamma Reversal Strategy 	35cyqDz-ej8	youtube.com/@chart-fanatics
+institutional-strategy-development-framework	Institutional Strategy Development Framework	yW6c0K8uGvw	youtube.com/@chart-fanatics
+liquidity-inversion-model	Liquidity Inversion Model	UIGZtoGGPH4	youtube.com/@chart-fanatics
+momentum-model-performance-development	Momentum Model Performance Development	WDdvnd9vLbM	youtube.com/@chart-fanatics
+nasdaq-ict-and-order-flow-scalping-strategy	Nasdaq ICT and Order Flow Scalping Strategy	KkTTCKr-3Ew	youtube.com/@chart-fanatics
+nq-liquidity-sweep-reversal-scalping-strategy	NQ Liquidity Sweep & Reversal Scalping Strategy 	-kGVL93XfyE	youtube.com/@chart-fanatics
+order-flow-strategy	Order Flow Strategy	hvyf6frvCcA	youtube.com/@chart-fanatics
+price-action-strategy	Price Action Strategy	70UtrLU6RAg	youtube.com/@GalaTrades
+price-cycle-continuation-failed-base-strategy	Price Cycle Continuation & Failed Base Strategy	0_NSmOWVbpA	youtube.com/@chart-fanatics
+small-cap-short-statistics	Small-Cap Short Statistics	52ZsDmFHqyY	youtube.com/@chart-fanatics
+stage-analysis-strategy	Stage Analysis Strategy	VDK200OHNSo	youtube.com/@chart-fanatics
+trading-first-principles-framework	Trading First Principles Framework	_wpg45NdMkM	youtube.com/@chart-fanatics
