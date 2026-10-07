@@ -162,6 +162,26 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_SupportAndResistance (card #37): the Elite Option Trader's playbook, level-first.  Levels are
+    built exactly as the document says - swing highs and lows ("past market highs, lows, and reactions")
+    from the daily AND weekly series, clustered, weighted by how often the market reacted there, gated on
+    being "major" (tested at least InpMinTouches times or weekly-confirmed) and flagged when they sit on a
+    "round psychological number" (the 5000/6000/7000 magnets).  The catalyst layer is the document's
+    hard requirement ("avoid trading key levels without a strong catalyst"): the engine's red-folder news
+    reader is the live source (FOMC / CPI / NFP are exactly its high-importance events) and a
+    volatility-footprint proxy - a news-sized bar in the last few sessions - is the tester-safe source
+    (earnings dates are not in the terminal calendar).  The engine's own blackout keeps entries out of the
+    print itself.  Confirmation is the document's own list: "a strong bounce or rejection from the level"
+    (the completed day reaches the level and closes back beyond it), "multi-day hold or reclaim of the
+    level" (completed closes beyond it), the two higher weekly lows of Example 1 for a support bounce,
+    and Example 2's reclaim-and-stabilise continuation.  Sizing is "Sizing for Zero" verbatim: a tiny
+    risk, the document's own 20% wide stop as the "loss you accept completely", no break-even, no
+    trailing ("avoids premature exits"), and scale-outs at 5R and 10R ("target massive R multiples").
+    "[interpretation]": the pivot width, the cluster and approach windows, the round-number step, the
+    touch / bounce tolerances, the hold bars, the catalyst lookback and proxy multiple, the time-stop
+    horizon, the level cooldown and the symmetric short at a broken support.  Disclosed: the playbook is
+    an options playbook - MT5 has no SPX chain, so the EA trades the underlying and expresses the
+    weekly/monthly contract horizon as the time stop.
   * EA_CF_StageAnalysisStrategy (card #36): Ted Zhang's 4-market-cycle framework read mechanically.  The
     stack (10/20/30/40 simple moving averages) is the whole judge: bullishly stacked with price surfing
     above it is Stage 2 (the buy/hold zone), bearishly stacked with price under it is Stage 4 (avoid or
@@ -1823,6 +1843,87 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input string            InpSymbolsToTrade     = \"AAPL,MSFT,NVDA\";",
          'the ETF-leaders market-health screen is the universe (disclosed)'),
     ],
+    # -------------------------------------- support and resistance (card #37)
+    "EA_CF_SupportAndResistance.mq5": [
+        (r"input string            InpSymbolsToTrade     = \"US500,US100\";",
+         'the playbook trades SPX options - the index/CFD is the tradable proxy (disclosed)'),
+        (r"input ENUM_TIMEFRAMES   InpHighTf              = PERIOD_W1;",
+         '"Use weekly and daily charts to find key levels" - the higher timeframe'),
+        (r"if\(ph\) AddLevel\(ctx, price_, touch_, weekly_, round_, n, cap, d\[i\]\.high, false\);",
+         '"Identify major support/resistance levels from past market highs, lows, and reactions on daily ... charts" (daily swing highs)'),
+        (r"if\(pl\) AddLevel\(ctx, price_, touch_, weekly_, round_, n, cap, d\[i\]\.low,  false\);",
+         '... and the daily swing lows'),
+        (r"if\(ph\) AddLevel\(ctx, price_, touch_, weekly_, round_, n, cap, w\[i\]\.high, true\);",
+         '... on ... weekly charts" (weekly swing highs)'),
+        (r"if\(pl\) AddLevel\(ctx, price_, touch_, weekly_, round_, n, cap, w\[i\]\.low,  true\);",
+         '... and the weekly swing lows'),
+        (r"double sc = 80.0;",
+         'the document\'s own "80% win rate when technicals and news align" is the base score'),
+        (r"sc \+= MathMin\(6\.0, 2\.0 \* touch_\[i\]\);",
+         'levels gain conviction with every reaction ("past ... reactions")'),
+        (r"if\(weekly_\[i\]\) sc \+= 4\.0;",
+         'a weekly-confirmed level scores above a daily-only one'),
+        (r"if\(touch_\[i\] < InpMinTouches && !weekly_\[i\]\) continue;",
+         '"major support/resistance levels" - a level needs tests or weekly confirmation'),
+        (r"bool IsRoundNumber\(const double p\)",
+         '"Round psychological numbers ... tend to act as strong magnets"'),
+        (r"if\(round_\[i\]\)  sc \+= 4\.0;",
+         'the round-number magnet adds conviction'),
+        (r"input double            InpRoundStep          = 500\.0;",
+         'the examples 5000/6000/7000 are multiples of the step (interpretation: a denser superset)'),
+        (r"if\(!CatalystRecent\(ctx, d, dGot, minsAgo\)\) return false;",
+         '"Avoid trading key levels without a strong catalyst" - no catalyst, no trade'),
+        (r"if\(EA_NewsBlocked\(\)\) return false;",
+         'the engine red-folder blackout: never open INTO the print'),
+        (r"cfg\.newsUseCalendar       = \(InpCatalystMode == 1\);",
+         'the engine economic-calendar reader is the live catalyst source (FOMC / CPI / NFP)'),
+        (r"cfg\.newsFile              = InpNewsFile;",
+         'the red-folder CSV covers the tester, where the terminal calendar has no data'),
+        (r"if\(\(d\[i\]\.high - d\[i\]\.low\) >= InpCatalystRangeAtr \* avg\)",
+         'the volatility-footprint proxy for a news bar (earnings are not in the calendar)'),
+        (r"if\(secs <= \(long\)InpCatalystLookbackH \* 3600\)",
+         'the catalyst must be recent - "post-catalyst" alignment, not a stale event'),
+        (r"if\(InpAllowRejections && touched && lastClose >= L \* \(1\.0 \+ bo\)\)",
+         '"A strong bounce or rejection from the level" (bounce off support)'),
+        (r"if\(InpAllowRejections && touched && lastClose <= L \* \(1\.0 - bo\)\)",
+         '... the rejection at resistance'),
+        (r"if\(d\[i\]\.close >= L \* \(1\.0 \+ bo\)\) heldAbove\+\+;",
+         '"Multi-day hold or reclaim of the level" - completed closes beyond it'),
+        (r"if\(HigherLowsAfterTest\(w, wGot, L\) < InpHigherLowsReq\) return false;",
+         'Example 1: "two higher weekly lows following the initial test of 5000"'),
+        (r"else if\(InpAllowBreakouts && heldAbove >= InpHoldBars\)",
+         'Example 2: "Long calls were taken once the price reclaimed and stabilized above 5700"'),
+        (r"dir = \+1; kind = \"reclaim and hold above resistance\";",
+         '... the breakout continuation is taken long'),
+        (r"score \+= 4\.0;                                 // the document's own breakout example",
+         'the document\'s own worked breakout scores above the general case'),
+        (r"input double            InpWideStopPct        = 20\.0;",
+         '"Instead of risking $5,000 with a 20% stop" - the accepted complete loss'),
+        (r"input double            InpZeroRiskPct        = 0\.25;",
+         '"size your total trade to $1,000 - fully acceptable loss if the trade goes to zero"'),
+        (r"stop = \(dir > 0\) \? entry \* \(1\.0 - InpWideStopPct / 100\.0\)",
+         'the stop is the "trade goes to zero" distance, not a tight stop'),
+        (r"cfg\.breakEvenAtR          = 0\.0;",
+         '"This allows you to hold through volatility" - no break-even stop'),
+        (r"cfg\.trailAtR              = 0\.0;",
+         '"... and avoids premature exits" - no trailing stop'),
+        (r"cfg\.partial1AtR           = InpTp1R;",
+         '"target massive R multiples (5x, 10x+)" - the first scale-out at 5R'),
+        (r"cfg\.partial2AtR           = InpTp2R;",
+         '... and the second at 10R'),
+        (r"cfg\.timeStopMinutes       = InpMaxHoldDays \* 24 \* 60;",
+         '"Weekly or monthly contracts" - the monthly horizon becomes the time stop (disclosed proxy)'),
+        (r"cfg\.timeStopUnlessR       = InpTp1R;",
+         'a trade that reached the first target is not cut by the horizon'),
+        (r"cfg\.maxTradesPerDay       = InpMaxTradesPerDay;",
+         '"not every day is a trade day" - one entry a day at most'),
+        (r"cfg\.newsBeforeMin         = 15;",
+         'the event blackout is engine-side: no entries into the print'),
+        (r"input int               InpLevelCooldownDays  = 10;",
+         'the same magnet is not re-traded day after day (interpretation, "patience is critical")'),
+        (r"\"day\", \"symbol\", \"level\", \"support\", \"weekly\", \"round_number\", \"touches\", \"score\"",
+         'the level identification is dumped as evidence ("identify which stage" discipline: here, which levels)'),
+    ],
 }
 
 
@@ -1859,7 +1960,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_RealSimpleStrategy.mq5",
                      "EA_CF_ShortingStrategy.mq5",
                      "EA_CF_SmallCapShortStatistics.mq5",
-                     "EA_CF_StageAnalysisStrategy.mq5"):
+                     "EA_CF_StageAnalysisStrategy.mq5",
+                     "EA_CF_SupportAndResistance.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

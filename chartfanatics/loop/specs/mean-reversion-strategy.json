@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "dc54c598ae052132a44f6df59842c0400b98537aa736c158ee198208ed6a9006",
+  "acceptance_hash": "0b2b4d3d21192862b1aa52b91055a75dd30e165d011b32aa6d96a1e0627aeca0",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_MeanReversion.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "d5b79743ec15be5032c7b8ab38c98057d07fb11678eefdcd4108acdc2a95744c",
-    "tests/test_chartfanatics_sync.py#other_cards": "827640d83d921e581a75fdd369d9336e625b2365651737000b444bc2fb864361"
+    "tests/test_chartfanatics_sync.py#machinery": "75ed85add1e7b37144bf3f783f062b07338670c0b00debcd786768c6c57ca83b",
+    "tests/test_chartfanatics_sync.py#other_cards": "778f5f68299b45c37cee44e7a853d83b3e88d6cb7597b43d67162cab411b6d37"
   },
   "magic": 3225,
-  "planned_at": "2026-10-07T16:05:07Z",
+  "planned_at": "2026-10-07T16:09:06Z",
   "rule_count": 26,
   "slug": "mean-reversion-strategy",
   "source": "chartfanatics/pdf/mean-reversion-strategy.pdf",

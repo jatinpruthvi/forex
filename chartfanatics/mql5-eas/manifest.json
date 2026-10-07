@@ -851,6 +851,26 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/VDK200OHNSo.md"
+  },
+  {
+   "card": 37,
+   "slug": "support-and-resistance",
+   "strategy": "Support and Resistance",
+   "ea": "EA_CF_SupportAndResistance.mq5",
+   "class": "CCfSupportResistance",
+   "magic": 3240,
+   "timeframe": "D1/W1 levels, M5 execution",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "higher-timeframe levels: daily and weekly swing pivots clustered and weighted by reactions, gated as major (touches or weekly confirmation), round-number magnets flagged",
+    "the catalyst gate: the engine red-folder news reader (live) or a volatility-footprint proxy (tester), plus the engine blackout so nothing opens into the print",
+    "confirmation: strong bounce / rejection off the level, multi-day hold or reclaim, Example 1's two higher weekly lows, Example 2's reclaim-and-stabilise breakout",
+    "Sizing for Zero: tiny risk, the document's 20% wide stop, no break-even and no trailing, scale-outs at 5R and 10R, the monthly horizon as the time stop",
+    "a level-evidence CSV (day, symbol, level, support, weekly, round number, touches, score)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/support-and-resistance.pdf"
   }
  ]
 }

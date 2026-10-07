@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "8ffe5e851ecbe91be075bd2f57ada950d72006c947ff863d0f287d4fdd374734",
+  "acceptance_hash": "cf9fee79fd1e71efd8112bd0ebf4f22768be5ddc577b83d798e06dcd6bceb3f0",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_VolumeProfileStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "d5b79743ec15be5032c7b8ab38c98057d07fb11678eefdcd4108acdc2a95744c",
-    "tests/test_chartfanatics_sync.py#other_cards": "03412aa73370d8a52c86c2b7758368b0f66fa287ae9d9500dfa37b8696f02789"
+    "tests/test_chartfanatics_sync.py#machinery": "75ed85add1e7b37144bf3f783f062b07338670c0b00debcd786768c6c57ca83b",
+    "tests/test_chartfanatics_sync.py#other_cards": "b39aaf46c7ca7d23d4b6efa5d3c8611d7f7f8654be1ba413745714923cfabd16"
   },
   "magic": 3247,
-  "planned_at": "2026-10-07T16:05:07Z",
+  "planned_at": "2026-10-07T16:09:06Z",
   "rule_count": 3,
   "slug": "volume-profile-strategy",
   "source": "chartfanatics/pdf/volume-profile-strategy.pdf",
