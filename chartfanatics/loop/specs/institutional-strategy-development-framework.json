@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "bdbc396b02e2fe8caaea85c7f18789e0cb976071db55f8581e855559926566ae",
+  "acceptance_hash": "b01b4c923f99b4781865a47e03e9b520b283afb96c2e675b81bc11fa8774e256",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_InstFramework.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "0a7c61d0996370e3acbca5899160dab62b79ccf7ad40e634588a1f391b47ad0b",
-    "tests/test_chartfanatics_sync.py#other_cards": "6c8ddce6783fb92cb4f46ea27c6fcc9f4dffe2104596021ef0af0a33d072f580"
+    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
+    "tests/test_chartfanatics_sync.py#other_cards": "3c61f5707c22cebf91dcfaa4e3fc7b7b538bb7a167c63b13d15c8f7602f0d42e"
   },
   "magic": 3219,
-  "planned_at": "2026-10-07T16:14:43Z",
+  "planned_at": "2026-10-07T16:17:42Z",
   "rule_count": 27,
   "slug": "institutional-strategy-development-framework",
   "source": "chartfanatics/glimpse/yW6c0K8uGvw.md",

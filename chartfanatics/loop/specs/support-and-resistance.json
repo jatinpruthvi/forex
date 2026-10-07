@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "a3c604a0132aa17dfdc49a11da448026fc003d9e1b5b1481dca8b1fc15adf329",
+  "acceptance_hash": "28475c4b7c56ebbbe35440e6e6d9e4234ee2be56686f5b1d3bf9e02b4299fa34",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_SupportAndResistance.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "0a7c61d0996370e3acbca5899160dab62b79ccf7ad40e634588a1f391b47ad0b",
-    "tests/test_chartfanatics_sync.py#other_cards": "5abef3013167176faa23f9cceb3431c5cae88ef3bee5f2ccf656c9e57e039bd8"
+    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
+    "tests/test_chartfanatics_sync.py#other_cards": "3d56a2022ba226f707ef829d6dff051cda6170ddf06b00f8c0489184c9661f29"
   },
   "magic": 3240,
-  "planned_at": "2026-10-07T16:14:44Z",
+  "planned_at": "2026-10-07T16:17:42Z",
   "rule_count": 39,
   "slug": "support-and-resistance",
   "source": "chartfanatics/pdf/support-and-resistance.pdf",

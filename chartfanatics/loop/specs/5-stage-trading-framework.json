@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "7b38a1f9e95e20152e1e4ad3a10ecdd7d1cefd4a834f99fc220d2f8b86ddcdc4",
+  "acceptance_hash": "b85d82b39b5f27d6a3ee420a6aa9d99b7d35fb916743b42f0e6e09c66902b996",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_Stage_Guardrails.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "0a7c61d0996370e3acbca5899160dab62b79ccf7ad40e634588a1f391b47ad0b",
-    "tests/test_chartfanatics_sync.py#other_cards": "b99779a11b954535072dae7656d6d9cfcac1b82d99e275dad5f3ae8dde84b3a4"
+    "tests/test_chartfanatics_sync.py#machinery": "e346645119e6bae3381d3f851bbc2ad964991c43a1983fc7cd967287572bae33",
+    "tests/test_chartfanatics_sync.py#other_cards": "1099c031f577915fba24bb9067ab440890cdb4f943d3b7217cbe36c1de8b2523"
   },
   "magic": 3207,
-  "planned_at": "2026-10-07T16:14:43Z",
+  "planned_at": "2026-10-07T16:17:42Z",
   "rule_count": 8,
   "slug": "5-stage-trading-framework",
   "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",

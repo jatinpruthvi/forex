@@ -910,6 +910,26 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/_wpg45NdMkM.md"
+  },
+  {
+   "card": 40,
+   "slug": "trendline-break-pocket-strategy",
+   "strategy": "Trendline Break Pocket Strategy",
+   "ea": "EA_CF_TrendlineBreakPocketStrategy.mq5",
+   "class": "CCfTrendlineBreakPocket",
+   "magic": 3243,
+   "timeframe": "D1",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the pocket: Frequency & Proximity zones (hits, recent respect, break count), the trendline through the two most recent same-side swings, the last-swing momentum break, and the one-overshoot rule",
+    "the two entries: the 21-EMA pullback as a resting limit order at the EMA, and the consolidation breakout (two highs, two lows, correct side of the broken structure)",
+    "the 2R model: target = the extreme formed after the momentum shift, stop = half the target distance, clean-air corridor scan",
+    "the MACD divergence check (scored, optionally gated) and the correlated-market exposure cap",
+    "no micromanagement / trailing / early exits - the target or the stop",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/trendline-break-pocket-strategy.pdf"
   }
  ]
 }

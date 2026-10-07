@@ -162,6 +162,24 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_TrendlineBreakPocketStrategy (card #40): Ali Crook's pocket, the one window "after price reacts
+    from a key level, breaks the trendline, and confirms a shift in momentum, before it becomes a fully
+    established trend".  All four conditions are gates, in the document's own order: the level must be a
+    Frequency & Proximity zone (multiple reactions to the same area, recently respected, not repeatedly
+    sliced - "mid-range areas that have been broken through repeatedly are largely ignored"), the trendline
+    drawn through the two most recent same-side swings must break by a completed close ("breaking the
+    trendline does not trigger a trade"), the last swing of the old trend must break after it ("no swing
+    break = no trade"), and the reaction may overshoot the level once and only once ("if the price
+    overshoots the level twice, the setup is void").  The two - and only two - entries are coded: the core
+    pullback into the 21 EMA as a resting limit order placed AT the EMA, and the consolidation breakout with
+    at least two highs and two lows on the correct side of the broken structure.  The 2R model is literal:
+    the target is the extreme formed after the momentum shift and the stop is half that distance, giving the
+    documented 2:1; the clean-air rule scans the corridor for blocking zones ("look left ... skip the
+    trade"); the MACD divergence check scores and can gate; and management is none - "no micromanagement, no
+    trailing, no early exits".  "[interpretation]": the pivot width, the zone tolerance and the touch /
+    break / overshoot windows, the pocket window, the trendline close-through, the consolidation tolerance
+    and bar count, the stop-width sanity cap, the clean-air window and the limit's life.  Disclosed: a
+    retail-sentiment feed does not exist in MetaTrader, so it is not simulated.
   * EA_CF_TradingFirstPrinciplesFramework (card #39): the document's claim that "pretty much all trading
     strategies boil down to these three specific moves" is taken literally - the EA trades all three at once,
     each with its own documented entry and exit.  Momentum: volatility expansion ("when price moves further
@@ -2130,6 +2148,91 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"cfg\.maxTradesPerDay       = 3;",
          'one entry per approach per day'),
     ],
+    # -------------------------------------- trendline break pocket (card #40)
+    "EA_CF_TrendlineBreakPocketStrategy.mq5": [
+        (r"input string            InpSymbolsToTrade     = \"EURUSD,GBPUSD,USDJPY\";",
+         'the playbook is Forex swing - majors are the default universe'),
+        (r"cfg\.signalTimeframe       = PERIOD_D1;",
+         '"Trigger Timeframe: Daily \(default\)"'),
+        (r"input int               InpPivotSide          = 2;",
+         'swing pivots on the daily series carry the "weekly \(if needed\)" context'),
+        (r"if\(ph\) AddZone\(zones, n, d\[i\]\.high, tol\);",
+         '"Multiple highs rejecting a similar price area -> potential resistance zone"'),
+        (r"if\(pl\) AddZone\(zones, n, d\[i\]\.low,  tol\);",
+         '... the support mirror'),
+        (r"zones\[i\]\.hits\+\+;",
+         'Frequency: how often the area was respected'),
+        (r"if\(z\.hits < InpMinZoneHits\) return false;               // frequency",
+         '"Two clean hits at the top, three hits at the bottom -> both are key zones"'),
+        (r"if\(through && !inBreak\) \{ zones\[z\]\.breaks\+\+; inBreak = true; \}",
+         'Proximity: a decisive slice through the zone counts once'),
+        (r"if\(z\.breaks > InpMaxZoneBreaks\) return false;           // \"broken through and chopped around it\"",
+         '"Mid-range areas that have been broken through repeatedly are largely ignored"'),
+        (r"return \(z\.lastTouchIdx <= InpZoneTouchBars\);            // proximity: respected recently",
+         '"If the recent price has tagged and respected it -> strong, active zone"'),
+        (r"double p0 = isShort \? loPrice\[0\] : hiPrice\[0\];",
+         '"A properly defined trendline has been broken: drawn from the most recent swing"'),
+        (r"if\(!tlBroken\) continue;",
+         '"Breaking the trendline does not trigger a trade.  It simply shifts the market into the Pocket condition"'),
+        (r"if\(swingIdx == 0\) continue;                          // \"No swing break = no trade\"",
+         '"The last swing in the old direction has been broken ... No swing break = no trade"'),
+        (r"if\(swingIdx > \(int\)MathMax\(1, InpPocketBars\)\) continue;",
+         'the pocket is a small window after the momentum shift, not history'),
+        (r"if\(CountOvershoots\(d, got, zones\[z\], isShort\) > InpLevelOvershoots\) continue;  // S4",
+         '"if the price overshoots the level twice, the setup is void"'),
+        (r"if\(pierced && !inPierce\) \{ n\+\+; inPierce = true; \}",
+         'each distinct overshoot counted once \(a deeper wick or push\)'),
+        (r"if\(InpUseEmaEntry && PlanEmaEntry",
+         '"A controlled entry form: either a pullback into the 21-period moving average"'),
+        (r"if\(!EA_Buf\(h, 0, 1, ema\)\) return false;",
+         '"The EMA is touched" - the completed bar read'),
+        (r"p\.isLimit = true;                                   // \"Entry order is placed at the EMA\"",
+         '"Entry order is placed at the EMA" - a resting limit, not a chase'),
+        (r"if\(pk\.dir > 0 && !\(pk\.target > ema\)\) return false;",
+         'the target must still be beyond the EMA entry'),
+        (r"if\(InpUseConsolEntry && PlanConsolEntry",
+         '"Entry Type 2 - Breakout from Consolidation"'),
+        (r"if\(pk\.dir < 0 && !\(cHi < pk\.swingLevel\)\) return false;        // below it",
+         '"Consolidation must be formed on the correct side: below the broken structure for shorts"'),
+        (r"if\(hiTouches < InpConsolTouches \|\| loTouches < InpConsolTouches\) return false;",
+         '"At least: two highs, two lows"'),
+        (r"if\(pk\.dir < 0 && !\(d\[1\]\.close < cLo\)\) return false;",
+         '"Breakout entry above/below the consolidation"'),
+        (r"for\(int i = 1; i <= swingIdx; i\+\+\)                  // every completed bar since the shift",
+         '"Target = the high/low formed after momentum break"'),
+        (r"double risk = MathAbs\(entry - pk\.target\) \* InpStopFraction;",
+         '"Stop = half the distance to the target" - the 2R structure'),
+        (r"input double            InpStopFraction       = 0\.50;",
+         '"the base model targets 2R \(2:1 reward:risk\)"'),
+        (r"input bool              InpRequireCleanAir    = true;",
+         '"You must have clean air \(no major level, zone, or structure blocking your 2R target\)"'),
+        (r"if\(zones\[z\]\.hi >= lo && zones\[z\]\.lo <= hi\) return false;",
+         '... the corridor between the entry and the target is checked against the zone book'),
+        (r"cfg\.breakEvenAtR          = 0\.0;",
+         '"For standard 2R setups: no micromanagement, no trailing, no early exits"'),
+        (r"cfg\.trailAtR              = 0\.0;",
+         '... no trailing'),
+        (r"cfg\.partial1AtR           = 0\.0;",
+         '... and no early partial either'),
+        (r"cfg\.timeStopMinutes       = 0;",
+         '... the target or the stop, nothing else'),
+        (r"input bool              InpUseMacdDiv         = true;",
+         '"Look for opposite movement between: Price / MACD lines"'),
+        (r"bool div = isShort \? \(px\[0\] > px\[1\] && macd\[0\] < macd\[1\]\) : \(px\[0\] < px\[1\] && macd\[0\] > macd\[1\]\);",
+         '"Price prints higher highs, MACD prints lower highs"'),
+        (r"input bool              InpRequireMacdDiv     = false;",
+         'the divergence is scored by default and can be made a hard gate'),
+        (r"p\.score = 88\.0;",
+         '"Entry Type 1 - Pullback to the 21 EMA \(Core Entry\)" - the primary entry outranks the breakout'),
+        (r"input int               InpMaxSameDir         = 1;",
+         '"Multiple correlated markets may trigger together" - the exposure cap'),
+        (r"cfg\.pendingExpiryMinutes  = InpLimitDays \* 24 \* 60;",
+         'the EMA limit gets a finite life \(no stale orders\)'),
+        (r"cfg\.maxTradesPerDay       = InpMaxTradesPerDay;",
+         '"Long periods with few trades" - the attempt budget'),
+        (r"input int               InpLimitDays          = 5;",
+         'the limit order life is an interpretation of the pocket timing'),
+    ],
 }
 
 
@@ -2169,7 +2272,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_StageAnalysisStrategy.mq5",
                      "EA_CF_SupportAndResistance.mq5",
                      "EA_CF_VixFuturesStrategy.mq5",
-                     "EA_CF_TradingFirstPrinciplesFramework.mq5"):
+                     "EA_CF_TradingFirstPrinciplesFramework.mq5",
+                     "EA_CF_TrendlineBreakPocketStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
