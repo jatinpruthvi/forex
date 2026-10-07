@@ -637,6 +637,30 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/glimpse/-kGVL93XfyE.md"
+  },
+  {
+   "card": 27,
+   "slug": "options-trading-masterclass",
+   "strategy": "Options Trading Masterclass",
+   "ea": "EA_CF_OptionsTradingMasterclass.mq5",
+   "class": "CCfOptionsMasterclassAudit",
+   "magic": 3230,
+   "timeframe": "M15",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "premium as maximum risk: money at risk (EA_LossPerLotAllIn x volume) audited per position against a budget",
+    "no-stop positions flagged as having no defined premium (the writers' risk the document warns about)",
+    "theta: holding times from the entry deal to the exit deal, audited against the trader's style horizon (day / swing)",
+    "liquidity as fill quality: EA_SlipMedianR and the scope's spread baseline against budgets",
+    "volatility-crush analogue: the day's range vs its own median at entry time (no IV feed exists for a CFD)",
+    "sizing: the day's peak deployed risk against the deployment cap",
+    "daily study sheet CSV plus a five-tenets PASS/FLAG card",
+    "live risk registry snapshot and a final one on deinit",
+    "BuildPlan returns false - the monitor never trades",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/options-trading-masterclass.pdf"
   }
  ]
 }

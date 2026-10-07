@@ -134,6 +134,16 @@ EA source too, so an invention can never quietly become a "documented rule":
     additional FVGs (the engine holds one position per symbol), the "outage gap" reference, copy trading
     across 20 Apex accounts, and the personality / lifestyle / back-test-the-templates / mental-capital
     sections, which are human decisions.
+  * EA_CF_OptionsTradingMasterclass (card #27): the document is a fundamentals masterclass - strike,
+    expiration and premium, calls and puts, intrinsic vs extrinsic value, time decay, implied volatility,
+    the Greeks, liquidity and sizing - and states no entry rule, no exit rule, no stop and no target.  An
+    MT5 EA cannot read an option chain either, so the EA is a MONITOR that never trades and audits the
+    account against the five operational lessons the playbook teaches: premium as maximum risk, time
+    decay, liquidity read as fill quality, the volatility-crush analogue and position sizing.  The premium
+    budget, the deployment cap, both style horizons, the slip / spread / expansion flags and the median
+    baseline window are engineering numbers and are marked [interpretation]; delta, gamma, theta, vega
+    and open interest are option-chain quantities with no CFD feed and are disclosed as not implemented -
+    nothing is faked.
 """
 from __future__ import annotations
 
@@ -1029,6 +1039,42 @@ SYNC: dict[str, list[tuple[str, str]]] = {
          '"daily FVG sweep" confluence'),
         (r"if\(H1FvgAligned\(ctx, dir, h1a, h1b\)\) conf\+\+;",
          '"1-hour FVG fill" confluence'),
+    ],    # -------------------------------------- options trading masterclass (card #27)
+    "EA_CF_OptionsTradingMasterclass.mq5": [
+        (r"input double\s+InpPremiumBudgetPct\s*=\s*1\.0;",
+         'R1 premium: "The premium ... is also the maximum risk for the buyer" - money at risk per position stays inside the budget'),
+        (r"double perLot = InpUseAllInRisk",
+         'R1b "you pay only a fraction - known as the premium": the budget counts the full money at risk, commission included'),
+        (r"bool\s+noStop\s*=\s*\(sl\s*<=\s*0\.0\);",
+         'R2 "Buyers pay the premium ... Their risk is capped at that premium" - a CFD position with no stop has no defined premium and is flagged'),
+        (r"double money\s*=\s*MoneyAtRisk\(sym, volume, dist\);",
+         'R2b the premium analogy priced in account money: stop distance x volume through EA_LossPerLot'),
+        (r"DayHoldStats\(day, avgHold, maxHold, trades, beyond\);",
+         'R3 "time is constantly working against the buyer" - holding times read from the entry deal to the exit deal'),
+        (r"input double\s+InpMaxHoldHoursDay\s*=\s*8\.0;",
+         'R4 "Day traders may prefer weekly or zero-day contracts"'),
+        (r"input double\s+InpMaxHoldHoursSwing\s*=\s*120\.0;",
+         'R4b "swing traders often benefit from expirations weeks or months away"'),
+        (r"double slipR\s*=\s*SlipAcrossScope\(\);",
+         'R5 "Liquidity determines how easily you can get in and out of a trade without delays or poor fills"'),
+        (r"double v = EA_SlipMedianR\(g_eaSymbols\[i\]\);",
+         'R6 "if a strike only has 100 contracts of open interest and you want to buy 70 contracts, you may struggle to get filled quickly"'),
+        (r"input double\s+InpSpreadFlagPts\s*=\s*5\.0;",
+         'R6b "High open interest means more market participants at that strike, which generally leads to smoother and faster fills"'),
+        (r"double ratio = VolExpansionRatio\(sym\);",
+         'R7 "implied volatility usually spikes ... Once the news is released, IV often drops sharply" - the expansion is read at entry'),
+        (r"input double\s+InpVolExpansionFlag\s*=\s*1\.50;",
+         'R7b "This is known as volatility crush" - no IV feed exists for a CFD, so realised range expansion is the labelled proxy'),
+        (r"input double\s+InpMaxDeployedPct\s*=\s*3\.0;",
+         'R8 "how you size your positions matters"'),
+        (r"bool sizingOk\s*=\s*\(m_dayMaxDeployedPct <= InpMaxDeployedPct\);",
+         'R8b "Options offer incredible leverage - but without discipline, losses can compound just as quickly as gains."'),
+        (r'input string\s+InpTentFile\s*=\s*\"cf_options_tenets\.txt\";',
+         'R9 "Master the basics, respect the risks, and options can become one of the most effective tools in your trading arsenal."'),
+        (r"option-chain quantities with no CFD feed",
+         'R10 delta / gamma / theta / vega and open interest: disclosed as not implemented, no fake Greek is printed'),
+        (r"bool BuildPlan\(SEAContext &ctx, SSignalPlan &plan\) \{ plan\.Reset\(\); return false; \}",
+         'R11 the document states no entry rule - the EA is a monitor and never proposes a trade'),
     ],
 }
 
@@ -1056,7 +1102,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5",
                      "EA_CF_LowVolumeNode.mq5", "EA_CF_MarketAuctionTheory.mq5",
                      "EA_CF_MarketDna.mq5", "EA_CF_NasdaqIctAndOrderFlowScalpingStrategy.mq5",
-                     "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5"):
+                     "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5",
+                     "EA_CF_OptionsTradingMasterclass.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
