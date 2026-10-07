@@ -154,6 +154,14 @@ EA source too, so an invention can never quietly become a "documented rule":
     the engine holds one position per symbol: the confirmation instead banks the 1R partial and moves the
     stop to break-even.  NQ runs 2-minute and ES 3-minute charts; one signal timeframe per EA means M2 for
     both.  The DOM speed read and the trader's psychology sections are human, disclosed, not faked.
+  * EA_CF_ParabolicShort (card #30): the playbook quotes cap-tier percentages (200 / 100 / 50) measured
+    from "the last time price touched the 20-day moving average before the strong move" - the EA implements
+    that geometry on D1 and exposes the touch tolerance, the accelerating-leg and base windows, the
+    acceleration multiple, the pullback cap, the swing wing/size, the two-day top window, the entry-grade
+    selector, the VWAP reclaim/rejection tolerances, the stop buffer, the expected-move target and the
+    risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
+    of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
+    score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
   * EA_CF_OrderflowTradingMasterclass (card #29): the document's tools - DOM, heatmap, footprint - do not
     exist in MetaTrader, so "aggression" is body-directional tick volume, the delta divergence is that
     skew failing to progress price, and a "liquidity wall" is a level the session has tested and held
@@ -1189,6 +1197,77 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input int\s+InpSessionStartHour\s+= 14;",
          'day trading: the regular session, 14:30 London = 09:30 ET'),
     ],
+    # -------------------------------------- parabolic short (card #30)
+    "EA_CF_ParabolicShort.mq5": [
+        (r"CF_PS_SMALL = 200,",
+         '"a small-cap stock generally needs to move around 200 percent or more from its last base"'),
+        (r"CF_PS_LARGE = 50\s+// Large cap",
+         '"a large-cap stock can qualify with a move closer to 50 percent"'),
+        (r"input string\s+InpSymbolsToTrade",
+         'the playbook trades stocks; the universe is the user list'),
+        (r"//--- R2: the base - the most recent 20-day-MA touch BEFORE the accelerating leg",
+         '"the move should always be measured from the most recent base, not the absolute bottom" / "the last time price touched the 20-day moving average before the strong move began"'),
+        (r"if\(pc\.movePct < RequiredMovePct\(\)\) return false;",
+         'the size filter is enforced: the extension from the base must clear the tier'),
+        (r"pc\.accelOk = \(baseRange <= 0\.0\) \|\| \(pc\.accelRatio >= InpAccelMult\) \|\| gapUp;",
+         '"price starts accelerating, candles become large, and the slope becomes steep"'),
+        (r"if\(d\[i\]\.open > d\[i \+ 1\]\.high\) \{ gapUp = true; break; \}",
+         '"in some cases, there are gaps between sessions"'),
+        (r"if\(pc\.pullbackFrac > InpMaxPullbackFrac\) return false;",
+         '"these pullbacks release pressure, which reduces the chance of a sharp reversal"'),
+        (r"pc\.volRecord = \(bestI >= 1 && bestI <= InpAccelBars\);",
+         '"when volume reaches the highest levels seen in recent history, it often means the final wave of buyers has entered the trade"'),
+        (r"double level = MathFloor\(pc\.topHigh / InpRoundStep\) \* InpRoundStep;",
+         '"round numbers like 100, 300, or 500 attract attention"'),
+        (r"else if\(topYest > topPrev \+ tol\)",
+         '"the exhaustion day usually happens on the same day as the final push higher, or the following day. If nothing happens within two days, the setup should be ignored"'),
+        (r"input int\s+InpMaxDaysSinceTop\s+= 2;",
+         'the two-day window is an input, not a hidden constant'),
+        (r"ss\.belowVwap = \(m\[1\]\.close < ss\.vwap\);",
+         '"on a true exhaustion day, price moves below VWAP and is unable to reclaim it"'),
+        (r"ss\.strongReclaim = \(m\[1\]\.close > reclaim \|\| m\[2\]\.close > reclaim\);",
+         '"if the price stays above VWAP and continues higher, the setup is not active"'),
+        (r"ss\.lowerHighs = \(foundH >= 2 && ph0 < ph1\);",
+         '"price stops making higher highs. Lower highs begin to form"'),
+        (r"ss\.lowerLows  = \(foundL >= 2 && pl0 < pl1\);",
+         '"followed by lower lows"'),
+        (r"if\(!ss\.lowerHighs \|\| !ss\.lowerLows\) return false;",
+         'every graded entry needs the broken structure first'),
+        (r"CF_PS_STRUCTURE   = 0,",
+         '"the first type of entry comes when price breaks its upward structure and starts forming lower highs and lower lows. This is earlier and carries more risk"'),
+        (r"if\(m\[i\]\.close < ss\.vwap && foundL >= 2 && m\[i\]\.close < pl1\)",
+         '"a stronger entry happens when price breaks structure and loses VWAP at the same time"'),
+        (r"CF_PS_VWAP_REJECT = 2",
+         '"the best entry occurs when price tries to move back above VWAP and fails"'),
+        (r"if\(stayedBelow\) \{ ss\.vwapReject = true; break; \}",
+         '"price tries to move back above VWAP and fails ... confirms that buyers cannot regain control"'),
+        (r"if\(ctx\.tradesToday >= InpMaxAttempts\) return false;",
+         '"if the setup fails once, a second attempt can be taken. If it fails again, it is best to move on"'),
+        (r"double stopLevel = \(InpUseLowerHighStop && ss\.lastLowerHigh > ctx\.bid\)",
+         '"a common stop level is the high of the day or the most recent lower high"'),
+        (r"cfg\.partial1AtR\s+= InpPartialAtR;",
+         '"partial profits should be taken once the trade moves in your favor"'),
+        (r"cfg\.breakEvenAtR\s+= InpPartialAtR;",
+         '"after that, the stop can be moved to break-even"'),
+        (r"if\(posSl <= 0\.0 \|\| posSl > posEntry\) return false;",
+         'the add only fires once the live leg stop is at or beyond break-even'),
+        (r"double banked = BankedOutProfit\(\(ulong\)PositionGetInteger\(POSITION_IDENTIFIER\)\);",
+         'the banked partial is read from the position deal history to prove the cover'),
+        (r"if\(banked <= 0\.0 \|\| banked < cover\) return false;",
+         '"because the stop is already at break-even, the added position does not increase overall risk ... earlier profits cover the loss"'),
+        (r"if\(expected <= 0\.0 \|\| usedFrac >= InpMaxUsedMoveFrac\) return false;",
+         '"if a large part of the move has already happened, for example after a big gap down, the trade may no longer be worth taking"'),
+        (r"double want = MathMin\(expected \* InpTargetFrac, InpMaxTargetR \* risk\);",
+         '"before entering any trade, it is important to estimate how much the stock can realistically move"'),
+        (r"input double\s+InpExpectedMovePct\s+= 20\.0;",
+         '"10 to 20 percent" (stable) / "20 to 40 percent or more" (hype-driven)'),
+        (r"cfg\.sessionEndFlat        = true;",
+         '"the trade should be closed before the end of the day. Holding overnight increases risk and is not part of the strategy"'),
+        (r"if\(m\[1\]\.close <= vwap \+ InpReclaimBufferAtr \* ctx\.atr\) return;",
+         '"if price reclaims VWAP strongly and continues higher, the setup is no longer valid"'),
+        (r"dt\.hour = InpSessionStartHour; dt\.min = InpSessionStartMin; dt\.sec = 0;",
+         'the day-trading session anchors both the VWAP and the session high'),
+    ],
 }
 
 
@@ -1218,7 +1297,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5",
                      "EA_CF_OptionsTradingMasterclass.mq5",
                      "EA_CF_OrderFlowStrategy.mq5",
-                     "EA_CF_OrderflowTradingMasterclass.mq5"):
+                     "EA_CF_OrderflowTradingMasterclass.mq5",
+                     "EA_CF_ParabolicShort.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

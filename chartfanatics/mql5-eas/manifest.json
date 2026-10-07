@@ -706,6 +706,28 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/orderflow-trading-masterclass.pdf"
+  },
+  {
+   "card": 30,
+   "slug": "parabolic-short-strategy",
+   "strategy": "Parabolic Short Strategy",
+   "ea": "EA_CF_ParabolicShort.mq5",
+   "class": "CCfParabolicShort",
+   "magic": 3233,
+   "timeframe": "M5",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "three core components as one gate: size of the move from the last 20-day-MA base (cap-tier percentage), acceleration of the leg (range expansion or session gaps, shallow pullbacks), and the exhaustion day within two days of the top",
+    "exhaustion day: below VWAP and unable to reclaim it, lower highs and lower lows from real pivots",
+    "three graded entries: structure break, structure + VWAP loss together, and the failed VWAP reclaim",
+    "stop at the high of the day or the most recent lower high, with the playbook's partial + break-even",
+    "the risk-free add: a second short only when the banked partial profit covers the add risk",
+    "expected-move target with the already-moved skip filter",
+    "close before the end of the day; exit when VWAP is reclaimed strongly",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/parabolic-short-strategy.pdf"
   }
  ]
 }

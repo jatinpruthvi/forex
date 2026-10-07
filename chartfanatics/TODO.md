@@ -4,14 +4,14 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 32 in progress ·
-⬜ 15 not started
+**Cards:** ✅ 0 done · 🟡 33 in progress ·
+⬜ 14 not started
 
-**EAs built:** 32/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 33/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 31 awaiting human · 16 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 32 awaiting human · 15 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 160/376 (43%)
+**Stages ticked:** 165/376 (44%)
 `▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -75,7 +75,7 @@ infrastructure needed to get a first verdict:
 | 23 | Measured Move Trend Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/measured-move-trend-strategy.pdf) 9.5 MB | [`MeasuredMove.mq5`](mql5-eas/EA_CF_MeasuredMove.mq5) mag 3226 | [`measured-move-trend-strategy.md`](todos/measured-move-trend-strategy.md) |
 | 27 | Options Trading Masterclass | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/options-trading-masterclass.pdf) 3.5 MB | [`OptionsTradingMasterclass.mq5`](mql5-eas/EA_CF_OptionsTradingMasterclass.mq5) mag 3230 | [`options-trading-masterclass.md`](todos/options-trading-masterclass.md) |
 | 29 | OrderFlow Trading Masterclass | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/orderflow-trading-masterclass.pdf) 16.9 MB | [`OrderflowTradingMasterclass.mq5`](mql5-eas/EA_CF_OrderflowTradingMasterclass.mq5) mag 3232 | [`orderflow-trading-masterclass.md`](todos/orderflow-trading-masterclass.md) |
-| 30 | Parabolic Short Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/parabolic-short-strategy.pdf) 9.5 MB | _—_ | [`parabolic-short-strategy.md`](todos/parabolic-short-strategy.md) |
+| 30 | Parabolic Short Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/parabolic-short-strategy.pdf) 9.5 MB | [`ParabolicShort.mq5`](mql5-eas/EA_CF_ParabolicShort.mq5) mag 3233 | [`parabolic-short-strategy.md`](todos/parabolic-short-strategy.md) |
 | 31 | PO3, OTE + ADR | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/po3-ote-adr.pdf) 32.8 MB | [`PO3_OTE_ADR.mq5`](mql5-eas/EA_CF_PO3_OTE_ADR.mq5) mag 3204 | [`po3-ote-adr.md`](todos/po3-ote-adr.md) |
 | 34 | Real Simple Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/real-simple-strategy.pdf) 34.0 MB | _—_ | [`real-simple-strategy.md`](todos/real-simple-strategy.md) |
 | 35 | Shorting Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/shorting-strategy.pdf) 31.4 MB | _—_ | [`shorting-strategy.md`](todos/shorting-strategy.md) |
