@@ -1,14 +1,32 @@
 [
  {
-  "videoId": "jsUTbjwpFVk",
-  "strategy": "80/20 Nasdaq Strategy",
-  "glimpseSlug": "2lfzrtk8",
+  "videoId": "-kGVL93XfyE",
+  "strategy": "NQ Liquidity Sweep & Reversal Scalping Strategy",
+  "glimpseSlug": "kmwhgkoo",
   "done": true
  },
  {
-  "videoId": "TyHTEtArsS4",
-  "strategy": "Algorithmic Strategy ",
-  "glimpseSlug": "ypeas563",
+  "videoId": "0_NSmOWVbpA",
+  "strategy": "Price Cycle Continuation & Failed Base Strategy",
+  "glimpseSlug": "0umqvnju",
+  "done": true
+ },
+ {
+  "videoId": "35cyqDz-ej8",
+  "strategy": "Institutional Options Flow & Gamma Reversal Strategy",
+  "glimpseSlug": "8agbp538",
+  "done": true
+ },
+ {
+  "videoId": "52ZsDmFHqyY",
+  "strategy": "Small-Cap Short Statistics",
+  "glimpseSlug": "qqsih81n",
+  "done": true
+ },
+ {
+  "videoId": "70UtrLU6RAg",
+  "strategy": "Price Action Strategy",
+  "glimpseSlug": "tcku5v5a",
   "done": true
  },
  {
@@ -18,15 +36,15 @@
   "done": true
  },
  {
-  "videoId": "35cyqDz-ej8",
-  "strategy": "Institutional Options Flow & Gamma Reversal Strategy ",
-  "glimpseSlug": "8agbp538",
+  "videoId": "KkTTCKr-3Ew",
+  "strategy": "Nasdaq ICT and Order Flow Scalping Strategy",
+  "glimpseSlug": "9mezeyor",
   "done": true
  },
  {
-  "videoId": "yW6c0K8uGvw",
-  "strategy": "Institutional Strategy Development Framework",
-  "glimpseSlug": "onfkdxi8",
+  "videoId": "TyHTEtArsS4",
+  "strategy": "Algorithmic Strategy",
+  "glimpseSlug": "ypeas563",
   "done": true
  },
  {
@@ -36,57 +54,39 @@
   "done": true
  },
  {
+  "videoId": "VDK200OHNSo",
+  "strategy": "Stage Analysis Strategy",
+  "glimpseSlug": "upkpddh6",
+  "done": true
+ },
+ {
   "videoId": "WDdvnd9vLbM",
   "strategy": "Momentum Model Performance Development",
   "glimpseSlug": "q67mk1ke",
   "done": true
  },
  {
-  "videoId": "KkTTCKr-3Ew",
-  "strategy": "Nasdaq ICT and Order Flow Scalping Strategy",
-  "glimpseSlug": "",
-  "done": false
- },
- {
-  "videoId": "-kGVL93XfyE",
-  "strategy": "NQ Liquidity Sweep & Reversal Scalping Strategy ",
-  "glimpseSlug": "",
-  "done": false
+  "videoId": "_wpg45NdMkM",
+  "strategy": "Trading First Principles Framework",
+  "glimpseSlug": "xhvdp2u1",
+  "done": true
  },
  {
   "videoId": "hvyf6frvCcA",
   "strategy": "Order Flow Strategy",
-  "glimpseSlug": "",
-  "done": false
+  "glimpseSlug": "2lit20z2",
+  "done": true
  },
  {
-  "videoId": "70UtrLU6RAg",
-  "strategy": "Price Action Strategy",
-  "glimpseSlug": "",
-  "done": false
+  "videoId": "jsUTbjwpFVk",
+  "strategy": "80/20 Nasdaq Strategy",
+  "glimpseSlug": "2lfzrtk8",
+  "done": true
  },
  {
-  "videoId": "0_NSmOWVbpA",
-  "strategy": "Price Cycle Continuation & Failed Base Strategy",
-  "glimpseSlug": "",
-  "done": false
- },
- {
-  "videoId": "52ZsDmFHqyY",
-  "strategy": "Small-Cap Short Statistics",
-  "glimpseSlug": "",
-  "done": false
- },
- {
-  "videoId": "VDK200OHNSo",
-  "strategy": "Stage Analysis Strategy",
-  "glimpseSlug": "",
-  "done": false
- },
- {
-  "videoId": "_wpg45NdMkM",
-  "strategy": "Trading First Principles Framework",
-  "glimpseSlug": "",
-  "done": false
+  "videoId": "yW6c0K8uGvw",
+  "strategy": "Institutional Strategy Development Framework",
+  "glimpseSlug": "onfkdxi8",
+  "done": true
  }
 ]

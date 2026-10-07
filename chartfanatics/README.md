@@ -1,8 +1,18 @@
 # ChartFanatics Strategy PDFs
 
 Source: https://www.chartfanatics.com/strategies
-Downloaded: 2026-00-06
+Downloaded: 2026-10-06
 Total: 32 PDFs, 514M
+
+## Work tracking
+
+**[`TODO.md`](TODO.md) is the work board** — all 47 strategies with status and progress, grouped by
+published-PDF vs video-only. Each strategy has a card in [`todos/`](todos/) carrying the same 8-stage
+checklist (read → extract rules → verdict → spec → backtest → implement EA → validate → demo).
+
+Tick the boxes in the cards; `python3 gen_todos.py` refreshes the board and never touches anything
+between the `edit:` markers (checkbox state, Tracking fields, Notes). Card #s and slugs are stable,
+so they are safe to reference in commits and issues.
 
 ## Downloaded (32)
 
