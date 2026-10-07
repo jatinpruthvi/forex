@@ -274,7 +274,8 @@ def ea_cell(meta: dict) -> str:
     ea = meta.get("ea")
     if not ea:
         return "_—_"
-    return f"[`{ea['ea'].replace('EA_CF_', '')}`](mql5-eas/{ea['ea']}) mag {ea['magic']}"
+    role = " (monitor)" if ea.get("trades") is False else ""
+    return f"[`{ea['ea'].replace('EA_CF_', '')}`](mql5-eas/{ea['ea']}) mag {ea['magic']}{role}"
 
 
 def status_of(body: str) -> tuple[str, int]:

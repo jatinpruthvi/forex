@@ -4,12 +4,12 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 6 in progress ·
-⬜ 41 not started
+**Cards:** ✅ 0 done · 🟡 7 in progress ·
+⬜ 40 not started
 
-**EAs built:** 6/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 7/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Stages ticked:** 30/376 (8%)
+**Stages ticked:** 35/376 (9%)
 `▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -54,7 +54,7 @@ infrastructure needed to get a first verdict:
 
 | # | Strategy | Status | Progress | Source | EA | Card |
 |---|---|---|---|---|---|---|
-| 01 | 5 Stage Trading Framework | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/5-stage-trading-framework.pdf) 7.0 MB | _—_ | [`5-stage-trading-framework.md`](todos/5-stage-trading-framework.md) |
+| 01 | 5 Stage Trading Framework | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/5-stage-trading-framework.pdf) 7.0 MB | [`Stage_Guardrails.mq5`](mql5-eas/EA_CF_Stage_Guardrails.mq5) mag 3207 (monitor) | [`5-stage-trading-framework.md`](todos/5-stage-trading-framework.md) |
 | 04 | AMD Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/amd-model.pdf) 25.8 MB | [`AMD_Model.mq5`](mql5-eas/EA_CF_AMD_Model.mq5) mag 3201 | [`amd-model.md`](todos/amd-model.md) |
 | 05 | Auction Market Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/auction-market-strategy.pdf) 5.6 MB | _—_ | [`auction-market-strategy.md`](todos/auction-market-strategy.md) |
 | 06 | Auction Market Theory Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/auction-market-theory-strategy.pdf) 12.4 MB | _—_ | [`auction-market-theory-strategy.md`](todos/auction-market-theory-strategy.md) |

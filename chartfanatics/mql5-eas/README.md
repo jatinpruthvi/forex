@@ -16,6 +16,7 @@ on the Windows machine.
 
 | Card | Strategy | EA | Magic | TF | Reads from the engine |
 |---|---|---|---|---|---|
+| [#01](../todos/5-stage-trading-framework.md) | 5 Stage Trading Framework | `EA_CF_Stage_Guardrails.mq5` | 3207 | — | **Monitor, never trades.** Card #01 is a trader-development framework with no entry/exit rules, so this EA mechanizes what the document does contain: it sweeps the account's own deal history (every magic) on the stage's thresholds and journals/flags breaches — daily loss cut-off, trade-count cap, entry within N minutes of a losing close ("revenge trade"), an entry above N× the day's average size ("sizing up too fast"), and a losing streak past the stage's pause. Writes `MQL5/Files/cf_stage_journal.csv` |
 | [#04](../todos/amd-model.md) | AMD Model | `EA_CF_AMD_Model.mq5` | 3201 | M5 | `SigSweepReclaim` + `SigEmaCascade`, playbook macro windows (09:50–10:10 / 10:50–11:10 ET), 2 trades/day, two-loss day lock |
 | [#26](../todos/structure-ote.md) | Structure + OTE | `EA_CF_Structure_OTE.mq5` | 3202 | M15 | `SigOrderBlockRetest` (POI) + breaker fallback, **first premium/discount + OTE (62–79%) implementation in the repo** |
 | [#23](../todos/smt-divergence-po3.md) | SMT Divergence + PO3 | `EA_CF_SMT_PO3.mq5` | 3203 | M5 | `SigSweepReclaim` + direct symbol-vs-symbol SMT divergence (NQ vs ES) and the 50%-level target |
@@ -46,6 +47,7 @@ Nothing here re-implements what `MQL5_Master/Include/` already provides:
 | `cfg.maxCostR` + `EA_CostInR` | all-in cost gate: reject a setup when (spread + commission) > xR | all six |
 | `cfg.ledgerEnabled` / `ledgerFile` | engine evidence ledger, one CSV row per open / partial / close | all six |
 | `RiskGovernor` (`dailyLossPct`, `maxTradesPerDay`, `dayLockAfterLosses`, HWM tiers) | the playbooks' daily discipline rules | all six |
+| `EA_ApplyStagePolicy` (engine helper, **added for card #01**) | per-stage risk posture from the 5-Stage framework: stage 1 quarter risk + 1 trade/day + day locked after the first win, stage 2 half risk, stage 3 three-quarter risk + 24h streak pause, stage 4 HWM throttle + 12h streak pause, **stage 5 = no-op**. Tightens only, never raises a cap, inert with static lots | all six playbook EAs via `InpStage` (default 5 = off); the guardrail EA reads the same table |
 
 Deliberately **not** used: `SigSessionFade` (EASignals 14) fades a quiet range only in the three
 hours *after* that range closes — the 02:00–05:00 ET window — while the Intraday Liquidity model

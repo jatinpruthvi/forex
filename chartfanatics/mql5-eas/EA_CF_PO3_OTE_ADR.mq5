@@ -42,6 +42,7 @@
 input string            InpSymbolsToTrade   = "XAUUSD,US100,US500,EURUSD";  // Universe (playbook: forex / indices)
 input ulong             InpMagicNumber      = 3204;                 // UNIQUE MAGIC NUMBER FOR THIS STRATEGY
 input double            InpRiskPct          = 0.50;                 // Risk per trade (% of equity)
+input int               InpStage             = 5;                    // 5-Stage framework stage (1 novice .. 5 pro; 5 = policy off)
 input double            InpMaxSpreadPoints  = 3.0;                  // Spread gate in points (0 = off)
 input double            InpDailyLossPct     = 1.50;                 // Halt for the day at -x% (0 = off)
 input int               InpServerGmtOffset  = 2;                    // Broker server clock minus GMT (winter)
@@ -75,6 +76,12 @@ input int    InpPendingExpiryMinutes = 45; // How long the OTE limit may rest
 class CCfPo3OteAdr : public CEAStrategy
 {
 public:
+   void OnInitStrategy()
+   {
+      EA_Log(EA_LOG_EVENTS, StringFormat("5-stage policy: stage %d active (risk %.3f%%, %d trades/day max)",
+             InpStage, g_eaCfg.riskPct, g_eaCfg.maxTradesPerDay), true);
+   }
+
    void Configure(SEASettings &cfg)
    {
       cfg.strategyName          = "CF_PO3_OTE_ADR";
@@ -117,6 +124,10 @@ public:
       cfg.ledgerFile            = "cf_po3_ote_adr_ledger.csv";
       cfg.newsFilter            = false;
       cfg.logLevel              = InpLogLevel;
+
+      //--- chartfanatics card #01 (5-Stage framework): tighten the playbook's own risk posture for
+      //--- the stage the account is being held to.  Never raises a cap; stage 5 leaves it untouched.
+      EA_ApplyStagePolicy(cfg, InpStage);
    }
 
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)

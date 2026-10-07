@@ -331,7 +331,14 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
 | 4 | `EA_CF_PO3_OTE_ADR.mq5` | `chartfanatics/pdf/po3-ote-adr.pdf` (card #22) | `3204` | M15 | PD-array raid + displacement, fib-anchored OTE limit (0.62-0.705), stop 1.0 fib / TP 0.0 fib, ADR budget gate |
 | 5 | `EA_CF_Break_Retest.mq5` | `chartfanatics/pdf/break-retest.pdf` (card #07) | `3205` | M5 | Battle-zone retest with rejection wick; previous-day no-trade-zone gate; partials at TP1, runners kept |
 | 6 | `EA_CF_Intraday_Liquidity.mq5` | `chartfanatics/pdf/intraday-liquidity-volatility-model.pdf` (card #12) | `3206` | M5 | Failed-raid fade of PDH/PDL, Asian and London extremes; FVG entry (MSS fallback); NY 09:30-11:30 window |
+| 7 | `EA_CF_Stage_Guardrails.mq5` | `chartfanatics/pdf/5-stage-trading-framework.pdf` (card #01) | `3207` | - | **Monitor, never trades.** Card #01 is a trader-development framework (no entry/exit rules), so the EA mechanizes its checkable content: account-wide deal sweep against the stage's thresholds (loss cut-off, trade cap, revenge entry, size jump, loss streak) and a journal CSV ("journaling is not optional") |
 
+* **Stage policy (card #01)** - `EA_ApplyStagePolicy(cfg, stage)` in `EACore.mqh` is the single stage
+  table derived from the 5-Stage framework (quoted per stage, `[interpretation]` marked where the
+  document gives no number); the six playbook EAs opt in through `InpStage` (default 5 = no-op) and the
+  guardrail EA reads the same helper, so the table cannot drift. Tests in
+  `tests/test_chartfanatics_family.py` pin the family contract (unique magics in the block, manifest vs
+  files, checker-clean, the monitor never trading, stage 5 a true no-op).
 * **Engine reuse** - the family is deliberately thin: signals come from `EASignals.mqh`
   (`SigSweepReclaim`, `SigOrderBlockRetest`, `SigFvgRetest`, `SigBreakRetest`, `SigEmaCascade`,
   `SigFractals`, `SigTwoBarReversal`, `SigRangeForDay`/`SigAsianRange`), windows from `EA_InWindow`,

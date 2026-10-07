@@ -117,6 +117,25 @@
       "source": "chartfanatics/pdf/intraday-liquidity-volatility-model.pdf",
       "wave": 1,
       "status": "static-checked"
+    },
+    {
+      "card": 1,
+      "slug": "5-stage-trading-framework",
+      "strategy": "5 Stage Trading Framework",
+      "ea": "EA_CF_Stage_Guardrails.mq5",
+      "class": "CCfStageGuardrails",
+      "magic": 3207,
+      "timeframe": "-",
+      "trades": false,
+      "role": "process monitor: journals the account's trades and flags the framework's discipline breaches; never opens positions",
+      "primitives": [
+        "EA_ApplyStagePolicy (engine helper, added for this card)",
+        "account-wide deal sweep (HistorySelect/HistoryDealGet*)",
+        "journal CSV"
+      ],
+      "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",
+      "wave": 2,
+      "status": "static-checked"
     }
   ]
 }
