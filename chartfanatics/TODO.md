@@ -4,14 +4,14 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 40 in progress ·
-⬜ 7 not started
+**Cards:** ✅ 0 done · 🟡 41 in progress ·
+⬜ 6 not started
 
-**EAs built:** 40/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 41/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 39 awaiting human · 8 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 40 awaiting human · 7 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 200/376 (53%)
+**Stages ticked:** 205/376 (55%)
 `▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -82,7 +82,7 @@ infrastructure needed to get a first verdict:
 | 37 | SMT Divergence+PO3 | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/smt-divergence-po3.pdf) 4.1 MB | [`SMT_PO3.mq5`](mql5-eas/EA_CF_SMT_PO3.mq5) mag 3203 | [`smt-divergence-po3.md`](todos/smt-divergence-po3.md) |
 | 39 | Structure + OTE | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/structure-ote.pdf) 6.9 MB | [`Structure_OTE.mq5`](mql5-eas/EA_CF_Structure_OTE.mq5) mag 3202 | [`structure-ote.md`](todos/structure-ote.md) |
 | 40 | Support and Resistance | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/support-and-resistance.pdf) 7.7 MB | [`SupportAndResistance.mq5`](mql5-eas/EA_CF_SupportAndResistance.mq5) mag 3240 | [`support-and-resistance.md`](todos/support-and-resistance.md) |
-| 41 | The Vix Futures Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/the-vix-futures-strategy.pdf) 3.6 MB | _—_ | [`the-vix-futures-strategy.md`](todos/the-vix-futures-strategy.md) |
+| 41 | The Vix Futures Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/the-vix-futures-strategy.pdf) 3.6 MB | [`VixFuturesStrategy.mq5`](mql5-eas/EA_CF_VixFuturesStrategy.mq5) mag 3241 | [`the-vix-futures-strategy.md`](todos/the-vix-futures-strategy.md) |
 | 43 | Trendline Break Pocket Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/trendline-break-pocket-strategy.pdf) 33.0 MB | _—_ | [`trendline-break-pocket-strategy.md`](todos/trendline-break-pocket-strategy.md) |
 | 44 | Trendline Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/trendline-strategy.pdf) 8.7 MB | _—_ | [`trendline-strategy.md`](todos/trendline-strategy.md) |
 | 45 | Unique High RR | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/unique-high-rr.pdf) 9.9 MB | _—_ | [`unique-high-rr.md`](todos/unique-high-rr.md) |

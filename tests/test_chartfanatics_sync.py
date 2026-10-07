@@ -162,6 +162,26 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_VixFuturesStrategy (card #38): Dylan O'Neill's playbook, where the VIX is the confirmation layer that
+    tells you whether an index move "has real power behind it".  Everything is read on one frame ("needs
+    matching timeframes across ES, NQ, and VIX") against the previous day's levels: a completed close through
+    the prior low with the VIX "rising and sitting at or above its previous day's high" is the confirmed
+    breakdown (and it requires the confirming index to break too - "if both ES and NQ break their lows and the
+    VIX is strong, the downside usually has real power"), while a break that closes back above the level
+    ("ES often snaps back above the level, trapping shorts") with the VIX "not doing its part" is the squeeze
+    long.  Both mirrors are coded (the document frames the framework as previous-day highs OR lows).  The
+    VIX head start scores ("sometimes the VIX reaches its previous day's high before ES or NQ breaks their
+    previous day's lows"), the 1% rule is a veto on chasing ("If ES is up 1% or more and the VIX is also up
+    1% or more ... moves into resistance are more likely to fail"), and the natural-floor caution at
+    all-time highs refuses the confirmed short where the document warns it is unreliable.  The worked
+    example - a VIX double bottom at its contract low while the index fails at all-time highs - is the
+    highest-scoring setup, and mode B trades it exactly as the document did, long the VIX, with the 6:1 R
+    target.  "[interpretation]": the break / reclaim / stop buffers, the stop-width cap, the VIX
+    confirmation tolerance, the floor proximity, the double-bottom window and tolerance, the all-time
+    lookback and distance, the Friday-weakness window and the R targets.  Disclosed: "contract low" is
+    proxied by the VIX's own multi-month extreme low (no futures rolls or term structure), the VIX
+    instrument is an input and the EA stays inert when the broker has none, and the 1% veto does not apply
+    to mode B because the VIX long is the other side of the same divergence.
   * EA_CF_SupportAndResistance (card #37): the Elite Option Trader's playbook, level-first.  Levels are
     built exactly as the document says - swing highs and lows ("past market highs, lows, and reactions")
     from the daily AND weekly series, clustered, weighted by how often the market reacted there, gated on
@@ -1924,6 +1944,95 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"\"day\", \"symbol\", \"level\", \"support\", \"weekly\", \"round_number\", \"touches\", \"score\"",
          'the level identification is dumped as evidence ("identify which stage" discipline: here, which levels)'),
     ],
+    # -------------------------------------- the VIX futures strategy (card #38)
+    "EA_CF_VixFuturesStrategy.mq5": [
+        (r"input string            InpVixSymbol          = \"VIX\";",
+         '"The VIX tells you whether there is pressure on the S&P 500" - the VIX is an input, and the EA stays inert without it'),
+        (r"input string            InpPrimarySymbol      = \"US500\";",
+         'the document trades ES - the primary index'),
+        (r"input string            InpConfirmSymbol      = \"US100\";",
+         '"If both ES and NQ break their lows ..." - the confirming index (NQ)'),
+        (r"cfg\.signalTimeframe       = PERIOD_M15;",
+         '"Needs matching timeframes across ES, NQ, and VIX" - one frame for all three reads'),
+        (r"cfg\.symbols               = InpTradeVixDirect \? InpVixSymbol : InpSymbolsToTrade;",
+         'the two modes: the index legs or the VIX contract itself'),
+        (r"if\(InpTradeVixDirect \|\| ctx\.symbol == InpVixSymbol\)",
+         'mode B routes to the VIX contract at its floor'),
+        (r"if\(!LoadVix\(vx\)\) return false;",
+         'no VIX read means no signals - the confirmation layer is mandatory'),
+        (r"v\.pdh = d\[1\]\.high; v\.pdl = d\[1\]\.low; v\.pdc = d\[1\]\.close;",
+         'the VIX previous-day high/low - the scale the document compares against'),
+        (r"s\.pdh = d\[1\]\.high; s\.pdl = d\[1\]\.low; s\.pdc = d\[1\]\.close;",
+         'the index previous-day levels (PDH/PDL)'),
+        (r"s\.confirmLow  = \(m\[1\]\.close <= s\.pdl \* \(1\.0 - br\)\);",
+         '"ES breaks below the previous day\'s low (PDL)" - a completed close through it'),
+        (r"s\.confirmHigh = \(m\[1\]\.close >= s\.pdh \* \(1\.0 \+ br\)\);",
+         'the symmetric read at the previous day\'s high ("breaking the previous day\'s low or high")'),
+        (r"s\.reclaimLow = \(m\[1\]\.close >= s\.pdl \* \(1\.0 \+ rc\)\) && \(m\[1\]\.low < s\.pdl \|\| m\[2\]\.close < s\.pdl\);",
+         '"Once ES gets back above the previous day\'s low, it often snaps back up and squeezes higher"'),
+        (r"s\.failHigh   = \(m\[1\]\.close <= s\.pdh \* \(1\.0 - rc\)\) && \(m\[1\]\.high > s\.pdh \|\| m\[2\]\.close > s\.pdh\);",
+         'the mirror: a break above the previous day\'s high that closes back below'),
+        (r"bool VixNotConfirmingDown\(const SVixState &v\)",
+         '"The VIX is not at its previous day high ... making a lower high instead of a higher high"'),
+        (r"if\(v\.highToday >= v\.pdh \* \(1\.0 - tol\)\) return false;",
+         'both halves of "not doing its part" are checked: the level and the intraday high'),
+        (r"bool VixNotConfirmingUp\(const SVixState &v\)",
+         'the symmetric read at the VIX\'s previous day\'s low'),
+        (r"if\(!VixNotConfirmingDown\(vx\)\) return false;",
+         'the fake-breakdown long needs the non-confirmation first'),
+        (r"if\(vx\.cur < vx\.pdh \* \(1\.0 - tol\)\) return false;",
+         '"the VIX should normally be rising and sitting at or above its previous day\'s high"'),
+        (r"if\(InpRequireConfirmIdx && !\(haveNq && nq\.brokeLow\)\) return false;",
+         '"If both ES and NQ break their lows and the VIX is strong, the downside usually has real power"'),
+        (r"if\(haveNq && !nq\.brokeLow\) \{ p\.score \+= 4\.0; \}",
+         '"NQ holds above its own low ... the break on ES is usually short-lived" - relative strength raises the odds'),
+        (r"if\(vx\.firstAtPdh > 0 && es\.firstLowBreak > 0 && vx\.firstAtPdh <= es\.firstLowBreak\)",
+         '"Sometimes the VIX reaches its previous day\'s high before ES or NQ breaks their previous day\'s lows" - the head start'),
+        (r"bool OnePercentVeto\(const bool isLong",
+         '"If ES is up 1% or more and the VIX is also up 1% or more ... moves into resistance are more likely to fail"'),
+        (r"if\(isLong && esPct >= t && vixPct >= t\)   return true;",
+         'the fragile-strength half of the 1% rule'),
+        (r"if\(!isLong && esPct <= -t && vixPct <= -t\) return true;",
+         '"If ES is down 1% or more and the VIX is also down 1% or more ... support is more likely to hold"'),
+        (r"if\(!OnePercentVeto\(false, esPct, vixPct\) && PlanVixFloorReversalShort",
+         'the 1% rule is a veto on every index setup - "helps avoid chasing extended moves"'),
+        (r"bool AtMajorHighs\(const SDayLevel &es\)",
+         '"At all-time highs ... a rising VIX at all-time highs doesn\'t always mean ES is about to break down"'),
+        (r"if\(AtMajorHighs\(es\)\) return false;",
+         'the confirmed breakdown short is refused in the natural-floor context the document warns about'),
+        (r"if\(!vx\.doubleBottom\) return false;",
+         '"Price returned to this level and formed a double bottom" - the worked example\'s VIX structure'),
+        (r"v\.doubleBottom = \(v\.lowRef > 0\.0 && v\.lowRef2 > 0\.0 &&",
+         'the double bottom is the two lows of the "contract low" being within tolerance'),
+        (r"int w1 = \(int\)MathMin\(InpVixLowLookback, dGot - 1\);",
+         '"The VIX futures contract had a well-defined contract low near 16.8" - proxied by the VIX\'s own extreme low (disclosed)'),
+        (r"if\(vx\.cur > vx\.lowRef \* \(1\.0 \+ InpVixFloorPct / 100\.0\)\) return false;",
+         '"Price returned to this level" - the entry needs the VIX at its floor'),
+        (r"if\(!es\.failedAth\) return false;",
+         '"ES was struggling to break through its all-time high area"'),
+        (r"if\(m\[i\]\.high > s\.highRef && m\[i\]\.close < s\.highRef\) \{ s\.failedAth = true; break; \}",
+         'a poke above the high reference that closes back below = the failed breakout'),
+        (r"p\.score = 90\.0;",
+         '"Combining VIX support and ES resistance created an edge worth putting risk on" - the worked trade scores highest'),
+        (r"int fri = FridayWeakness\(ctx\.symbol\);",
+         '"The S&P had sold off on four of the previous five Fridays" - "a recent pattern was in play"'),
+        (r"if\(d\[i\]\.close < d\[i \+ 1\]\.close\) weak\+\+;",
+         'the Friday weakness counted against the prior session'),
+        (r"if\(plan\.dir != 0 && SameTradeAlreadyOn\(ctx, plan\.dir\)\) return false;",
+         '"Must avoid taking the same trade on multiple instruments"'),
+        (r"cfg\.maxOpenPositions      = 1;",
+         '... enforced as one index position at a time'),
+        (r"p\.target = ctx\.ask \+ InpTargetR \* risk;",
+         '"The long VIX futures trade delivered a 6:1 R outcome" - the target encodes the document\'s own R multiple'),
+        (r"StopOk\(ctx\.ask, stop, 4\.0\)",
+         'the VIX contract moves in far larger percentages than the index - its own stop cap (disclosed)'),
+        (r"cfg\.timeStopMinutes       = InpTimeStopMin;",
+         'the previous-day edge is an intraday thesis - a time stop bounds it (interpretation)'),
+        (r"cfg\.sessionEndFlat        = InpSessionEndFlat && !InpTradeVixDirect;",
+         'day-trade legs go flat at the bell; the VIX carry leg does not (disclosed)'),
+        (r"cfg\.partial1AtR           = InpTp1R;",
+         'the squeeze is banked in pieces: 40% at 1.5R and 30% at 3R, the tail rides to the documents\' 6:1 (interpretation)'),
+    ],
 }
 
 
@@ -1961,7 +2070,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_ShortingStrategy.mq5",
                      "EA_CF_SmallCapShortStatistics.mq5",
                      "EA_CF_StageAnalysisStrategy.mq5",
-                     "EA_CF_SupportAndResistance.mq5"):
+                     "EA_CF_SupportAndResistance.mq5",
+                     "EA_CF_VixFuturesStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

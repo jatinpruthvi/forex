@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "22eb577c7768263b71c72913a485226c83c5e33ef4fe00781405117613480c33",
+  "acceptance_hash": "f165f9bb1105df9a80be2dd902f39232de16552a117b8b6521459e2e3e962ba1",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_NqLiquiditySweepReversalScalpingStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "75ed85add1e7b37144bf3f783f062b07338670c0b00debcd786768c6c57ca83b",
-    "tests/test_chartfanatics_sync.py#other_cards": "7c13b3d23465024be917c8212d61d60e1fc28bf837618b8eea35523aa288e17d"
+    "tests/test_chartfanatics_sync.py#machinery": "6347b371147d137f78c20f57f38e629208e3376184d14f87793f532b19b8ba81",
+    "tests/test_chartfanatics_sync.py#other_cards": "d7cc90d12e0d9b3b2bdffc8490574df58351f00b4e9931ab2ab795613381ff97"
   },
   "magic": 3229,
-  "planned_at": "2026-10-07T16:09:06Z",
+  "planned_at": "2026-10-07T16:12:15Z",
   "rule_count": 26,
   "slug": "nq-liquidity-sweep-reversal-scalping-strategy",
   "source": "chartfanatics/glimpse/-kGVL93XfyE.md",

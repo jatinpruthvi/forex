@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "393461af999aebe4463351340a51bf5506eacae1d8d80dde8b83f7d26efbbe06",
+  "acceptance_hash": "82eb3fbfb810aabb956b0e68befc1a31b7b6cbcacb4290edb2006516aa0d5519",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_MeasuredMove.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "75ed85add1e7b37144bf3f783f062b07338670c0b00debcd786768c6c57ca83b",
-    "tests/test_chartfanatics_sync.py#other_cards": "c1078d4780ce7d51b97ad80685dd2129125a3ea880ee899e5098f1820c2ae19d"
+    "tests/test_chartfanatics_sync.py#machinery": "6347b371147d137f78c20f57f38e629208e3376184d14f87793f532b19b8ba81",
+    "tests/test_chartfanatics_sync.py#other_cards": "a39ea00861552ff44c887c88f6a528e408cb97f418409f301e8b4321cd54291a"
   },
   "magic": 3226,
-  "planned_at": "2026-10-07T16:09:06Z",
+  "planned_at": "2026-10-07T16:12:15Z",
   "rule_count": 26,
   "slug": "measured-move-trend-strategy",
   "source": "chartfanatics/pdf/measured-move-trend-strategy.pdf",

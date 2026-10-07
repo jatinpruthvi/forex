@@ -871,6 +871,26 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/support-and-resistance.pdf"
+  },
+  {
+   "card": 38,
+   "slug": "the-vix-futures-strategy",
+   "strategy": "The Vix Futures Strategy",
+   "ea": "EA_CF_VixFuturesStrategy.mq5",
+   "class": "CCfVixFutures",
+   "magic": 3241,
+   "timeframe": "M15",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "previous-day levels confirmed by the VIX: the confirmed break (VIX at/above its previous day's high, the confirming index through its low, the VIX head start scoring) and the fake break that snaps back",
+    "both mirrors: the previous-day-high break and its failed version",
+    "the VIX floor reversal (double bottom at the contract-low proxy while the index fails at all-time highs), with the Friday-weakness context bonus",
+    "the 1% rule as a veto on chasing, and the natural-floor caution refusing the confirmed short at major highs",
+    "mode B: long the VIX itself at the floor with the document's 6:1 R target (needs a tradable VIX instrument)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/the-vix-futures-strategy.pdf"
   }
  ]
 }

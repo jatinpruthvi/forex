@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "e72b48e80faedadc4354fc0961f8ae470f5828d1030db30913fb708b836b6348",
+  "acceptance_hash": "1c9bea1261b8c963ba57396c001fb845021f18d6fbfbdfa28807c7f7fa5732c0",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_PO3_OTE_ADR.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "75ed85add1e7b37144bf3f783f062b07338670c0b00debcd786768c6c57ca83b",
-    "tests/test_chartfanatics_sync.py#other_cards": "d1508d4edad049572568fbfd29ec1d0c4e0227063566eee68f03aa51f91ed474"
+    "tests/test_chartfanatics_sync.py#machinery": "6347b371147d137f78c20f57f38e629208e3376184d14f87793f532b19b8ba81",
+    "tests/test_chartfanatics_sync.py#other_cards": "904b7a143940092a41631984a557896eae7ddf292564f2ab5920b4c35c2fae27"
   },
   "magic": 3204,
-  "planned_at": "2026-10-07T16:09:06Z",
+  "planned_at": "2026-10-07T16:12:15Z",
   "rule_count": 19,
   "slug": "po3-ote-adr",
   "source": "chartfanatics/pdf/po3-ote-adr.pdf",
