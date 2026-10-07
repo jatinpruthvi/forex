@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 41 in progress ·
-⬜ 6 not started
+**Cards:** ✅ 0 done · 🟡 42 in progress ·
+⬜ 5 not started
 
-**EAs built:** 41/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 42/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 40 awaiting human · 7 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 41 awaiting human · 6 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 205/376 (55%)
-`▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 210/376 (56%)
+`▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -107,7 +107,7 @@ infrastructure needed to get a first verdict:
 | 33 | Price Cycle Continuation & Failed Base Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=0_NSmOWVbpA) · [summary](glimpse/0_NSmOWVbpA.md) | [`PriceCycleContinuationFailedBaseStrategy.mq5`](mql5-eas/EA_CF_PriceCycleContinuationFailedBaseStrategy.mq5) mag 3235 | [`price-cycle-continuation-failed-base-strategy.md`](todos/price-cycle-continuation-failed-base-strategy.md) |
 | 36 | Small-Cap Short Statistics | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=52ZsDmFHqyY) · [summary](glimpse/52ZsDmFHqyY.md) | [`SmallCapShortStatistics.mq5`](mql5-eas/EA_CF_SmallCapShortStatistics.mq5) mag 3238 | [`small-cap-short-statistics.md`](todos/small-cap-short-statistics.md) |
 | 38 | Stage Analysis Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=VDK200OHNSo) · [summary](glimpse/VDK200OHNSo.md) | [`StageAnalysisStrategy.mq5`](mql5-eas/EA_CF_StageAnalysisStrategy.mq5) mag 3239 | [`stage-analysis-strategy.md`](todos/stage-analysis-strategy.md) |
-| 42 | Trading First Principles Framework | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=_wpg45NdMkM) · [summary](glimpse/_wpg45NdMkM.md) | _—_ | [`trading-first-principles-framework.md`](todos/trading-first-principles-framework.md) |
+| 42 | Trading First Principles Framework | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=_wpg45NdMkM) · [summary](glimpse/_wpg45NdMkM.md) | [`TradingFirstPrinciplesFramework.mq5`](mql5-eas/EA_CF_TradingFirstPrinciplesFramework.mq5) mag 3242 | [`trading-first-principles-framework.md`](todos/trading-first-principles-framework.md) |
 
 ---
 

@@ -891,6 +891,25 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/the-vix-futures-strategy.pdf"
+  },
+  {
+   "card": 39,
+   "slug": "trading-first-principles-framework",
+   "strategy": "Trading First Principles Framework",
+   "ea": "EA_CF_TradingFirstPrinciplesFramework.mq5",
+   "class": "CCfFirstPrinciples",
+   "magic": 3242,
+   "timeframe": "D1",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the three core moves as one portfolio: volatility-expansion momentum (2-5 day / momentum-gone exit), mean reversion (6-7% vs the 2% normal range, 1-4 day / back-to-mean exit) and trend following (100/200-day breakout, 10-day MA exit, all-time-high bonus)",
+    "the portfolio layer: one equal risk share per approach with one slot each, monthly rebalance logging and quarterly edge-decay review logging",
+    "the cost discipline: the engine cost gate plus a per-signal cost-in-R CSV for the fee review",
+    "the asset-class notes as inputs: a long-only symbol list (stocks are long-biased) and daily bars only (avoid overcrowded battlefields)",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/glimpse/_wpg45NdMkM.md"
   }
  ]
 }

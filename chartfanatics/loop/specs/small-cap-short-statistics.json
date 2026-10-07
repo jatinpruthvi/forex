@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "05650d45c6e995b34e4809f1ce6f7bfd47819fdce5c19524264b9ba877ec7b74",
+  "acceptance_hash": "685548137f12a433b1deb35f225a12e01e8693e3d7472b5d9365ddb486fe407f",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_SmallCapShortStatistics.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "6347b371147d137f78c20f57f38e629208e3376184d14f87793f532b19b8ba81",
-    "tests/test_chartfanatics_sync.py#other_cards": "b9460e0d7b34264683cbba2a972f585c68754dc0a3b100a68a2754e02eb4ebf9"
+    "tests/test_chartfanatics_sync.py#machinery": "0a7c61d0996370e3acbca5899160dab62b79ccf7ad40e634588a1f391b47ad0b",
+    "tests/test_chartfanatics_sync.py#other_cards": "f0a16e017dd3c3223329e72315a11eefbeee3973f1c38aa483d1ceaaea798927"
   },
   "magic": 3238,
-  "planned_at": "2026-10-07T16:12:15Z",
+  "planned_at": "2026-10-07T16:14:44Z",
   "rule_count": 39,
   "slug": "small-cap-short-statistics",
   "source": "chartfanatics/glimpse/52ZsDmFHqyY.md",

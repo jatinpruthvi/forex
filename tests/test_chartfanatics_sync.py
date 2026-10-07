@@ -162,6 +162,24 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_TradingFirstPrinciplesFramework (card #39): the document's claim that "pretty much all trading
+    strategies boil down to these three specific moves" is taken literally - the EA trades all three at once,
+    each with its own documented entry and exit.  Momentum: volatility expansion ("when price moves further
+    than average") in the expansion bar's direction, exiting "after 2-5 days or when momentum disappears".
+    Mean reversion: the distance from the 5-day MA must exceed both the absolute trigger ("6-7%") and the
+    abnormal ratio against the average deviation ("6-7% vs. 2% average"), entered against the deviation and
+    exited "after 1-4 days or when price returns to mean".  Trend following: a breakout of the 100/200-day
+    extreme, exited "when price closes below a trailing moving average (e.g., 10-day MA)", with the extra
+    score the document gives an all-time-high break.  The portfolio rules are wired too: three equal risk
+    shares with one slot per approach (the "3+ strategies" portfolio), monthly rebalance and quarterly
+    review logging around the percentage-of-equity reset that IS the mechanical rebalancing ("forces you to
+    buy low and sell high"), a cost gate plus a per-signal cost-in-R log for the fee warning ("fees can
+    consume 50% or more of gross returns"), a long-only list for the document's "avoid shorting large-cap
+    stocks", and daily bars only ("obey holding time, not timeframe"; "avoid overcrowded battlefields").
+    "[interpretation]": the ATR/range normalisation of "further than average", the average-deviation
+    window, the breakout and stop buffers, the stop-width cap, the trend stop's ATR multiple, the
+    all-time-high lookback, the rebalance/review periods and the far take-profit placeholder.  The exits
+    the document states are the real exits.
   * EA_CF_VixFuturesStrategy (card #38): Dylan O'Neill's playbook, where the VIX is the confirmation layer that
     tells you whether an index move "has real power behind it".  Everything is read on one frame ("needs
     matching timeframes across ES, NQ, and VIX") against the previous day's levels: a completed close through
@@ -2033,6 +2051,85 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"cfg\.partial1AtR           = InpTp1R;",
          'the squeeze is banked in pieces: 40% at 1.5R and 30% at 3R, the tail rides to the documents\' 6:1 (interpretation)'),
     ],
+    # -------------------------------------- trading first principles (card #39)
+    "EA_CF_TradingFirstPrinciplesFramework.mq5": [
+        (r"input string            InpSymbolsToTrade     = \"BTCUSD,ETHUSD\";",
+         '"Crypto: all approaches, all timeframes ... least efficient, most volatile" - the default universe'),
+        (r"input double            InpSetupRiskPct       = 0\.35;",
+         '"combine 3\+ strategies" - one equal risk share per approach'),
+        (r"cfg\.signalTimeframe       = PERIOD_D1;",
+         '"Holding time matters more than timeframe" / "avoid overcrowded battlefields" - daily bars only'),
+        (r"cfg\.maxOpenPositions      = 3;",
+         'the portfolio: the three approaches run side by side'),
+        (r"cfg\.signalOnNewBarOnly    = true;",
+         'one decision per completed day, never intraday noise'),
+        (r"if\(InpUseMomentum && PlanMomentum\(ctx, d, got, p\)",
+         '"Short-Term Momentum \(Breakouts\): measure volatility expansion ... and enter"'),
+        (r"double rng = d\[1\]\.high - d\[1\]\.low;",
+         'the day\'s move measured against the average'),
+        (r"if\(rng < InpVolExpMult \* avg\) return false;",
+         '"when price moves further than average" - the expansion gate'),
+        (r"int dir = \(d\[1\]\.close >= d\[1\]\.open\) \? \+1 : -1;",
+         'the expansion\'s direction is the entry direction'),
+        (r"input int               InpMomMaxDays         = 5;",
+         '"Exit after 2-5 days"'),
+        (r"if\(daysHeld >= InpMomMaxDays \|\| gone\)",
+         '"... or when momentum disappears" - both halves of the documented exit'),
+        (r"bool gone = isLong \? \(d\[1\]\.close < d\[2\]\.low\) : \(d\[1\]\.close > d\[2\]\.high\);",
+         'momentum disappears = the completed day takes out the prior day\'s extreme'),
+        (r"if\(InpUseMeanReversion && PlanMeanReversion\(ctx, d, got, p\)",
+         '"Mean Reversion: enter expecting reversion"'),
+        (r"double dev = \(d\[1\]\.close - ma\) / ma \* 100\.0;",
+         '"Measure how far price deviates from a moving average"'),
+        (r"if\(MathAbs\(dev\) < InpDevTriggerPct\) return false;",
+         '"deviation exceeds normal range \(e\.g\., 6-7%\)"'),
+        (r"if\(MathAbs\(dev\) < InpDevAbnormalMult \* avgDev\) return false;",
+         '"6-7% vs\. 2% average" - the abnormal-ratio half of the same rule'),
+        (r"int dir = \(dev > 0\.0\) \? -1 : \+1;",
+         'the entry is against the deviation - "expecting reversion"'),
+        (r"input int               InpMrMaxDays          = 4;",
+         '"Exit after 1-4 days"'),
+        (r"bool atMean = \(ma > 0\.0 && MathAbs\(d\[1\]\.close - ma\) / ma \* 100\.0 <= InpMrMeanTolPct\);",
+         '"... or when price returns to mean"'),
+        (r"if\(InpUseTrendFollowing && PlanTrendFollowing\(ctx, d, got, p\)",
+         '"Trend Following \(Long-Term Momentum\)"'),
+        (r"int lb = \(int\)MathMin\(InpTrendLookback, got - 3\);",
+         '"Identify strong support/resistance \(e\.g\., 100-day or 200-day high\)"'),
+        (r"int dir = \(d\[1\]\.close > hi\) \? \+1 : \(\(d\[1\]\.close < lo\) \? -1 : 0\);",
+         '"Enter on breakout" - of the high \(or the symmetric low\)'),
+        (r"if\(athBreak\) p\.score \+= 6\.0;",
+         '"Strongest edge when breaking all-time highs"'),
+        (r"double ma = SmaClose\(d, got, InpTrendExitMa, 1\);",
+         '"exit when price closes below a trailing moving average \(e\.g\., 10-day MA\)"'),
+        (r"CloseOnce\(t, StringFormat\(\"trend: the completed close crossed the %d-day MA",
+         'the trailing-MA exit, issued on the completed close'),
+        (r"input int               InpRebalanceDays      = 30;",
+         '"Rebalance monthly or quarterly to lock in gains"'),
+        (r"portfolio rebalance: %d day\(s\) since the last reset - each of the three approaches back to its %.2f%% share",
+         'the scheduled rebalance is logged around the percentage-of-equity reset (disclosed: sizing IS the reset)'),
+        (r"input int               InpReviewDays         = 90;",
+         '"Document your edge decay hypothesis ... schedule quarterly research reviews"'),
+        (r"edge-decay review due \(%d day cycle\)",
+         'the quarterly review reminder'),
+        (r"input double            InpMaxCostR           = 0\.10;",
+         '"fees can consume 50% or more of gross returns" - the cost gate rejects expensive trades'),
+        (r"double costR = EA_CostInR\(ctx\.symbol, p\.riskDist, g_eaCfg\.commissionPerLotRT\);",
+         'every signal is logged with its cost in R for the fee review'),
+        (r"input string            InpLongOnlyList       = \"\";",
+         '"Stocks tend to mean-revert upward long-term ... Avoid shorting large-cap stocks" - the long-only list'),
+        (r"if\(IsLongOnly\(ctx\.symbol\) && plan\.dir < 0\) return false;",
+         '... enforced on the short side'),
+        (r"if\(!SetupAllowed\(ctx\.symbol, m_planSetup\)\) return false;",
+         'one open trade per approach - the portfolio slots are the three strategies'),
+        (r"bool SetupAllowed\(const string sym, const int setup\)",
+         '... the slot check itself'),
+        (r"PendingSetupSet\(ctx\.symbol, m_planSetup\);",
+         'the approach tag travels from the plan to the filled ticket (per-ticket management)'),
+        (r"if\(!StopOk\(entry, stop\)\) return false;",
+         'every approach needs a sane structural stop even though the exits are the document\'s time/structure rules'),
+        (r"cfg\.maxTradesPerDay       = 3;",
+         'one entry per approach per day'),
+    ],
 }
 
 
@@ -2071,7 +2168,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_SmallCapShortStatistics.mq5",
                      "EA_CF_StageAnalysisStrategy.mq5",
                      "EA_CF_SupportAndResistance.mq5",
-                     "EA_CF_VixFuturesStrategy.mq5"):
+                     "EA_CF_VixFuturesStrategy.mq5",
+                     "EA_CF_TradingFirstPrinciplesFramework.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
