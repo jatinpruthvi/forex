@@ -136,6 +136,26 @@
       "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",
       "wave": 2,
       "status": "static-checked"
+    },
+    {
+      "card": 2,
+      "slug": "80-20-nasdaq-strategy",
+      "strategy": "80/20 Nasdaq Strategy",
+      "ea": "EA_CF_8020NasdaqStrategy.mq5",
+      "class": "CCf8020Nasdaq",
+      "magic": 3208,
+      "timeframe": "M3",
+      "primitives": [
+        "EA_Rates (M3 entries, M10 structure)",
+        "EA_WickRatio / EA_BodyRatio (candle patterns)",
+        "EA_InWindow (NY open, lunch excluded)",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/glimpse/jsUTbjwpFVk.md",
+      "wave": 2,
+      "status": "static-checked"
     }
   ]
 }

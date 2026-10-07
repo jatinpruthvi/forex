@@ -332,6 +332,7 @@ card -> EA -> magic map, and `chartfanatics/gen_todos.py` writes the EA/magic in
 | 5 | `EA_CF_Break_Retest.mq5` | `chartfanatics/pdf/break-retest.pdf` (card #07) | `3205` | M5 | Battle-zone retest with rejection wick; previous-day no-trade-zone gate; TP1 = nearest swing extreme ahead (R fallback), 50% partial, runners kept |
 | 6 | `EA_CF_Intraday_Liquidity.mq5` | `chartfanatics/pdf/intraday-liquidity-volatility-model.pdf` (card #12) | `3206` | M5 | Failed-raid fade of PDH/PDL, Asian and London extremes, most-recent raid wins; FVG / MSS / breaker-block entries; NY 09:30-11:30 window; 90-minute time stop |
 | 7 | `EA_CF_Stage_Guardrails.mq5` | `chartfanatics/pdf/5-stage-trading-framework.pdf` (card #01) | `3207` | - | **Monitor, never trades.** Card #01 is a trader-development framework (no entry/exit rules), so the EA mechanizes its checkable content: account-wide deal sweep against the stage's thresholds (loss cut-off, trade cap, revenge entry, size jump, loss streak) and a journal CSV ("journaling is not optional") |
+| 8 | `EA_CF_8020NasdaqStrategy.mq5` | `chartfanatics/glimpse/jsUTbjwpFVk.md` (card #02) | `3208` | M3 | NASDAQ 80/20 mean reversion: fork / H-pattern / cross-section, repair-candle magnets, fixed 10-pt stop, 15-pt TP1 (half off, BE, runners), NY-open window, no daily cap (`[interpretation]` notes in the family README) |
 
 * **Stage policy (card #01)** - `EA_ApplyStagePolicy(cfg, stage)` in `EACore.mqh` is the single stage
   table derived from the 5-Stage framework (quoted per stage, `[interpretation]` marked where the

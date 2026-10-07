@@ -4,14 +4,14 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 7 in progress ·
-⬜ 40 not started
+**Cards:** ✅ 0 done · 🟡 8 in progress ·
+⬜ 39 not started
 
-**EAs built:** 7/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 8/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 7 awaiting human · 40 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 8 awaiting human · 39 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 35/376 (9%)
+**Stages ticked:** 40/376 (11%)
 `▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -93,7 +93,7 @@ infrastructure needed to get a first verdict:
 
 | # | Strategy | Status | Progress | Source | EA | Card |
 |---|---|---|---|---|---|---|
-| 02 | 80/20 Nasdaq Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=jsUTbjwpFVk) · [summary](glimpse/jsUTbjwpFVk.md) | _—_ | [`80-20-nasdaq-strategy.md`](todos/80-20-nasdaq-strategy.md) |
+| 02 | 80/20 Nasdaq Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [video](https://www.youtube.com/watch?v=jsUTbjwpFVk) · [summary](glimpse/jsUTbjwpFVk.md) | [`8020NasdaqStrategy.mq5`](mql5-eas/EA_CF_8020NasdaqStrategy.mq5) mag 3208 | [`80-20-nasdaq-strategy.md`](todos/80-20-nasdaq-strategy.md) |
 | 03 | Algorithmic Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=TyHTEtArsS4) · [summary](glimpse/TyHTEtArsS4.md) | _—_ | [`algorithmic-strategy.md`](todos/algorithmic-strategy.md) |
 | 09 | Fair Pricing Theory Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=KHEQ5g55dQ4) · [summary](glimpse/KHEQ5g55dQ4.md) | _—_ | [`fair-pricing-theory-strategy.md`](todos/fair-pricing-theory-strategy.md) |
 | 14 | Institutional Options Flow & Gamma Reversal Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [video](https://www.youtube.com/watch?v=35cyqDz-ej8) · [summary](glimpse/35cyqDz-ej8.md) | _—_ | [`institutional-options-flow-gamma-reversal-strategy.md`](todos/institutional-options-flow-gamma-reversal-strategy.md) |

@@ -64,6 +64,38 @@ class PlanTests(unittest.TestCase):
         magics = [int(cf.load_spec(s)["magic"]) for s in cf.all_slugs()]
         self.assertEqual(len(magics), len(set(magics)), "duplicate magic allocated")
 
+    def test_plan_all_is_idempotent(self) -> None:
+        # running plan --all twice must keep every magic and never exhaust the block
+        tmp = Path(tempfile.mkdtemp())
+        saved = (cf.SPECS, cf.STATE_PATH)
+        cf.SPECS = tmp / "specs"
+        cf.STATE_PATH = tmp / "state.json"
+        try:
+            cf.main(["plan", "--all", "--by", "test"])
+            first = {slug: cf.load_spec(slug)["magic"] for slug in cf.all_slugs()}
+            cf.main(["plan", "--all", "--by", "test"])
+            second = {slug: cf.load_spec(slug)["magic"] for slug in cf.all_slugs()}
+            self.assertEqual(first, second)
+            self.assertEqual(len(set(second.values())), len(cf.all_slugs()), "magics collided")
+            low, high = cf.family_block()
+            self.assertTrue(all(low <= m <= high for m in second.values()))
+        finally:
+            cf.SPECS, cf.STATE_PATH = saved
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_replan_cannot_lower_the_rule_floor(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        saved = (cf.SPECS, cf.STATE_PATH)
+        cf.SPECS = tmp / "specs"
+        cf.STATE_PATH = tmp / "state.json"
+        try:
+            cf.main(["plan", "amd-model", "--by", "test"])
+            cf.main(["plan", "amd-model", "--by", "test", "--rule-count", "1"])
+            self.assertGreaterEqual(int(cf.load_spec("amd-model")["rule_count"]), 10)
+        finally:
+            cf.SPECS, cf.STATE_PATH = saved
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_built_eas_have_rule_tables_at_their_floor(self) -> None:
         table = cf.sync_table()
         for slug in BUILT_SLUGS:
@@ -91,6 +123,36 @@ class JudgeBoundaryTests(unittest.TestCase):
         ok, detail = cf.check_boundaries_intact(spec, argparse.Namespace())
         self.assertFalse(ok)
         self.assertIn("judge changed", detail)
+
+    def test_adding_its_own_rule_table_does_not_trip_the_boundary(self) -> None:
+        # the build MUST extend tests/test_chartfanatics_sync.py with the card's own rule table;
+        # that is the deliverable, not tampering - the fingerprint excludes this card's own table
+        spec = self._spec()
+        spec["judge_hash"] = cf.judge_fingerprint(spec["ea"])
+        spec["acceptance_hash"] = cf.spec_hash(spec)
+        ok, detail = cf.check_boundaries_intact(spec, argparse.Namespace())
+        self.assertTrue(ok, detail)
+
+    def test_rewriting_another_cards_rules_is_detected(self) -> None:
+        # ... but nobody may touch a table a finished card was judged against
+        spec = self._spec()
+        spec["judge_hash"] = cf.judge_fingerprint(spec["ea"])
+        spec["judge_hash"]["tests/test_chartfanatics_sync.py#other_cards"] = "0" * 64
+        spec["acceptance_hash"] = cf.spec_hash(spec)
+        ok, detail = cf.check_boundaries_intact(spec, argparse.Namespace())
+        self.assertFalse(ok)
+        self.assertIn("other_cards", detail)
+
+    def test_sync_machinery_hash_ignores_the_table_content(self) -> None:
+        # the hash must be blind to which rules are listed, and sensitive to the logic around them
+        before = cf.sync_machinery_hash()
+        text = cf.SYNC_TEST.read_text(encoding="utf-8")
+        start = text.index(cf.SYNC_TABLE_MARK)
+        end = text.index(cf.SYNC_TABLE_END)
+        tampered = text[:start] + cf.SYNC_TABLE_MARK + "\n    \"EA_X.mq5\": [(r\"r\", \"n\")],\n}" + text[end:]
+        self.assertNotEqual(tampered, text)
+        self.assertEqual(before, cf.sync_machinery_hash(),
+                         "the machinery hash must not depend on the table's contents")
 
     def test_deleted_test_file_is_detected(self) -> None:
         spec = self._spec()

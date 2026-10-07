@@ -15,6 +15,10 @@ EA source too, so an invention can never quietly become a "documented rule":
     "related markets are aligned" is read as both symbols on the same side of their PD midpoint.
   * EA_CF_Intraday_Liquidity: "if the trade slows near midday, consider exiting" becomes the
     engine's time stop (90 minutes unless the trade is already at 1R).
+  * EA_CF_8020NasdaqStrategy: the 200-second entry chart is not a MetaTrader timeframe (M3 is the
+    closest); the fork's "targeting the previous low" reads oddly for a long, so the fixed 10-point
+    stop / 15-point target the same document states are used and the fork low stays the reference;
+    cross-sections are direction-neutral in the source, so the retest side decides.
 """
 from __future__ import annotations
 
@@ -154,6 +158,40 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"b\.onlyDir\s*=\s*fadeDir;", "the breaker path can only fade the raid it was built for"),
         (r"cfg\.timeStopMinutes\s*=\s*InpTimeStopMinutes;", 'p.5 "If the trade slows near midday, consider exiting"'),
     ],
+    # ------------------------------------------------------- 80/20 Nasdaq (card #02)
+    "EA_CF_8020NasdaqStrategy.mq5": [
+        (r"input int\s+InpLevelHi\s*=\s*80;", 'p.1 "at 25,680 the trader watches the 80 level"'),
+        (r"input int\s+InpLevelLo\s*=\s*20;", 'p.1 "at 25,620 the 20 level"'),
+        (r"MathFloor\(price / 100\.0\) \* 100\.0", "the levels repeat every 100 index points"),
+        (r"input double InpStopPoints\s*=\s*10\.0;", 'p.1 "every trade uses a fixed 10-point stop-loss"'),
+        (r"double stop = \(dir > 0\) \? entry - InpStopPoints : entry \+ InpStopPoints;",
+         "the fixed stop is applied to every structure, long or short"),
+        (r"input double InpTp1Points\s*=\s*15\.0;", 'p.1 "15-point first take-profits"'),
+        (r"cfg\.partial1AtR\s*=\s*1\.5;", 'p.1 "at the first 15-point profit target, he covers initial risk by taking 1-2 contracts off" (15 pts on a 10-pt stop = 1.5R)'),
+        (r"cfg\.partial1Pct\s*=\s*50\.0;", "half the position comes off at TP1"),
+        (r"cfg\.breakEvenAtR\s*=\s*1\.5;", 'p.1 "remaining contracts are trailed to break-even"'),
+        (r"cfg\.trailAtR\s*=\s*2\.5;", 'p.1 "then allowed to run for larger moves"'),
+        (r"input int\s+InpOpenFromMin\s*=\s+870;", 'p.1 "trades the New York open (9:30 AM ET)"'),
+        (r"input int\s+InpOpenToMin\s*=\s+960;", "11:00 ET - the lunch hour starts and entries stop"),
+        (r"input int\s+InpAfternoonFromMin\s*=\s+1080;", 'p.1 "avoids the lunch hour (11 AM-1 PM)" - trading resumes at 13:00 ET'),
+        (r"EA_InWindow\(ctx\.nowClock, InpOpenFromMin", "the windows go through the engine's clock helper"),
+        (r"input ENUM_TIMEFRAMES InpStructureTf\s*=\s*PERIOD_M10;", 'p.1 "a 10-minute chart for overall market structure"'),
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M3;", 'p.1 "200-second chart (one-third of 10 minutes)" - not a MetaTrader timeframe, so M3 (180 s) is the closest `[interpretation]`'),
+        (r"EA_WickRatio\(initBar, \+1\) < InpWickRatio", 'p.2 fork: "a long-wick, small-body candle (the initiation candle)"'),
+        (r"EA_BodyRatio\(initBar\) > InpMaxBodyRatio", "the initiation candle's body must be small"),
+        (r"test\.low < initBar\.low - InpBreakTolPoints", 'p.2 "the next candle tests the low but doesn\'t break it"'),
+        (r"trig\.high > test\.high && trig\.close > test\.high", 'p.2 "then makes a higher high. Entry is on this higher-high candle"'),
+        (r"EA_WickRatio\(r\[1\], -1\) < InpWickRatio", 'p.2 H-pattern: "a strong move into the opposite level (e.g., 80) with a long wick"'),
+        (r"r\[1\]\.close < r\[1\]\.open", 'p.2 H-pattern: "price then rolls over"'),
+        (r"r\[i\]\.close < r\[i \+ 1\]\.low", 'p.2 cross-section: "two breakdown candles"'),
+        (r"double hi = MathMin\(r\[i\]\.high, r\[i \+ 1\]\.high\);", "the two candles' intersection is the zone"),
+        (r"input double InpRepairNoWickTol\s*=\s*0\.10;", 'p.2 repair candle: "no wick on the opposite side"'),
+        (r"topWick > InpRepairNoWickTol", "a no-top-wick candle leaves the magnet above it"),
+        (r"InpRequireLevelTap\s+=\s+true;", 'p.3 "the best entries combine all elements: level, structure, and candle pattern"'),
+        (r"cfg\.maxTradesPerDay\s*=\s*0;", 'p.3 "rather than a hard rule like three trades per day max, Okala uses market conditions" - no cap'),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
         (r"EA_ApplyStagePolicy\(policy, InpStage\);", "the stage table is read from the engine helper, not duplicated"),

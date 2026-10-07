@@ -144,8 +144,45 @@ def spec_hash(spec: dict) -> str:
     return sha_text(json.dumps(spec_core(spec), sort_keys=True))
 
 
-def judge_fingerprint() -> dict[str, str]:
-    return {str(p.relative_to(REPO)): sha_file(p) for p in (CHECKER, SYNC_TEST) if p.is_file()}
+SYNC_TABLE_MARK = "SYNC: dict[str, list[tuple[str, str]]] = {"
+SYNC_TABLE_END = "\nclass SyncTests"
+
+
+def sync_machinery_hash() -> str:
+    """The sync test's LOGIC, with the per-card rule table blanked out.
+
+    A build must be able to ADD its own card's rule table (that is the deliverable), so the table
+    itself cannot be part of the frozen judge - but the machinery that judges with it can be, and the
+    other cards' tables are frozen separately (see ``other_cards_rules_hash``).  Raises (fail-closed)
+    if the file stops looking like what this hash assumes.
+    """
+    text = SYNC_TEST.read_text(encoding="utf-8")
+    try:
+        start = text.index(SYNC_TABLE_MARK)
+        end = text.index(SYNC_TABLE_END)
+    except ValueError as exc:
+        raise RuntimeError(f"cannot locate the rule table in {SYNC_TEST.name}: {exc}") from exc
+    return sha_text(text[:start] + "\n#<per-card rule table>\n" + text[end:])
+
+
+def other_cards_rules_hash(exclude_ea: str) -> str:
+    """Every OTHER card's rule -> code table, canonically serialised.
+
+    This is what stops a build from quietly rewriting a rule that a finished card was judged
+    against (or from loosening a pattern to make some other EA pass).
+    """
+    table = sync_table()
+    canon = {ea: [[pattern, note] for pattern, note in rules]
+             for ea, rules in sorted(table.items()) if ea != exclude_ea}
+    return sha_text(json.dumps(canon, sort_keys=True))
+
+
+def judge_fingerprint(exclude_ea: str | None = None) -> dict[str, str]:
+    out = {str(CHECKER.relative_to(REPO)): sha_file(CHECKER)}
+    out["tests/test_chartfanatics_sync.py#machinery"] = sync_machinery_hash()
+    if exclude_ea is not None:
+        out["tests/test_chartfanatics_sync.py#other_cards"] = other_cards_rules_hash(exclude_ea)
+    return out
 
 
 def tests_snapshot() -> list[str]:
@@ -283,7 +320,7 @@ def check_boundaries_intact(spec: dict, args) -> tuple[bool, str]:
     problems = []
     if spec_hash(spec) != spec.get("acceptance_hash"):
         problems.append("the acceptance spec was edited outside `replan`")
-    current = judge_fingerprint()
+    current = judge_fingerprint(spec.get("ea"))
     for name, digest in (spec.get("judge_hash") or {}).items():
         if current.get(name) != digest:
             problems.append(f"the judge changed after plan: {name} (re-plan this card)")
@@ -373,29 +410,45 @@ def cmd_plan(args) -> int:
             continue
         card = CARDS / f"{slug}.md"
         row = by_slug.get(slug, {})
-        ecard = row.get("ea") or f"EA_CF_{''.join(w.capitalize() for w in slug.split('-'))}.mq5"
-        magic = int(row["magic"]) if row.get("magic") else next_free_magic(used)
+        previous = load_spec(slug)          # re-planning must keep the allocation it already made
+        ecard = (row.get("ea") or (previous or {}).get("ea")
+                 or f"EA_CF_{''.join(w.capitalize() for w in slug.split('-'))}.mq5")
+        if row.get("magic"):
+            magic = int(row["magic"])
+        elif previous and previous.get("magic"):
+            magic = int(previous["magic"])
+        else:
+            magic = next_free_magic(used)
         used.add(magic)
         rules = len(sync_table().get(ecard, []))
+        # the rule floor never drops: a re-plan may raise it, never lower it (Goodhart boundary)
+        previous_floor = int((previous or {}).get("rule_count", 0))
+        floor = max(rules, previous_floor)
+        if floor <= 0:
+            floor = int(args.rule_count) if args.rule_count else MIN_RULES_NEW_CARD
         spec = {
             "slug": slug,
             "title": row.get("title") or card_title(card),
             "ea": ecard,
             "magic": magic,
             "source": row.get("source") or card_source_doc(card),
-            "rule_count": rules if rules else (int(args.rule_count) if args.rule_count else MIN_RULES_NEW_CARD),
+            "rule_count": floor,
             "checks": DEFAULT_CHECKS,
             "boundaries": BOUNDARIES,
             "spec_version": 1,
             "attempt_cap": ATTEMPT_CAP,
-            "judge_hash": judge_fingerprint(),
+            "judge_hash": judge_fingerprint(ecard),
             "tests_snapshot": tests_snapshot(),
             "planned_at": now_iso(),
         }
         spec["acceptance_hash"] = spec_hash(spec)
         save_json(spec_path(slug), spec)
         entry = state["cards"].setdefault(slug, {"attempts": 0})
-        if entry.get("state") not in ("awaiting_human", "done", "escalated"):
+        if entry.get("state") in ("awaiting_human", "done"):
+            # a re-plan of an already-judged card is a scheme migration / acceptance change, not a reset
+            entry["replanned_at"] = now_iso()
+            entry["replan_reason"] = args.reason or "plan refresh"
+        elif entry.get("state") != "escalated":
             entry["state"] = "planned"
         entry["planner"] = args.by or "agent"
         entry["updated"] = now_iso()
@@ -606,7 +659,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("status"); p.add_argument("--write", action="store_true"); p.set_defaults(fn=cmd_status)
     p = sub.add_parser("next"); p.set_defaults(fn=cmd_next)
     p = sub.add_parser("plan"); p.add_argument("slug", nargs="?"); p.add_argument("--all", action="store_true")
-    p.add_argument("--rule-count", type=int, dest="rule_count"); p.add_argument("--by"); p.set_defaults(fn=cmd_plan)
+    p.add_argument("--rule-count", type=int, dest="rule_count"); p.add_argument("--by")
+    p.add_argument("--reason", help="why an already-judged card is being re-planned"); p.set_defaults(fn=cmd_plan)
     p = sub.add_parser("replan"); p.add_argument("slug"); p.add_argument("--rule-count", type=int, dest="rule_count")
     p.add_argument("--ea", help="final EA filename (chosen at build time)")
     p.add_argument("--by", required=True); p.set_defaults(fn=cmd_replan)

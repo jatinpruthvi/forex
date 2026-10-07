@@ -26,6 +26,24 @@ on the Windows machine.
 | [#07](../todos/break-retest.md) | Break & Retest | `EA_CF_Break_Retest.mq5` | 3205 | M5 | `SigBreakRetest` + rejection-wick confirmation + no-trade-zone gate |
 | [#12](../todos/intraday-liquidity-volatility-model.md) | Intraday Liquidity & Volatility | `EA_CF_Intraday_Liquidity.mq5` | 3206 | M5 | failed-raid detector over PDH/PDL, Asian and London extremes + `SigFvgRetest` (MSS fallback), NY window |
 
+## Wave 2
+
+| Card | Strategy | EA | Magic | TF | Reads from the engine |
+|---|---|---|---|---|---|
+| [#02](../todos/80-20-nasdaq-strategy.md) | 80/20 Nasdaq | `EA_CF_8020NasdaqStrategy.mq5` | 3208 | M3 (structure M10) | NASDAQ mean reversion at price levels ending in 80/20 (`EA_Rates` + candle maths, no indicator at all): fork long, H-pattern short, cross-section retest, repair-candle magnet targets; fixed 10-point stop / 15-point TP1 (half off, break-even, runners); NY-open window with the lunch hour excluded; **no daily trade cap** (the source trades conditionally) |
+
+`[interpretation]` for card #02 (the source is a video summary, not a rule sheet):
+
+* the **200-second entry chart is not a MetaTrader timeframe** — M3 (180 s) is the closest and is a
+  visible input; the 10-minute structure timeframe is exact;
+* the fork's **"targeting the previous low"** reads oddly for a long, so the fixed 10-point stop and
+  15-point first target the same document states are used, and the fork low stays the structural
+  reference;
+* **cross-sections are direction-neutral** in the source ("depending on market structure"), so the
+  retest side (from above → long, from below → short) plus the 80/20 confluence decides;
+* **position size**: the source sizes up by feel; the EA keeps constant *point* risk via the engine's
+  percent sizing, which is the mechanical equivalent of "static in points".
+
 Magic block **3201–3247** is reserved for this family (one per card). `manifest.json` is the
 machine-readable source of truth and is read by [`../gen_todos.py`](../gen_todos.py) to fill each
 card's Tracking block.
