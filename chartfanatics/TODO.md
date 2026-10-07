@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 14 in progress ·
-⬜ 33 not started
+**Cards:** ✅ 0 done · 🟡 16 in progress ·
+⬜ 31 not started
 
-**EAs built:** 14/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 16/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 14 awaiting human · 33 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 16 awaiting human · 31 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 70/376 (19%)
-`▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 80/376 (21%)
+`▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -63,8 +63,8 @@ infrastructure needed to get a first verdict:
 | 07 | Break & Retest | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/break-retest.pdf) 20.9 MB | [`Break_Retest.mq5`](mql5-eas/EA_CF_Break_Retest.mq5) mag 3205 | [`break-retest.md`](todos/break-retest.md) |
 | 08 | Episodic Pivot Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/episodic-pivot-strategy.pdf) 26.4 MB | [`EpisodicPivot.mq5`](mql5-eas/EA_CF_EpisodicPivot.mq5) mag 3212 | [`episodic-pivot-strategy.md`](todos/episodic-pivot-strategy.md) |
 | 10 | First Red Day | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/first-red-day.pdf) 29.8 MB | [`FirstRedDay.mq5`](mql5-eas/EA_CF_FirstRedDay.mq5) mag 3214 | [`first-red-day.md`](todos/first-red-day.md) |
-| 11 | First Red Day Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/first-red-day-strategy.pdf) 4.3 MB | _—_ | [`first-red-day-strategy.md`](todos/first-red-day-strategy.md) |
-| 12 | Full Psychology MasterClass | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/full-psychology-masterclass.pdf) 38.3 MB | _—_ | [`full-psychology-masterclass.md`](todos/full-psychology-masterclass.md) |
+| 11 | First Red Day Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/first-red-day-strategy.pdf) 4.3 MB | [`FirstRedDayPro.mq5`](mql5-eas/EA_CF_FirstRedDayPro.mq5) mag 3215 | [`first-red-day-strategy.md`](todos/first-red-day-strategy.md) |
+| 12 | Full Psychology MasterClass | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/full-psychology-masterclass.pdf) 38.3 MB | [`PsychGuardrails.mq5`](mql5-eas/EA_CF_PsychGuardrails.mq5) mag 3216 (monitor) | [`full-psychology-masterclass.md`](todos/full-psychology-masterclass.md) |
 | 13 | Futures Trading Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/futures-trading-strategy.pdf) 5.3 MB | _—_ | [`futures-trading-strategy.md`](todos/futures-trading-strategy.md) |
 | 16 | Intraday Liquidity & Volatility Model | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/intraday-liquidity-volatility-model.pdf) 2.9 MB | [`Intraday_Liquidity.mq5`](mql5-eas/EA_CF_Intraday_Liquidity.mq5) mag 3206 | [`intraday-liquidity-volatility-model.md`](todos/intraday-liquidity-volatility-model.md) |
 | 18 | Liquidity Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/liquidity-strategy.pdf) 37.7 MB | _—_ | [`liquidity-strategy.md`](todos/liquidity-strategy.md) |

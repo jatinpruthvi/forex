@@ -127,6 +127,13 @@ signoff re-verifies the hashes; state changes are one-way apart from the human-o
   (`EA_CF_FairPricingTheory.mq5`, magic 3213, 17 rules, M1). Static TP-first R:R (stop = TP/ratio),
   three-loss session lock, the three source windows; the A+ news-reversion setup is documented as
   needing a calendar and the session-open reversion stands in. → `awaiting_human`.
+* 2026-10-07 — batch 4: cards **#11 `first-red-day-strategy`** (`EA_CF_FirstRedDayPro.mq5`, magic 3215,
+  21 rules: non-negotiable minimum criteria, run walked back to its true start, three entry methods,
+  overextended-gap-down veto, VWAP magnet + 2-3% fallback, M15-high trail) and **#12
+  `full-psychology-masterclass`** (`EA_CF_PsychGuardrails.mq5`, magic 3216, 21 rules: monitor, never
+  trades - shutdown ladder, carryover shift, zone-map proxies, pre/during/post journal).  Both →
+  `awaiting_human`.  Also repaired four stale wave-1 card numbers in the manifest/README/tracker
+  (39/37/31/16) that the board renumbering had left behind.
 * 2026-10-07 — batch 3: cards **#08 `episodic-pivot-strategy`** (`EA_CF_EpisodicPivot.mq5`, magic 3212,
   19 rules: neglect + catalyst footprint + day-1 OR break, EP 9M, delayed reaction long/short, daily-low
   trail) and **#10 `first-red-day`** (`EA_CF_FirstRedDay.mq5`, magic 3214, 13 rules: short the first
@@ -174,7 +181,7 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 ## Status
 
 <!-- loop:status -->
-**awaiting_human**: 14 · **planned**: 33
+**awaiting_human**: 16 · **planned**: 31
 
 | card | loop state | attempts | signed off by | spec |
 |---|---|---|---|---|
@@ -188,8 +195,8 @@ run `validation/mt5_harness/compile_all.ps1`, run the tester sweep, then
 | `episodic-pivot-strategy` | awaiting_human | 1 | — | yes |
 | `fair-pricing-theory-strategy` | awaiting_human | 1 | — | yes |
 | `first-red-day` | awaiting_human | 1 | — | yes |
-| `first-red-day-strategy` | planned | 0 | — | yes |
-| `full-psychology-masterclass` | planned | 0 | — | yes |
+| `first-red-day-strategy` | awaiting_human | 1 | — | yes |
+| `full-psychology-masterclass` | awaiting_human | 1 | — | yes |
 | `futures-trading-strategy` | planned | 0 | — | yes |
 | `institutional-options-flow-gamma-reversal-strategy` | planned | 0 | — | yes |
 | `institutional-strategy-development-framework` | planned | 0 | — | yes |

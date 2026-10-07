@@ -26,7 +26,7 @@
       "status": "static-checked"
     },
     {
-      "card": 26,
+      "card": 39,
       "slug": "structure-ote",
       "strategy": "Structure + OTE",
       "ea": "EA_CF_Structure_OTE.mq5",
@@ -45,7 +45,7 @@
       "status": "static-checked"
     },
     {
-      "card": 23,
+      "card": 37,
       "slug": "smt-divergence-po3",
       "strategy": "SMT Divergence + PO3",
       "ea": "EA_CF_SMT_PO3.mq5",
@@ -64,7 +64,7 @@
       "status": "static-checked"
     },
     {
-      "card": 22,
+      "card": 31,
       "slug": "po3-ote-adr",
       "strategy": "PO3, OTE + ADR",
       "ea": "EA_CF_PO3_OTE_ADR.mq5",
@@ -100,7 +100,7 @@
       "status": "static-checked"
     },
     {
-      "card": 12,
+      "card": 16,
       "slug": "intraday-liquidity-volatility-model",
       "strategy": "Intraday Liquidity & Volatility Model",
       "ea": "EA_CF_Intraday_Liquidity.mq5",
@@ -279,6 +279,48 @@
       "source": "chartfanatics/pdf/first-red-day.pdf",
       "wave": 2,
       "status": "static-checked"
+    },
+    {
+      "card": 11,
+      "slug": "first-red-day-strategy",
+      "strategy": "First Red Day Strategy",
+      "ea": "EA_CF_FirstRedDayPro.mq5",
+      "class": "CCfFirstRedDayPro",
+      "magic": 3215,
+      "timeframe": "M5",
+      "wave": 2,
+      "status": "static-checked",
+      "primitives": [
+        "daily run + minimum-criteria gate (green streak, extension, volume, range)",
+        "previous-day-close trigger",
+        "three entry methods (pre-red / standard / lower-high)",
+        "session VWAP magnet",
+        "M15-high trail (custom Manage())",
+        "cfg.maxCostR",
+        "evidence ledger",
+        "EA_ApplyStagePolicy"
+      ],
+      "source": "chartfanatics/pdf/first-red-day-strategy.pdf"
+    },
+    {
+      "card": 12,
+      "slug": "full-psychology-masterclass",
+      "strategy": "Psychology MasterClass",
+      "ea": "EA_CF_PsychGuardrails.mq5",
+      "class": "CCfPsychGuardrails",
+      "magic": 3216,
+      "timeframe": "M15",
+      "wave": 2,
+      "status": "static-checked",
+      "primitives": [
+        "account-wide daily deal replay (every magic)",
+        "graded shutdown ladder (caution / cooldown / breach / session over)",
+        "carryover shift from yesterday's result",
+        "zone-map proxies (revenge, size escalation, entry burst, off-window)",
+        "pre/during/post session journal CSV"
+      ],
+      "source": "chartfanatics/pdf/full-psychology-masterclass.pdf",
+      "trades": false
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | ⬜ TODO — 0/8 stages |
+| **Status** | 🟡 WIP — 5/8 stages |
 | **Slug** | `first-red-day-strategy` |
 | **Type** | published PDF |
 | **Source** | [PDF](../pdf/first-red-day-strategy.pdf) (4.3 MB) |
@@ -16,28 +16,34 @@
 
 ## Stages
 
-- [ ] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
-- [ ] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
-- [ ] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
-- [ ] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
+- [x] **1. Read source** — PDF / summary reviewed end to end; note page or section refs in Notes <!-- id:read -->
+- [x] **2. Extract rules** — Entry, exit, stop, targets, timeframe, session, instruments - in writing <!-- id:extract -->
+- [x] **3. Mechanizable?** — Verdict: EA candidate | discretionary checklist | drop (say why) <!-- id:verdict -->
+- [x] **4. Write spec** — Unambiguous spec: exact conditions, no 'price reacts' phrasing <!-- id:spec -->
 - [ ] **5. Backtest** — Run through validation/mt5_harness; record symbol, period, PF, DD, trades <!-- id:backtest -->
-- [ ] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
+- [x] **6. Implement EA** — New .mq5 with its own magic, or adapt an existing engine; cross-check docs/ICT_SMC_COVERAGE.md <!-- id:ea -->
 - [ ] **7. Validate** — Strategy Tester gates + scripts/check_mql5_source.py pass <!-- id:validate -->
 - [ ] **8. Demo / forward** — Forward phase per docs/EA_VALIDATION_PLAYBOOK.md, then live decision <!-- id:demo -->
 
 ## Tracking
 
 <!-- edit:tracking -->
-- **Verdict:** _TBD_
-- **Instruments:** _TBD_
-- **Timeframe / session:** _TBD_
-- **EA file / magic:** _unassigned_
-- **Priority:** _TBD_ (P1 = do next, P2 = queued, P3 = nice-to-have)
-- **Blocked by:** _nothing_
+- **Verdict:** Tradable, implemented. Short-only FRD with the playbook's non-negotiable minimum criteria hard-gated: 2-3+ consecutive green days with no red inside the run, 80-100%+ extension, expanding volume, expanding range. The previous day's close is the trigger; all three documented entry methods are implemented and selectable (pre-red stall, standard crack below the prior close, lower-high after a failed bounce), with the source's own risk level per method (ATH of the run / today's HOD / bounce high). The overextended gap-down rule (never short already down 10%+) and the 3-5 attempts cap are enforced; VWAP is the primary magnet target with the "larger assets 2-3%" fallback; exits scale out into weakness and can trail the 15-minute high.
+- **Instruments:** Stocks / Options (source: small-cap euphoric runners). EA: `InpSymbolsToTrade` (the run quality is the selection filter)
+- **Timeframe / session:** Playbook: daily run, intraday short. EA: D1 run detection, M5 trigger, 15-min trail, US cash session
+- **EA file / magic:** [`EA_CF_FirstRedDayPro.mq5](../mql5-eas/EA_CF_FirstRedDayPro.mq5) / `3215` (static-checked)
+- **Priority:** P2 - the fuller FRD spec (superset of card #10's variant)
+- **Blocked by:** _nothing_ (never compiled: MetaEditor run owed, see the Windows stage in [`../LOOP.md`](../LOOP.md))
 <!-- /edit:tracking -->
 
 ## Notes
 
 <!-- edit:notes -->
-_Nothing yet._
+- Rule refs: p.1-2 minimum criteria + why multiple green days matter; p.2 previous day's close as the
+  psychological trigger; p.3 the three entry methods; p.4 exits (VWAP magnet, scale out, 15-min trail);
+  p.5 overextended gap-down variation; p.6 maximum-attempts rule and risk management (primary stop =
+  ATH of the run); p.7-8 BYND A+ trade breakdown (1,400% extension example).
+- Sync table: `tests/test_chartfanatics_sync.py` -> `EA_CF_FirstRedDayPro.mq5` (20 rules pinned).
+- `[interpretation]`: VWAP from session M5 bars (tick volume proxy); "2-3%" fallback for larger
+  assets where VWAP gives no >= 1R magnet; single-stock catalyst selection is the user's universe.
 <!-- /edit:notes -->

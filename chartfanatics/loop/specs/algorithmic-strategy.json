@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "e247be42b5c76319987b5a61ee9b9d77200ba2f01289f7a25eff02fbf39baf4d",
+  "acceptance_hash": "f2553f3ce73d7f25d95648b1d80b7698d0ca68ea49937bc0b9d9fa0a05c7a66a",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "2c2a348c636c113a689a9d10783b63e5476f88644c05a57be57ef71487579f9b",
     "tests/test_chartfanatics_sync.py#machinery": "df7f60ea011a36fc9f0fa3d7c297a543fa2f2267961937fd987dc60b72ffb814",
-    "tests/test_chartfanatics_sync.py#other_cards": "f7d5135ba7705f622d589dcf120894ffd341fc0f2a21f9b7f5e6626c8e0e4f6c"
+    "tests/test_chartfanatics_sync.py#other_cards": "7d6cf66cfdf41e364967f5162f091f84b7154e68c6adae3504a709623ecde170"
   },
   "magic": 3209,
-  "planned_at": "2026-10-07T11:45:47Z",
+  "planned_at": "2026-10-07T11:52:02Z",
   "rule_count": 15,
   "slug": "algorithmic-strategy",
   "source": "chartfanatics/glimpse/TyHTEtArsS4.md",

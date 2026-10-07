@@ -39,6 +39,15 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-sized position at confirmation).
   * EA_CF_FirstRedDay (card #10): same single-stock selection caveat; the parabolic threshold (25%)
     is an interpretation - the doc gives no number - and the one-loss day lock is labelled in code.
+  * EA_CF_FirstRedDayPro (card #11): same single-stock caveat, plus: VWAP is rebuilt from the
+    session's M5 bars (bar tick volume as the volume proxy); the "larger assets: 2-3%" band becomes
+    the fallback target when VWAP does not offer a >= 1R magnet; the hard 3-5 attempt cap is one
+    input (`InpMaxAttempts`, default 3) that the stage policy can only tighten.
+  * EA_CF_PsychGuardrails (card #12): the masterclass is subjective by nature; the EA is a monitor
+    that replays the account's own day through the shutdown ladder.  Loss counts are the mechanical
+    stand-in for "emotion rising", the 15-minute break is the doc's own number, and the zone-map
+    signs get event proxies (revenge = entry soon after a losing close, escalation = bigger re-entry
+    after a loss, burst = entries packed into a window, off-window = entries outside the session).
 """
 from __future__ import annotations
 
@@ -358,6 +367,65 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"input double InpTrailAtR\s*=\s*1\.5;", '"hold a small portion of the trade to catch any further drop"'),
         (r"\[interpretation\]: the doc warns that messing up the first trade", "the one-loss day lock is labelled an interpretation"),
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+    ],
+    # ------------------------------------------- First Red Day Pro (card #11)
+    "EA_CF_FirstRedDayPro.mq5": [
+        (r"input int\s+InpMinGreenDays\s*=\s*3;", '"minimum 2-3 consecutive green days" - non-negotiable criterion'),
+        (r"if\(d\[i\]\.close <= d\[i\]\.open\) break;", '"No red days during the run" - the walk-back stops at the first red day'),
+        (r"if\(runLen < InpMinGreenDays\) return false;", "the run is walked to its true start, so a long streak measures its real extension"),
+        (r"if\(extension < InpMinExtensionPct\) return false;", '"80-100%+ extension from the start of the run"'),
+        (r"d\[1\]\.tick_volume > d\[2\]\.tick_volume && d\[2\]\.tick_volume >= d\[3\]\.tick_volume",
+         '"Expanding daily volume" - a non-negotiable criterion'),
+        (r"if\(!\(r1 > r2 && r2 >= r3\)\) return false;", '"Expanding daily range (acceleration)"'),
+        (r"double priorClose = d\[1\]\.close;", '"The previous day\'s close is the most important level" -> the psychological trigger'),
+        (r"if\(!\(m\[1\]\.high < runHigh - InpFadeBufferAtr \* ctx\.atr\)\) return false;",
+         'pre-red entry: "short before price breaks prior close ... failure to make new highs"'),
+        (r"if\(!\(m\[1\]\.close < priorClose && m\[1\]\.close < m\[1\]\.open\)\) return false;",
+         'standard entry: "wait for the crack below prior close"'),
+        (r"if\(bounceHigh < priorClose - InpBounceMinAtr \* ctx\.atr\) return false;",
+         'lower-high entry: the bounce after the breakdown must be real'),
+        (r"if\(!\(m\[1\]\.high < bounceHigh && m\[1\]\.close < m\[1\]\.open\)\) return false;",
+         'lower-high entry: "short failed lower high" after "wait for the first bounce"'),
+        (r"if\(downPct >= InpMaxDownPct\) return false;", '"do not short if already down 10%+" (overextended gap-down variation)'),
+        (r"if\(InpUseVwapTarget && vwap > 0\.0 && vwap < entry - risk\) target = vwap;", '"VWAP is the primary magnet"'),
+        (r"if\(target <= 0\.0\) target = entry \* \(1\.0 - InpFallbackTgtPct / 100\.0\);",
+         '"Larger assets: 2-3%" - the fallback target when no VWAP magnet applies'),
+        (r"if\(target >= entry - risk\) target = entry - risk;", '"cover into weakness, do not wait for the exact bottom" - never a sub-1R destination'),
+        (r"double hod = \(d\[0\]\.high > 0\.0\) \? d\[0\]\.high : m\[1\]\.high;", '"Risk: Today\'s high of day" - exact session high from the forming daily bar'),
+        (r"if\(ctx\.mid >= entry\) continue;", "the 15-minute trail only engages once the trade is working (and never loosens)"),
+        (r"cfg\.maxTradesPerDay\s*=\s*InpMaxAttempts;", '"hard rule: 3-5 attempts maximum"'),
+        (r"input double InpPartial1AtR\s*=\s*1\.0;", '"scale out, avoid all-or-nothing" -> partial into weakness'),
+        (r"double m15High = q\[1\]\.high;", '"optional: trail using 15-minute high" -> the last completed M15 high'),
+        (r"input bool\s+InpTrailM15High\s*=\s*true;", "the 15-minute-high trail is the playbook's own tool, not an engine approximation"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "the doc is silent on stock selection/VWAP proxy -> stays labelled"),
+    ],
+    # ------------------------------------------------ Psych Guardrails (card #12)
+    "EA_CF_PsychGuardrails.mq5": [
+        (r"cfg\.riskPct\s*=\s*0\.0;", "a process monitor never sizes a position"),
+        (r"bool AllowTrading\(SEAContext &ctx\) \{ return false; \}", '"the best trade is no trade at all" - the monitor never trades'),
+        (r"input int\s+InpCooldownMin\s*=\s*15;", '"set a limit ... or a 15-minute break"'),
+        (r"Warn\(CF_PSYCH_CAUTION, dayStart, st,", '"reduce activity, be more selective, or slow down" - the 60% point'),
+        (r"Warn\(CF_PSYCH_COOLDOWN, dayStart, st,", '"set a limit ... a 15-minute break" -> the mid-session reset'),
+        (r"Warn\(CF_PSYCH_BREACH, dayStart, st,", '"if you break your own limit, your session is over"'),
+        (r"Warn\(CF_PSYCH_ENDSESSION, dayStart, st,", "emotional EV: \"sometimes the smartest trade is no trade at all\""),
+        (r"Warn\(CF_PSYCH_REVENGE, dayStart, st,", 'the zone-map thought "I\'ll make it back"'),
+        (r"Warn\(CF_PSYCH_ESCALATE, dayStart, st,", 'the zone-map thought "I need to get it back!"'),
+        (r"Warn\(CF_PSYCH_BURST, dayStart, st,", 'low energy: "you may also become impatient and trade just to feel engaged"'),
+        (r"Warn\(CF_PSYCH_OFFWINDOW, dayStart, st,", 'perception shift: "promote average setups to A+"'),
+        (r"int shift = m_carryover \? 1 : 0;", '"emotions don\'t reset overnight" -> a red yesterday shifts the ladder one step earlier'),
+        (r"if\(cooldownUntil > when\)", 'the break is enforced: trading inside it is the breach the doc calls out'),
+        (r"if\(st\.lastLossClose > 0 && when - st\.lastLossClose <= \(datetime\)\(InpRevengeMin \* 60\)\)",
+         '"I\'ll make it back": an entry soon after a losing close'),
+        (r"if\(st\.lastLossClose > 0 && lastEntryVol > 0\.0 && vol > InpSizeEscalateRatio \* lastEntryVol\)",
+         '"I need to get it back!": a larger re-entry after a loss'),
+        (r"if\(st\.burstMax > InpBurstEntries\)", '"impatient and trade just to feel engaged" - entries packed into a window'),
+        (r"JournalRow\(todayStart, \"PRE\", st, PreNote\(\)\);", '"Before the session: take 5 minutes to check in"'),
+        (r"JournalRow\(todayStart, \"POST\", st, PostNote\(st\)\);",
+         '"After the session ... top 3 emotional moments ... if-then plan for tomorrow"'),
+        (r"input string InpJournalFile\s*=\s*\"cf_psych_journal\.csv\";", '"journaling is not optional" -> the journal file'),
+        (r"if\(yst\.closes <= 0 \|\| yst\.pl >= 0\.0\) return;", 'carryover is read from yesterday\'s realised result'),
+        (r"\[interpretation\]", "the doc is subjective - the mechanical thresholds stay labelled"),
     ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
