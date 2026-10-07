@@ -511,6 +511,31 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/market-dna-strategy.pdf"
+  },
+  {
+   "card": 22,
+   "slug": "mean-reversion-strategy",
+   "strategy": "Mean Reversion Strategy",
+   "ea": "EA_CF_MeanReversion.mq5",
+   "class": "CCfMeanReversion",
+   "magic": 3225,
+   "timeframe": "M5",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "daily abnormality gate (expansion vs the 20-day range, volume pace, ATR displacement)",
+    "speed + streak displacement detection with the panic-candle path",
+    "right-side reversal break (prior bar high/low)",
+    "capitulation-extreme stop with a risk cap",
+    "20-period mean target (engine EMA) with R fallback",
+    "prior-bar trail in Manage()",
+    "quality ladder -> LotsMultiplier sizing",
+    "short-side and panic size reductions (doc's own instructions)",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/mean-reversion-strategy.pdf"
   }
  ]
 }

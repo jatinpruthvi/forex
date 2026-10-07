@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "e42b4eb204a6569f952b9e57df2f4200141fa4284673ce2834ce27b724563147",
+  "acceptance_hash": "491130f7371c323b7268f855ca248a74f27abf43c2b717980030fc011db6d7b1",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "e9fde5599ab912cf60ba6137cc3cfaab8f6503349f3a9eecf8958b1778469c42",
-    "tests/test_chartfanatics_sync.py#other_cards": "1fab5e062699ea94d690b71604ead9646d726e039c0495c6a7a9a909ca27878c"
+    "tests/test_chartfanatics_sync.py#other_cards": "7388920c1f68611235cb92c12d12321e27b14609229ce9e930a61317a978bf48"
   },
   "magic": 3222,
-  "planned_at": "2026-10-07T12:14:32Z",
+  "planned_at": "2026-10-07T12:16:02Z",
   "rule_count": 27,
   "slug": "low-volume-node",
   "source": "chartfanatics/pdf/low-volume-node.pdf",

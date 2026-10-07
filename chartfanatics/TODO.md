@@ -4,15 +4,15 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 24 in progress ·
-⬜ 23 not started
+**Cards:** ✅ 0 done · 🟡 25 in progress ·
+⬜ 22 not started
 
-**EAs built:** 24/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 25/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 23 awaiting human · 24 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 24 awaiting human · 23 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 120/376 (32%)
-`▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
+**Stages ticked:** 125/376 (33%)
+`▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
@@ -71,7 +71,7 @@ infrastructure needed to get a first verdict:
 | 19 | Low Volume Node | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/low-volume-node.pdf) 3.9 MB | [`LowVolumeNode.mq5`](mql5-eas/EA_CF_LowVolumeNode.mq5) mag 3222 | [`low-volume-node.md`](todos/low-volume-node.md) |
 | 20 | Market Auction theory | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/market-auction-theory.pdf) 2.1 MB | [`MarketAuctionTheory.mq5`](mql5-eas/EA_CF_MarketAuctionTheory.mq5) mag 3223 | [`market-auction-theory.md`](todos/market-auction-theory.md) |
 | 21 | Market DNA Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/market-dna-strategy.pdf) 30.9 MB | [`MarketDna.mq5`](mql5-eas/EA_CF_MarketDna.mq5) mag 3224 | [`market-dna-strategy.md`](todos/market-dna-strategy.md) |
-| 22 | Mean Reversion Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/mean-reversion-strategy.pdf) 10.1 MB | _—_ | [`mean-reversion-strategy.md`](todos/mean-reversion-strategy.md) |
+| 22 | Mean Reversion Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/mean-reversion-strategy.pdf) 10.1 MB | [`MeanReversion.mq5`](mql5-eas/EA_CF_MeanReversion.mq5) mag 3225 | [`mean-reversion-strategy.md`](todos/mean-reversion-strategy.md) |
 | 23 | Measured Move Trend Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/measured-move-trend-strategy.pdf) 9.5 MB | _—_ | [`measured-move-trend-strategy.md`](todos/measured-move-trend-strategy.md) |
 | 27 | Options Trading Masterclass | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/options-trading-masterclass.pdf) 3.5 MB | _—_ | [`options-trading-masterclass.md`](todos/options-trading-masterclass.md) |
 | 29 | OrderFlow Trading Masterclass | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/orderflow-trading-masterclass.pdf) 16.9 MB | _—_ | [`orderflow-trading-masterclass.md`](todos/orderflow-trading-masterclass.md) |
