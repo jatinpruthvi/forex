@@ -439,6 +439,30 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/liquidity-strategy.pdf"
+  },
+  {
+   "card": 19,
+   "slug": "low-volume-node",
+   "strategy": "Low Volume Node",
+   "ea": "EA_CF_LowVolumeNode.mq5",
+   "class": "CCfLowVolumeNode",
+   "magic": 3222,
+   "timeframe": "M5",
+   "wave": 3,
+   "status": "static-checked",
+   "primitives": [
+    "tick-volume bins over the base+impulse leg (the library's profile proxy)",
+    "thin-bin merging into LVN zones",
+    "absorption read (wick + close back inside, no close-through) on the revisit",
+    "SigRangeForDay (session extreme) target",
+    "prior-day extreme target, another-LVN target",
+    "g_eaExec.Close premise exit (node closed through)",
+    "cfg.partial1AtR 1R scale-out",
+    "cfg.maxCostR",
+    "evidence ledger",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/low-volume-node.pdf"
   }
  ]
 }

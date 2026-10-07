@@ -54,6 +54,14 @@ EA source too, so an invention can never quietly become a "documented rule":
     SigFractals is bound to the signal timeframe, so the daily swing geometry is local; the
     anchored-VWAP anchor is the phase anchor and its deviation bands are represented by the 1R
     partial; the MA exit context reads a daily close on the wrong side of both the 8 and the 21.
+  * EA_CF_LowVolumeNode (card #19): the playbook confirms with heatmaps, footprint charts and delta - data
+    no MetaTrader EA can read - so the defense is read as absorption on the revisit (a wick into the node,
+    the close back inside it, no close through) with above-average participation, and the LVN itself from
+    tick-volume bins (the same proxy as the library's volume-profile EAs).  The base/impulse windows, the
+    thin-bin fraction, the revisit window, the tight-stop cap and the daily trade cap are numbers the
+    document does not state.  Targets use the objective levels the doc itself lists (session extreme,
+    prior day extreme, another LVN); "support/resistance" and "another supply or demand zone" in the
+    abstract are not measurable without a historical structure map, so they are represented by those.
   * EA_CF_LiquidityStrategy (card #18): the playbook states the method but no parameters, so every number
     is labelled: swing strength and context depth (30-minute level chart, 5-minute execution, per its own
     breakdown), the ATR move-away that qualifies a level as respected, the equal-highs/lows cluster
@@ -649,6 +657,36 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
         (r"\[interpretation\]", "every number the playbook leaves open stays labelled"),
     ],
+    # ------------------------------------------- Low Volume Node (card #19)
+    "EA_CF_LowVolumeNode.mq5": [
+        (r"cfg\.signalTimeframe\s*=\s*PERIOD_M5;", "day-trading / scalping playbook - the execution chart"),
+        (r"input int\s+InpBaseBars\s*=\s*8;", "[interpretation]: the consolidation window the doc does not state"),
+        (r"if\(baseRange <= 0\.0 \|\| baseRange > InpBaseMaxRangeAtr \* atr\) continue;", '"look for a period of market consolidation"'),
+        (r"if\(move < InpImpulseMinAtr \* atr\) continue;", '"an impulsive move away ... confirms the presence of strong buyers"'),
+        (r"if\(-move < InpImpulseMinAtr \* atr\) continue;", "the mirrored supply case"),
+        (r"if\(legLow < bLo\) continue;", "the leg must move AWAY - not back through the base"),
+        (r"bool thin = \(k < nb\) && \(binVol\[k\] < InpThinFrac \* avg\);", '"an area where price moved quickly with little to no volume" - the LVN'),
+        (r"if\(dir > 0 && zHi < baseHi\) continue;", "demand: the node sits above the base it was left behind from"),
+        (r"for\(int dir = 1; dir >= -1; dir -= 2\)", '"go long if you are bouncing off demand or support" first, then the supply side'),
+        (r"if\(r\[i\]\.low <= lvHi\) touched = true;", '"now wait for the market to pull back into the LVN"'),
+        (r"if\(r\[i\]\.close < lvLo\) return false;", '"aggressive sellers tried to push the price lower, but the price failed to break" - no close-through'),
+        (r"bool refused = \(dir > 0\) \? \(r\[1\]\.low <= lvHi && r\[1\]\.close > lvLo\)", '"each time the price broke a low, it was quickly bought back" - absorption'),
+        (r"if\(legVol > 0\.0 && avgVol < InpDefenseVolMult \* legVol\) return false;", '"passive buyers were sitting at the level" - participation proxy ([interpretation]: tick volume, not heatmaps)'),
+        (r"stopRef = \(dir > 0\) \? MathMin\(ext, lvLo\) : MathMax\(ext, lvHi\);", '"tight stop just below the zone" (or below the recent low)'),
+        (r"if\(risk > InpMaxStopAtr \* ctx\.atr\) continue;", "[interpretation]: the tight-stop cap - a setup needing more is skipped"),
+        (r"input double InpMaxChaseAtr\s*=\s*0\.25;", "the entry must sit at the node - the doc enters on the defense, never after the run"),
+        (r"if\(SigRangeForDay\(ctx\.symbol, g_eaIndTf, 0, nowMin, 0, hod, lod, bars\) && bars > 0\)", '"target ... high of day / low of day"'),
+        (r"double prior = \(dir > 0\) \? d\[0\]\.high : d\[0\]\.low;", '"another supply or demand zone" - the prior day extreme'),
+        (r"if\(entry >= lvLo\[i\] - tol && entry <= lvHi\[i\] \+ tol\) continue;", '"another LVN" - the runner objective, never the node the trade came from'),
+        (r"if\(rr < InpMinRr\) continue;", '"aim for a high reward-to-risk setup"'),
+        (r"cfg\.partial1AtR\s*=\s*InpPartial1R;", '"you can scale out or take full profits based on context and volatility"'),
+        (r"cfg\.riskPct\s*=\s*InpRiskPct;", '"adjust position size based on stop distance to keep dollar risk the same"'),
+        (r"g_eaExec\.Close\(ticket, \"LVN closed through\"\);", "premise exit: a close through the node means the defense failed"),
+        (r"if\(barTime == m_lastPremiseBar\) return;", "the premise is evaluated on bar closes, not on every tick"),
+        (r"input int\s+InpMaxTradesPerDay\s*=\s*3;", "[interpretation]: the doc sets no daily cap"),
+        (r"EA_ApplyStagePolicy\(cfg, InpStage\);", "card #01's stage policy stays available"),
+        (r"\[interpretation\]", "every number the playbook leaves open stays labelled"),
+    ],
     # ---------------------------------------------------- 5-Stage Guardrails (card #01)
     "EA_CF_Stage_Guardrails.mq5": [
         (r"EA_ApplyStagePolicy\(policy, InpStage\);", "the stage table is read from the engine helper, not duplicated"),
@@ -685,7 +723,8 @@ class SyncTests(unittest.TestCase):
         # a rule the playbook does not state must remain visibly marked in the source
         for name in ("EA_CF_Structure_OTE.mq5", "EA_CF_PO3_OTE_ADR.mq5",
                      "EA_CF_AMD_Model.mq5", "EA_CF_Intraday_Liquidity.mq5",
-                     "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5"):
+                     "EA_CF_LiquidityInversion.mq5", "EA_CF_LiquidityStrategy.mq5",
+                     "EA_CF_LowVolumeNode.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 
