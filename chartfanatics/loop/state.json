@@ -1,0 +1,721 @@
+{
+  "cards": {
+    "5-stage-trading-framework": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:28Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "80-20-nasdaq-strategy": {
+      "attempts": 1,
+      "built_by": "agent: card #02 build",
+      "last_checked": "2026-10-07T11:22:29Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "algorithmic-strategy": {
+      "attempts": 1,
+      "built_by": "agent: card #03 build",
+      "last_checked": "2026-10-07T11:22:30Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "amd-model": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:31Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "reset_by": "loop self-test",
+      "reset_note": "re-demo attempt counting",
+      "state": "awaiting_human",
+      "state_before_reset": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "auction-market-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 1",
+      "last_checked": "2026-10-07T11:39:35Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "reset_by": "agent",
+      "reset_note": "boundary was the batch's own table addition",
+      "state": "awaiting_human",
+      "state_before_reset": "planned",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "auction-market-theory-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 1",
+      "last_checked": "2026-10-07T11:39:36Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "reset_by": "agent",
+      "reset_note": "boundary was the batch's own table addition",
+      "state": "awaiting_human",
+      "state_before_reset": "planned",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "break-retest": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:35Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "episodic-pivot-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 3",
+      "last_checked": "2026-10-07T11:45:48Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "fair-pricing-theory-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 2",
+      "last_checked": "2026-10-07T11:41:11Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "first-red-day": {
+      "attempts": 1,
+      "built_by": "agent: batch 3",
+      "last_checked": "2026-10-07T11:45:50Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "first-red-day-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 4 build complete",
+      "last_checked": "2026-10-07T11:48:32Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "full-psychology-masterclass": {
+      "attempts": 1,
+      "built_by": "agent: batch 4 build complete",
+      "last_checked": "2026-10-07T11:52:04Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "futures-trading-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 5 build complete",
+      "last_checked": "2026-10-07T11:56:12Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "institutional-options-flow-gamma-reversal-strategy": {
+      "attempts": 1,
+      "built_by": "agent: batch 5 build complete",
+      "last_checked": "2026-10-07T11:57:53Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "institutional-strategy-development-framework": {
+      "attempts": 1,
+      "built_by": "agent: batch 6 build complete",
+      "last_checked": "2026-10-07T12:01:57Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "intraday-liquidity-volatility-model": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:37Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "liquidity-inversion-model": {
+      "attempts": 1,
+      "built_by": "agent: liquidity inversion built (35 rules)",
+      "last_checked": "2026-10-07T12:05:40Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "liquidity-strategy": {
+      "attempts": 1,
+      "built_by": "agent: liquidity trap built (36 rules)",
+      "last_checked": "2026-10-07T12:10:02Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "low-volume-node": {
+      "attempts": 1,
+      "built_by": "agent: LVN built (27 rules)",
+      "last_checked": "2026-10-07T12:11:54Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "market-auction-theory": {
+      "attempts": 1,
+      "built_by": "agent: market auction theory built (28 rules)",
+      "last_checked": "2026-10-07T12:13:19Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "market-dna-strategy": {
+      "attempts": 1,
+      "built_by": "agent: market DNA built (28 rules)",
+      "last_checked": "2026-10-07T12:14:35Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "mean-reversion-strategy": {
+      "attempts": 1,
+      "built_by": "agent: mean reversion built (26 rules)",
+      "last_checked": "2026-10-07T12:16:05Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "measured-move-trend-strategy": {
+      "attempts": 1,
+      "built_by": "agent: measured move built (26 rules)",
+      "last_checked": "2026-10-07T12:17:30Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "momentum-model-performance-development": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T12:27:42Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "nasdaq-ict-and-order-flow-scalping-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T13:06:56Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "nq-liquidity-sweep-reversal-scalping-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T13:11:34Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "options-trading-masterclass": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T13:16:42Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "order-flow-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T13:23:06Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "orderflow-trading-masterclass": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T13:44:23Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "parabolic-short-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T14:54:25Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "po3-ote-adr": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:34Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "price-action-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T15:28:17Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "price-cycle-continuation-failed-base-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T15:55:40Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "real-simple-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T15:57:58Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "shorting-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:00:07Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "small-cap-short-statistics": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:02:12Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "smt-divergence-po3": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:33Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "stage-analysis-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:05:12Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "structure-ote": {
+      "attempts": 1,
+      "built_by": "audit session",
+      "last_checked": "2026-10-07T11:22:32Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "support-and-resistance": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:09:11Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "the-vix-futures-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:12:20Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "trading-first-principles-framework": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:14:48Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "trendline-break-pocket-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:17:47Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "trendline-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:23:39Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "unique-high-rr": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:32:57Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "universal-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:37:06Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "state": "awaiting_human",
+      "updated": "2026-10-08T04:33:04Z"
+    },
+    "volume-profile-strategy": {
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-08T04:35:12Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "Arena agent",
+      "replan_reason": "Refresh acceptance/test snapshots after the Volume Profile audit updates; no human signoff implied.",
+      "replanned_at": "2026-10-08T04:33:04Z",
+      "reset_by": "agent",
+      "reset_note": "Final audit complete: 53 synchronized strategy rules, 12 focused logic regressions, full pytest suite green",
+      "state": "awaiting_human",
+      "state_before_reset": "awaiting_human",
+      "updated": "2026-10-08T04:35:12Z"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "acceptance_hash": "257c8eee627c8c970792ee8bd950c371cc4c6751ce71bae55e874b6b59117fb2",
+  "attempt_cap": 3,
+  "boundaries": [
+    "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
+    "the judge scripts (checker + sync test) must not change after plan",
+    "no test file may be deleted or weakened",
+    "`done` is flipped by a human only - the judge stops at awaiting_human"
+  ],
+  "checks": [
+    "ea_exists",
+    "magic_ok",
+    "checker_clean",
+    "sync_rules",
+    "manifest_entry",
+    "card_tracking",
+    "boundaries_intact",
+    "windows_report"
+  ],
+  "ea": "EA_CF_MeasuredMove.mq5",
+  "judge_hash": {
+    "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
+    "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
+    "tests/test_chartfanatics_sync.py#other_cards": "f3f6b37cb5417b6d9c4b2633a0157df63f8a6ac54ed18a64ce84c5aab084f166"
+  },
+  "magic": 3226,
+  "planned_at": "2026-10-08T04:33:04Z",
+  "rule_count": 26,
+  "slug": "measured-move-trend-strategy",
+  "source": "chartfanatics/pdf/measured-move-trend-strategy.pdf",
+  "spec_version": 1,
+  "tests_snapshot": [
+    "test_ablation_scaffold.py",
+    "test_bugfix_regressions.py",
+    "test_cf_loop.py",
+    "test_chartfanatics_family.py",
+    "test_chartfanatics_sync.py",
+    "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
+    "test_extended_validation.py",
+    "test_harness_scripts.py",
+    "test_ict_smc_fixes.py",
+    "test_news_timeframes.py",
+    "test_optimizer_fill_logic.py",
+    "test_order_selector.py",
+    "test_portfolio_tracker.py",
+    "test_reference.py",
+    "test_risk_flow_fixes.py",
+    "test_screen_ea_contract.py",
+    "test_source_contract.py",
+    "test_triad_fixes.py",
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
+  ],
+  "title": "Measured Move Trend Strategy"
+}

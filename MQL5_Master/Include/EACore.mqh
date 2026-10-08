@@ -245,6 +245,107 @@ struct SEASettings
 SEASettings g_eaCfg;
 
 //+------------------------------------------------------------------+
+//| 5-STAGE TRADER FRAMEWORK - per-stage risk posture                |
+//|                                                                  |
+//| Source: chartfanatics/pdf/5-stage-trading-framework.pdf          |
+//| ("From Novice to Expert: 5-Stage Trader Framework", Umar Ashraf, |
+//|  chartfanatics card #01).                                        |
+//|                                                                  |
+//| The document is a trader-DEVELOPMENT framework, not a signal     |
+//| model: it defines no entry, exit, instrument or timeframe rule.  |
+//| What it defines is a risk-discipline posture per stage.  Every   |
+//| line below either quotes that text or is marked [interpretation] |
+//| where the document states a principle but no number.             |
+//|                                                                  |
+//|   Stage 1 Novice       "keep the risk extremely low", "No focus  |
+//|                        on sizing up" -> quarter risk (ceiling     |
+//|                        0.25%), one trade a day, day locked after  |
+//|                        the first win ("Thinking you've 'figured   |
+//|                        it out' after one or two good days"),      |
+//|                        one loss locks the day [interpretation].   |
+//|   Stage 2 Developing   "Stick to strict risk controls. You're     |
+//|                        still not supposed to be sizing up yet."   |
+//|                        -> half risk (ceiling 0.50%), two trades a |
+//|                        day, one loss locks the day                |
+//|                        [interpretation].                          |
+//|   Stage 3 Intermediate "Narrow your focus to only 1-2 main        |
+//|                        setups"; trap "Breaking rules after a few  |
+//|                        losing trades or drawdowns." -> three-     |
+//|                        quarter risk (ceiling 0.75%), three trades |
+//|                        a day, a 3-loss streak pauses for 24h.     |
+//|   Stage 4 Advanced     traps "Sizing up too fast" and "revenge    |
+//|                        trade after a loss"; "Start increasing     |
+//|                        your position size gradually, but only on  |
+//|                        your best setups" -> full strategy risk,   |
+//|                        a 2-loss streak pauses for 12h, and the    |
+//|                        high-water-mark throttle is switched on.   |
+//|   Stage 5 Pro          "Trade your proven setups at full size     |
+//|                        with full conviction." -> NOTHING is       |
+//|                        changed: the strategy's own settings, as   |
+//|                        the stage says.                            |
+//|                                                                  |
+//| The policy only TIGHTENS below stage 5: it never raises a risk    |
+//| cap, a daily trade count or a lock the strategy already set       |
+//| lower, and it does nothing while static lot sizing is in use.     |
+//| Opt-in - call it at the end of a strategy's Configure().  It logs |
+//| nothing itself (Configure runs before g_eaCfg is assigned), so    |
+//| callers that want a log line do it from OnInitStrategy().         |
+//+------------------------------------------------------------------+
+void EA_ApplyStagePolicy(SEASettings &cfg, const int stage)
+{
+   int s = stage;
+   if(s < 1) s = 1;
+   if(s > 5) s = 5;
+   if(s == 5) return;                             // "full size with full conviction" - untouched
+
+   double riskMult    = 1.0;
+   double riskCeiling = 0.0;                      // percent; 0 = no ceiling
+   int    maxTrades   = 0;                        // 0 = leave the strategy's own value
+
+   switch(s)
+   {
+      case 1:  riskMult = 0.25; riskCeiling = 0.25; maxTrades = 1; break;
+      case 2:  riskMult = 0.50; riskCeiling = 0.50; maxTrades = 2; break;
+      case 3:  riskMult = 0.75; riskCeiling = 0.75; maxTrades = 3; break;
+      default: riskMult = 1.00; riskCeiling = 0.0;  maxTrades = 0; break;   // stage 4
+   }
+
+   //--- risk per trade: scale, then cap (never raise)
+   if(cfg.staticLots <= 0.0 && cfg.riskPct > 0.0)
+   {
+      cfg.riskPct *= riskMult;
+      if(riskCeiling > 0.0 && cfg.riskPct > riskCeiling) cfg.riskPct = riskCeiling;
+   }
+
+   //--- daily trade count: cap only
+   if(maxTrades > 0 && (cfg.maxTradesPerDay == 0 || cfg.maxTradesPerDay > maxTrades))
+      cfg.maxTradesPerDay = maxTrades;
+
+   //--- stages 1-2: a day is done after a win, and after a loss
+   if(s <= 2)
+   {
+      cfg.dayLockFirstWin = true;
+      if(cfg.dayLockAfterLosses == 0 || cfg.dayLockAfterLosses > 1)
+         cfg.dayLockAfterLosses = 1;
+   }
+
+   //--- "Breaking rules after a few losing trades" (stage 3) and the stage-4 trap
+   //--- "revenge trade after a loss"
+   if(cfg.lossStreakPause == 0)
+   {
+      cfg.lossStreakPause      = (s == 3) ? 3 : 2;
+      cfg.lossStreakPauseHours = (s == 3) ? 24 : 12;
+   }
+
+   //--- stage-4 trap "Sizing up too fast" + "Scaling too soon or too aggressively":
+   //--- throttle risk off the high-water mark when the strategy did not ask for it
+   cfg.useHwmThrottle = true;
+   if(cfg.hwmHaltDd  <= 0.0) cfg.hwmHaltDd  = 6.0;
+   if(cfg.hwmTier1Dd <= 0.0) cfg.hwmTier1Dd = 2.0;
+   if(cfg.hwmTier2Dd <= 0.0) cfg.hwmTier2Dd = 4.0;
+}
+
+//+------------------------------------------------------------------+
 //| Small helpers                                                    |
 //+------------------------------------------------------------------+
 double EA_Point(const string sym)
