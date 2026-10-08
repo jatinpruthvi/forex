@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "d81cf2cc2b1cce8677e47c9761e1558589fe027b6f3be26dfb2f52e0c6f468d5",
+  "acceptance_hash": "41dcb12a1e31d9651c6ea8e9f93598ae7294d7c1861c8c0014c1dac33bca6c9f",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "8368af413a3fa784149a892b99f06e0e0295663656be6f9d1a24e119e125b790"
+    "tests/test_chartfanatics_sync.py#other_cards": "be74d4ea3c203205b017b5d6c96e5e20dc9517462fb3eb9b7e13956b03feff7e"
   },
   "magic": 3235,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 39,
   "slug": "price-cycle-continuation-failed-base-strategy",
   "source": "chartfanatics/glimpse/0_NSmOWVbpA.md",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

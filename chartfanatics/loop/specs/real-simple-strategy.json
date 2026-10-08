@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "8e672bca04dbc26335ffb3d9a96bfaf61731021ae9704586d742efe85edb8f5b",
+  "acceptance_hash": "12acc4a506d635b730b770a3e11a87e4166f2256da891aa86a701102a8065339",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "5debd0b1729af58cb4ee2018096bda84da0a96f1645361674993d96d2fdd228c"
+    "tests/test_chartfanatics_sync.py#other_cards": "bbd86a29a24627857c477da2dcc8aa6fe07ebd329fd30c1d150d13d1b68b1e62"
   },
   "magic": 3236,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 41,
   "slug": "real-simple-strategy",
   "source": "chartfanatics/pdf/real-simple-strategy.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

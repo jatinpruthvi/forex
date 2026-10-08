@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "1353105e5181ec7da44e8453642af8149f56b5e9c2517a9f53c8e159376e2969",
+  "acceptance_hash": "a3fa86685289cd2618a02e82763db20a260afc410f5d165b1da4d81591dd7152",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "fb85e618ee7abbab623de8197ef1f85f9654628e65cdf69f431e14ca120eeba4"
+    "tests/test_chartfanatics_sync.py#other_cards": "5e143d2a8a88765202770b763695cd4e9b10f5447cab770d643e70d7718ab8f7"
   },
   "magic": 3221,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 36,
   "slug": "liquidity-strategy",
   "source": "chartfanatics/pdf/liquidity-strategy.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

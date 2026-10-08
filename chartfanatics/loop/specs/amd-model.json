@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "160d3c5304cf97b43ff7a1fb5e7264f4145b21a32422131f51c676720f3b9a05",
+  "acceptance_hash": "f24d44c028b0567e404125463d0297bcc52d44b3b2f6596570bfc775aeebdc00",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "00f634296df1cdb7ae217b747d1721cdeaa824cade7eb487eb8aed5da1825ef4"
+    "tests/test_chartfanatics_sync.py#other_cards": "04ff1322d9a4fb620954d1aea7f98a267ff61782be4a9c172775a86461a4d697"
   },
   "magic": 3201,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 20,
   "slug": "amd-model",
   "source": "chartfanatics/pdf/amd-model.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

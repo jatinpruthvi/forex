@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "bfc2c456645733e1cb90852a7a6534d325f79008fdebcd0a96803e313a5fcaec",
+  "acceptance_hash": "ecc397e9e6a0be21d733bc05a6f0116f59fee2a254352a295af2125263f5c792",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "8b230b356f05e6a6f3b6e08a8708c7d80c8f98639d882f09737dfabd7783da47"
+    "tests/test_chartfanatics_sync.py#other_cards": "e748f2f163a5beddd9b576a7511036b6fabfcdd567fee49385d1ddd3726daa47"
   },
   "magic": 3242,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 38,
   "slug": "trading-first-principles-framework",
   "source": "chartfanatics/glimpse/_wpg45NdMkM.md",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

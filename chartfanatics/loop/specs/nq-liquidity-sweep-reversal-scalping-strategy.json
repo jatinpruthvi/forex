@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "3cb3292b09f455048e52e70109f1767a22b4cb799a28c276599d5cbe0989b6f9",
+  "acceptance_hash": "80fe5e6fc6514edf4e774cf6cbba324b54e14d4bdd28951c3a96b48dc0b4ce6c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "8f6f048969eae40e1516b2161364b15d1a94e86b6b639547ec1f1a4e46c7860d"
+    "tests/test_chartfanatics_sync.py#other_cards": "39e44bf068a030c7935d56132a081d865e9f172d565ae13ef01640753e6d8fac"
   },
   "magic": 3229,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 26,
   "slug": "nq-liquidity-sweep-reversal-scalping-strategy",
   "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "f62ce877cd9ff0a86ef72ba141096086e8f87742cbe144fec5572b74bc43310e",
+  "acceptance_hash": "f2540934cc7dae84484151f4ab0c1baccc34ed43b882081a4b720a48a437b575",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "7d4b817c63e4ca780164acf6deed012561ea4f43dd318cb23eaf9c7cdb3a9a4c"
+    "tests/test_chartfanatics_sync.py#other_cards": "26b863ad05f3a52d7f14ff2376113966b5eb2562ca87d32d97819eaaa50c9f1e"
   },
   "magic": 3207,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 8,
   "slug": "5-stage-trading-framework",
   "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

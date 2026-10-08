@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "195f85fb010cfd5456bf13651b8d416da5d366770cf896baa6f9ab56930ff2da",
+  "acceptance_hash": "c933df9b6ed4de403509eeceda4c8f3b3dae08ba5624663b80feaadddec111a0",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "f700734be61136de226e7b0c0f3a637e9a7651280231f7d83c8f634a8b8fac2f"
+    "tests/test_chartfanatics_sync.py#other_cards": "b3df4637c11a4543689f68403288425ff3d04be313d21dd68fdbd3d0211aefee"
   },
   "magic": 3228,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 26,
   "slug": "nasdaq-ict-and-order-flow-scalping-strategy",
   "source": "chartfanatics/glimpse/KkTTCKr-3Ew.md",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

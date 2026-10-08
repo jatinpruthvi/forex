@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "3381a523a102f80358e2abdaaa0ca02c5ad5c96bf01a8a34566096a9995bf5a9",
+  "acceptance_hash": "32c2b70f75d196e2e8f749f139dcf7b4f65eb5e7e1cfc006502255b3ebca812d",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "77fc67e1f41033da9d8ccbebec50748e89e8061a0d83d067b580626e182dbfcc"
+    "tests/test_chartfanatics_sync.py#other_cards": "7f3e7f355645719a6e29c8d4a70030afeb7a3f328fadd441751b6c5a42f98507"
   },
   "magic": 3237,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 36,
   "slug": "shorting-strategy",
   "source": "chartfanatics/pdf/shorting-strategy.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

@@ -1004,10 +1004,10 @@
    "status": "static-checked",
    "primitives": [
     "the standard three-element setup: a volume profile edge (HVA/LVA transition), a key daily level (ONH/ONL/PDH/PDL), and a high-volume signal candle with a rejection wick closing in the trade direction",
-    "session, visible-range and daily profiles use disclosed tick-volume distribution; ONH/ONL use closed M1 bars in a half-open server-time window",
-    "the prior-day POC uses the previous completed broker D1 bar; its named setup is after a breakout/trend day and targets the prior-day extreme",
+    "current server-day session, visible-range and daily profiles use disclosed tick-volume distribution; lower signal timeframes fetch enough history for a full server day; ONH/ONL use closed M1 bars in a half-open server-time window; the EA consumes each configured symbol's signal bar once",
+    "the prior-day POC uses the previous completed broker D1 bar; its named setup is considered only when no standard edge qualifies, follows either a directional ATR-sized trend day or close breakout, and targets the prior-day extreme with no generic-target substitution",
     "the separate weekly reversal bias is tested against the preceding InpBiasWeeks W1 profile and volume baseline",
-    "the 50-80% retest limit is placed within the actual rejection wick; stops use the signal wick or adverse-side HVN edge and targets the next shelf",
+    "the 50-80% retest limit is placed within the actual rejection wick; stops use the signal wick or session-profile adverse-side HVN edge; standard setups target the entry-facing edge of the nearest visible-range shelf, skip a too-close shelf, and use a fixed-R fallback only when no shelf exists",
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/volume-profile-strategy.pdf"

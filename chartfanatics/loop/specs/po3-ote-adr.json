@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "11028e1edb3bc1660150f955b80b5a1e5fe57c4909415ff4179aeefbe8bdad63",
+  "acceptance_hash": "d30f41f29b9217bebe61482844f60e35e6d0d321299222349b45b8284329847d",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "26dad60e9afdb6649b7d5fc025366db4d4102a75de1a6fc037f81faa3d40f277"
+    "tests/test_chartfanatics_sync.py#other_cards": "384d23303e6d8070eb48d435bf3a26d591711b847c73461b7a817771c27ae6a7"
   },
   "magic": 3204,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 19,
   "slug": "po3-ote-adr",
   "source": "chartfanatics/pdf/po3-ote-adr.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",

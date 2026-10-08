@@ -923,9 +923,17 @@ private:
    CTrade   m_trade;
    int      m_retries;
 
+   bool SetSymbolFillMode(const string sym)
+   {
+      if(m_trade.SetTypeFillingBySymbol(sym)) return true;
+      EA_Log(EA_LOG_ERRORS, StringFormat("%s has no supported order fill mode", sym));
+      return false;
+   }
+
    bool SendWithRetry(const bool isBuy, const double lots, const string sym,
                       const double sl, const double tp, const string comment)
    {
+      if(!SetSymbolFillMode(sym)) return false;
       for(int attempt = 0; attempt < m_retries; attempt++)
       {
          bool ok = isBuy ? m_trade.Buy(lots, sym, 0.0, sl, tp, comment)
@@ -953,7 +961,6 @@ public:
       m_trade.SetExpertMagicNumber(g_eaCfg.magic);
       m_trade.SetDeviationInPoints((int)MathMax(1, g_eaCfg.deviationPoints));
       m_trade.SetMarginMode();
-      m_trade.SetTypeFillingBySymbol(_Symbol);
       m_trade.LogLevel(LOG_LEVEL_ERRORS);
    }
 
@@ -1018,6 +1025,9 @@ public:
          ttime  = ORDER_TIME_SPECIFIED;
          expiry = TimeTradeServer() + (datetime)(expiryMinutes * 60);
       }
+      // MQL5 pending orders must use RETURN filling, regardless of the symbol's
+      // market-deal policy; the market/close paths select the actual symbol mode.
+      m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
       for(int attempt = 0; attempt < m_retries; attempt++)
       {
          bool ok = (dir > 0) ? m_trade.BuyLimit(lots, price, sym, sl, tp, ttime, expiry, comment)
@@ -1092,6 +1102,7 @@ public:
       double minV   = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
       double part   = PartialVolume(ticket, pct);
       if(part <= 0.0) return false;                                  // cannot split
+      if(!SetSymbolFillMode(sym)) return false;
       if(part >= vol - 1e-9)                                         // the share reaches the rest
       {
          double px = PositionGetDouble(POSITION_PRICE_CURRENT);
@@ -1119,6 +1130,7 @@ public:
       if(!PositionSelectByTicket(ticket)) return false;
       string sym = PositionGetString(POSITION_SYMBOL);
       double px  = PositionGetDouble(POSITION_PRICE_CURRENT);
+      if(!SetSymbolFillMode(sym)) return false;
       if(!m_trade.PositionClose(ticket))
       {
          EA_Log(EA_LOG_EVENTS, StringFormat("close failed ticket=%I64u retcode=%u", ticket, m_trade.ResultRetcode()), true);

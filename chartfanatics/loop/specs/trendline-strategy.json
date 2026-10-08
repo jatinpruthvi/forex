@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "15e6831cee89cfd9593426ddfd42c84fbffab4d595486cbb1a58607ba925996e",
+  "acceptance_hash": "1a76e5c72a2142af25fa5b9b1e9833172fc64493ee50cd1e44e0314b84231048",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "eaecece66b25d910219755c94a4399a4360a770825bcc341d934b9583087aeb6"
+    "tests/test_chartfanatics_sync.py#other_cards": "6aa81bf986b52107f63b2f2daf756e774e14b4f3c8400d7b5acd35cd138a5acb"
   },
   "magic": 3244,
-  "planned_at": "2026-10-08T03:38:21Z",
+  "planned_at": "2026-10-08T04:33:04Z",
   "rule_count": 45,
   "slug": "trendline-strategy",
   "source": "chartfanatics/pdf/trendline-strategy.pdf",
@@ -36,6 +36,7 @@
     "test_chartfanatics_family.py",
     "test_chartfanatics_sync.py",
     "test_compile_class_guards.py",
+    "test_ea_executor_fill_modes.py",
     "test_extended_validation.py",
     "test_harness_scripts.py",
     "test_ict_smc_fixes.py",
