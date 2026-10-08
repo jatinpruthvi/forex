@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "56868676da411eb05d375d84d7ebed28935f790c586d705bacaa909816177d2e",
+  "acceptance_hash": "1279198de5639e23b990c06f23d071d99d3aec040ca4d3a617277eaa174a83ab",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "5d70ca9395a9576ec8ebd939e481882060cee8e0eb1b4c1e3098e94e09a15e98"
+    "tests/test_chartfanatics_sync.py#other_cards": "06ef2010936724f3970365a4328ffdb9394bf032dd561d25ea7799b15a173131"
   },
   "magic": 3205,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 10,
   "slug": "break-retest",
   "source": "chartfanatics/pdf/break-retest.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Break & Retest"
 }

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "123311c9b1a25d3f1fde1b5610e5af3735c5fbfea52e3b2798fec5575bc92b29",
+  "acceptance_hash": "f62ce877cd9ff0a86ef72ba141096086e8f87742cbe144fec5572b74bc43310e",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "c059ec5546988eddfd0924228a2cc70174c1c9dbf059faac18cb4acef8dfaa06"
+    "tests/test_chartfanatics_sync.py#other_cards": "7d4b817c63e4ca780164acf6deed012561ea4f43dd318cb23eaf9c7cdb3a9a4c"
   },
   "magic": 3207,
-  "planned_at": "2026-10-07T16:43:17Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 8,
   "slug": "5-stage-trading-framework",
   "source": "chartfanatics/pdf/5-stage-trading-framework.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "5 Stage Trading Framework"
 }

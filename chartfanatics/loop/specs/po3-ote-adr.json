@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "2e54df9388630ab4e0c749ae8149af693d9ee50eef755e4d3972c0cadd146c6f",
+  "acceptance_hash": "11028e1edb3bc1660150f955b80b5a1e5fe57c4909415ff4179aeefbe8bdad63",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "36806d953a39d417187b3f0a48938d38c52b0f679bba1f3daec9b273f1b208ff"
+    "tests/test_chartfanatics_sync.py#other_cards": "26dad60e9afdb6649b7d5fc025366db4d4102a75de1a6fc037f81faa3d40f277"
   },
   "magic": 3204,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 19,
   "slug": "po3-ote-adr",
   "source": "chartfanatics/pdf/po3-ote-adr.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "PO3, OTE + ADR"
 }

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "abc7eae76461f2e7807058590f5672eb00194a35f1af447def14513fea78a41d",
+  "acceptance_hash": "195f85fb010cfd5456bf13651b8d416da5d366770cf896baa6f9ab56930ff2da",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "83c6e66ad6ec3c2a0c2ce90d5987d3885327ddee17ecbb73c0d0e2f9d3ef369c"
+    "tests/test_chartfanatics_sync.py#other_cards": "f700734be61136de226e7b0c0f3a637e9a7651280231f7d83c8f634a8b8fac2f"
   },
   "magic": 3228,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 26,
   "slug": "nasdaq-ict-and-order-flow-scalping-strategy",
   "source": "chartfanatics/glimpse/KkTTCKr-3Ew.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Nasdaq ICT and Order Flow Scalping Strategy"
 }

@@ -162,32 +162,30 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
-  * EA_CF_VolumeProfileStrategy (card #44): Forrest Knight's volume-profile playbook, and it is explicit
-    that a trade needs all three of its elements: "price is touching a volume profile edge (transition
-    from HVA to LVA or vice versa)", "the location aligns with a key contextual level (ONH/ONL/PDH/PDL)"
-    and "a high volume signal candle forms with a visible wick rejecting the area and closing in the
-    trade direction".  The profiles are built from tick volume spread across each bar's range (MT5
-    publishes no exchange volume - the header says so, and the document's own caveat, "not viable in
-    decentralized markets like spot forex", is why the default universe is the NQ/ES index proxies of
-    its worked example): a session profile, a visible-range profile and a higher-timeframe (daily)
-    profile, with HVAs, LVAs and the shelf where one becomes the other.  The four key daily levels are
-    coded as the document names them - prior day high/low from the last completed daily bar, overnight
-    high/low from the server window in between - and the signal candle must sweep the level intrabar,
-    close back on-side (the worked example: "trades above PDH intrabar, closes back below PDH"), carry a
-    rejection wick and print high volume, because "always wait for the signal candle to close.  Do not
-    front-run it".  The weekly bias is the document's reversal candle at a volume edge ("if the Weekly
-    chart closes with a high volume bottom-wick reversal candle at a volume edge, then the bias is
-    long"), and when it exists every intraday setup is filtered to that side.  Both named setups are
-    implemented: the Previous Day POC Retest (after a breakout or trend day, a signal candle at the prior
-    day's POC, targetting a new high/low) and the Volatility-Based Retest Entry (a long wick's 50-80%
-    retrace taken by a resting limit).  Stops sit "just beyond the signal candle's wick or beyond the
-    edge of the high value node", targets are "the next shelf - edge-to-edge targeting", and the mid-zone
-    rule ("avoid entries in the middle") is enforced by requiring the edge on every non-POC level.
-    "[interpretation]": the signal timeframe, the bucket counts, the HVA/LVA thresholds, the edge
-    tolerance, the overnight window's clock hours (the document names the level but not the hour), the
-    wick fraction, the volume multiple and its window, the retrace fraction and the "long wick"
-    threshold, the trend-day threshold, the stop buffer and cap, the minimum target distance and the
-    caps.
+  * EA_CF_VolumeProfileStrategy (card #44): Forrest Knight's playbook defines a three-element
+    standard setup: "price is touching a volume profile edge (transition from HVA to LVA or vice
+    versa)", "the location aligns with a key contextual level (ONH/ONL/PDH/PDL)", and "a high volume
+    signal candle forms with a visible wick rejecting the area and closing in the trade direction".
+    That branch requires all three together. The separately named Previous Day POC Retest is an
+    explicit exception: after a breakout/trend day the POC substitutes for the four key levels and
+    does not also have to coincide with a profile edge; the signal still needs the high-volume wick
+    rejection and sweep/reclaim. The source's general edge/mid-zone language could otherwise conflict
+    with its named POC setup, so the exception is disclosed on the card and EA. Profiles use tick
+    volume spread across bar ranges (not exchange volume): session, visible range, a daily profile for
+    contextual edges, and a separate prior-week profile for the weekly bias. ONH/ONL use closed M1 bars
+    in a half-open server-clock interval; PDH/PDL use the last completed D1 bar. The POC uses the full
+    previous broker D1 bar and enough signal-frame history, including around weekends. A sweep-and-close
+    gate for the generic contextual levels is a stricter `[interpretation]` of the worked NQ example,
+    not a universal sentence in the playbook. The weekly reversal candle compares against the preceding
+    `InpBiasWeeks` W1 profile/volume baseline and, when valid, hard-filters every intraday setup to its
+    side. The named volatility retest rests `InpRetraceFrac` (50-80%) inside the actual rejection wick,
+    measured from the candle body edge, then expires after `InpLimitBars`. Stops use the farther of the
+    signal wick and adverse-side HVN edge; targets seek the next shelf, with the prior-day extreme for
+    POC and `InpTargetR` fallback. The tick-volume proxy and spot-FX limitation are stated in the EA.
+    Regression audit also fixed inclusive profile-maximum indexing, both HVA/LVA edge orientations,
+    uninitialized optional profiles, zero-volume-lookback input, and a limit whose invalidation was
+    already crossed. The order-flow tools (cumulative delta / absorption images) are not derivable from
+    MT5 and are not simulated.
   * EA_CF_UniversalStrategy (card #43): the Travelling Traders' three-part story - liquidity catalyst,
     displacement, retracement into a logical area - and the EA refuses a trade unless all three are
     present.  The catalysts are the document's own list, detected on price: "a sweep of equal highs/lows"
@@ -2627,7 +2625,7 @@ SYNC: dict[str, list[tuple[str, str]]] = {
          '"Prior Day High" - one of the four key daily levels of the prior completed day'),
         (r"lv\[n\] = dd\[0\]\.low;  n\+\+;",
          '"Prior Day Low"'),
-        (r"if\(onh == 0\.0 \|\| d\[i\]\.high > onh\) onh = d\[i\]\.high;",
+        (r"if\(onh == 0\.0 \|\| overnight\[i\]\.high > onh\) onh = overnight\[i\]\.high;",
          '"Overnight High" - the other two of the four key daily levels, from the overnight window'),
         (r"if\(onEnd < onStart\) onEnd \+= \(datetime\)86400;",
          'the overnight window crosses midnight, as it does on every real broker clock (an interpretation of the level the document names but does not clock)'),
@@ -2641,14 +2639,14 @@ SYNC: dict[str, list[tuple[str, str]]] = {
          '"a visible wick rejecting the area"'),
         (r"bool swept = \(dir > 0\) \? \(d\[1\]\.low < l && d\[1\]\.close > l\) : \(d\[1\]\.high > l && d\[1\]\.close < l\);",
          'the worked example\'s signal candle: "trades above PDH intrabar (sweep), closes back below PDH"'),
-        (r"if\(eUp  > 0\.0 && MathAbs\(eUp  - level\) <= tol\) atEdge = true;",
+        (r"if\(eUp  > 0\.0 && MathAbs\(eUp  - level\) <= tol\) return true;",
          '"Price is touching a volume profile edge (transition from HVA to LVA or vice versa)"'),
-        (r"if\(eH1 > 0\.0 && MathAbs\(eH1 - level\) <= tol\) atEdge = true;",
+        (r"if\(eH1 > 0\.0 && MathAbs\(eH1 - level\) <= tol\) return true;",
          '"The location aligns with a key contextual level (ONH/ONL/PDH/PDL)" - through the higher timeframe edge'),
         (r"bool retrace = \(InpUseWickRetrace && wick >= rng \* InpLongWickFrac\);",
          '"If the signal candle has a long wick -> expect a 50-80% wick retrace before continuation"'),
-        (r": \(ext - InpRetraceFrac \* \(ext - d\[1\]\.close\)\);",
-         '"Set a limit order in that retrace zone (estimated visually, not with Fib tools)"'),
+        (r"entry = \(dir > 0\) \? \(bodyLo - InpRetraceFrac \* wick\)",
+         '"Set a limit order in that retrace zone (estimated visually, not with Fib tools)" - the fraction is measured within the wick, not through the body'),
         (r"entry = \(dir > 0\) \? ctx\.ask : ctx\.bid;",
          '"Entry: After the signal candle closes at the volume edge"'),
         (r"if\(retrace\) p\.expiry = TimeTradeServer\(\) \+ \(datetime\)\(InpLimitBars \* PeriodSeconds\(g_eaIndTf\)\);",
@@ -2687,6 +2685,30 @@ SYNC: dict[str, list[tuple[str, str]]] = {
          'the document\'s own volume-data caveat is quoted in the header rather than hidden'),
         (r"tick volume, not exchange",
          'the proxy is named in the source, so nobody can mistake the profile for exchange volume'),
+        (r"EA_Rates\(sym, PERIOD_M1, 0, need, overnight\)",
+         '"Overnight High" / "Overnight Low" use minute bars so the documented H4 execution frame does not truncate the overnight range'),
+        (r"if\(t < onStart \|\| t >= onEnd\) continue;",
+         'the overnight interval is half-open; the midnight bar belongs to the next session, not ONH/ONL'),
+        (r"if\(IsLva\(pf, i\) && IsHvn\(pf, nb\)\) return",
+         '"transition from HVA to LVA or vice versa" - both edge orientations are recognized'),
+        (r"if\(!swept \|\| !AtProfileEdge\(l, sess, vr, htf\)\) continue;",
+         'all four contextual levels are examined; an earlier swept non-edge cannot mask a later valid edge'),
+        (r"datetime priorEnd = priorStart \+ \(datetime\)d1Seconds;",
+         '"Previous Day POC" is built over the previous broker D1 candle, not an arbitrary rolling 24 hours'),
+        (r"TimeTradeServer\(\) - priorStart",
+         'the POC history spans the entire previous daily bar even late in today or across a weekend'),
+        (r"BuildProfileRange\(weekly, w, got, 1, InpBiasWeeks, InpVrBuckets\);",
+         '"If the Weekly chart closes ... at a volume edge" - test the weekly reversal against a separate prior-week profile, not the intraday visible range'),
+        (r"int step = \(dir > 0\) \? -1 : \+1;",
+         '"Stop ... beyond the edge of the high value node" - seek the adverse-side node'),
+        (r"if\(b1 >= pf\.buckets\) b1 = pf\.buckets - 1;",
+         'the upper profile boundary is inclusive, so a flat bar at the maximum price stays in the final bucket'),
+        (r"if\(InpVolAvgBars < 1",
+         'a high-volume threshold always has a positive lookback; invalid inputs fail initialization rather than divide by zero'),
+        (r"CFVP_InitProfile\(htf\);",
+         'when higher-timeframe history is unavailable the profile is neutral, not uninitialized'),
+        (r"if\(retrace && \(\(dir > 0 && ctx\.bid <= stop\) \|\| \(dir < 0 && ctx\.ask >= stop\)\)\) return false;",
+         'a limit premise already invalidated through its stop is discarded instead of entering after the fact'),
     ],
 }
 

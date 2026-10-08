@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "58d84ddc2ebc2a42f27d49f3e328ccc458498f9a8ea68c14b6afc53ce487fbaf",
+  "acceptance_hash": "ed60da1be84209c19c07bac2e99b0bdcf435a19241616f5b0a3dad7cf3020f82",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "1ef218f25e80ff67ddb40db83a01e1a0a26d537e1f6c1ba490a5072e9588bf94"
+    "tests/test_chartfanatics_sync.py#other_cards": "e88367f1fff28abbba6f5b45182557f1bb3603e6d493a205688258056b4b4156"
   },
   "magic": 3234,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 36,
   "slug": "price-action-strategy",
   "source": "chartfanatics/glimpse/70UtrLU6RAg.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Price Action Strategy"
 }

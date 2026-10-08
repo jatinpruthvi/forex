@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "d866a0d73f1c32701a4e83b636e700394597a355b7dc12e85e310efc7320e362",
+  "acceptance_hash": "3cb3292b09f455048e52e70109f1767a22b4cb799a28c276599d5cbe0989b6f9",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "6536d3f506e0638c12afd517d45476497f2b44ad2f0cf032c08d524cbd72ede2"
+    "tests/test_chartfanatics_sync.py#other_cards": "8f6f048969eae40e1516b2161364b15d1a94e86b6b639547ec1f1a4e46c7860d"
   },
   "magic": 3229,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 26,
   "slug": "nq-liquidity-sweep-reversal-scalping-strategy",
   "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "NQ Liquidity Sweep & Reversal Scalping Strategy"
 }

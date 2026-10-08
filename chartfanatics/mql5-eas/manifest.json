@@ -930,8 +930,7 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/trendline-break-pocket-strategy.pdf"
-  }
-,
+  },
   {
    "card": 41,
    "slug": "trendline-strategy",
@@ -951,8 +950,7 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/trendline-strategy.pdf"
-  }
-,
+  },
   {
    "card": 42,
    "slug": "unique-high-rr",
@@ -973,8 +971,7 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/unique-high-rr.pdf"
-  }
-,
+  },
   {
    "card": 43,
    "slug": "universal-strategy",
@@ -994,8 +991,7 @@
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/universal-strategy.pdf"
-  }
-,
+  },
   {
    "card": 44,
    "slug": "volume-profile-strategy",
@@ -1007,11 +1003,11 @@
    "wave": 4,
    "status": "static-checked",
    "primitives": [
-    "the three-element setup: a volume profile edge (HVA-to-LVA transition), a key daily level (ONH/ONL/PDH/PDL) and a high-volume signal candle with a rejection wick closing in the trade's direction",
-    "the profiles: session, visible range and higher timeframe, built from tick volume spread across each bar's range (disclosed proxy)",
-    "the named setups: the prior-day POC retest after a breakout/trend day (target a new high/low) and the volatility-based 50-80% wick retrace limit",
-    "the weekly bias: a high-volume bottom-wick reversal candle at a volume edge filters every intraday setup to that side",
-    "edge-to-edge targeting: the stop just beyond the signal candle's wick or the high-value edge, the target the next shelf, and no mid-zone entries",
+    "the standard three-element setup: a volume profile edge (HVA/LVA transition), a key daily level (ONH/ONL/PDH/PDL), and a high-volume signal candle with a rejection wick closing in the trade direction",
+    "session, visible-range and daily profiles use disclosed tick-volume distribution; ONH/ONL use closed M1 bars in a half-open server-time window",
+    "the prior-day POC uses the previous completed broker D1 bar; its named setup is after a breakout/trend day and targets the prior-day extreme",
+    "the separate weekly reversal bias is tested against the preceding InpBiasWeeks W1 profile and volume baseline",
+    "the 50-80% retest limit is placed within the actual rejection wick; stops use the signal wick or adverse-side HVN edge and targets the next shelf",
     "EA_ApplyStagePolicy"
    ],
    "source": "chartfanatics/pdf/volume-profile-strategy.pdf"

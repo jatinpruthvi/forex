@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "223e9987a70ea30b08ff509658a61b1a8bbd43164fa10b7bd2ca8256600b9532",
+  "acceptance_hash": "39b988e03722a2a9521a2d784a334e0dea3ee3b5e755b0acdbcda82e7bccae9c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "2019921f174ba73f11443ae0c67564e39af708b45d07cc1a6f64d280d4005e6a"
+    "tests/test_chartfanatics_sync.py#other_cards": "663d5c8fc21de8714f22a3c935fbbd76ff98845b3215393d284302e105bf061d"
   },
   "magic": 3226,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 26,
   "slug": "measured-move-trend-strategy",
   "source": "chartfanatics/pdf/measured-move-trend-strategy.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Measured Move Trend Strategy"
 }

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "e592ec020c2bc693247ff1bd430c975de4e33849f8251c48922a37df5690ac8d",
+  "acceptance_hash": "09393a5587d2b9b239c184f58fb19daff92ba5b0a1c7757bc3189496cc9e6898",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "09a63334997aaaac34ea4f749a463f7b0748b58a0c719940a7b464db303aa940"
+    "tests/test_chartfanatics_sync.py#other_cards": "3c6971d2380e8de9ab3d0708111f164bd626aeee6ef501b40bce9bba78219c1a"
   },
   "magic": 3239,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 41,
   "slug": "stage-analysis-strategy",
   "source": "chartfanatics/glimpse/VDK200OHNSo.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Stage Analysis Strategy"
 }

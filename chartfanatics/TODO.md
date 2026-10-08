@@ -9,12 +9,12 @@ with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) co
 
 **EAs built:** 47/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 46 awaiting human · 1 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 47 awaiting human — see [`LOOP.md`](LOOP.md)
 
 **Stages ticked:** 235/376 (62%)
 `▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱`
 
-*Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
+*Regenerated 2026-10-08 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
 and is never lost on regeneration; edit through the cards, not this board.*
 
 ---

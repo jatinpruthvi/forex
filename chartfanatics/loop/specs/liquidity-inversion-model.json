@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "e543137189d6f78dde50281e340f3b703df8a7d0f09fe3a671e893d90e3d1da1",
+  "acceptance_hash": "81cdfb07524f0e12ef889e6581acadb739cbd8cbcc750b70ec62d0c7a24ca9e2",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "bfba96eba1c0cbe927c327ea19a2ed71ae893d7a3f7d0d5688b5496af2465463"
+    "tests/test_chartfanatics_sync.py#other_cards": "a43b76884c81e31ae4aac1a5f17e303c961284b7d2ffc8ce32c04369efdda1c8"
   },
   "magic": 3220,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 35,
   "slug": "liquidity-inversion-model",
   "source": "chartfanatics/glimpse/UIGZtoGGPH4.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Liquidity Inversion Model"
 }

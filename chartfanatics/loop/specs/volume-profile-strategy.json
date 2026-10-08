@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "14080937383527da227ebd62f3b1a126b9eec13c65b32defe58db6fc8215e69d",
+  "acceptance_hash": "c0e5463d171025b09fa530e1261f5e0589e47adcd925ff71473000af2a8f1a5c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -24,8 +24,8 @@
     "tests/test_chartfanatics_sync.py#other_cards": "124c5a18a48367528def852a3e0c1b7837dcca396268af3a3e1c6e253986908d"
   },
   "magic": 3247,
-  "planned_at": "2026-10-07T16:43:18Z",
-  "rule_count": 41,
+  "planned_at": "2026-10-08T03:38:21Z",
+  "rule_count": 53,
   "slug": "volume-profile-strategy",
   "source": "chartfanatics/pdf/volume-profile-strategy.pdf",
   "spec_version": 1,
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Volume Profile Strategy"
 }

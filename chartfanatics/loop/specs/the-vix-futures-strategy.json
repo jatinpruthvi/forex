@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "6696eea3fa1e49a03a7b818ec7645afc5a949339d72001ece2b22b8099d1085b",
+  "acceptance_hash": "cc46f86da302f9df6906e4cc97f80c78ec3d4c93081abca60e4ae8a455860181",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "42e6cb0fdced10b4a438ec3df15e909c90963e631bb961374961fee2748810e2"
+    "tests/test_chartfanatics_sync.py#other_cards": "c29e6091402f24b6d26714516b2721cdf8a33b03d9b5d64b52fe3f9d0c7d5365"
   },
   "magic": 3241,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 43,
   "slug": "the-vix-futures-strategy",
   "source": "chartfanatics/pdf/the-vix-futures-strategy.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "The Vix Futures Strategy"
 }

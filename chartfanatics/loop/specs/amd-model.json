@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "bcc8365be727c24a7c1fcb792268a3d2b5e0f41ce791094f2e49b81390ee1839",
+  "acceptance_hash": "160d3c5304cf97b43ff7a1fb5e7264f4145b21a32422131f51c676720f3b9a05",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "0adbd5c45b7835944c851013bd9265a104cbe510418b66c7678ebf8c573573a4"
+    "tests/test_chartfanatics_sync.py#other_cards": "00f634296df1cdb7ae217b747d1721cdeaa824cade7eb487eb8aed5da1825ef4"
   },
   "magic": 3201,
-  "planned_at": "2026-10-07T16:43:17Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 20,
   "slug": "amd-model",
   "source": "chartfanatics/pdf/amd-model.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "AMD Model"
 }

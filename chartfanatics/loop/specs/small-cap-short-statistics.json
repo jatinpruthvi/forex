@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "f066f8052b70e0d4324623f984c346beeb98bbca2aa55929a9449dc444512c3b",
+  "acceptance_hash": "8889ff9337c1669e9cf7af9fa8924afdb63363803ad7cd5b85dbead4d5b4993c",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "eadb8e56e3826fad4cdf625d14d4ded20d9698f38700ebe4ed87ef2b0ff1e53b"
+    "tests/test_chartfanatics_sync.py#other_cards": "df515026f94d2723dbf0e6f58eb8b27457205d77ba8c867cb15795f0898815f4"
   },
   "magic": 3238,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 39,
   "slug": "small-cap-short-statistics",
   "source": "chartfanatics/glimpse/52ZsDmFHqyY.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Small-Cap Short Statistics"
 }

@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "52e7addfb5d63de278c2f6d2017f854454f037a1d4f1cde58b82c54b8990a22a",
+  "acceptance_hash": "1434f0f3a1db006c62862dc4661cf83aa3bda83e501345b86799b42e7f237ea8",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "cd1cbd26697027d35e35fb546636c64506b5b43d5f9701b2e1c05989d324eb1b"
+    "tests/test_chartfanatics_sync.py#other_cards": "e2732bcb25ff72757b07aad302eb8c741d4ecb380e0bedb7139341a15c08323a"
   },
   "magic": 3227,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 35,
   "slug": "momentum-model-performance-development",
   "source": "chartfanatics/glimpse/WDdvnd9vLbM.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Momentum Model Performance Development"
 }

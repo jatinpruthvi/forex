@@ -47,13 +47,14 @@
 //|       edge before trading."                                        |
 //|                                                                   |
 //| `[interpretation]`: the signal timeframe (the document names 4H    |
-//| and 1H), the profile bucket counts, the HVA/LVA thresholds, the    |
-//| edge tolerance, the overnight window's clock hours (the document   |
-//| names the level but not its clock), the wick fraction, the volume  |
-//| multiple and its average window, the wick-retrace fraction and its |
-//| "long wick" threshold, the trend-day threshold for the POC setup,  |
-//| the stop buffer and its width cap, the minimum target distance,    |
-//| the far fallback target and the attempt / open-position caps.      |
+//| and 1H), profile bucket counts, HVA/LVA thresholds, edge tolerance,|
+//| overnight clock hours, wick/volume thresholds and lookbacks, the   |
+//| sweep-and-close gate applied to the worked example's generic       |
+//| contextual-level rejection, and the named POC setup's exception   |
+//| to the generic edge/mid-zone gate.  The 50-80% retest fraction is  |
+//| measured inside the actual rejection wick from the body edge.     |
+//| Trend-day threshold, stop buffer/cap, target floor/fallback, and   |
+//| trade caps are also inputs where the document gives no number.    |
 //|                                                                   |
 //| Disclosed, not faked: MetaTrader exposes tick volume, not exchange |
 //| volume, so every profile below is built from tick volume spread    |
@@ -106,7 +107,7 @@ input int               InpVolAvgBars         = 20;               // [interpreta
 input int               InpMinSignalBodyPct   = 10;               // [interpretation] "closing in the trade direction": a body at least this big (in % of range)
 
 //--- S3: the weekly bias
-input int               InpBiasWeeks          = 12;               // [interpretation] The weekly average the reversal candle is compared with
+input int               InpBiasWeeks          = 12;               // [interpretation] Prior-week profile and volume baseline for the weekly reversal candle
 input double            InpBiasWickFrac       = 0.50;             // "a high volume bottom-wick reversal candle" - the wick's share of the range
 
 //--- S5: the two named setups
@@ -114,7 +115,7 @@ input bool              InpUsePocRetest       = true;             // "A core set
 input double            InpTrendDayAtr        = 0.70;             // [interpretation] "after a breakout or trend day" - the prior day's body in daily ATR
 input bool              InpUseWickRetrace     = true;             // "expect a 50-80% wick retrace before continuation"
 input double            InpLongWickFrac       = 0.60;             // [interpretation] What counts as "a long wick"
-input double            InpRetraceFrac        = 0.50;             // [interpretation] The limit's place in that 50-80% retrace zone
+input double            InpRetraceFrac        = 0.50;             // [interpretation] 50-80% of the actual wick from body edge toward its tip
 input int               InpLimitBars          = 3;                // [interpretation] The retrace limit's life, in signal bars
 
 //--- S4: the stop, the target and the caps
@@ -140,14 +141,68 @@ struct SProfile
    double vol[CFVP_MAX_BUCKETS];
 };
 
+//--- A profile with unavailable history must be inert, not stack garbage.
+void CFVP_InitProfile(SProfile &pf)
+{
+   pf.lo = 0.0;
+   pf.hi = 0.0;
+   pf.step = 0.0;
+   pf.buckets = 0;
+   for(int i = 0; i < CFVP_MAX_BUCKETS; i++) pf.vol[i] = 0.0;
+}
+
 //+------------------------------------------------------------------+
 class CCfVolumeProfile : public CEAStrategy
 {
 public:
+   bool InputsValid()
+   {
+      if(PeriodSeconds(InpSignalTf) <= 0 || PeriodSeconds(InpSignalTf) >= 86400)
+      {
+         Print("CF_VOLUME_PROFILE: signal timeframe must be a valid intraday period");
+         return false;
+      }
+      if(InpVolAvgBars < 1 || InpVolAvgBars > 1000 || InpVrBars < 1 || InpVrBars > 10000)
+      {
+         Print("CF_VOLUME_PROFILE: volume lookback and visible-range bars must be positive and bounded");
+         return false;
+      }
+      if(InpHtfDays < 1 || InpHtfDays > 365 || InpBiasWeeks < 1 || InpBiasWeeks > 260)
+      {
+         Print("CF_VOLUME_PROFILE: higher-timeframe lookbacks must be positive and bounded");
+         return false;
+      }
+      if(InpOnStartHour < 0 || InpOnStartHour > 23 || InpOnEndHour < 0 || InpOnEndHour > 23 ||
+         InpOnStartMin < 0 || InpOnStartMin > 59 || InpOnEndMin < 0 || InpOnEndMin > 59 ||
+         (InpOnStartHour == InpOnEndHour && InpOnStartMin == InpOnEndMin))
+      {
+         Print("CF_VOLUME_PROFILE: overnight window must use valid, distinct server-clock times");
+         return false;
+      }
+      if(InpHvnFactor <= InpLvaFactor || InpLvaFactor < 0.0 || InpEdgeTolPct < 0.0 ||
+         InpVolFactor <= 0.0 || InpWickFrac <= 0.0 || InpWickFrac >= 1.0 ||
+         InpMinSignalBodyPct < 0 || InpMinSignalBodyPct > 100 ||
+         InpBiasWickFrac <= 0.0 || InpBiasWickFrac >= 1.0 || InpLongWickFrac <= 0.0 || InpLongWickFrac >= 1.0)
+      {
+         Print("CF_VOLUME_PROFILE: profile and signal thresholds are inconsistent");
+         return false;
+      }
+      if(InpUseWickRetrace && (InpLimitBars < 1 || InpRetraceFrac < 0.50 || InpRetraceFrac > 0.80))
+      {
+         Print("CF_VOLUME_PROFILE: wick retrace must be 50-80% of the rejection wick and have a positive expiry");
+         return false;
+      }
+      if(InpStopBufferAtr < 0.0 || InpMaxStopPct <= 0.0 || InpMinTargetR < 0.0 ||
+         InpTargetR <= 0.0 || InpTargetR < InpMinTargetR)
+      {
+         Print("CF_VOLUME_PROFILE: stop and target distances are inconsistent");
+         return false;
+      }
+      return true;
+   }
+
    void OnInitStrategy()
    {
-      m_planLevel  = 0.0;
-      m_planHasTag = false;
       EA_Log(EA_LOG_EVENTS, StringFormat(
              "Volume Profile armed: %s on %s, session profile %d buckets, visible range %d bars over %d buckets, key levels ONH/ONL (server %02d:%02d-%02d:%02d) + PDH/PDL, signal candle wick %.0f%% of range at >= %.1fx volume, weekly bias %s",
              InpSymbolsToTrade, EnumToString(InpSignalTf), InpSessionBuckets, InpVrBars, InpVrBuckets,
@@ -200,15 +255,19 @@ public:
    bool BuildPlan(SEAContext &ctx, SSignalPlan &plan)
    {
       plan.Reset();
-      m_planHasTag = false;
       if(ctx.atr <= 0.0 || !ctx.inSession) return false;
 
       MqlRates d[];
       int got = EA_Rates(ctx.symbol, g_eaIndTf, 0, (int)MathMax(InpVrBars, InpVolAvgBars) + 5, d);
       if(got < InpVolAvgBars + 5) return false;
 
-      //--- the profiles: the session's, the visible range's and the higher timeframe's
-      SProfile sess, vr, htf;
+      //--- initialize optional profiles too: missing higher-timeframe history is neutral,
+      //--- never an uninitialized step/bucket count.
+      SProfile sess, vr, htf, weekly;
+      CFVP_InitProfile(sess);
+      CFVP_InitProfile(vr);
+      CFVP_InitProfile(htf);
+      CFVP_InitProfile(weekly);
       if(!BuildSessionProfile(d, got, sess)) return false;
       BuildProfileRange(vr, d, got, 1, (int)MathMin(InpVrBars, got - 1), InpVrBuckets);
       MqlRates dr[];
@@ -217,14 +276,15 @@ public:
 
       //--- S1: the four key daily levels
       double lv[5];
-      int    lvSet = KeyLevels(ctx.symbol, d, got, lv);
+      int    lvSet = KeyLevels(ctx.symbol, lv);
       if(lvSet <= 0) return false;
 
       //--- S5: the prior day's POC, for the retest setup
-      double poc = PriorDayPoc(ctx.symbol, d, got);
+      double poc = PriorDayPoc(ctx.symbol);
 
-      //--- S3: the weekly bias
-      int bias = WeeklyBias(ctx.symbol, vr);
+      //--- S3: the weekly bias is measured against its own prior-week profile,
+      //--- separate from the intraday execution profile.
+      int bias = WeeklyBias(ctx.symbol, weekly);
 
       double best = -1.0;
       SSignalPlan p;
@@ -232,23 +292,17 @@ public:
       {
          if(bias != 0 && bias != dir) continue;      // "all intraday setups should then favour" that side
          p.Reset();
-         double used = 0.0;
-         if(PlanSignal(ctx, d, got, dir, lv, lvSet, poc, sess, vr, htf, bias, p, used) && p.score > best)
+         if(PlanSignal(ctx, d, got, dir, lv, lvSet, poc, sess, vr, htf, bias, p) && p.score > best)
          {
-            plan = p; best = p.score; m_planLevel = used; m_planHasTag = true;
+            plan = p; best = p.score;
          }
       }
-      if(plan.dir != 0 && m_planHasTag)
-      {
-         PendingStore(ctx.symbol, m_planLevel);
+      if(plan.dir != 0)
          EA_Log(EA_LOG_EVENTS, StringFormat("%s: volume edge setup - %s", ctx.symbol, plan.reason), true);
-      }
       return (plan.dir != 0);
    }
 
 private:
-   double m_planLevel;
-   bool   m_planHasTag;
 
    //+----------------------------------------------------------------+
    //| Profiles                                                         |
@@ -281,7 +335,9 @@ private:
          int b1 = (int)MathFloor((d[i].low  - lo) / pf.step);
          int b2 = (int)MathFloor((d[i].high - lo) / pf.step);
          if(b1 < 0) b1 = 0;
-         if(b2 > pf.buckets - 1) b2 = pf.buckets - 1;
+         if(b1 >= pf.buckets) b1 = pf.buckets - 1;   // a zero-range bar at pf.hi belongs in the last bucket
+         if(b2 < 0) b2 = 0;
+         if(b2 >= pf.buckets) b2 = pf.buckets - 1;
          if(span <= 0.0) { pf.vol[b1] += v; continue; }
          int nb = b2 - b1 + 1;
          double each = v / (double)nb;
@@ -315,8 +371,9 @@ private:
    }
    int BucketOf(const SProfile &pf, const double px)
    {
-      if(pf.step <= 0.0) return -1;
+      if(pf.step <= 0.0 || pf.buckets <= 0 || px < pf.lo || px > pf.hi) return -1;
       int b = (int)MathFloor((px - pf.lo) / pf.step);
+      if(b == pf.buckets && px <= pf.hi) b = pf.buckets - 1;   // inclusive profile maximum
       if(b < 0 || b >= pf.buckets) return -1;
       return b;
    }
@@ -332,8 +389,7 @@ private:
       return (b >= 0 && b < pf.buckets && avg > 0.0 && pf.vol[b] <= InpLvaFactor * avg);
    }
 
-   //--- "volume edges (the sharp drop-off from high to low volume)": the nearest edge of
-   //--- an HVN block in `dir` (above = +1, below = -1) from `from`
+   //--- "volume edges": the nearest HVA/LVA boundary in `dir` (above = +1, below = -1) from `from`
    double NearestEdge(const SProfile &pf, const double from, const int dir)
    {
       if(pf.step <= 0.0) return 0.0;
@@ -346,9 +402,34 @@ private:
          if(nb < 0 || nb >= pf.buckets) break;
          //--- the boundary between a high-value block and the quiet beyond it
          if(IsHvn(pf, i) && IsLva(pf, nb)) return (dir > 0) ? (pf.lo + (double)nb * pf.step) : (pf.lo + (double)i * pf.step);
+         if(IsLva(pf, i) && IsHvn(pf, nb)) return (dir > 0) ? (pf.lo + (double)nb * pf.step) : (pf.lo + (double)i * pf.step);
       }
       //--- no clean HVN/LVA transition in that direction: the extreme of the range
       return 0.0;
+   }
+
+   bool AtProfileEdge(const double level, const SProfile &sess, const SProfile &vr, const SProfile &htf)
+   {
+      if(level <= 0.0) return false;
+      double tol = InpEdgeTolPct / 100.0 * level;
+      double eUp = NearestEdge(sess, level, +1);
+      double eDn = NearestEdge(sess, level, -1);
+      double eUp2 = NearestEdge(vr, level, +1);
+      double eDn2 = NearestEdge(vr, level, -1);
+      if(eUp  > 0.0 && MathAbs(eUp  - level) <= tol) return true;
+      if(eDn  > 0.0 && MathAbs(eDn  - level) <= tol) return true;
+      if(eUp2 > 0.0 && MathAbs(eUp2 - level) <= tol) return true;
+      if(eDn2 > 0.0 && MathAbs(eDn2 - level) <= tol) return true;
+      //--- the higher timeframe's own edges ("higher timeframes are used to identify
+      //--- long-term value areas and edges")
+      if(htf.step > 0.0)
+      {
+         double eH1 = NearestEdge(htf, level, +1);
+         double eH2 = NearestEdge(htf, level, -1);
+         if(eH1 > 0.0 && MathAbs(eH1 - level) <= tol) return true;
+         if(eH2 > 0.0 && MathAbs(eH2 - level) <= tol) return true;
+      }
+      return false;
    }
 
    //--- "the next shelf - edge-to-edge targeting ... look for the next high-volume area"
@@ -368,19 +449,32 @@ private:
    //--- "the high value node" the stop may sit beyond
    double HvnBeyond(const SProfile &pf, const double from, const int dir)
    {
-      if(pf.step <= 0.0) return 0.0;
+      if(pf.step <= 0.0 || pf.buckets <= 0) return 0.0;
       int b = BucketOf(pf, from);
       if(b < 0) return 0.0;
-      int step = (dir > 0) ? +1 : -1;
-      for(int i = b + step; i >= 0 && i < pf.buckets; i += step)
-         if(IsHvn(pf, i)) return (dir > 0) ? (pf.lo + (double)i * pf.step) : (pf.lo + (double)(i + 1) * pf.step);
-      return 0.0;
+      // The structural stop searches against the trade: below a long, above a short.
+      int step = (dir > 0) ? -1 : +1;
+      int node = -1;
+      for(int i = b; i >= 0 && i < pf.buckets; i += step)
+      {
+         if(IsHvn(pf, i)) { node = i; break; }
+      }
+      if(node < 0) return 0.0;
+      // Walk through the contiguous node and use its far edge, not the edge facing entry.
+      int far = node;
+      for(int i = node + step; i >= 0 && i < pf.buckets; i += step)
+      {
+         if(!IsHvn(pf, i)) break;
+         far = i;
+      }
+      return (dir > 0) ? (pf.lo + (double)far * pf.step)
+                       : (pf.lo + (double)(far + 1) * pf.step);
    }
 
    //+----------------------------------------------------------------+
    //| S1: ONH / ONL / PDH / PDL                                       |
    //+----------------------------------------------------------------+
-   int KeyLevels(const string sym, const MqlRates &d[], const int got, double &lv[])
+   int KeyLevels(const string sym, double &lv[])
    {
       int n = 0;
       //--- prior day high / low, from the last completed daily bar
@@ -391,7 +485,7 @@ private:
          lv[n] = dd[0].high; n++;
          lv[n] = dd[0].low;  n++;
       }
-      //--- overnight high / low: the completed bars of the server window before the day's open
+      //--- overnight high / low: closed M1 bars in the configured server-clock window
       datetime now = TimeTradeServer();
       MqlDateTime st;
       TimeToStruct(now, st);
@@ -403,35 +497,51 @@ private:
       if(onEnd < onStart) onEnd += (datetime)86400;          // the window crosses midnight
       if(onEnd > now) onEnd = now;                           // ... and may still be running
       double onh = 0.0, onl = 0.0;
-      for(int i = 1; i < got; i++)
+      //--- minute bars keep ONH/ONL correct even when the signal frame is H4;
+      //--- a half-open [start,end) window excludes the midnight bar at the end.
+      int seconds = PeriodSeconds(PERIOD_M1);
+      if(seconds <= 0) return n;
+      int barsPerDay = (int)MathCeil(86400.0 / (double)seconds);
+      int need = 2 * barsPerDay + 5;
+      MqlRates overnight[];
+      int onGot = EA_Rates(sym, PERIOD_M1, 0, need, overnight);
+      for(int i = 1; i < onGot; i++)
       {
-         datetime t = d[i].time;
-         if(t < onStart || t > onEnd) continue;
-         if(onh == 0.0 || d[i].high > onh) onh = d[i].high;
-         if(onl == 0.0 || d[i].low  < onl) onl = d[i].low;
+         datetime t = overnight[i].time;
+         if(t < onStart || t >= onEnd) continue;
+         if(onh == 0.0 || overnight[i].high > onh) onh = overnight[i].high;
+         if(onl == 0.0 || overnight[i].low  < onl) onl = overnight[i].low;
       }
       if(onh > 0.0) { lv[n] = onh; n++; }
       if(onl > 0.0) { lv[n] = onl; n++; }
       return n;
    }
 
-   //--- "the prior day's POC" - the busiest bucket of yesterday's session profile
-   double PriorDayPoc(const string sym, const MqlRates &d[], const int got)
+   //--- "the prior day's POC" - the busiest bucket of the previous completed broker D1 bar
+   double PriorDayPoc(const string sym)
    {
+      // Anchor to the broker's previous completed D1 bar, not calendar yesterday:
+      // weekends, holidays, and broker server-day boundaries otherwise truncate POC.
+      MqlRates days[];
+      int dg = EA_Rates(sym, PERIOD_D1, 0, 3, days);
+      if(dg < 2 || days[0].time <= days[1].time) return 0.0;
+      datetime priorStart = days[1].time;
+      int d1Seconds = PeriodSeconds(PERIOD_D1);
+      if(d1Seconds <= 0) return 0.0;
+      datetime priorEnd = priorStart + (datetime)d1Seconds;
+      if(days[0].time > priorStart && days[0].time < priorEnd) priorEnd = days[0].time;
       MqlRates h1[];
-      int want = (int)MathMax(24, 86400 / (int)MathMax(1, PeriodSeconds(g_eaIndTf)));
-      int gg = EA_Rates(sym, g_eaIndTf, 0, want + 5, h1);
+      int periodSeconds = PeriodSeconds(g_eaIndTf);
+      if(periodSeconds <= 0) return 0.0;
+      int need = (int)MathCeil((double)(TimeTradeServer() - priorStart) / (double)periodSeconds) + 5;
+      if(need < 5) need = 5;
+      if(need > 10000) need = 10000;
+      int gg = EA_Rates(sym, g_eaIndTf, 0, need, h1);
       if(gg < 5) return 0.0;
-      //--- yesterday's bars in server time
-      MqlDateTime st;
-      TimeToStruct(TimeTradeServer(), st);
-      st.hour = 0; st.min = 0; st.sec = 0;
-      datetime todayStart = StructToTime(st);
-      datetime yStart = todayStart - (datetime)86400;
       int from = 0, to = 0;
       for(int i = 1; i < gg; i++)
       {
-         if(h1[i].time >= yStart && h1[i].time < todayStart)
+         if(h1[i].time >= priorStart && h1[i].time < priorEnd)
          {
             if(from == 0) from = i;
             to = i;
@@ -450,24 +560,26 @@ private:
    //+----------------------------------------------------------------+
    //| S3: the weekly reversal candle at a volume edge                 |
    //+----------------------------------------------------------------+
-   int WeeklyBias(const string sym, const SProfile &vr)
+   int WeeklyBias(const string sym, SProfile &weekly)
    {
       MqlRates w[];
-      int got = EA_Rates(sym, PERIOD_W1, 1, InpBiasWeeks + 2, w);
-      if(got < 5) return 0;
+      // w[0] is the latest completed week; the following N bars build its
+      // independent context profile and volume baseline.
+      int got = EA_Rates(sym, PERIOD_W1, 1, InpBiasWeeks + 1, w);
+      if(got < InpBiasWeeks + 1) return 0;
+      BuildProfileRange(weekly, w, got, 1, InpBiasWeeks, InpVrBuckets);
+      if(weekly.step <= 0.0) return 0;
       double rng = w[0].high - w[0].low;
       if(rng <= 0.0) return 0;
       double avg = 0.0;
-      int n = 0;
-      for(int i = 1; i < got; i++) { avg += (double)w[i].tick_volume; n++; }
-      if(n <= 0) return 0;
-      avg /= (double)n;
+      for(int i = 1; i <= InpBiasWeeks; i++) avg += (double)w[i].tick_volume;
+      avg /= (double)InpBiasWeeks;
       if(avg <= 0.0 || (double)w[0].tick_volume < avg) return 0;       // "high volume"
       double lower = MathMin(w[0].open, w[0].close) - w[0].low;
       double upper = w[0].high - MathMax(w[0].open, w[0].close);
       double edgeTol = InpEdgeTolPct / 100.0 * w[0].close;
-      double eLow  = NearestEdge(vr, w[0].low,  -1);
-      double eHigh = NearestEdge(vr, w[0].high, +1);
+      double eLow  = NearestEdge(weekly, w[0].low,  -1);
+      double eHigh = NearestEdge(weekly, w[0].high, +1);
       bool atLowEdge  = (eLow  > 0.0 && MathAbs(w[0].low  - eLow)  <= edgeTol);
       bool atHighEdge = (eHigh > 0.0 && MathAbs(w[0].high - eHigh) <= edgeTol);
       //--- "a high volume bottom-wick reversal candle at a volume edge" -> long bias
@@ -483,7 +595,7 @@ private:
    bool PlanSignal(const SEAContext &ctx, const MqlRates &d[], const int got, const int dir,
                    const double &lv[], const int lvSet, const double poc,
                    const SProfile &sess, const SProfile &vr, const SProfile &htf, const int bias,
-                   SSignalPlan &p, double &levelOut)
+                   SSignalPlan &p)
    {
       //--- "a high volume signal candle ... closing in the trade direction"
       double rng = d[1].high - d[1].low;
@@ -501,21 +613,25 @@ private:
                               : (d[1].high - MathMax(d[1].open, d[1].close));
       if(wick < rng * InpWickFrac) return false;
 
-      //--- the level: one of the four key daily levels, or the prior day's POC (the named setup),
-      //--- swept intrabar and closed back on-side
+      //--- The standard setup must find a swept key level that is also a profile edge.
+      //--- Check all four: an earlier non-edge level must not mask a later valid one.
       double level = 0.0;
-      bool   isPoc = false;
+      double bestLevelGap = 1.0e100;
+      bool atEdge = false;
       for(int i = 0; i < lvSet; i++)
       {
          double l = lv[i];
          if(l <= 0.0) continue;
          bool swept = (dir > 0) ? (d[1].low < l && d[1].close > l) : (d[1].high > l && d[1].close < l);
-         if(!swept) continue;
-         //--- "the location aligns with a key contextual level"
-         level = l;
-         break;
+         if(!swept || !AtProfileEdge(l, sess, vr, htf)) continue;
+         //--- if a wide signal sweeps several levels, use the closest valid context level
+         double gap = MathAbs(d[1].close - l);
+         if(gap < bestLevelGap) { level = l; bestLevelGap = gap; atEdge = true; }
       }
+      bool isPoc = false;
       bool pocOk = false;
+      //--- The explicitly named POC setup is a distinct documented branch. It substitutes
+      //--- for the generic key-level/edge confluences, but still needs rejection + trend day.
       if(level <= 0.0 && InpUsePocRetest && poc > 0.0)
       {
          bool swept = (dir > 0) ? (d[1].low < poc && d[1].close > poc) : (d[1].high > poc && d[1].close < poc);
@@ -526,31 +642,7 @@ private:
             pocOk = true;
          }
       }
-      if(level <= 0.0) return false;
-
-      //--- "price is touching a volume profile edge (transition from HVA to LVA or vice versa)"
-      double eUp = NearestEdge(sess, level, +1);
-      double eDn = NearestEdge(sess, level, -1);
-      double eUp2 = NearestEdge(vr, level, +1);
-      double eDn2 = NearestEdge(vr, level, -1);
-      double tol = InpEdgeTolPct / 100.0 * level;
-      bool atEdge = false;
-      if(eUp  > 0.0 && MathAbs(eUp  - level) <= tol) atEdge = true;
-      if(eDn  > 0.0 && MathAbs(eDn  - level) <= tol) atEdge = true;
-      if(eUp2 > 0.0 && MathAbs(eUp2 - level) <= tol) atEdge = true;
-      if(eDn2 > 0.0 && MathAbs(eDn2 - level) <= tol) atEdge = true;
-      //--- the higher timeframe's own edges ("higher timeframes are used to identify
-      //--- long-term value areas and edges")
-      if(htf.step > 0.0)
-      {
-         double eH1 = NearestEdge(htf, level, +1);
-         double eH2 = NearestEdge(htf, level, -1);
-         if(eH1 > 0.0 && MathAbs(eH1 - level) <= tol) atEdge = true;
-         if(eH2 > 0.0 && MathAbs(eH2 - level) <= tol) atEdge = true;
-      }
-      //--- the POC retest is the document's own edge case: the POC is where the prior
-      //--- day's value sits, so the profile-edge test applies to the four daily levels
-      if(!atEdge && !isPoc) return false;
+      if(level <= 0.0 || (!atEdge && !isPoc)) return false;
 
       //--- S4: "entry after the signal candle closes at the volume edge", or the
       //--- volatility-based retrace limit when the wick is long
@@ -558,9 +650,12 @@ private:
       double entry = 0.0;
       if(retrace)
       {
-         double ext = (dir > 0) ? d[1].low : d[1].high;
-         entry = (dir > 0) ? (ext + InpRetraceFrac * (d[1].close - ext))
-                           : (ext - InpRetraceFrac * (ext - d[1].close));
+         // Retrace 50-80% of the actual rejection wick from the candle body edge;
+         // do not include the candle body in the measured wick distance.
+         double bodyLo = MathMin(d[1].open, d[1].close);
+         double bodyHi = MathMax(d[1].open, d[1].close);
+         entry = (dir > 0) ? (bodyLo - InpRetraceFrac * wick)
+                           : (bodyHi + InpRetraceFrac * wick);
       }
       else
       {
@@ -579,6 +674,8 @@ private:
       double risk = MathAbs(entry - stop);
       if(risk <= 0.0) return false;
       if(risk > entry * InpMaxStopPct / 100.0) return false;
+      // A retrace that has already crossed its invalidation is not a valid limit entry.
+      if(retrace && ((dir > 0 && ctx.bid <= stop) || (dir < 0 && ctx.ask >= stop))) return false;
 
       //--- "target: the next shelf - edge-to-edge targeting"
       double tgt = 0.0;
@@ -617,7 +714,6 @@ private:
                               level, wick / rng * 100.0, (double)d[1].tick_volume / avgVol,
                               (atEdge ? "confirmed" : "POC (the prior day's own value edge)"),
                               stop, (retrace ? "retrace-limit" : "next-shelf"), tgt);
-      levelOut = level;
       return true;
    }
 
@@ -644,20 +740,7 @@ private:
       return true;
    }
 
-   //+----------------------------------------------------------------+
-   //| The pending slot: the level the trade was built on               |
-   //+----------------------------------------------------------------+
-   string K(const string sym, const string tag) { return "CFVP_" + IntegerToString((long)g_eaCfg.magic) + "_" + sym + tag; }
-   void PendingStore(const string sym, const double level)
-   {
-      GlobalVariableSet(K(sym, "_PST"), (double)(long)TimeTradeServer());
-      GlobalVariableSet(K(sym, "_PL"), level);
-   }
-   void PendingClear(const string sym)
-   {
-      GlobalVariableDel(K(sym, "_PST"));
-      GlobalVariableDel(K(sym, "_PL"));
-   }
+
 };
 
 CCfVolumeProfile g_cfVolumeProfile;
@@ -667,6 +750,7 @@ CCfVolumeProfile g_cfVolumeProfile;
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   if(!g_cfVolumeProfile.InputsValid()) return INIT_PARAMETERS_INCORRECT;
    return EA_Init(&g_cfVolumeProfile);
 }
 

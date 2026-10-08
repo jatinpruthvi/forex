@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "f9c93bb2cac1e1f2fdd25a9898646947d96fac1291e0f8a11ae9c38a201badac",
+  "acceptance_hash": "7dca744d27611f6d0f3c70bf7e4c3a8c81a557311edbd5e9a5468a11faa957a3",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "b6ce27cedbeb9539abfc19c7360546ee5f491796b2188cd187e06779b7ea1f95"
+    "tests/test_chartfanatics_sync.py#other_cards": "4b08ef591bbd24158fa745f04d7eacb0a79a6f3c607a7ab96c6afff682934b56"
   },
   "magic": 3202,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 13,
   "slug": "structure-ote",
   "source": "chartfanatics/pdf/structure-ote.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Structure + OTE"
 }

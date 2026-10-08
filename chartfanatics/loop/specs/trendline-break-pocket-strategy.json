@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "0ba83dabd79b3d32536f48ba58b9570875ba3a9918acf511b6a9dacd58e4b69f",
+  "acceptance_hash": "8d3ee281f2afe260fb7d56f0a3deecec38328fd38e986c4209f3baad2575f354",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "10a813e45efc01b56dedd8536b059c94fc5a0a444c75ddf8bd7200a7c9d99775"
+    "tests/test_chartfanatics_sync.py#other_cards": "e5bc0a1ac2193a3a200afc9cb683bcbf1be703bcf12bbb80684b6bd96b3ca65a"
   },
   "magic": 3243,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 41,
   "slug": "trendline-break-pocket-strategy",
   "source": "chartfanatics/pdf/trendline-break-pocket-strategy.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Trendline Break Pocket Strategy"
 }

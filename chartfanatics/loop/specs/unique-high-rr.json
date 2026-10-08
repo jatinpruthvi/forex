@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "8e128dd7c70f7d3e223357e9b792abf79eba2915c0fbbaaead19005d72267217",
+  "acceptance_hash": "d2783689177a8d00790381ccf22cafe8cd6c8910a0b365b6282c233bc631f32b",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "d6710f0305c25b9435c9c4c38b69241a1376ce1ff4c1e007cc498d34e0ac22d9"
+    "tests/test_chartfanatics_sync.py#other_cards": "18f3fea5214852dc13ba0736a419d087d1b571fd7e973573e2f1d18a4ab78505"
   },
   "magic": 3245,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 50,
   "slug": "unique-high-rr",
   "source": "chartfanatics/pdf/unique-high-rr.pdf",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Unique High RR"
 }

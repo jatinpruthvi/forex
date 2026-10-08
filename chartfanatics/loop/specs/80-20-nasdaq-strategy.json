@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "739e0ea37221081911353b12e645844586135d18a26f5ad3f69cb9b46b094233",
+  "acceptance_hash": "ff834ad2b68521d27844f753496846826ba14a92ba5470672564ee8bb56f3724",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "91d3c083bde9163be65444da57ff43887239c23cd0aebe3cc71c1c641d731b1e"
+    "tests/test_chartfanatics_sync.py#other_cards": "883514ab0385b0aed270ac7808ed07cbd34a236170127031b54fa3f07be0e87c"
   },
   "magic": 3208,
-  "planned_at": "2026-10-07T16:43:17Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 29,
   "slug": "80-20-nasdaq-strategy",
   "source": "chartfanatics/glimpse/jsUTbjwpFVk.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "80/20 Nasdaq Strategy"
 }

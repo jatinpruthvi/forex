@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "ecc496df87ac01f757e93a6352f006184f7b8347612297987ce5d60f1ab1fe55",
+  "acceptance_hash": "bfc2c456645733e1cb90852a7a6534d325f79008fdebcd0a96803e313a5fcaec",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "18a2a42287440f1e524e839d60027edb7cc5b31b06de6a30e5643c201a18f20c"
+    "tests/test_chartfanatics_sync.py#other_cards": "8b230b356f05e6a6f3b6e08a8708c7d80c8f98639d882f09737dfabd7783da47"
   },
   "magic": 3242,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 38,
   "slug": "trading-first-principles-framework",
   "source": "chartfanatics/glimpse/_wpg45NdMkM.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Trading First Principles Framework"
 }

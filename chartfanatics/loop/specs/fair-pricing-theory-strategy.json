@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "424471a1bb76d1901a111d5c2867bf42e59e9a5189ea8825d5ccc0199462f807",
+  "acceptance_hash": "626d7baa3639968809665b053f72d4a9e1cbc2aa1e470aaa06b94593896c91ba",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -21,10 +21,10 @@
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
     "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
-    "tests/test_chartfanatics_sync.py#other_cards": "fae5f205a7cadd80544c090db203c7082671280ae74d7951c867e58e6b4bd303"
+    "tests/test_chartfanatics_sync.py#other_cards": "c2997ee429c1c187cbd918c6b61431de419162f93aa714c9635d1c50dc6574e2"
   },
   "magic": 3213,
-  "planned_at": "2026-10-07T16:43:18Z",
+  "planned_at": "2026-10-08T03:38:21Z",
   "rule_count": 17,
   "slug": "fair-pricing-theory-strategy",
   "source": "chartfanatics/glimpse/-kGVL93XfyE.md",
@@ -48,7 +48,8 @@
     "test_screen_ea_contract.py",
     "test_source_contract.py",
     "test_triad_fixes.py",
-    "test_validation.py"
+    "test_validation.py",
+    "test_volume_profile_strategy.py"
   ],
   "title": "Fair Pricing Theory Strategy"
 }
