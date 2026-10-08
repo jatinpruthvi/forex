@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "036a10e070c6907f517389e74597c9edbcb31040c15adda411aa8e39a37e7bdd",
+  "acceptance_hash": "bcc8365be727c24a7c1fcb792268a3d2b5e0f41ce791094f2e49b81390ee1839",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_AMD_Model.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "30122975b1bc71b0e005302386cd3245bcd58ff82f9e7fecb4b0a0a4ec3e5b3d",
-    "tests/test_chartfanatics_sync.py#other_cards": "471451dced163c9e35e8a3fcc60f3572ae2117a849b5d9fe7666e6b5fe32169c"
+    "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
+    "tests/test_chartfanatics_sync.py#other_cards": "0adbd5c45b7835944c851013bd9265a104cbe510418b66c7678ebf8c573573a4"
   },
   "magic": 3201,
-  "planned_at": "2026-10-07T16:37:00Z",
+  "planned_at": "2026-10-07T16:43:17Z",
   "rule_count": 20,
   "slug": "amd-model",
   "source": "chartfanatics/pdf/amd-model.pdf",

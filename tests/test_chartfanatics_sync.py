@@ -162,6 +162,32 @@ EA source too, so an invention can never quietly become a "documented rule":
     risk-free add cover multiple as inputs.  "A large part of the move has already happened" is a fraction
     of the expected move; the optional strengthening signs (volume record, round numbers) only raise the
     score.  The risk-free add is enforced literally: the banked partial profit must cover the add risk.
+  * EA_CF_VolumeProfileStrategy (card #44): Forrest Knight's volume-profile playbook, and it is explicit
+    that a trade needs all three of its elements: "price is touching a volume profile edge (transition
+    from HVA to LVA or vice versa)", "the location aligns with a key contextual level (ONH/ONL/PDH/PDL)"
+    and "a high volume signal candle forms with a visible wick rejecting the area and closing in the
+    trade direction".  The profiles are built from tick volume spread across each bar's range (MT5
+    publishes no exchange volume - the header says so, and the document's own caveat, "not viable in
+    decentralized markets like spot forex", is why the default universe is the NQ/ES index proxies of
+    its worked example): a session profile, a visible-range profile and a higher-timeframe (daily)
+    profile, with HVAs, LVAs and the shelf where one becomes the other.  The four key daily levels are
+    coded as the document names them - prior day high/low from the last completed daily bar, overnight
+    high/low from the server window in between - and the signal candle must sweep the level intrabar,
+    close back on-side (the worked example: "trades above PDH intrabar, closes back below PDH"), carry a
+    rejection wick and print high volume, because "always wait for the signal candle to close.  Do not
+    front-run it".  The weekly bias is the document's reversal candle at a volume edge ("if the Weekly
+    chart closes with a high volume bottom-wick reversal candle at a volume edge, then the bias is
+    long"), and when it exists every intraday setup is filtered to that side.  Both named setups are
+    implemented: the Previous Day POC Retest (after a breakout or trend day, a signal candle at the prior
+    day's POC, targetting a new high/low) and the Volatility-Based Retest Entry (a long wick's 50-80%
+    retrace taken by a resting limit).  Stops sit "just beyond the signal candle's wick or beyond the
+    edge of the high value node", targets are "the next shelf - edge-to-edge targeting", and the mid-zone
+    rule ("avoid entries in the middle") is enforced by requiring the edge on every non-POC level.
+    "[interpretation]": the signal timeframe, the bucket counts, the HVA/LVA thresholds, the edge
+    tolerance, the overnight window's clock hours (the document names the level but not the hour), the
+    wick fraction, the volume multiple and its window, the retrace fraction and the "long wick"
+    threshold, the trend-day threshold, the stop buffer and cap, the minimum target distance and the
+    caps.
   * EA_CF_UniversalStrategy (card #43): the Travelling Traders' three-part story - liquidity catalyst,
     displacement, retracement into a logical area - and the EA refuses a trade unless all three are
     present.  The catalysts are the document's own list, detected on price: "a sweep of equal highs/lows"
@@ -2578,6 +2604,90 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"conditions, seasonality, or significant news\"",
          'the document\'s fundamental confluences are disclosed as not simulated in a backtest, never faked'),
     ],
+    "EA_CF_VolumeProfileStrategy.mq5": [
+        (r"input string            InpSymbolsToTrade     = \"US100,US500\";",
+         'the worked example is NQ futures, and the document rules out the other market: "Requires Volume Data: Not viable in decentralized markets like spot forex"'),
+        (r"cfg\.signalTimeframe       = InpSignalTf;",
+         '"Execution timeframes: 4H and 1H are the main chart timeframes used for identifying signal candles and taking trades"'),
+        (r"cfg\.signalOnNewBarOnly    = true;",
+         '"Always wait for the signal candle to close.  Do not front-run it; even the last few minutes of a candle can change everything"'),
+        (r"BuildProfileRange\(htf, dr, dgot, 1, \(int\)MathMin\(InpHtfDays, dgot - 1\), InpVrBuckets\);",
+         '"Higher timeframes (Weekly, Daily) are used to identify long-term value areas and edges"'),
+        (r"double v = \(double\)d\[i\]\.tick_volume;",
+         'the profile itself: MT5 publishes tick volume, not exchange volume, and the proxy is disclosed in the header'),
+        (r"bool IsHvn\(const SProfile &pf, const int b\)",
+         '"Price levels with high transaction volume are called high-value areas (HVA)"'),
+        (r"pf\.vol\[b\] <= InpLvaFactor \* avg",
+         '"Price levels with low transaction volume are called low-value areas (LVA)"'),
+        (r"if\(IsHvn\(pf, i\) && IsLva\(pf, nb\)\) return",
+         '"A volume shelf is a sharp drop-off at the edge of a high-value node, which becomes a key reaction zone"'),
+        (r"if\(pf\.vol\[i\] >= InpHvnFactor \* avg\) return BucketCenter\(pf, i\);",
+         '"Target: the next shelf - edge-to-edge targeting.  You trade through low-volume zones and look for the next high-volume area"'),
+        (r"lv\[n\] = dd\[0\]\.high; n\+\+;",
+         '"Prior Day High" - one of the four key daily levels of the prior completed day'),
+        (r"lv\[n\] = dd\[0\]\.low;  n\+\+;",
+         '"Prior Day Low"'),
+        (r"if\(onh == 0\.0 \|\| d\[i\]\.high > onh\) onh = d\[i\]\.high;",
+         '"Overnight High" - the other two of the four key daily levels, from the overnight window'),
+        (r"if\(onEnd < onStart\) onEnd \+= \(datetime\)86400;",
+         'the overnight window crosses midnight, as it does on every real broker clock (an interpretation of the level the document names but does not clock)'),
+        (r"bool dirBody = \(dir > 0\) \? \(d\[1\]\.close > d\[1\]\.open\) : \(d\[1\]\.close < d\[1\]\.open\);",
+         '"A high volume signal candle ... closing in the trade direction"'),
+        (r"if\(body < rng \* InpMinSignalBodyPct / 100\.0\) return false;",
+         '... with a real body, not a doji'),
+        (r"if\(avgVol <= 0\.0 \|\| \(double\)d\[1\]\.tick_volume < InpVolFactor \* avgVol\) return false;",
+         '"A high volume signal candle" - judged against the recent average bar volume'),
+        (r"if\(wick < rng \* InpWickFrac\) return false;",
+         '"a visible wick rejecting the area"'),
+        (r"bool swept = \(dir > 0\) \? \(d\[1\]\.low < l && d\[1\]\.close > l\) : \(d\[1\]\.high > l && d\[1\]\.close < l\);",
+         'the worked example\'s signal candle: "trades above PDH intrabar (sweep), closes back below PDH"'),
+        (r"if\(eUp  > 0\.0 && MathAbs\(eUp  - level\) <= tol\) atEdge = true;",
+         '"Price is touching a volume profile edge (transition from HVA to LVA or vice versa)"'),
+        (r"if\(eH1 > 0\.0 && MathAbs\(eH1 - level\) <= tol\) atEdge = true;",
+         '"The location aligns with a key contextual level (ONH/ONL/PDH/PDL)" - through the higher timeframe edge'),
+        (r"bool retrace = \(InpUseWickRetrace && wick >= rng \* InpLongWickFrac\);",
+         '"If the signal candle has a long wick -> expect a 50-80% wick retrace before continuation"'),
+        (r": \(ext - InpRetraceFrac \* \(ext - d\[1\]\.close\)\);",
+         '"Set a limit order in that retrace zone (estimated visually, not with Fib tools)"'),
+        (r"entry = \(dir > 0\) \? ctx\.ask : ctx\.bid;",
+         '"Entry: After the signal candle closes at the volume edge"'),
+        (r"if\(retrace\) p\.expiry = TimeTradeServer\(\) \+ \(datetime\)\(InpLimitBars \* PeriodSeconds\(g_eaIndTf\)\);",
+         'the retrace limit gets a finite life - the document\'s "not always on" patience'),
+        (r"double far = \(dir > 0\) \? MathMin\(d\[1\]\.low, \(hvn > 0\.0 \? hvn : d\[1\]\.low\)\)",
+         '"Stop: Just beyond the signal candle\'s wick or beyond the edge of the high value node"'),
+        (r"double stop = \(dir > 0\) \? far - InpStopBufferAtr \* ctx\.atr : far \+ InpStopBufferAtr \* ctx\.atr;",
+         '... "just beyond", so a small structural buffer only'),
+        (r"if\(risk > entry \* InpMaxStopPct / 100\.0\) return false;",
+         '"Avoid Mid-Zone Trades" - a stop that wide means the edge is not the edge'),
+        (r"tgt = \(dir > 0\) \? dd\[0\]\.high : dd\[0\]\.low;",
+         '"look for a signal candle at the prior day\'s POC and target a new high/low"'),
+        (r"if\(tgt <= 0\.0\) tgt = NextShelf\(vr, entry, dir\);",
+         'otherwise the target is the next shelf, edge to edge'),
+        (r"if\(lower >= rng \* InpBiasWickFrac && w\[0\]\.close >= w\[0\]\.open && atLowEdge\)  return \+1;",
+         '"If the Weekly chart closes with a high volume bottom-wick reversal candle at a volume edge, then the bias is long"'),
+        (r"if\(upper >= rng \* InpBiasWickFrac && w\[0\]\.close <= w\[0\]\.open && atHighEdge\) return -1;",
+         '... and the short mirror the document implies'),
+        (r"if\(avg <= 0\.0 \|\| \(double\)w\[0\]\.tick_volume < avg\) return 0;",
+         '"a high volume" weekly candle - against the weekly average'),
+        (r"if\(bias != 0 && bias != dir\) continue;",
+         '"All intraday setups should then favour long trades, even if entries are taken on 4H, 1H, or lower timeframes"'),
+        (r"if\(level <= 0\.0 && InpUsePocRetest && poc > 0\.0\)",
+         '"A core setup is the Previous Point of Control (POC) Retest"'),
+        (r"if\(body < InpTrendDayAtr \* avg\) return false;",
+         '"After a breakout or trend day, the price often returns to the prior day\'s POC before resuming the trend"'),
+        (r"if\(dir > 0 && !\(dd\[0\]\.close > dd\[1\]\.high\)\) return false;",
+         '... the trend day being judged by its body and by clearing the day before it'),
+        (r"return BucketCenter\(pf, best\);",
+         '"the prior day\'s POC" - the busiest bucket of yesterday\'s own profile'),
+        (r"p\.score = 82\.0;",
+         'the setup is ranked, with the weekly bias and the better-priced retrace entry both raising it'),
+        (r"cfg\.partial1AtR           = 0\.0;",
+         'the document states the stop and the target and nothing else - no partials are layered on the edge-to-edge plan'),
+        (r"not viable in decentralized markets like spot forex",
+         'the document\'s own volume-data caveat is quoted in the header rather than hidden'),
+        (r"tick volume, not exchange",
+         'the proxy is named in the source, so nobody can mistake the profile for exchange volume'),
+    ],
 }
 
 
@@ -2621,7 +2731,8 @@ class SyncTests(unittest.TestCase):
                      "EA_CF_TrendlineBreakPocketStrategy.mq5",
                      "EA_CF_TrendlineStrategy.mq5",
                      "EA_CF_UniqueHighRr.mq5",
-                     "EA_CF_UniversalStrategy.mq5"):
+                     "EA_CF_UniversalStrategy.mq5",
+                     "EA_CF_VolumeProfileStrategy.mq5"):
             source = (FAMILY / name).read_text(encoding="utf-8")
             self.assertIn("[interpretation]", source, name)
 

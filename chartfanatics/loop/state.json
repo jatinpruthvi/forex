@@ -9,11 +9,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:00Z",
+      "replanned_at": "2026-10-07T16:43:17Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:00Z"
+      "updated": "2026-10-07T16:43:17Z"
     },
     "80-20-nasdaq-strategy": {
       "attempts": 1,
@@ -24,11 +24,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:00Z",
+      "replanned_at": "2026-10-07T16:43:17Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:00Z"
+      "updated": "2026-10-07T16:43:17Z"
     },
     "algorithmic-strategy": {
       "attempts": 1,
@@ -39,11 +39,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:00Z",
+      "replanned_at": "2026-10-07T16:43:17Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:00Z"
+      "updated": "2026-10-07T16:43:17Z"
     },
     "amd-model": {
       "attempts": 1,
@@ -54,14 +54,14 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:17Z",
       "reset_by": "loop self-test",
       "reset_note": "re-demo attempt counting",
       "state": "awaiting_human",
       "state_before_reset": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:17Z"
     },
     "auction-market-strategy": {
       "attempts": 1,
@@ -72,14 +72,14 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:17Z",
       "reset_by": "agent",
       "reset_note": "boundary was the batch's own table addition",
       "state": "awaiting_human",
       "state_before_reset": "planned",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:17Z"
     },
     "auction-market-theory-strategy": {
       "attempts": 1,
@@ -90,14 +90,14 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:17Z",
       "reset_by": "agent",
       "reset_note": "boundary was the batch's own table addition",
       "state": "awaiting_human",
       "state_before_reset": "planned",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:17Z"
     },
     "break-retest": {
       "attempts": 1,
@@ -108,11 +108,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "episodic-pivot-strategy": {
       "attempts": 1,
@@ -123,11 +123,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "fair-pricing-theory-strategy": {
       "attempts": 1,
@@ -138,11 +138,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "first-red-day": {
       "attempts": 1,
@@ -153,11 +153,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "first-red-day-strategy": {
       "attempts": 1,
@@ -168,11 +168,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "full-psychology-masterclass": {
       "attempts": 1,
@@ -183,11 +183,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "futures-trading-strategy": {
       "attempts": 1,
@@ -198,11 +198,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "institutional-options-flow-gamma-reversal-strategy": {
       "attempts": 1,
@@ -213,11 +213,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "institutional-strategy-development-framework": {
       "attempts": 1,
@@ -228,11 +228,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "intraday-liquidity-volatility-model": {
       "attempts": 1,
@@ -243,11 +243,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "liquidity-inversion-model": {
       "attempts": 1,
@@ -258,11 +258,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "liquidity-strategy": {
       "attempts": 1,
@@ -273,11 +273,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "low-volume-node": {
       "attempts": 1,
@@ -288,11 +288,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "market-auction-theory": {
       "attempts": 1,
@@ -303,11 +303,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "market-dna-strategy": {
       "attempts": 1,
@@ -318,11 +318,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "mean-reversion-strategy": {
       "attempts": 1,
@@ -333,11 +333,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "measured-move-trend-strategy": {
       "attempts": 1,
@@ -348,11 +348,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "momentum-model-performance-development": {
       "attempts": 1,
@@ -363,11 +363,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "nasdaq-ict-and-order-flow-scalping-strategy": {
       "attempts": 1,
@@ -378,11 +378,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "nq-liquidity-sweep-reversal-scalping-strategy": {
       "attempts": 1,
@@ -393,11 +393,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "options-trading-masterclass": {
       "attempts": 1,
@@ -408,11 +408,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "order-flow-strategy": {
       "attempts": 1,
@@ -423,11 +423,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "orderflow-trading-masterclass": {
       "attempts": 1,
@@ -438,11 +438,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "parabolic-short-strategy": {
       "attempts": 1,
@@ -453,11 +453,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "po3-ote-adr": {
       "attempts": 1,
@@ -468,11 +468,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "price-action-strategy": {
       "attempts": 1,
@@ -483,11 +483,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "price-cycle-continuation-failed-base-strategy": {
       "attempts": 1,
@@ -498,11 +498,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "real-simple-strategy": {
       "attempts": 1,
@@ -513,11 +513,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "shorting-strategy": {
       "attempts": 1,
@@ -528,11 +528,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "small-cap-short-statistics": {
       "attempts": 1,
@@ -543,11 +543,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "smt-divergence-po3": {
       "attempts": 1,
@@ -558,11 +558,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "stage-analysis-strategy": {
       "attempts": 1,
@@ -573,11 +573,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "structure-ote": {
       "attempts": 1,
@@ -588,11 +588,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "support-and-resistance": {
       "attempts": 1,
@@ -603,11 +603,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "the-vix-futures-strategy": {
       "attempts": 1,
@@ -618,11 +618,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "trading-first-principles-framework": {
       "attempts": 1,
@@ -633,11 +633,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "trendline-break-pocket-strategy": {
       "attempts": 1,
@@ -648,11 +648,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "trendline-strategy": {
       "attempts": 1,
@@ -663,11 +663,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "unique-high-rr": {
       "attempts": 1,
@@ -678,11 +678,11 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
       "replan_reason": "plan refresh",
-      "replanned_at": "2026-10-07T16:37:01Z",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:01Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "universal-strategy": {
       "attempts": 1,
@@ -693,15 +693,24 @@
       "pending": [
         "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
       ],
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
+      "replan_reason": "plan refresh",
+      "replanned_at": "2026-10-07T16:43:18Z",
       "state": "awaiting_human",
-      "updated": "2026-10-07T16:37:06Z"
+      "updated": "2026-10-07T16:43:18Z"
     },
     "volume-profile-strategy": {
-      "attempts": 0,
-      "planner": "batch 32: sync test gained the #43 table - refresh the judge boundaries",
-      "state": "planned",
-      "updated": "2026-10-07T16:37:01Z"
+      "attempts": 1,
+      "built_by": "agent",
+      "last_checked": "2026-10-07T16:46:17Z",
+      "last_reason": "all deterministic gates pass",
+      "last_verdict": "pass",
+      "pending": [
+        "PENDING (Windows stage owed): no report dir at /home/user/forex/validation/mt5_harness/out/reports"
+      ],
+      "planner": "batch 33: the #44 sync table landed - refresh every card's judge boundaries",
+      "state": "awaiting_human",
+      "updated": "2026-10-07T16:46:17Z"
     }
   }
 }

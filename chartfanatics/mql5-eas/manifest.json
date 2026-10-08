@@ -995,5 +995,26 @@
    ],
    "source": "chartfanatics/pdf/universal-strategy.pdf"
   }
+,
+  {
+   "card": 44,
+   "slug": "volume-profile-strategy",
+   "strategy": "Volume Profile Strategy",
+   "ea": "EA_CF_VolumeProfileStrategy.mq5",
+   "class": "CCfVolumeProfile",
+   "magic": 3247,
+   "timeframe": "H1",
+   "wave": 4,
+   "status": "static-checked",
+   "primitives": [
+    "the three-element setup: a volume profile edge (HVA-to-LVA transition), a key daily level (ONH/ONL/PDH/PDL) and a high-volume signal candle with a rejection wick closing in the trade's direction",
+    "the profiles: session, visible range and higher timeframe, built from tick volume spread across each bar's range (disclosed proxy)",
+    "the named setups: the prior-day POC retest after a breakout/trend day (target a new high/low) and the volatility-based 50-80% wick retrace limit",
+    "the weekly bias: a high-volume bottom-wick reversal candle at a volume edge filters every intraday setup to that side",
+    "edge-to-edge targeting: the stop just beyond the signal candle's wick or the high-value edge, the target the next shelf, and no mid-zone entries",
+    "EA_ApplyStagePolicy"
+   ],
+   "source": "chartfanatics/pdf/volume-profile-strategy.pdf"
+  }
  ]
 }

@@ -4,14 +4,14 @@
 with a Glimpse summary). Every strategy has a work card in [`todos/`](todos/) covering the same
 8 stages, from "read the source" to "demo / forward".
 
-**Cards:** ✅ 0 done · 🟡 46 in progress ·
-⬜ 1 not started
+**Cards:** ✅ 0 done · 🟡 47 in progress ·
+⬜ 0 not started
 
-**EAs built:** 46/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
+**EAs built:** 47/47 — see [`mql5-eas/`](mql5-eas/) (magic block 3201-3247)
 
-**Loop:** 45 awaiting human · 2 planned — see [`LOOP.md`](LOOP.md)
+**Loop:** 46 awaiting human · 1 planned — see [`LOOP.md`](LOOP.md)
 
-**Stages ticked:** 230/376 (61%)
+**Stages ticked:** 235/376 (62%)
 `▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱`
 
 *Regenerated 2026-10-07 by [`gen_todos.py`](gen_todos.py). Checkbox state lives in each card
@@ -87,7 +87,7 @@ infrastructure needed to get a first verdict:
 | 44 | Trendline Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/trendline-strategy.pdf) 8.7 MB | [`TrendlineStrategy.mq5`](mql5-eas/EA_CF_TrendlineStrategy.mq5) mag 3244 | [`trendline-strategy.md`](todos/trendline-strategy.md) |
 | 45 | Unique High RR | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/unique-high-rr.pdf) 9.9 MB | [`UniqueHighRr.mq5`](mql5-eas/EA_CF_UniqueHighRr.mq5) mag 3245 | [`unique-high-rr.md`](todos/unique-high-rr.md) |
 | 46 | Universal Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/universal-strategy.pdf) 3.3 MB | [`UniversalStrategy.mq5`](mql5-eas/EA_CF_UniversalStrategy.mq5) mag 3246 | [`universal-strategy.md`](todos/universal-strategy.md) |
-| 47 | Volume Profile Strategy | ⬜ todo | `▱▱▱▱▱▱▱▱` 0/8 | [PDF](pdf/volume-profile-strategy.pdf) 34.7 MB | _—_ | [`volume-profile-strategy.md`](todos/volume-profile-strategy.md) |
+| 47 | Volume Profile Strategy | 🟡 wip | `▰▰▰▰▰▱▱▱` 5/8 | [PDF](pdf/volume-profile-strategy.pdf) 34.7 MB | [`VolumeProfileStrategy.mq5`](mql5-eas/EA_CF_VolumeProfileStrategy.mq5) mag 3247 | [`volume-profile-strategy.md`](todos/volume-profile-strategy.md) |
 
 ## Video-only — no published PDF (15)
 

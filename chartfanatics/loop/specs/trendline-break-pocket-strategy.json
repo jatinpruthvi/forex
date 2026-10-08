@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "473d94a5f4ef3c868df2fc1e322bb9dbc642b2fa7f8c164f2b72a9437172059e",
+  "acceptance_hash": "0ba83dabd79b3d32536f48ba58b9570875ba3a9918acf511b6a9dacd58e4b69f",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_TrendlineBreakPocketStrategy.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "30122975b1bc71b0e005302386cd3245bcd58ff82f9e7fecb4b0a0a4ec3e5b3d",
-    "tests/test_chartfanatics_sync.py#other_cards": "ea335c52e78e80064738db21f274deb4484eebe5a1855980a605e61e318372b4"
+    "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
+    "tests/test_chartfanatics_sync.py#other_cards": "10a813e45efc01b56dedd8536b059c94fc5a0a444c75ddf8bd7200a7c9d99775"
   },
   "magic": 3243,
-  "planned_at": "2026-10-07T16:37:01Z",
+  "planned_at": "2026-10-07T16:43:18Z",
   "rule_count": 41,
   "slug": "trendline-break-pocket-strategy",
   "source": "chartfanatics/pdf/trendline-break-pocket-strategy.pdf",

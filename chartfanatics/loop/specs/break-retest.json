@@ -1,5 +1,5 @@
 {
-  "acceptance_hash": "3eebf9e025f4c5eecb4fa84ed3227a64b1cb4e8b4fb1c3992e0a4e6b5c37230c",
+  "acceptance_hash": "56868676da411eb05d375d84d7ebed28935f790c586d705bacaa909816177d2e",
   "attempt_cap": 3,
   "boundaries": [
     "the acceptance spec must not change after plan (only `replan` may, and it is logged)",
@@ -20,11 +20,11 @@
   "ea": "EA_CF_Break_Retest.mq5",
   "judge_hash": {
     "scripts/check_mql5_source.py": "84d4e6f5520257bde9ad2cabb6bdb24cdb631e2a5a29616d1c1a29e58336b396",
-    "tests/test_chartfanatics_sync.py#machinery": "30122975b1bc71b0e005302386cd3245bcd58ff82f9e7fecb4b0a0a4ec3e5b3d",
-    "tests/test_chartfanatics_sync.py#other_cards": "7129b7cfc5cd38923554aa36a882bcce8384510bbce7c00f07c7d1ec26236e2d"
+    "tests/test_chartfanatics_sync.py#machinery": "3c53a8527d58ec7fa11b2be78f17b0e889b2884cda0522676c408a877057ed3b",
+    "tests/test_chartfanatics_sync.py#other_cards": "5d70ca9395a9576ec8ebd939e481882060cee8e0eb1b4c1e3098e94e09a15e98"
   },
   "magic": 3205,
-  "planned_at": "2026-10-07T16:37:01Z",
+  "planned_at": "2026-10-07T16:43:18Z",
   "rule_count": 10,
   "slug": "break-retest",
   "source": "chartfanatics/pdf/break-retest.pdf",
