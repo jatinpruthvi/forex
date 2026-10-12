@@ -1,4 +1,4 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|                                     GEMINI_META_PORTFOLIO.mqh    |
 //|                Antigravity V3 Meta-Portfolio Controller          |
 //+------------------------------------------------------------------+
@@ -30,19 +30,23 @@ bool GeminiMeta_RequestPortfolioSlot(ulong magic, string symbol, double expected
   {
    if(!MInpEnableOneSlot) return true;
    
-   // Count currently active trades across the entire MT5 terminal
-   int active_trades = PositionsTotal();
+   // Count currently active trades for this strategy/magic
+   int active_trades = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(magic > 0 && (ulong)PositionGetInteger(POSITION_MAGIC) != magic) continue;
+      active_trades++;
+     }
    
    if(active_trades >= MInpMaxPortfolioHeat)
      {
-      // If we are full, we evaluate Opportunity Cost.
-      // E.g., if a 5-star TRIAD setup appears but a 1-star GOLD setup is running, 
-      // advanced logic would close GOLD and take TRIAD. For now, strict lock:
-      Print("[GEMINI META] REJECT: Portfolio heat maxed (",active_trades,"/",MInpMaxPortfolioHeat,") - ",symbol," rejected.");
+      Print("[GEMINI META] REJECT: Strategy slot maxed (",active_trades,"/",MInpMaxPortfolioHeat,") - ",symbol," magic=",magic," rejected.");
       return false;
      }
      
-   Print("[GEMINI META] ACCEPT: Slot granted to ",symbol," (Heat: ",active_trades,"/",MInpMaxPortfolioHeat,")");
+   Print("[GEMINI META] ACCEPT: Slot granted to ",symbol," magic=",magic," (Heat: ",active_trades,"/",MInpMaxPortfolioHeat,")");
    return true;
   }
 
@@ -97,25 +101,48 @@ void GeminiMeta_ManageRunners(ulong magic)
       double current_r = profit_points / risk_points;
       
       // If we hit +1R and haven't partialed yet
-      // We use a custom comment or magic tag, or check if volume is < original
       // A simple proxy: if SL is at or better than breakeven, we already processed it.
-      bool is_breakeven = (type == POSITION_TYPE_BUY && sl >= open_px) || (type == POSITION_TYPE_SELL && sl <= open_px);
+      bool is_breakeven = (type == POSITION_TYPE_BUY && sl >= open_px) || (type == POSITION_TYPE_SELL && sl <= open_px && sl > 0.0);
       
       if(current_r >= 1.0 && !is_breakeven)
         {
-         double close_vol = NormalizeDouble(vol * (MInpPartialClosePercent / 100.0), 2);
+         double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
+         double vmin = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+         if(step <= 0.0) step = 0.01;
+         double close_vol = MathFloor((vol * (MInpPartialClosePercent / 100.0)) / step) * step;
+         close_vol = NormalizeDouble(close_vol, 2);
+         if(close_vol < vmin) close_vol = 0.0;
+         if(vol - close_vol < vmin - 1e-9) close_vol = vol;
+         
          if(close_vol > 0.0)
            {
             CTrade meta_trade;
             meta_trade.SetExpertMagicNumber(magic);
-            if(meta_trade.PositionClosePartial(pos_ticket, close_vol))
+            meta_trade.SetTypeFillingBySymbol(sym);
+            bool closed_ok = false;
+            if(close_vol >= vol - 1e-9)
+               closed_ok = meta_trade.PositionClose(pos_ticket);
+            else
+               closed_ok = meta_trade.PositionClosePartial(pos_ticket, close_vol);
+            
+            if(closed_ok)
               {
                Print("[GEMINI META] +1R Partial Exit on ",sym," (Closed ",close_vol," lots)");
-               // Move remaining to Breakeven + small padding
+               // Move remaining to Breakeven + safe broker padding
                double point = SymbolInfoDouble(sym, SYMBOL_POINT);
-               double new_sl = (type == POSITION_TYPE_BUY) ? open_px + (2*point) : open_px - (2*point);
+               int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+               long stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
+               double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+               double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+               double min_gap = MathMax((double)stopLevel * point, ask - bid) + 3.0 * point;
+               
+               double new_sl = (type == POSITION_TYPE_BUY) ? open_px + (2.0*point) : open_px - (2.0*point);
+               if(type == POSITION_TYPE_BUY && new_sl > bid - min_gap) new_sl = bid - min_gap;
+               if(type == POSITION_TYPE_SELL && new_sl < ask + min_gap) new_sl = ask + min_gap;
+               new_sl = NormalizeDouble(new_sl, digits);
+               
                meta_trade.PositionModify(pos_ticket, new_sl, PositionGetDouble(POSITION_TP));
-               Print("[GEMINI META] Runner SL moved to Breakeven on ",sym);
+               Print("[GEMINI META] Runner SL moved to Breakeven on ",sym," sl=",new_sl);
               }
            }
         }

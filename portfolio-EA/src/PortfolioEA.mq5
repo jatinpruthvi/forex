@@ -27,21 +27,37 @@
 #property description "Needs MQL5\\Files\\PortfolioEA\\engines.csv for engine names (optional)."
 
 //--- inputs ----------------------------------------------------------------
-input int    InpRefreshSec   = 5;      // refresh interval (seconds)
-input int    InpDaysBack     = 30;     // history window in days (0 = all available)
-input bool   InpWriteCsv     = true;   // write performance.csv
-input bool   InpShowPanel    = true;   // draw the on-chart panel
-input int    InpPanelRows    = 20;     // panel rows to display
-input int    InpPanelX       = 15;     // panel X offset (pixels)
-input int    InpPanelY       = 25;     // panel Y offset (pixels)
-input int    InpFontSize     = 9;      // panel font size
-input bool   InpShowBgBox    = true;   // draw semi-transparent background box
-input int    InpMinTrades    = 20;     // closed trades before DROP is allowed
-input double InpReviewDdPct  = 25.0;   // closed-DD % of base that triggers REVIEW
-input double InpBaseBalance  = 0.0;    // DD base (0 = balance when this EA starts)
-input bool   InpRegistryOnly = true;   // ignore magics that are not in engines.csv
-input string InpIdentityFile = "PortfolioEA\\engines.csv";     // under MQL5\Files
-input string InpReportFile   = "PortfolioEA\\performance.csv"; // under MQL5\Files
+enum ENUM_VIEW_MODE
+{
+   VIEW_BY_ENGINE = 0,    // By Strategy / Engine (magic)
+   VIEW_BY_SYMBOL = 1     // By Symbol Breakdown (magic x symbol)
+};
+
+input int            InpRefreshSec       = 5;      // refresh interval (seconds)
+input int            InpDaysBack         = 30;     // history window in days (0 = all available)
+input ENUM_VIEW_MODE InpViewMode         = VIEW_BY_ENGINE; // Dashboard view mode
+input bool           InpWriteCsv         = true;   // write performance.csv
+input bool           InpShowPanel        = true;   // draw the on-chart panel
+input int            InpPanelRows        = 20;     // panel rows to display
+input int            InpPanelX           = 15;     // panel X offset (pixels)
+input int            InpPanelY           = 25;     // panel Y offset (pixels)
+input int            InpFontSize         = 9;      // panel font size
+input bool           InpShowBgBox        = true;   // draw semi-transparent background box
+input int            InpMinTrades        = 20;     // closed trades before DROP is allowed
+input double         InpReviewDdPct      = 25.0;   // closed-DD % of base that triggers REVIEW
+input double         InpBaseBalance      = 0.0;    // DD base (0 = balance when this EA starts)
+input bool           InpRegistryOnly     = false;  // ignore magics that are not in engines.csv (false = track all EAs)
+input string         InpIdentityFile = "PortfolioEA\\engines.csv";     // under MQL5\Files
+input string         InpReportFile   = "PortfolioEA\\performance.csv"; // under MQL5\Files
+input string         InpSymbolReportFile = "PortfolioEA\\symbol_performance.csv"; // per-symbol breakdown under MQL5\Files
+input bool           InpWriteSymbolCsv   = true; // write symbol_performance.csv
+
+input group "=== PROP CHALLENGE CONFIGURATION (FTMO / The5ers Standard) ==="
+input double         InpPropTargetPct        = 10.0;   // Profit Target % to PASS (FTMO/The5ers Ph1: 10.0%, Ph2: 5.0%, Classic: 8.0%)
+input double         InpPropMaxDDPct         = 8.0;    // Max Overall Drawdown % to FAIL (Official Standard: 8.0% or 10.0%)
+input double         InpPropWarnDDPct        = 6.0;    // Max Drawdown Warning % threshold (e.g., 6.0%)
+input double         InpPropMaxDailyDDPct    = 5.0;    // Max Daily Drawdown % to FAIL (Official Standard: 5.0%)
+input double         InpPropWarnDailyDDPct   = 4.0;    // Daily Drawdown Warning % threshold (80% of limit = 4.0%)
 
 //--- engine row ------------------------------------------------------------
 struct SEngineRow
@@ -63,16 +79,51 @@ struct SEngineRow
    int      openPos;
    double   floating;
    string   verdict;
+   double   netPct;        // Net P/L as % of base balance
+   double   ddPct;         // Max drawdown as % of base balance
+   double   todayNet;      // Closed P/L today since midnight
+   double   todayDdPct;    // Today's loss as % of base balance
+   string   propStatus;    // PASSED, FAIL-MAX, FAIL-DAY, WARN-MAX, WARN-DAY, ACTIVE
 };
 
-SEngineRow g_rows[];
-int        g_count           = 0;
-bool       g_identityLoaded  = false;
-double     g_base            = 0.0;
-double     g_totalNet        = 0.0;
-double     g_totalFloat      = 0.0;
-int        g_totalOpen       = 0;
-string     g_panelPrefix     = "PFX_";
+//--- engine x symbol breakdown row -----------------------------------------
+struct SEngineSymbolRow
+{
+   long     magic;
+   string   symbol;
+   string   name;
+   double   net;
+   int      closed;
+   int      wins;
+   int      losses;
+   double   maxProfit;
+   double   maxDd;
+   double   run;
+   double   peak;
+   int      openPos;
+   double   floating;
+   double   netPct;        // Net P/L as % of base balance
+   double   ddPct;         // Max drawdown as % of base balance
+   double   todayNet;      // Closed P/L today since midnight
+   double   todayDdPct;    // Today's loss as % of base balance
+   string   propStatus;    // PASSED, FAIL-MAX, FAIL-DAY, WARN-MAX, WARN-DAY, ACTIVE
+};
+
+SEngineRow       g_rows[];
+int              g_count           = 0;
+SEngineSymbolRow g_symRows[];
+int              g_symCount        = 0;
+bool             g_identityLoaded  = false;
+double           g_base            = 0.0;
+double           g_totalNet        = 0.0;
+double           g_totalFloat      = 0.0;
+int              g_totalOpen       = 0;
+double           g_totalMaxDd      = 0.0;
+double           g_totalRun        = 0.0;
+double           g_totalPeak       = 0.0;
+double           g_todayNet        = 0.0;
+int              g_scrollOffset    = 0;
+string           g_panelPrefix     = "PFX_";
 
 //--- entry-side money per (engine, position): a close must be judged on its own
 //--- round turn even when two positions of the same engine are open at once
@@ -88,11 +139,15 @@ void PendingAdd(SPending &store[], const long magic, const long posId, const dou
 double PendingTake(SPending &store[], const long magic, const long posId);
 int  FindRow(const long magic);
 int  EnsureRow(const long magic);
+int  FindSymRow(const long magic, const string sym);
+int  EnsureSymRow(const long magic, const string sym);
 void LoadIdentity();
 void Refresh();
 void WriteCsv();
+void WriteSymbolCsv();
 void DrawPanel();
 void RemovePanel();
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam);
 
 //+------------------------------------------------------------------+
 //| row lookup / creation                                             |
@@ -159,8 +214,103 @@ int EnsureRow(const long magic)
    g_rows[g_count].openPos  = 0;
    g_rows[g_count].floating = 0.0;
    g_rows[g_count].verdict  = "NEW";
+   g_rows[g_count].netPct     = 0.0;
+   g_rows[g_count].ddPct      = 0.0;
+   g_rows[g_count].todayNet   = 0.0;
+   g_rows[g_count].todayDdPct = 0.0;
+   g_rows[g_count].propStatus = "ACTIVE";
    g_count++;
    return g_count - 1;
+}
+
+int FindSymRow(const long magic, const string sym)
+{
+   for(int i = 0; i < g_symCount; i++)
+      if(g_symRows[i].magic == magic && g_symRows[i].symbol == sym) return i;
+   return -1;
+}
+
+int EnsureSymRow(const long magic, const string sym)
+{
+   int i = FindSymRow(magic, sym);
+   if(i >= 0) return i;
+   if(ArrayResize(g_symRows, g_symCount + 1) != g_symCount + 1)
+   {
+      PrintFormat("PortfolioEA tracker: out of memory for magic %d symbol %s", (int)magic, sym);
+      return -1;
+   }
+   g_symRows[g_symCount].magic     = magic;
+   g_symRows[g_symCount].symbol    = sym;
+   g_symRows[g_symCount].name      = "magic " + IntegerToString(magic);
+   int r = FindRow(magic);
+   if(r >= 0 && StringLen(g_rows[r].name) > 0)
+      g_symRows[g_symCount].name   = g_rows[r].name;
+   g_symRows[g_symCount].net       = 0.0;
+   g_symRows[g_symCount].closed    = 0;
+   g_symRows[g_symCount].wins      = 0;
+   g_symRows[g_symCount].losses    = 0;
+   g_symRows[g_symCount].maxProfit = 0.0;
+   g_symRows[g_symCount].maxDd     = 0.0;
+   g_symRows[g_symCount].run       = 0.0;
+   g_symRows[g_symCount].peak      = 0.0;
+   g_symRows[g_symCount].openPos   = 0;
+   g_symRows[g_symCount].floating  = 0.0;
+   g_symRows[g_symCount].netPct    = 0.0;
+   g_symRows[g_symCount].ddPct     = 0.0;
+   g_symRows[g_symCount].todayNet   = 0.0;
+   g_symRows[g_symCount].todayDdPct = 0.0;
+   g_symRows[g_symCount].propStatus = "ACTIVE";
+   g_symCount++;
+   return g_symCount - 1;
+}
+
+//+------------------------------------------------------------------+
+//| evaluate prop challenge pass/fail/active status                   |
+//+------------------------------------------------------------------+
+string EvaluatePropStatus(const double net, const double maxDd, const double todayLoss, const double base, color &outClr)
+{
+   if(base <= 0.0)
+   {
+      outClr = clrSilver;
+      return "ACTIVE";
+   }
+   double netPct     = 100.0 * net / base;
+   double ddPct      = 100.0 * maxDd / base;
+   double dailyDDPct = 100.0 * todayLoss / base;
+
+   // 1. Hard breach of Max Overall Drawdown (10.0%)
+   if(ddPct >= InpPropMaxDDPct)
+   {
+      outClr = clrRed;
+      return "FAIL-MAX";
+   }
+   // 2. Hard breach of Daily Drawdown limit (5.0%)
+   if(dailyDDPct >= InpPropMaxDailyDDPct)
+   {
+      outClr = clrRed;
+      return "FAIL-DAY";
+   }
+   // 3. Profit target reached without breach (10.0%)
+   if(netPct >= InpPropTargetPct)
+   {
+      outClr = clrLime;
+      return "PASSED";
+   }
+   // 4. Warning: approaching Max Drawdown (8.0%)
+   if(ddPct >= InpPropWarnDDPct)
+   {
+      outClr = clrDarkOrange;
+      return "WARN-MAX";
+   }
+   // 5. Warning: approaching Daily Drawdown (4.0%)
+   if(dailyDDPct >= InpPropWarnDailyDDPct)
+   {
+      outClr = clrDarkOrange;
+      return "WARN-DAY";
+   }
+
+   outClr = clrGold;
+   return "ACTIVE";
 }
 
 //+------------------------------------------------------------------+
@@ -232,6 +382,11 @@ void Refresh()
       PrintFormat("PortfolioEA tracker: HistorySelect failed (error %d) - open positions only",
                   GetLastError());
 
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   dt.hour = 0; dt.min = 0; dt.sec = 0;
+   datetime todayMidnight = StructToTime(dt);
+
    for(int i = 0; i < g_count; i++)
    {
       g_rows[i].net = 0.0; g_rows[i].closed = 0; g_rows[i].wins = 0;
@@ -239,8 +394,23 @@ void Refresh()
       g_rows[i].peak = 0.0;
       g_rows[i].openPos = 0; g_rows[i].floating = 0.0;
       g_rows[i].verdict = "KEEP";
+      g_rows[i].netPct = 0.0; g_rows[i].ddPct = 0.0;
+      g_rows[i].todayNet = 0.0; g_rows[i].todayDdPct = 0.0;
+      g_rows[i].propStatus = "ACTIVE";
+   }
+   for(int s = 0; s < g_symCount; s++)
+   {
+      g_symRows[s].net = 0.0; g_symRows[s].closed = 0; g_symRows[s].wins = 0;
+      g_symRows[s].losses = 0; g_symRows[s].maxProfit = 0.0;
+      g_symRows[s].maxDd = 0.0; g_symRows[s].run = 0.0; g_symRows[s].peak = 0.0;
+      g_symRows[s].openPos = 0; g_symRows[s].floating = 0.0;
+      g_symRows[s].netPct = 0.0; g_symRows[s].ddPct = 0.0;
+      g_symRows[s].todayNet = 0.0; g_symRows[s].todayDdPct = 0.0;
+      g_symRows[s].propStatus = "ACTIVE";
    }
    g_totalNet = 0.0; g_totalFloat = 0.0; g_totalOpen = 0;
+   g_totalMaxDd = 0.0; g_totalRun = 0.0; g_totalPeak = 0.0;
+   g_todayNet = 0.0;
 
    //--- pass 1: deals, in time order -> net, trades, win/loss, DD curve.
    //--- Commission is charged on the entry deal by many brokers, so entry-side
@@ -264,13 +434,17 @@ void Refresh()
          if(i < 0) continue;
       }
 
-      long   dtype = HistoryDealGetInteger(t, DEAL_TYPE);
-      long   entry = HistoryDealGetInteger(t, DEAL_ENTRY);
-      long   posId = HistoryDealGetInteger(t, DEAL_POSITION_ID);
-      double money = HistoryDealGetDouble(t, DEAL_PROFIT)
-                   + HistoryDealGetDouble(t, DEAL_SWAP)
-                   + HistoryDealGetDouble(t, DEAL_COMMISSION);
-      bool   isTrade = (dtype == DEAL_TYPE_BUY || dtype == DEAL_TYPE_SELL);
+      string dealSym = HistoryDealGetString(t, DEAL_SYMBOL);
+      int si = EnsureSymRow(magic, dealSym);
+
+      long     dtype    = HistoryDealGetInteger(t, DEAL_TYPE);
+      long     entry    = HistoryDealGetInteger(t, DEAL_ENTRY);
+      long     posId    = HistoryDealGetInteger(t, DEAL_POSITION_ID);
+      datetime dealTime = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
+      double   money    = HistoryDealGetDouble(t, DEAL_PROFIT)
+                        + HistoryDealGetDouble(t, DEAL_SWAP)
+                        + HistoryDealGetDouble(t, DEAL_COMMISSION);
+      bool     isTrade  = (dtype == DEAL_TYPE_BUY || dtype == DEAL_TYPE_SELL);
 
       if(isTrade && entry == DEAL_ENTRY_IN)
       {
@@ -284,17 +458,51 @@ void Refresh()
          double pl = money + PendingTake(pend, magic, posId);   // whole round turn
          g_rows[i].net += pl;
          g_rows[i].closed++;
+         if(si >= 0)
+         {
+            g_symRows[si].net += pl;
+            g_symRows[si].closed++;
+         }
+         if(dealTime >= todayMidnight)
+         {
+            g_rows[i].todayNet += pl;
+            if(si >= 0) g_symRows[si].todayNet += pl;
+            g_todayNet += pl;
+         }
          if(pl > 0.0)
          {
             g_rows[i].wins++;
             if(pl > g_rows[i].maxProfit) g_rows[i].maxProfit = pl;
+            if(si >= 0)
+            {
+               g_symRows[si].wins++;
+               if(pl > g_symRows[si].maxProfit) g_symRows[si].maxProfit = pl;
+            }
          }
-         else if(pl < 0.0) g_rows[i].losses++;
+         else if(pl < 0.0)
+         {
+            g_rows[i].losses++;
+            if(si >= 0) g_symRows[si].losses++;
+         }
 
          g_rows[i].run += pl;
          if(g_rows[i].run > g_rows[i].peak) g_rows[i].peak = g_rows[i].run;
          double dd = g_rows[i].peak - g_rows[i].run;
          if(dd > g_rows[i].maxDd) g_rows[i].maxDd = dd;
+
+         if(si >= 0)
+         {
+            g_symRows[si].run += pl;
+            if(g_symRows[si].run > g_symRows[si].peak) g_symRows[si].peak = g_symRows[si].run;
+            double sdd = g_symRows[si].peak - g_symRows[si].run;
+            if(sdd > g_symRows[si].maxDd) g_symRows[si].maxDd = sdd;
+         }
+
+         g_totalRun += pl;
+         if(g_totalRun > g_totalPeak) g_totalPeak = g_totalRun;
+         double pdd = g_totalPeak - g_totalRun;
+         if(pdd > g_totalMaxDd) g_totalMaxDd = pdd;
+
          continue;
       }
 
@@ -302,10 +510,30 @@ void Refresh()
       //--- (money on its own event) or a trade deal with an unexpected entry
       //--- flag - it lands in net and as one point on the DD curve
       g_rows[i].net += money;
+      if(si >= 0) g_symRows[si].net += money;
+      if(dealTime >= todayMidnight)
+      {
+         g_rows[i].todayNet += money;
+         if(si >= 0) g_symRows[si].todayNet += money;
+         g_todayNet += money;
+      }
       g_rows[i].run += money;
       if(g_rows[i].run > g_rows[i].peak) g_rows[i].peak = g_rows[i].run;
       double dd = g_rows[i].peak - g_rows[i].run;
       if(dd > g_rows[i].maxDd) g_rows[i].maxDd = dd;
+
+      if(si >= 0)
+      {
+         g_symRows[si].run += money;
+         if(g_symRows[si].run > g_symRows[si].peak) g_symRows[si].peak = g_symRows[si].run;
+         double sdd = g_symRows[si].peak - g_symRows[si].run;
+         if(sdd > g_symRows[si].maxDd) g_symRows[si].maxDd = sdd;
+      }
+
+      g_totalRun += money;
+      if(g_totalRun > g_totalPeak) g_totalPeak = g_totalRun;
+      double pdd = g_totalPeak - g_totalRun;
+      if(pdd > g_totalMaxDd) g_totalMaxDd = pdd;
    }
 
    //--- pass 2: open positions
@@ -324,21 +552,62 @@ void Refresh()
          i = EnsureRow(magic);
          if(i < 0) continue;
       }
+
+      string posSym = PositionGetString(POSITION_SYMBOL);
+      int si = EnsureSymRow(magic, posSym);
+
+      double floatPl = PositionGetDouble(POSITION_PROFIT)
+                     + PositionGetDouble(POSITION_SWAP);
+
       g_rows[i].openPos++;
-      g_rows[i].floating += PositionGetDouble(POSITION_PROFIT)
-                          + PositionGetDouble(POSITION_SWAP);
+      g_rows[i].floating += floatPl;
+
+      if(si >= 0)
+      {
+         g_symRows[si].openPos++;
+         g_symRows[si].floating += floatPl;
+      }
    }
 
-   //--- verdicts + totals
+   //--- include open floating positions in current drawdown
+   for(int i = 0; i < g_count; i++)
+   {
+      double currEquity = g_rows[i].run + g_rows[i].floating;
+      double currPeak   = MathMax(g_rows[i].peak, currEquity);
+      double currDd     = currPeak - currEquity;
+      if(currDd > g_rows[i].maxDd) g_rows[i].maxDd = currDd;
+   }
+   for(int s = 0; s < g_symCount; s++)
+   {
+      double currEquity = g_symRows[s].run + g_symRows[s].floating;
+      double currPeak   = MathMax(g_symRows[s].peak, currEquity);
+      double currDd     = currPeak - currEquity;
+      if(currDd > g_symRows[s].maxDd) g_symRows[s].maxDd = currDd;
+   }
+   double currTotalEquity = g_totalRun + g_totalFloat;
+   double currTotalPeak   = MathMax(g_totalPeak, currTotalEquity);
+   double currTotalDd     = currTotalPeak - currTotalEquity;
+   if(currTotalDd > g_totalMaxDd) g_totalMaxDd = currTotalDd;
+
+   //--- verdicts + totals + prop status
    for(int i = 0; i < g_count; i++)
    {
       g_totalNet   += g_rows[i].net;
       g_totalFloat += g_rows[i].floating;
       g_totalOpen  += g_rows[i].openPos;
 
-      double ddPct      = (g_base > 0.0) ? 100.0 * g_rows[i].maxDd / g_base : 0.0;
+      g_rows[i].netPct = (g_base > 0.0) ? (100.0 * g_rows[i].net / g_base) : 0.0;
+      g_rows[i].ddPct  = (g_base > 0.0) ? (100.0 * g_rows[i].maxDd / g_base) : 0.0;
+
+      double todayEquity = g_rows[i].todayNet + g_rows[i].floating;
+      double todayLoss   = (todayEquity < 0.0) ? -todayEquity : 0.0;
+      g_rows[i].todayDdPct = (g_base > 0.0) ? (100.0 * todayLoss / g_base) : 0.0;
+
+      color dummyClr;
+      g_rows[i].propStatus = EvaluatePropStatus(g_rows[i].net, g_rows[i].maxDd, todayLoss, g_base, dummyClr);
+
       double expectancy = (g_rows[i].closed > 0) ? g_rows[i].net / g_rows[i].closed : 0.0;
-      bool   ddFlag     = (g_base > 0.0 && ddPct >= InpReviewDdPct);
+      bool   ddFlag     = (g_base > 0.0 && g_rows[i].ddPct >= InpReviewDdPct);
       if(g_rows[i].closed == 0)
          g_rows[i].verdict = "TOO_FEW";
       else if(g_rows[i].closed < InpMinTrades)
@@ -351,7 +620,20 @@ void Refresh()
          g_rows[i].verdict = "KEEP";
    }
 
-   //--- sort: open positions first, then highest net, then most trades
+   for(int s = 0; s < g_symCount; s++)
+   {
+      g_symRows[s].netPct = (g_base > 0.0) ? (100.0 * g_symRows[s].net / g_base) : 0.0;
+      g_symRows[s].ddPct  = (g_base > 0.0) ? (100.0 * g_symRows[s].maxDd / g_base) : 0.0;
+
+      double symTodayEquity = g_symRows[s].todayNet + g_symRows[s].floating;
+      double symTodayLoss   = (symTodayEquity < 0.0) ? -symTodayEquity : 0.0;
+      g_symRows[s].todayDdPct = (g_base > 0.0) ? (100.0 * symTodayLoss / g_base) : 0.0;
+
+      color dummyClr;
+      g_symRows[s].propStatus = EvaluatePropStatus(g_symRows[s].net, g_symRows[s].maxDd, symTodayLoss, g_base, dummyClr);
+   }
+
+   //--- sort g_rows: open positions first, then highest net, then most trades
    for(int a = 0; a < g_count - 1; a++)
       for(int b = 0; b < g_count - 1 - a; b++)
       {
@@ -380,7 +662,34 @@ void Refresh()
          }
       }
 
+   //--- sort g_symRows: open positions first, then highest net, then most trades
+   for(int sa = 0; sa < g_symCount - 1; sa++)
+      for(int sb = 0; sb < g_symCount - 1 - sa; sb++)
+      {
+         bool doSwap = false;
+         if(g_symRows[sb].openPos < g_symRows[sb + 1].openPos)
+            doSwap = true;
+         else if(g_symRows[sb].openPos == g_symRows[sb + 1].openPos)
+         {
+            if(g_symRows[sb].net < g_symRows[sb + 1].net)
+               doSwap = true;
+            else if(g_symRows[sb].net == g_symRows[sb + 1].net)
+            {
+               if(g_symRows[sb].closed < g_symRows[sb + 1].closed)
+                  doSwap = true;
+            }
+         }
+
+         if(doSwap)
+         {
+            SEngineSymbolRow stmp = g_symRows[sb];
+            g_symRows[sb]         = g_symRows[sb + 1];
+            g_symRows[sb + 1]     = stmp;
+         }
+      }
+
    if(InpWriteCsv) WriteCsv();
+   if(InpWriteSymbolCsv) WriteSymbolCsv();
    if(InpShowPanel) DrawPanel();
 }
 
@@ -407,28 +716,76 @@ void WriteCsv()
                   "MQL5\\Files\\PortfolioEA if this persists", InpReportFile, GetLastError());
       return;
    }
-   FileWrite(h, "magic", "tag", "engine", "strategy", "timeframe", "net", "max_profit", "trades",
-             "wins", "losses", "win_pct", "max_dd", "dd_pct_of_base", "open_positions",
+   FileWrite(h, "magic", "tag", "engine", "strategy", "timeframe", "net", "net_pct", "max_profit", "trades",
+             "wins", "losses", "win_pct", "max_dd", "dd_pct_of_base", "today_dd_pct", "prop_status", "open_positions",
              "floating", "verdict", "switch");
    for(int i = 0; i < g_count; i++)
    {
       double winPct = (g_rows[i].wins + g_rows[i].losses > 0)
                       ? 100.0 * g_rows[i].wins / (g_rows[i].wins + g_rows[i].losses) : 0.0;
-      double ddPct  = (g_base > 0.0) ? 100.0 * g_rows[i].maxDd / g_base : 0.0;
       FileWrite(h, IntegerToString(g_rows[i].magic), CsvText(g_rows[i].tag),
                 CsvText(g_rows[i].name), CsvText(g_rows[i].strategy), CsvText(g_rows[i].tf),
-                DoubleToString(g_rows[i].net, 2), DoubleToString(g_rows[i].maxProfit, 2),
+                DoubleToString(g_rows[i].net, 2), DoubleToString(g_rows[i].netPct, 2),
+                DoubleToString(g_rows[i].maxProfit, 2),
                 IntegerToString(g_rows[i].closed),
                 IntegerToString(g_rows[i].wins), IntegerToString(g_rows[i].losses),
                 DoubleToString(winPct, 1), DoubleToString(g_rows[i].maxDd, 2),
-                DoubleToString(ddPct, 1), IntegerToString(g_rows[i].openPos),
+                DoubleToString(g_rows[i].ddPct, 2), DoubleToString(g_rows[i].todayDdPct, 2),
+                g_rows[i].propStatus,
+                IntegerToString(g_rows[i].openPos),
                 DoubleToString(g_rows[i].floating, 2), g_rows[i].verdict,
                 "InpRun_" + IntegerToString(g_rows[i].magic));
    }
-   //--- column alignment: 17 columns total
-   //--- magic, tag, engine, strategy, tf, net, max_profit, trades, wins, losses, win_pct, max_dd, dd_pct, open_pos, floating, verdict, switch
-   FileWrite(h, "TOTAL", "", "", "", "", DoubleToString(g_totalNet, 2), "", "", "", "",
-             "", "", "", IntegerToString(g_totalOpen), DoubleToString(g_totalFloat, 2), "", "");
+   double totalNetPct      = (g_base > 0.0) ? (100.0 * g_totalNet / g_base) : 0.0;
+   double totalDdPct       = (g_base > 0.0) ? (100.0 * g_totalMaxDd / g_base) : 0.0;
+   double totalTodayEquity = g_todayNet + g_totalFloat;
+   double totalTodayLoss   = (totalTodayEquity < 0.0) ? -totalTodayEquity : 0.0;
+   double totalTodayDdPct  = (g_base > 0.0) ? (100.0 * totalTodayLoss / g_base) : 0.0;
+   color dummyClr;
+   string totalProp        = EvaluatePropStatus(g_totalNet, g_totalMaxDd, totalTodayLoss, g_base, dummyClr);
+   FileWrite(h, "TOTAL", "", "", "", "", DoubleToString(g_totalNet, 2), DoubleToString(totalNetPct, 2),
+             "", "", "", "", "", DoubleToString(g_totalMaxDd, 2), DoubleToString(totalDdPct, 1),
+             DoubleToString(totalTodayDdPct, 1),
+             totalProp, IntegerToString(g_totalOpen), DoubleToString(g_totalFloat, 2), "", "");
+   FileClose(h);
+}
+
+void WriteSymbolCsv()
+{
+   FolderCreate("PortfolioEA");
+   int h = FileOpen(InpSymbolReportFile, FILE_WRITE | FILE_CSV | FILE_ANSI, ',');
+   if(h == INVALID_HANDLE)
+   {
+      PrintFormat("PortfolioEA tracker: cannot write %s (error %d)", InpSymbolReportFile, GetLastError());
+      return;
+   }
+   FileWrite(h, "magic", "symbol", "engine", "net", "net_pct", "max_profit", "trades", "wins", "losses",
+             "win_pct", "max_dd", "dd_pct_of_base", "today_dd_pct", "prop_status", "open_positions", "floating");
+   for(int s = 0; s < g_symCount; s++)
+   {
+      double winPct = (g_symRows[s].wins + g_symRows[s].losses > 0)
+                      ? 100.0 * g_symRows[s].wins / (g_symRows[s].wins + g_symRows[s].losses) : 0.0;
+      FileWrite(h, IntegerToString(g_symRows[s].magic), g_symRows[s].symbol,
+                CsvText(g_symRows[s].name), DoubleToString(g_symRows[s].net, 2),
+                DoubleToString(g_symRows[s].netPct, 2),
+                DoubleToString(g_symRows[s].maxProfit, 2), IntegerToString(g_symRows[s].closed),
+                IntegerToString(g_symRows[s].wins), IntegerToString(g_symRows[s].losses),
+                DoubleToString(winPct, 1), DoubleToString(g_symRows[s].maxDd, 2),
+                DoubleToString(g_symRows[s].ddPct, 2), DoubleToString(g_symRows[s].todayDdPct, 2),
+                g_symRows[s].propStatus,
+                IntegerToString(g_symRows[s].openPos),
+                DoubleToString(g_symRows[s].floating, 2));
+   }
+   double totalNetPct      = (g_base > 0.0) ? (100.0 * g_totalNet / g_base) : 0.0;
+   double totalDdPct       = (g_base > 0.0) ? (100.0 * g_totalMaxDd / g_base) : 0.0;
+   double totalTodayEquity = g_todayNet + g_totalFloat;
+   double totalTodayLoss   = (totalTodayEquity < 0.0) ? -totalTodayEquity : 0.0;
+   double totalTodayDdPct  = (g_base > 0.0) ? (100.0 * totalTodayLoss / g_base) : 0.0;
+   color dummyClr;
+   string totalProp        = EvaluatePropStatus(g_totalNet, g_totalMaxDd, totalTodayLoss, g_base, dummyClr);
+   FileWrite(h, "TOTAL", "", "", DoubleToString(g_totalNet, 2), DoubleToString(totalNetPct, 2), "", "", "", "",
+             "", DoubleToString(g_totalMaxDd, 2), DoubleToString(totalDdPct, 1), DoubleToString(totalTodayDdPct, 1),
+             totalProp, IntegerToString(g_totalOpen), DoubleToString(g_totalFloat, 2));
    FileClose(h);
 }
 
@@ -450,70 +807,186 @@ void MakeLabel(const string name, const int x, const int y, const string text,
    ObjectSetString(0, name, OBJPROP_TEXT, text);
 }
 
+void MakeButton(const string name, const int x, const int y, const int w, const int h,
+                const string text, const color clr, const color bgClr, const int size)
+{
+   if(ObjectFind(0, name) < 0)
+      ObjectCreate(0, name, OBJ_BUTTON, 0, 0, 0);
+   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bgClr);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, C'60,70,85');
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, size);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, name, OBJPROP_STATE, false);
+   ObjectSetString(0, name, OBJPROP_FONT, "Consolas");
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+}
+
+void MakeBox(const string name, const int x, const int y, const int w, const int h,
+             const color bgClr, const color borderClr)
+{
+   if(ObjectFind(0, name) < 0)
+      ObjectCreate(0, name, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bgClr);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, borderClr);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, name, OBJPROP_BACK, false);
+}
+
 void DrawPanel()
 {
    const int x = InpPanelX, y = InpPanelY;
    const int dy = InpFontSize + 6;
    const int size = InpFontSize;
-   int shown = (InpPanelRows > 0) ? (int)MathMin(InpPanelRows, g_count) : g_count;
+   int totalRows = (InpViewMode == VIEW_BY_SYMBOL) ? g_symCount : g_count;
+   int shown = (InpPanelRows > 0) ? (int)MathMin(InpPanelRows, totalRows) : totalRows;
 
-   //--- optional background box to guarantee readability over candlestick bars
+   //--- clamp scroll offset
+   int maxOffset = (totalRows > shown) ? (totalRows - shown) : 0;
+   if(g_scrollOffset < 0) g_scrollOffset = 0;
+   if(g_scrollOffset > maxOffset) g_scrollOffset = maxOffset;
+
+   const int panelW = 920;
+   const int panelH = (shown + 4) * dy + 10;
+
+   //--- background box
    if(InpShowBgBox)
    {
-      string bgName = g_panelPrefix + "bg";
-      if(ObjectFind(0, bgName) < 0)
-         ObjectCreate(0, bgName, OBJ_RECTANGLE_LABEL, 0, 0, 0);
-      ObjectSetInteger(0, bgName, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, bgName, OBJPROP_XDISTANCE, x - 6);
-      ObjectSetInteger(0, bgName, OBJPROP_YDISTANCE, y - 6);
-      ObjectSetInteger(0, bgName, OBJPROP_XSIZE, 710);
-      ObjectSetInteger(0, bgName, OBJPROP_YSIZE, (shown + 4) * dy + 10);
-      ObjectSetInteger(0, bgName, OBJPROP_BGCOLOR, C'16,18,22');
-      ObjectSetInteger(0, bgName, OBJPROP_BORDER_COLOR, C'45,55,72');
-      ObjectSetInteger(0, bgName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-      ObjectSetInteger(0, bgName, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, bgName, OBJPROP_BACK, false);
+      MakeBox(g_panelPrefix + "bg", x - 6, y - 6, panelW, panelH, C'16,18,22', C'45,55,72');
    }
 
-   color headFloatClr = (g_totalFloat > 0.0) ? clrLimeGreen
-                      : (g_totalFloat < 0.0) ? clrTomato : clrGold;
+   string modeStr = (InpViewMode == VIEW_BY_SYMBOL) ? "[BY SYMBOL]" : "[BY ENGINE]";
+   double totalNetPct      = (g_base > 0.0) ? (100.0 * g_totalNet / g_base) : 0.0;
+   double totalDdPct       = (g_base > 0.0) ? (100.0 * g_totalMaxDd / g_base) : 0.0;
+   double totalTodayEquity = g_todayNet + g_totalFloat;
+   double totalTodayLoss   = (totalTodayEquity < 0.0) ? -totalTodayEquity : 0.0;
+   double totalTodayDdPct  = (g_base > 0.0) ? (100.0 * totalTodayLoss / g_base) : 0.0;
+   color  totalPropClr     = clrGold;
+   string totalProp        = EvaluatePropStatus(g_totalNet, g_totalMaxDd, totalTodayLoss, g_base, totalPropClr);
 
    MakeLabel(g_panelPrefix + "head", x, y,
-             StringFormat("PORTFOLIO DASHBOARD  Net: %+.2f  Open: %d  Float: %+.2f  [%s]",
-                          g_totalNet, g_totalOpen, g_totalFloat,
-                          TimeToString(TimeCurrent(), TIME_MINUTES)),
+             StringFormat("PORTFOLIO DASHBOARD %s Net: %+.2f (%+.1f%%)  MaxDD: %.1f%%  DayDD: %.1f%%  Open: %d  Float: %+.2f  | PROP: %s  [%s]",
+                          modeStr, g_totalNet, totalNetPct, totalDdPct, totalTodayDdPct, g_totalOpen, g_totalFloat,
+                          totalProp, TimeToString(TimeCurrent(), TIME_MINUTES)),
              clrGold, size + 1, true);
 
-   MakeLabel(g_panelPrefix + "cols", x, y + dy,
-             StringFormat("%-7s %-7s %10s %10s %6s %5s %10s %5s %10s  %s",
-                          "magic", "tag", "net", "maxProfit", "trades", "win%", "maxDD", "open",
-                          "float", "verdict"),
-             clrDodgerBlue, size);
-
-   int top = y + 2 * dy;
-
-   for(int i = 0; i < shown; i++)
+   if(InpViewMode == VIEW_BY_SYMBOL)
    {
-      double winVal = (g_rows[i].wins + g_rows[i].losses > 0)
-                      ? 100.0 * g_rows[i].wins / (g_rows[i].wins + g_rows[i].losses) : 0.0;
-      string winPct = StringFormat("%3.0f%%", winVal);
+      MakeLabel(g_panelPrefix + "cols", x, y + dy,
+                StringFormat("%-7s %-9s %9s %6s %8s %6s %7s %-8s %6s %5s %4s %9s  %-20s",
+                             "magic", "symbol", "net", "net%", "maxDD", "dd%", "dayDD%", "prop", "trades",
+                             "win%", "open", "float", "engine"),
+                clrDodgerBlue, size);
 
-      color clr = clrSilver;
-      if(g_rows[i].openPos > 0)
-         clr = (g_rows[i].floating >= 0.0) ? clrLime : clrOrangeRed;
-      else if(g_rows[i].net > 0.0)
-         clr = clrLimeGreen;
-      else if(g_rows[i].net < 0.0)
-         clr = clrTomato;
+      int top = y + 2 * dy;
+      for(int i = 0; i < shown; i++)
+      {
+         int idx = i + g_scrollOffset;
+         if(idx >= g_symCount) break;
 
-      if(g_rows[i].verdict == "DROP") clr = clrRed;
+         double winVal = (g_symRows[idx].wins + g_symRows[idx].losses > 0)
+                         ? 100.0 * g_symRows[idx].wins / (g_symRows[idx].wins + g_symRows[idx].losses) : 0.0;
+         string winPct      = StringFormat("%3.0f%%", winVal);
+         string netPctStr   = StringFormat("%+.1f%%", g_symRows[idx].netPct);
+         string ddPctStr    = StringFormat("%.1f%%", g_symRows[idx].ddPct);
+         string dayDdPctStr = StringFormat("%.1f%%", g_symRows[idx].todayDdPct);
 
-      MakeLabel(g_panelPrefix + "row" + IntegerToString(i), x, top + i * dy,
-                StringFormat("%-7s %-7s %10.2f %10.2f %6d %5s %10.2f %5d %10.2f  %s",
-                             IntegerToString(g_rows[i].magic), g_rows[i].tag,
-                             g_rows[i].net, g_rows[i].maxProfit, g_rows[i].closed, winPct, g_rows[i].maxDd,
-                             g_rows[i].openPos, g_rows[i].floating, g_rows[i].verdict),
-                clr, size);
+         color clr = clrSilver;
+         if(g_symRows[idx].openPos > 0)
+         {
+            if(g_symRows[idx].net < 0.0)
+               clr = clrTomato;
+            else if(g_symRows[idx].floating >= 0.0)
+               clr = clrLime;
+            else
+               clr = clrOrangeRed;
+         }
+         else if(g_symRows[idx].net > 0.0)
+            clr = clrLimeGreen;
+         else if(g_symRows[idx].net < 0.0)
+            clr = clrTomato;
+
+         if(StringFind(g_symRows[idx].propStatus, "FAIL") == 0)
+            clr = clrRed;
+         else if(g_symRows[idx].propStatus == "PASSED")
+            clr = clrSpringGreen;
+         else if(StringFind(g_symRows[idx].propStatus, "WARN") == 0)
+            clr = clrDarkOrange;
+
+         string shortName = g_symRows[idx].name;
+         if(StringLen(shortName) > 20) shortName = StringSubstr(shortName, 0, 20);
+
+         MakeLabel(g_panelPrefix + "row" + IntegerToString(i), x, top + i * dy,
+                   StringFormat("%-7s %-9s %9.2f %6s %8.2f %6s %7s %-8s %6d %5s %4d %9.2f  %-20s",
+                                IntegerToString(g_symRows[idx].magic), g_symRows[idx].symbol,
+                                g_symRows[idx].net, netPctStr, g_symRows[idx].maxDd, ddPctStr,
+                                dayDdPctStr, g_symRows[idx].propStatus, g_symRows[idx].closed,
+                                winPct, g_symRows[idx].openPos, g_symRows[idx].floating, shortName),
+                   clr, size);
+      }
+   }
+   else
+   {
+      MakeLabel(g_panelPrefix + "cols", x, y + dy,
+                StringFormat("%-7s %-7s %9s %6s %8s %6s %7s %-8s %6s %5s %4s %9s  %s",
+                             "magic", "tag", "net", "net%", "maxDD", "dd%", "dayDD%", "prop", "trades",
+                             "win%", "open", "float", "verdict"),
+                clrDodgerBlue, size);
+
+      int top = y + 2 * dy;
+      for(int i = 0; i < shown; i++)
+      {
+         int idx = i + g_scrollOffset;
+         if(idx >= g_count) break;
+
+         double winVal = (g_rows[idx].wins + g_rows[idx].losses > 0)
+                         ? 100.0 * g_rows[idx].wins / (g_rows[idx].wins + g_rows[idx].losses) : 0.0;
+         string winPct      = StringFormat("%3.0f%%", winVal);
+         string netPctStr   = StringFormat("%+.1f%%", g_rows[idx].netPct);
+         string ddPctStr    = StringFormat("%.1f%%", g_rows[idx].ddPct);
+         string dayDdPctStr = StringFormat("%.1f%%", g_rows[idx].todayDdPct);
+
+         color clr = clrSilver;
+         if(g_rows[idx].openPos > 0)
+         {
+            if(g_rows[idx].net < 0.0)
+               clr = clrTomato;
+            else if(g_rows[idx].floating >= 0.0)
+               clr = clrLime;
+            else
+               clr = clrOrangeRed;
+         }
+         else if(g_rows[idx].net > 0.0)
+            clr = clrLimeGreen;
+         else if(g_rows[idx].net < 0.0)
+            clr = clrTomato;
+
+         if(StringFind(g_rows[idx].propStatus, "FAIL") == 0 || g_rows[idx].verdict == "DROP")
+            clr = clrRed;
+         else if(g_rows[idx].propStatus == "PASSED")
+            clr = clrSpringGreen;
+         else if(StringFind(g_rows[idx].propStatus, "WARN") == 0)
+            clr = clrDarkOrange;
+
+         MakeLabel(g_panelPrefix + "row" + IntegerToString(i), x, top + i * dy,
+                   StringFormat("%-7s %-7s %9.2f %6s %8.2f %6s %7s %-8s %6d %5s %4d %9.2f  %s",
+                                IntegerToString(g_rows[idx].magic), g_rows[idx].tag,
+                                g_rows[idx].net, netPctStr, g_rows[idx].maxDd, ddPctStr,
+                                dayDdPctStr, g_rows[idx].propStatus, g_rows[idx].closed, winPct,
+                                g_rows[idx].openPos, g_rows[idx].floating, g_rows[idx].verdict),
+                   clr, size);
+      }
    }
 
    //--- clean up any stale row objects if shown count decreased
@@ -524,11 +997,55 @@ void DrawPanel()
       else break;
    }
 
-   string footer = (g_count > shown)
-                   ? StringFormat("... %d more engine(s) - full log in MQL5\\Files\\%s",
-                                  g_count - shown, InpReportFile)
-                   : "To toggle an engine: tick/untick InpRun_<magic> in AllEnginesEA";
-   MakeLabel(g_panelPrefix + "foot", x, top + shown * dy + (dy / 2), footer, clrGray, size - 1);
+   //--- vertical scroll bar UI (drawn on right edge of panel)
+   const int scrollX = x + panelW - 32;
+   const int btnW    = 20;
+   const int btnH    = 18;
+   const int topBtnY = y + 2 * dy;
+   const int botBtnY = y + 2 * dy + shown * dy - btnH;
+
+    if(totalRows > shown)
+   {
+      // UP and DOWN scroll buttons
+      MakeButton(g_panelPrefix + "btn_up",   scrollX, topBtnY, btnW, btnH,
+                 ShortToString(0x25B2), clrWhite, C'40,48,60', size);
+      MakeButton(g_panelPrefix + "btn_down", scrollX, botBtnY, btnW, btnH,
+                 ShortToString(0x25BC), clrWhite, C'40,48,60', size);
+
+      // Track background
+      const int trackY = topBtnY + btnH + 2;
+      const int trackH = botBtnY - trackY - 2;
+      MakeBox(g_panelPrefix + "sb_track", scrollX + 3, trackY, 14, trackH, C'24,28,36', C'40,48,60');
+
+      // Thumb position & height
+      int thumbH = (int)MathMax(14, (double)shown / totalRows * trackH);
+      int maxScrollTravel = trackH - thumbH;
+      int thumbY = trackY + (int)((double)g_scrollOffset / maxOffset * maxScrollTravel);
+      MakeBox(g_panelPrefix + "sb_thumb", scrollX + 4, thumbY, 12, thumbH, C'70,130,180', C'100,160,220');
+   }
+   else
+   {
+      // Remove scroll controls if all rows fit
+      ObjectDelete(0, g_panelPrefix + "btn_up");
+      ObjectDelete(0, g_panelPrefix + "btn_down");
+      ObjectDelete(0, g_panelPrefix + "sb_track");
+      ObjectDelete(0, g_panelPrefix + "sb_thumb");
+   }
+
+   int top = y + 2 * dy;
+   string footer = "";
+   if(totalRows > shown)
+   {
+      int startIdx = g_scrollOffset + 1;
+      int endIdx   = (int)MathMin(g_scrollOffset + shown, totalRows);
+      footer = StringFormat("Rows %d-%d of %d  [Click ▲/▼ or Use Mouse Wheel to Scroll]",
+                            startIdx, endIdx, totalRows);
+   }
+   else
+   {
+      footer = StringFormat("Showing all %d rows  [Full CSV in MQL5\\Files\\PortfolioEA\\]", totalRows);
+   }
+   MakeLabel(g_panelPrefix + "foot", x, top + shown * dy + (dy / 2), footer, clrSilver, size - 1);
    ChartRedraw(0);
 }
 
@@ -543,10 +1060,64 @@ void RemovePanel()
 }
 
 //+------------------------------------------------------------------+
+//| Chart event handler: handles button clicks & mouse wheel scroll   |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+{
+   int totalRows = (InpViewMode == VIEW_BY_SYMBOL) ? g_symCount : g_count;
+   int shown = (InpPanelRows > 0) ? (int)MathMin(InpPanelRows, totalRows) : totalRows;
+   int maxOffset = (totalRows > shown) ? (totalRows - shown) : 0;
+
+   // 1. Mouse wheel scrolling
+   if(id == CHARTEVENT_MOUSE_WHEEL)
+   {
+      if(maxOffset <= 0) return;
+      int delta = (int)dparam;
+      if(delta > 0)
+      {
+         // Scroll Up
+         g_scrollOffset = (int)MathMax(0, g_scrollOffset - 3);
+         DrawPanel();
+      }
+      else if(delta < 0)
+      {
+         // Scroll Down
+         g_scrollOffset = (int)MathMin(maxOffset, g_scrollOffset + 3);
+         DrawPanel();
+      }
+      return;
+   }
+
+   // 2. Button clicks (▲ / ▼)
+   if(id == CHARTEVENT_OBJECT_CLICK)
+   {
+      if(sparam == g_panelPrefix + "btn_up")
+      {
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+         if(g_scrollOffset > 0)
+         {
+            g_scrollOffset = (int)MathMax(0, g_scrollOffset - 5);
+            DrawPanel();
+         }
+      }
+      else if(sparam == g_panelPrefix + "btn_down")
+      {
+         ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+         if(g_scrollOffset < maxOffset)
+         {
+            g_scrollOffset = (int)MathMin(maxOffset, g_scrollOffset + 5);
+            DrawPanel();
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| lifecycle                                                         |
 //+------------------------------------------------------------------+
 int OnInit()
 {
+   g_scrollOffset = 0;
    g_base = (InpBaseBalance > 0.0) ? InpBaseBalance : AccountInfoDouble(ACCOUNT_BALANCE);
    LoadIdentity();
    EventSetTimer((int)MathMax(1, InpRefreshSec));

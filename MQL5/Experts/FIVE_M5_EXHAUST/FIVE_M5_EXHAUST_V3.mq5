@@ -1,4 +1,4 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|                                              FIVE_M5_EXHAUST.mq5 |
 //|  Reference implementation of the FROZEN config validated in       |
 //|  findings_phase2_speed.md (Part A: prop challenge, Part B:        |
@@ -53,7 +53,7 @@ input string InpExpectedAccountCurrency = "USD";
 input int    InpExpectedServerUtcOffsetHours = 3;   // informational; see OnInit offset check.
                                                     // TimeCurrent() is ALREADY server time, so
                                                     // this is never added to it.
-input long   InpMagic                   = 26091501;
+input long   InpMagic                   = 26091503;
 
 input group "=== Universe (TRAIN-selected 8; see README before changing) ==="
 input string InpSymbols = "EURGBP,AUDUSD,NZDUSD,USDCAD,USDCHF,EURJPY,GBPJPY,XAUUSD";

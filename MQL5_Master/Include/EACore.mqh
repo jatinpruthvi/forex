@@ -32,7 +32,9 @@
 //--- book; EA_ParseSymbols still logs (never silently drops) anything a
 //--- future universe lists beyond it, and the verifier fails if a
 //--- delivered universe is wider than this macro.
-#define EA_MAX_SYMBOLS        10
+#ifndef EA_MAX_SYMBOLS
+#define EA_MAX_SYMBOLS        32
+#endif
 #define EA_MAX_POSITIONS      64
 #define EA_MAX_PARTIALS       4
 
@@ -416,6 +418,92 @@ double EA_NormalizeVolume(const string sym, double vol)
    while(s < 1.0 && d < 8) { s *= 10.0; d++; }
    if(s >= 1.0) vol = MathRound(vol * MathPow(10, d - 1)) / MathPow(10, d - 1);
    return vol;
+}
+
+//+------------------------------------------------------------------+
+//| Auto-resolve broker symbol name (aliases, suffixes, prefixes)    |
+//+------------------------------------------------------------------+
+string EA_ResolveBrokerSymbol(const string s)
+{
+   if(StringLen(s) == 0) return "";
+
+   // 1. Exact match test
+   if(SymbolSelect(s, true)) return s;
+   if(SymbolInfoInteger(s, SYMBOL_SELECT)) return s;
+
+   // 2. Known aliases for indices, metals, crypto, fx
+   string list[];
+   if(s == "US100" || s == "NQ" || s == "USTEC" || s == "NDX" || s == "NAS100")
+   {
+      string a[] = {"NAS100", "US100", "USTEC", "NDX", "NAS100.cash", "US100.cash", "US100m", "NAS100m", "USTECm"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "US500" || s == "SPX500" || s == "SP500" || s == "SPX" || s == "ES")
+   {
+      string a[] = {"US500", "SPX500", "SP500", "US500.cash", "SPX500m", "US500m", "SPXm"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "US30" || s == "DJ30" || s == "WS30" || s == "YM")
+   {
+      string a[] = {"US30", "DJ30", "WS30", "US30.cash", "US30m", "DJ30m", "WS30m"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "GER40" || s == "DAX40" || s == "DE40" || s == "GER30" || s == "DAX30" || s == "DE30")
+   {
+      string a[] = {"GER40", "DAX40", "DE40", "GER30", "DAX30", "GER40.cash", "GER40m", "DAX40m"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "UK100" || s == "FTSE100")
+   {
+      string a[] = {"UK100", "FTSE100", "UK100.cash", "UK100m"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "XAUUSD" || s == "GOLD")
+   {
+      string a[] = {"XAUUSD", "GOLD", "XAUUSDm", "GOLDm", "XAUUSD.cash", "XAUUSD+", "XAUUSD.pro"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "XAGUSD" || s == "SILVER")
+   {
+      string a[] = {"XAGUSD", "SILVER", "XAGUSDm", "SILVERm", "XAGUSD.cash"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "BTCUSD")
+   {
+      string a[] = {"BTCUSD", "BTCUSDm", "BTC/USD", "BTCUSD.cash", "BTCUSD+", "BTCUSD.pro"};
+      ArrayCopy(list, a);
+   }
+   else if(s == "ETHUSD")
+   {
+      string a[] = {"ETHUSD", "ETHUSDm", "ETH/USD", "ETHUSD.cash", "ETHUSD+", "ETHUSD.pro"};
+      ArrayCopy(list, a);
+   }
+
+   for(int i = 0; i < ArraySize(list); i++)
+   {
+      if(SymbolSelect(list[i], true)) return list[i];
+   }
+
+   // 3. Common broker suffixes
+   string suffixes[] = {".pro", ".m", "m", ".cash", ".r", ".c", "+", "_SB", ".raw", ".ecn"};
+   for(int i = 0; i < ArraySize(suffixes); i++)
+   {
+      string test = s + suffixes[i];
+      if(SymbolSelect(test, true)) return test;
+   }
+
+   // 4. Scan broker's full symbol list in Market Watch / Symbols
+   int total = SymbolsTotal(false);
+   for(int i = 0; i < total; i++)
+   {
+      string bSym = SymbolName(i, false);
+      if(StringFind(bSym, s) >= 0)
+      {
+         if(SymbolSelect(bSym, true)) return bSym;
+      }
+   }
+
+   return "";
 }
 
 double EA_MinStopDistance(const string sym)

@@ -912,7 +912,7 @@ SYNC: dict[str, list[tuple[str, str]]] = {
         (r"if\(r\[j\]\.close <= hi\) continue;", "the inversion needs a displacement CLOSE through the gap, not a wick"),
         (r"if\(r\[c\]\.low <= hi \+ tol && r\[c\]\.close > hi\) return true;", '"breaks through the gap and then rejects it" - the retest holds the new side'),
         (r"input double InpInvertTolFrac\s*=\s*0\.10;", "[interpretation]: the video gives no rejection tolerance, so it is a fraction of the gap height"),
-        (r"if\(!FindFvg\(ctx\.symbol, zoneTf, -bias, scanBars, zoneLo, zoneHi, 0\)\) return false;", '"a counter-trend 15-minute gap forms on the retracement"'),
+        (r"if\(!FindFvg\(ctx\.symbol, zoneTf, -bias, scanBars, zoneLo, zoneHi, fvgBar\)\) return false;", '"a counter-trend 15-minute gap forms on the retracement"'),
         (r"if\(!ZoneInvertedOn\(ctx\.symbol, entryTf, bias, zoneLo, zoneHi, InpInvertTolFrac \* \(zoneHi - zoneLo\)\)\)", '"the 15m gap is inverted as the entry on the 5-minute"'),
         (r"if\(InpModel == CF_LI_SWING\) zoneTf = PERIOD_H1;", 'swing entries "come off the hourly or 4-hour, never the 15-minute or lower"'),
         (r"cfg\.useLimitEntry\s*=\s*false;", '"market execute ... rather than using limit orders"'),
@@ -2735,7 +2735,7 @@ SYNC: dict[str, list[tuple[str, str]]] = {
 
 class SyncTests(unittest.TestCase):
     def test_every_tracked_ea_has_a_sync_table(self) -> None:
-        on_disk = sorted(p.name for p in FAMILY.glob("*.mq5"))
+        on_disk = sorted(p.name for p in FAMILY.glob("EA_CF_*.mq5"))
         self.assertEqual(sorted(SYNC), on_disk,
                          "every EA needs a rule->code table; add one when an EA is added")
 

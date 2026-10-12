@@ -199,11 +199,12 @@ public:
 
       //--- (4)+(5) the lower-timeframe entry, per model
       double zoneLo = 0.0, zoneHi = 0.0;
+      int             fvgBar = 0;
       ENUM_TIMEFRAMES entryTf = (InpModel == CF_LI_DAY) ? PERIOD_M5 : PERIOD_H1;
       ENUM_TIMEFRAMES zoneTf  = PERIOD_M15;                       // the day model's retracement gap
       int             scanBars = (InpModel == CF_LI_DAY) ? InpM15ScanBars : InpH1ScanBars;
       if(InpModel == CF_LI_SWING) zoneTf = PERIOD_H1;             // "never the 15-minute or lower"
-      if(!FindFvg(ctx.symbol, zoneTf, -bias, scanBars, zoneLo, zoneHi, 0)) return false;
+      if(!FindFvg(ctx.symbol, zoneTf, -bias, scanBars, zoneLo, zoneHi, fvgBar)) return false;
       if(!ZoneInvertedOn(ctx.symbol, entryTf, bias, zoneLo, zoneHi, InpInvertTolFrac * (zoneHi - zoneLo)))
          return false;
 

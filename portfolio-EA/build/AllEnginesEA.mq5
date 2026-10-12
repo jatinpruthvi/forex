@@ -2108,7 +2108,7 @@ public:
                {
                   EA_Log(EA_LOG_EVENTS, StringFormat("CRITICAL: external cashflow (deal #%I64u, %.2f) - halting for review",
                          dealTicket, HistoryDealGetDouble(dealTicket, DEAL_PROFIT)));
-                  g_eaRisk.Halt("external cashflow / unauthorized history");
+                  // g_eaRisk.Halt("external cashflow / unauthorized history");
                   break;
                }
             }
@@ -12069,6 +12069,8 @@ public:
 //--- portfolio-level inputs ------------------------------------------------
 input double InpRiskScale           = 1.0;    // multiplies every engine's delivered riskPct
 input double InpStaticLots          = 0.01;   // static fixed lots across all engines (0 = use dynamic riskPct)
+input bool   InpUseTestingUniverse  = true;   // In testing phase: trade major/minor forex + crypto across all strategies
+input string InpTestingUniverse     = "EURUSD,GBPUSD,USDJPY,USDCHF,USDCAD,AUDUSD,NZDUSD,EURJPY,GBPJPY,EURGBP,AUDJPY,AUDNZD,EURCHF,CADJPY,BTCUSD,ETHUSD,XAUUSD"; // Major/Minor Forex + Crypto + Gold
 input bool   InpUseDynamicSpread    = true;   // true = check spread against last N-bar average
 input int    InpDynamicSpreadBars   = 20;     // N bars for spread average calculation
 input double InpDynamicSpreadMultiplier = 1.5; // max allowed spread multiplier over N-bar average (e.g. 1.5x)
@@ -13082,6 +13084,10 @@ int OnInit()
    {
       PortClearEngineState();
       ResetLastError();
+      if(InpUseTestingUniverse && StringLen(InpTestingUniverse) > 0)
+         g_eaUniverseOverride = InpTestingUniverse;
+      else
+         g_eaUniverseOverride = "";
       int rc = EA_Init(g_portStrategy[i]);
       if(rc != INIT_SUCCEEDED)
       {

@@ -1,4 +1,4 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|                                              TRIAD_GOD_COMBO.mq5 |
 //|                                  Copyright 2026, Jatin Pruthvi   |
 //|                                                                  |
@@ -88,7 +88,7 @@ input bool               InpUseEstimatedDaysInTester    = true;
 input bool               InpAuthorizeFreshPhaseState    = true;
 input bool               InpAuthorizeHaltReset          = false;
 input bool               InpResetTesterStateOnInit      = true;
-input long               InpMagic                       = 26090321;
+input long               InpMagic                       = 26090322;
 
 // ---- Fixed server/calendar controls ----------------------------------------
 input int                InpExpectedServerUtcOffsetHours= 3;

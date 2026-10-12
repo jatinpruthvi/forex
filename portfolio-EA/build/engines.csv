@@ -64,3 +64,63 @@ magic,tag,ea,strategy,symbols,timeframe,risk_pct,switch,order_policy,source_doc
 2044,P2044|,EA_studyarena_round12_contestant_c,R12C_SR10_SURVIVAL,EURUSD;GBPUSD;USDJPY;XAUUSD,M1,0.50,InpRun_2044,one per symbol, cap = symbol count,docs/research/study_arena/studyarena-round12-contestant-c.md
 2045,P2045|,EA_studyarena_round12_contestant_f,R12F_SOS_SWEEP_VET,AUDNZD;EURGBP;EURUSD;GBPUSD;XAUUSD;USDJPY,M5,0.60,InpRun_2045,one per symbol, cap = symbol count,docs/research/study_arena/studyarena-round12-contestant-f.md
 2046,P2046|,EA_studyarena_round12_qwen3_8_2_4t_a95b_high_reasoning,R12QWEN_SWEEP1_DEFINITIVE,AUDNZD;EURGBP;EURUSD;GBPUSD;XAUUSD;USDJPY;GBPJPY,M5,0.60,InpRun_2046,one per symbol, cap = symbol count,docs/research/study_arena/studyarena-round12-qwen3-8-2-4t-a95b-high-reasoning.md
+26091501,P26091501|,FIVE_M5_V1,FIVE_M5_PURE_EXHAUST,EURGBP;AUDUSD;NZDUSD;USDCAD;USDCHF;EURJPY;GBPJPY;XAUUSD,M5,0.5,,one per symbol,MQL5/Experts/FIVE_M5_EXHAUST/FIVE_M5_EXHAUST_V1.mq5
+26091502,P26091502|,FIVE_M5_V2,FIVE_M5_VOL_CAP,EURGBP;AUDUSD;NZDUSD;USDCAD;USDCHF;EURJPY;GBPJPY;XAUUSD,M5,0.5,,one per symbol,MQL5/Experts/FIVE_M5_EXHAUST/FIVE_M5_EXHAUST_V2.mq5
+26091503,P26091503|,FIVE_M5_V3,FIVE_M5_1SLOT_RUNNER,EURGBP;AUDUSD;NZDUSD;USDCAD;USDCHF;EURJPY;GBPJPY;XAUUSD,M5,0.5,,one per symbol,MQL5/Experts/FIVE_M5_EXHAUST/FIVE_M5_EXHAUST_V3.mq5
+26091504,P26091504|,FIVE_M5_V4,FIVE_M5_INSTITUTIONAL,EURGBP;AUDUSD;NZDUSD;USDCAD;USDCHF;EURJPY;GBPJPY;XAUUSD,M5,0.5,,one per symbol,MQL5/Experts/FIVE_M5_EXHAUST/FIVE_M5_EXHAUST_V4.mq5
+55551,P55551|,GOLD_SWING_V1,GOLD_SWING_BASE,XAUUSD,D1,1.0,,one per symbol,MQL5/Experts/GOLD_SWING/GOLD_SWING_V1.mq5
+55552,P55552|,GOLD_SWING_V2,GOLD_SWING_SQUEEZE,XAUUSD,D1,1.0,,one per symbol,MQL5/Experts/GOLD_SWING/GOLD_SWING_V2.mq5
+55553,P55553|,GOLD_SWING_V3,GOLD_SWING_1SLOT,XAUUSD,D1,1.0,,one per symbol,MQL5/Experts/GOLD_SWING/GOLD_SWING_V3.mq5
+55554,P55554|,GOLD_SWING_V4,GOLD_SWING_QUANT,XAUUSD,D1,1.0,,one per symbol,MQL5/Experts/GOLD_SWING/GOLD_SWING_V4.mq5
+26090321,P26090321|,TRIAD_GOD_V1,TRIAD_GOD_BASE,EURUSD;GBPUSD;USDJPY;AUDUSD;XAUUSD;EURGBP;AUDNZD,M5,0.5,,one per symbol,MQL5/Experts/TRIAD_GOD_COMBO/TRIAD_GOD_COMBO_V1.mq5
+26090322,P26090322|,TRIAD_GOD_V2,TRIAD_GOD_VWAP,EURUSD;GBPUSD;USDJPY;AUDUSD;XAUUSD;EURGBP;AUDNZD,M5,0.5,,one per symbol,MQL5/Experts/TRIAD_GOD_COMBO/TRIAD_GOD_COMBO_V2.mq5
+26090323,P26090323|,TRIAD_GOD_V3,TRIAD_GOD_1SLOT,EURUSD;GBPUSD;USDJPY;AUDUSD;XAUUSD;EURGBP;AUDNZD,M5,0.5,,one per symbol,MQL5/Experts/TRIAD_GOD_COMBO/TRIAD_GOD_COMBO_V3.mq5
+26090324,P26090324|,TRIAD_GOD_V4,TRIAD_GOD_QUANT,EURUSD;GBPUSD;USDJPY;AUDUSD;XAUUSD;EURGBP;AUDNZD,M5,0.5,,one per symbol,MQL5/Experts/TRIAD_GOD_COMBO/TRIAD_GOD_COMBO_V4.mq5
+777112,P777112|,MASTER_TRIAD_V1,MASTER_TRIAD_LIVE_NEWS,EURUSD;GBPUSD,M5,0.5,,one per symbol,MQL5_Master/Experts/Master_Triad_V1.mq5
+3201,P3201|,CF_AMD_Model,AMD Model,US100;US500;GER40,M5,0.5,InpRun_3201,one per symbol,Cap=symbol count,chartfanatics
+3202,P3202|,CF_Structure_OTE,Structure + OTE,US100;US500;GER40,M15,0.5,InpRun_3202,one per symbol,Cap=symbol count,chartfanatics
+3203,P3203|,CF_SMT_PO3,SMT Divergence + PO3,US100,M5,0.5,InpRun_3203,one per symbol,Cap=symbol count,chartfanatics
+3204,P3204|,CF_PO3_OTE_ADR,PO3 OTE + ADR,XAUUSD;US100;US500;EURUSD,M15,0.5,InpRun_3204,one per symbol,Cap=symbol count,chartfanatics
+3205,P3205|,CF_Break_Retest,Break & Retest,US100;US500;GER40,M5,0.5,InpRun_3205,one per symbol,Cap=symbol count,chartfanatics
+3206,P3206|,CF_Intraday_Liquidity,Intraday Liquidity,US100;US500;GER40;XAUUSD,M5,0.5,InpRun_3206,one per symbol,Cap=symbol count,chartfanatics
+3207,P3207|,CF_5Stage_Trading,5 Stage Framework,EURUSD;GBPUSD,H1,0.5,InpRun_3207,one per symbol,Cap=symbol count,chartfanatics
+3208,P3208|,CF_8020_Nasdaq,80/20 Nasdaq,US100,M3,0.5,InpRun_3208,one per symbol,Cap=symbol count,chartfanatics
+3209,P3209|,CF_Algorithmic,Algorithmic Strategy,EURUSD;GBPUSD,M15,0.5,InpRun_3209,one per symbol,Cap=symbol count,chartfanatics
+3210,P3210|,CF_Auction_Market,Auction Market,US100;US500;GER40,M5,0.5,InpRun_3210,one per symbol,Cap=symbol count,chartfanatics
+3211,P3211|,CF_Auction_Market_Theory,Auction Market Theory,US100;US500;GER40,M5,0.5,InpRun_3211,one per symbol,Cap=symbol count,chartfanatics
+3212,P3212|,CF_Episodic_Pivot,Episodic Pivot,US100;US500;GER40,M5,0.5,InpRun_3212,one per symbol,Cap=symbol count,chartfanatics
+3213,P3213|,CF_Fair_Pricing_Theory,Fair Pricing Theory,US100,M1,0.5,InpRun_3213,one per symbol,Cap=symbol count,chartfanatics
+3214,P3214|,CF_First_Red_Day,First Red Day,US100;US500,M5,0.5,InpRun_3214,one per symbol,Cap=symbol count,chartfanatics
+3215,P3215|,CF_First_Red_Day_Strat,First Red Day Strategy,US100;US500,M5,0.5,InpRun_3215,one per symbol,Cap=symbol count,chartfanatics
+3216,P3216|,CF_Psychology_Masterclass,Psychology Masterclass,EURUSD;GBPUSD;XAUUSD,M15,0.5,InpRun_3216,one per symbol,Cap=symbol count,chartfanatics
+3217,P3217|,CF_Futures_Trading,Futures Trading,US100;US500;US30,M30,0.5,InpRun_3217,one per symbol,Cap=symbol count,chartfanatics
+3218,P3218|,CF_Inst_Options_Gamma,Options Flow & Gamma,US100;US500,M1,0.5,InpRun_3218,one per symbol,Cap=symbol count,chartfanatics
+3219,P3219|,CF_Inst_Dev_Framework,Inst Dev Framework,EURUSD;GBPUSD,M1,0.5,InpRun_3219,one per symbol,Cap=symbol count,chartfanatics
+3220,P3220|,CF_Liquidity_Inversion,Liquidity Inversion,EURUSD;GBPUSD;XAUUSD,M5,0.5,InpRun_3220,one per symbol,Cap=symbol count,chartfanatics
+3221,P3221|,CF_Liquidity_Strategy,Liquidity Strategy,EURUSD;GBPUSD;XAUUSD,M5,0.5,InpRun_3221,one per symbol,Cap=symbol count,chartfanatics
+3222,P3222|,CF_Low_Volume_Node,Low Volume Node,US100;US500;GER40,M5,0.5,InpRun_3222,one per symbol,Cap=symbol count,chartfanatics
+3223,P3223|,CF_Market_Auction_Theory,Market Auction Theory,US100;US500;GER40,M5,0.5,InpRun_3223,one per symbol,Cap=symbol count,chartfanatics
+3224,P3224|,CF_Market_DNA,Market DNA,EURUSD;GBPUSD;USDJPY,M5,0.5,InpRun_3224,one per symbol,Cap=symbol count,chartfanatics
+3225,P3225|,CF_Mean_Reversion,Mean Reversion,AAPL;MSFT;NVDA,M5,0.5,InpRun_3225,one per symbol,Cap=symbol count,chartfanatics
+3226,P3226|,CF_Measured_Move_Trend,Measured Move Trend,EURUSD;GBPUSD;XAUUSD,H4,0.5,InpRun_3226,one per symbol,Cap=symbol count,chartfanatics
+3227,P3227|,CF_Momentum_Model,Momentum Model,EURUSD;GBPUSD,M15,0.5,InpRun_3227,one per symbol,Cap=symbol count,chartfanatics
+3228,P3228|,CF_Nasdaq_ICT_OrderFlow,Nasdaq ICT Order Flow,US100,M1,0.5,InpRun_3228,one per symbol,Cap=symbol count,chartfanatics
+3229,P3229|,CF_NQ_Sweep_Reversal,NQ Sweep Reversal,US100,M1,0.5,InpRun_3229,one per symbol,Cap=symbol count,chartfanatics
+3230,P3230|,CF_Options_Trading,Options Trading,US100;US500,M15,0.5,InpRun_3230,one per symbol,Cap=symbol count,chartfanatics
+3231,P3231|,CF_Order_Flow,Order Flow Strategy,US100;US500,M2,0.5,InpRun_3231,one per symbol,Cap=symbol count,chartfanatics
+3232,P3232|,CF_OrderFlow_Masterclass,Order Flow Masterclass,US100;US500;GER40,M5,0.5,InpRun_3232,one per symbol,Cap=symbol count,chartfanatics
+3233,P3233|,CF_Parabolic_Short,Parabolic Short,AAPL;MSFT;NVDA,M5,0.5,InpRun_3233,one per symbol,Cap=symbol count,chartfanatics
+3234,P3234|,CF_Price_Action,Price Action Strategy,EURUSD;GBPUSD;XAUUSD,M5,0.5,InpRun_3234,one per symbol,Cap=symbol count,chartfanatics
+3235,P3235|,CF_Price_Cycle_Cont,Price Cycle Continuation,AAPL;MSFT;NVDA,M5,0.5,InpRun_3235,one per symbol,Cap=symbol count,chartfanatics
+3236,P3236|,CF_Real_Simple,Real Simple Strategy,AAPL;MSFT;NVDA,M5,0.5,InpRun_3236,one per symbol,Cap=symbol count,chartfanatics
+3237,P3237|,CF_Shorting_Strategy,Shorting Strategy,AAPL;MSFT;NVDA,M5,0.5,InpRun_3237,one per symbol,Cap=symbol count,chartfanatics
+3238,P3238|,CF_SmallCap_Short_Stats,SmallCap Short Stats,AAPL;MSFT;NVDA,M5,0.5,InpRun_3238,one per symbol,Cap=symbol count,chartfanatics
+3239,P3239|,CF_Stage_Analysis,Stage Analysis Strategy,AAPL;MSFT;NVDA,D1,0.5,InpRun_3239,one per symbol,Cap=symbol count,chartfanatics
+3240,P3240|,CF_Support_Resistance,Support & Resistance,EURUSD;GBPUSD;USDJPY,D1,0.5,InpRun_3240,one per symbol,Cap=symbol count,chartfanatics
+3241,P3241|,CF_Vix_Futures,VIX Futures Strategy,US500;US100,M15,0.5,InpRun_3241,one per symbol,Cap=symbol count,chartfanatics
+3242,P3242|,CF_First_Principles,Trading First Principles,EURUSD;GBPUSD,D1,0.5,InpRun_3242,one per symbol,Cap=symbol count,chartfanatics
+3243,P3243|,CF_Trendline_Break_Pocket,Trendline Break Pocket,EURUSD;GBPUSD;XAUUSD,D1,0.5,InpRun_3243,one per symbol,Cap=symbol count,chartfanatics
+3244,P3244|,CF_Trendline_Strategy,Trendline Strategy,EURUSD;GBPUSD;XAUUSD,H4,0.5,InpRun_3244,one per symbol,Cap=symbol count,chartfanatics
+3245,P3245|,CF_Unique_High_RR,Unique High RR,EURUSD;GBPUSD;XAUUSD,M30,0.5,InpRun_3245,one per symbol,Cap=symbol count,chartfanatics
+3246,P3246|,CF_Universal_Strategy,Universal Strategy,EURUSD;GBPUSD;XAUUSD,H4,0.5,InpRun_3246,one per symbol,Cap=symbol count,chartfanatics
+3247,P3247|,CF_Volume_Profile,Volume Profile Strategy,EURUSD;GBPUSD;XAUUSD,H1,0.5,InpRun_3247,one per symbol,Cap=symbol count,chartfanatics

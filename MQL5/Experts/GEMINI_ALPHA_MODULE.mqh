@@ -1,4 +1,4 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|                                          GEMINI_ALPHA_MODULE.mqh |
 //|                     Antigravity Advanced Core Strategy Filters   |
 //|  Version 1.0 (V2 Alpha Phase)                                    |
@@ -32,7 +32,7 @@ bool GeminiAlpha_VolumeCapitulation(string symbol)
    
    long ticks[];
    ArrayResize(ticks, AInpVolAvgPeriod + 1);
-   if(CopyTickVolume(symbol, PERIOD_CURRENT, 1, AInpVolAvgPeriod + 1, ticks) < AInpVolAvgPeriod + 1)
+   if(CopyTickVolume(symbol, PERIOD_M5, 1, AInpVolAvgPeriod + 1, ticks) < AInpVolAvgPeriod + 1)
       return true; // fail open
       
    double avg = 0;
@@ -58,8 +58,8 @@ bool GeminiAlpha_VolatilitySqueeze(string symbol)
   {
    if(!AInpEnableVolSqueeze) return true;
    
-   int fast_h = iATR(symbol, PERIOD_CURRENT, AInpSqueezeFastATR);
-   int slow_h = iATR(symbol, PERIOD_CURRENT, AInpSqueezeSlowATR);
+   int fast_h = iATR(symbol, PERIOD_D1, AInpSqueezeFastATR);
+   int slow_h = iATR(symbol, PERIOD_D1, AInpSqueezeSlowATR);
    if(fast_h == INVALID_HANDLE || slow_h == INVALID_HANDLE) return true;
    
    double f[1], s[1];

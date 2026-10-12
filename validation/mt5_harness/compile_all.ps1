@@ -101,7 +101,7 @@ $failed = @()
 foreach ($t in $targets) {
     $log = [System.IO.Path]::ChangeExtension($t.FullName, ".log")
     if (Test-Path $log) { Remove-Item $log -Force }
-    & $MetaEditor /compile:"$($t.FullName)" /log 2>$null | Out-Null
+    Start-Process -FilePath $MetaEditor -ArgumentList "/compile:`"$($t.FullName)`" /log" -Wait -NoNewWindow
 
     $errors = 0; $warnings = 0
     if (Test-Path $log) {

@@ -458,7 +458,7 @@ def main() -> int:
     # copied into a per-engine snapshot, and per-engine state must not be shared)
     snap = save.group(1) + load.group(1)
     shared_ok = {"g_eaExec", "g_eaRisk", "g_eaHaltHandledMagic", "g_eaInitialised",
-                 "g_eaLastLogKey", "g_eaLastLogTime",
+                 "g_eaLastLogKey", "g_eaLastLogTime", "g_eaUniverseOverride",
                  "g_eaStatSym", "g_eaStatUsed", "g_eaSpPts", "g_eaSpTime", "g_eaSpSlot",
                  "g_eaSpSlotDays", "g_eaSpHead", "g_eaSpCount", "g_eaSlipR", "g_eaSlipHead",
                  "g_eaSlipCount", "g_eaOutR", "g_eaOutHead", "g_eaOutCount"}

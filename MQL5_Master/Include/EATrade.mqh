@@ -758,10 +758,11 @@ public:
          Halt(StringFormat("equity floor breached (%.2f%% from start balance)", DdFromStart()));
          return 0.0;
       }
-      //--- daily loss halt
+      //--- daily loss halt (per-engine P/L so foreign trades do not cause false halts)
       if(g_eaCfg.dailyLossPct > 0.0 && m_dayStartEquity > 0.0)
       {
-         double dayPct = (eq - m_dayStartEquity) / m_dayStartEquity * 100.0;
+         double enginePl = DayPl();
+         double dayPct = (enginePl / m_dayStartEquity) * 100.0;
          if(dayPct <= -MathAbs(g_eaCfg.dailyLossPct))
          {
             Halt(StringFormat("daily loss limit hit (%.2f%%) - trading resumes next clock day", dayPct));
@@ -915,6 +916,66 @@ public:
 CEARiskGovernor g_eaRisk;
 
 //+------------------------------------------------------------------+
+//| Price rounding helper with digit normalisation                   |
+//+------------------------------------------------------------------+
+double eaRoundSafe(const string sym, const double price)
+{
+   double tick = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+   if(tick <= 0.0) tick = EA_Point(sym);
+   int digits  = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   if(tick <= 0.0) return NormalizeDouble(price, digits);
+   return NormalizeDouble(MathRound(price / tick) * tick, digits);
+}
+
+//+------------------------------------------------------------------+
+//| Normalise and validate stops to strictly obey broker limits      |
+//+------------------------------------------------------------------+
+void EA_NormalizeStops(const string sym, const bool isBuy, double &sl, double &tp)
+{
+   int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
+   double point = EA_Point(sym);
+   if(point <= 0.0) point = 0.00001;
+   long stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
+   long frzLevel  = SymbolInfoInteger(sym, SYMBOL_TRADE_FREEZE_LEVEL);
+   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+   if(ask <= 0.0 || bid <= 0.0) return;
+   double spread = ask - bid;
+   if(spread < 0.0) spread = 0.0;
+
+   // Minimum distance: broker stop level + freeze level + spread + 3 points buffer
+   double reqDist = (double)MathMax(stopLevel, frzLevel) * point;
+   double minGap  = MathMax(reqDist, spread) + 3.0 * point;
+
+   if(isBuy)
+   {
+      if(sl > 0.0)
+      {
+         if(sl > bid - minGap) sl = bid - minGap;
+         sl = NormalizeDouble(eaRoundSafe(sym, sl), digits);
+      }
+      if(tp > 0.0)
+      {
+         if(tp < bid + minGap) tp = bid + minGap;
+         tp = NormalizeDouble(eaRoundSafe(sym, tp), digits);
+      }
+   }
+   else // SELL
+   {
+      if(sl > 0.0)
+      {
+         if(sl < ask + minGap) sl = ask + minGap;
+         sl = NormalizeDouble(eaRoundSafe(sym, sl), digits);
+      }
+      if(tp > 0.0)
+      {
+         if(tp > ask - minGap) tp = ask - minGap;
+         tp = NormalizeDouble(eaRoundSafe(sym, tp), digits);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Execution manager                                                |
 //+------------------------------------------------------------------+
 class CEAExecutor
@@ -934,10 +995,14 @@ private:
                       const double sl, const double tp, const string comment)
    {
       if(!SetSymbolFillMode(sym)) return false;
+      double finalSl = sl;
+      double finalTp = tp;
+      EA_NormalizeStops(sym, isBuy, finalSl, finalTp);
+
       for(int attempt = 0; attempt < m_retries; attempt++)
       {
-         bool ok = isBuy ? m_trade.Buy(lots, sym, 0.0, sl, tp, comment)
-                         : m_trade.Sell(lots, sym, 0.0, sl, tp, comment);
+         bool ok = isBuy ? m_trade.Buy(lots, sym, 0.0, finalSl, finalTp, comment)
+                         : m_trade.Sell(lots, sym, 0.0, finalSl, finalTp, comment);
          uint rc = m_trade.ResultRetcode();
          if(ok && (rc == TRADE_RETCODE_DONE || rc == TRADE_RETCODE_DONE_PARTIAL ||
                    rc == TRADE_RETCODE_PLACED))
@@ -973,13 +1038,6 @@ public:
       double maxV = SymbolInfoDouble(sym, SYMBOL_VOLUME_MAX);
       if(lots < minV - 1e-9 || lots > maxV + 1e-9) return false;
 
-      double point = EA_Point(sym);
-      long   stops = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
-      if(stops > 0)
-      {
-         if(sl > 0.0 && MathAbs(price - sl) < stops * point) return false;
-         if(tp > 0.0 && MathAbs(price - tp) < stops * point) return false;
-      }
       if(g_eaCfg.marginCheck)
       {
          double need = 0.0;
@@ -1004,10 +1062,13 @@ public:
          EA_Log(EA_LOG_EVENTS, StringFormat("%s send validation failed (lots=%.2f)", sym, lots), true);
          return false;
       }
-      if(SendWithRetry(dir > 0, lots, sym, sl, tp, comment))
+      double sendSl = sl;
+      double sendTp = tp;
+      EA_NormalizeStops(sym, dir > 0, sendSl, sendTp);
+      if(SendWithRetry(dir > 0, lots, sym, sendSl, sendTp, comment))
       {
          g_eaRisk.NoteTrade();
-         EA_Ledger("OPEN_MARKET", sym, px, sl, tp, lots, comment);
+         EA_Ledger("OPEN_MARKET", sym, px, sendSl, sendTp, lots, comment);
          return true;
       }
       return false;
@@ -1028,15 +1089,18 @@ public:
       // MQL5 pending orders must use RETURN filling, regardless of the symbol's
       // market-deal policy; the market/close paths select the actual symbol mode.
       m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
+      double limitSl = sl;
+      double limitTp = tp;
+      EA_NormalizeStops(sym, dir > 0, limitSl, limitTp);
       for(int attempt = 0; attempt < m_retries; attempt++)
       {
-         bool ok = (dir > 0) ? m_trade.BuyLimit(lots, price, sym, sl, tp, ttime, expiry, comment)
-                             : m_trade.SellLimit(lots, price, sym, sl, tp, ttime, expiry, comment);
+         bool ok = (dir > 0) ? m_trade.BuyLimit(lots, price, sym, limitSl, limitTp, ttime, expiry, comment)
+                             : m_trade.SellLimit(lots, price, sym, limitSl, limitTp, ttime, expiry, comment);
          uint rc = m_trade.ResultRetcode();
          if(ok && (rc == TRADE_RETCODE_DONE || rc == TRADE_RETCODE_PLACED)) 
          {
             g_eaRisk.NoteTrade();
-            EA_Ledger("OPEN_LIMIT", sym, price, sl, tp, lots, comment);
+            EA_Ledger("OPEN_LIMIT", sym, price, limitSl, limitTp, lots, comment);
             return true;
          }
          if(rc != TRADE_RETCODE_REQUOTE && rc != TRADE_RETCODE_PRICE_CHANGED &&
@@ -1050,15 +1114,55 @@ public:
 
    bool Modify(const ulong ticket, const double sl, const double tp)
    {
-      if(!PositionSelectByTicket(ticket)) return false;
+      if(!PositionSelectByTicket(ticket))
+      {
+         int idx = EA_TrackIndex(ticket);
+         if(idx >= 0)
+         {
+            EA_RecordCloseOutcome(ticket, g_eaTrack[idx].symbol, g_eaTrack[idx].riskDist);
+            EA_TrackRemoveAt(idx);
+         }
+         return false;
+      }
+      string sym   = PositionGetString(POSITION_SYMBOL);
       double curSl = PositionGetDouble(POSITION_SL);
       double curTp = PositionGetDouble(POSITION_TP);
-      double point = EA_Point(PositionGetString(POSITION_SYMBOL));
+      long   posType = PositionGetInteger(POSITION_TYPE);
+      bool   isBuy = (posType == POSITION_TYPE_BUY);
+
+      double targetSl = sl;
+      double targetTp = tp;
+      EA_NormalizeStops(sym, isBuy, targetSl, targetTp);
+
+      double point = EA_Point(sym);
       //--- never send a no-op modify (retcode 10025)
-      if(MathAbs(curSl - sl) < point * 0.5 && MathAbs(curTp - tp) < point * 0.5) return true;
-      if(!m_trade.PositionModify(ticket, sl, tp))
+      if(MathAbs(curSl - targetSl) < point * 0.5 && MathAbs(curTp - targetTp) < point * 0.5) return true;
+
+      if(!PositionSelectByTicket(ticket))
       {
-         EA_Log(EA_LOG_EVENTS, StringFormat("modify failed ticket=%I64u retcode=%u", ticket, m_trade.ResultRetcode()), true);
+         int idx = EA_TrackIndex(ticket);
+         if(idx >= 0)
+         {
+            EA_RecordCloseOutcome(ticket, g_eaTrack[idx].symbol, g_eaTrack[idx].riskDist);
+            EA_TrackRemoveAt(idx);
+         }
+         return false;
+      }
+
+      if(!m_trade.PositionModify(ticket, targetSl, targetTp))
+      {
+         uint rc = m_trade.ResultRetcode();
+         if(rc == TRADE_RETCODE_POSITION_CLOSED || rc == 10036)
+         {
+            int idx = EA_TrackIndex(ticket);
+            if(idx >= 0)
+            {
+               EA_RecordCloseOutcome(ticket, g_eaTrack[idx].symbol, g_eaTrack[idx].riskDist);
+               EA_TrackRemoveAt(idx);
+            }
+            return false;
+         }
+         EA_Log(EA_LOG_EVENTS, StringFormat("modify failed ticket=%I64u retcode=%u (%s)", ticket, rc, m_trade.ResultRetcodeDescription()), true);
          return false;
       }
       return true;
@@ -1252,14 +1356,6 @@ double EA_GroupRiskPct(const string groupCsv)
 //+------------------------------------------------------------------+
 //| Engine-level exit management (BE / partials / trail / time stop)  |
 //+------------------------------------------------------------------+
-//--- price rounding helper (kept separate so it can be reused by strategies)
-double eaRoundSafe(const string sym, const double price)
-{
-   double tick = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
-   if(tick <= 0.0) tick = EA_Point(sym);
-   if(tick <= 0.0) return price;
-   return MathRound(price / tick) * tick;
-}
 
 
 //--- pending-order hygiene: cancel a resting entry when price has already
@@ -1373,7 +1469,8 @@ void EA_ManagePositions(const SEAContext &ctx)
          double trailDist = g_eaCfg.trailDistanceR * risk;
          double newSl = (dir > 0) ? cur - trailDist : cur + trailDist;
          newSl = eaRoundSafe(sym, newSl);
-         if((dir > 0 && newSl > sl + point) || (dir < 0 && (sl <= 0.0 || newSl < sl - point)))
+         double step = MathMax(point * 10.0, EA_MinStopDistance(sym) * 0.5);
+         if((dir > 0 && newSl > sl + step) || (dir < 0 && (sl <= 0.0 || newSl < sl - step)))
             g_eaExec.Modify(t, newSl, tp);
       }
    }

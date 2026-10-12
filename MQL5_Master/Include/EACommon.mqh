@@ -62,6 +62,7 @@ string        g_eaSymbols[EA_MAX_SYMBOLS];
 int           g_eaSymbolCount = 0;
 datetime      g_eaLastSignalBar = 0;
 bool          g_eaInitialised = false;
+string        g_eaUniverseOverride = "";
 
 //+------------------------------------------------------------------+
 //| Symbol list parsing                                             |
@@ -77,16 +78,15 @@ int EA_ParseSymbols(const string csv)
       StringTrimLeft(s);
       StringTrimRight(s);
       if(StringLen(s) == 0) continue;
-      if(!SymbolSelect(s, true))
+      string brokerName = EA_ResolveBrokerSymbol(s);
+      if(StringLen(brokerName) == 0)
       {
          EA_Log(EA_LOG_ERRORS, StringFormat("symbol '%s' not available at this broker", s));
          continue;
       }
-      //--- normalise to the broker's exact name (suffix handling)
-      string brokerName = s;
       if(SymbolInfoDouble(brokerName, SYMBOL_BID) <= 0.0)
       {
-         EA_Log(EA_LOG_ERRORS, StringFormat("symbol '%s' has no quotes - skipped", s));
+         EA_Log(EA_LOG_ERRORS, StringFormat("symbol '%s' (%s) has no quotes - skipped", s, brokerName));
          continue;
       }
       g_eaSymbols[used++] = brokerName;
@@ -209,6 +209,9 @@ int EA_Init(CEAStrategy *strategy)
    cfg.Reset();
    g_eaStrategy.Configure(cfg);
    g_eaCfg = cfg;
+
+   if(StringLen(g_eaUniverseOverride) > 0)
+      g_eaCfg.symbols = g_eaUniverseOverride;
 
    if(g_eaCfg.magic == 0)
    {

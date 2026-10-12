@@ -1,4 +1,4 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|                                           GEMINI_V4_QUANT.mqh    |
 //|                 Antigravity Institutional V4 Quant Module        |
 //+------------------------------------------------------------------+
@@ -106,9 +106,11 @@ bool GeminiV4_MacroGuard(string symbol, ENUM_ORDER_TYPE type)
    if(CopyClose(QInpDxySymbol, PERIOD_D1, 0, 1, close) < 1) return true;
    
    int ema_h = iMA(QInpDxySymbol, PERIOD_D1, QInpMacroEmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   if(ema_h == INVALID_HANDLE) return true;
    double ema[1];
-   if(ema_h == INVALID_HANDLE || CopyBuffer(ema_h, 0, 0, 1, ema) < 1) return true;
+   bool ok = (CopyBuffer(ema_h, 0, 0, 1, ema) >= 1);
    IndicatorRelease(ema_h);
+   if(!ok) return true;
    
    bool dollar_bullish = (close[0] > ema[0]);
    bool dollar_bearish = (close[0] < ema[0]);

@@ -48,7 +48,7 @@ input double GInpKellyBaseWinRate       = 0.55;
 input double GInpKellyBaseRR            = 1.50;
 
 input group "=== GEMINI ROI: 9. Time-Based Exits ==="
-input bool   GInpEnableTimeStops        = true;
+input bool   GInpEnableTimeStops        = false;  // Off by default to respect strategy native holding periods
 input int    GInpTimeStopBars           = 12;
 
 //===================================================================
@@ -75,7 +75,7 @@ input int    GInpNewsPreposMins         = 15;     //   Minutes before news to en
 input string GInpNewsPreposCsv         = "triad_red_news.csv"; // News CSV file
 
 input group "=== GEMINI ROI: 14. H1 Structure Exit ==="
-input bool   GInpEnableH1StructureExit  = true;   // Exit when H1 closes against trade
+input bool   GInpEnableH1StructureExit  = false;  // Off by default to prevent premature cuts of valid trends
 input int    GInpH1ExitLookback         = 2;      //   Bars to confirm H1 close
 
 input group "=== GEMINI ROI: 15. Dynamic TP (Daily ATR) ==="
@@ -163,7 +163,8 @@ void GeminiRunTrailingStops(ulong magic)
       if(!PositionSelectByTicket(ticket)) continue;
       if(PositionGetInteger(POSITION_MAGIC) != (long)magic) continue;
       string sym = PositionGetString(POSITION_SYMBOL);
-      int atr_h = iATR(sym, PERIOD_CURRENT, GInpTrailAtrPeriod);
+      ENUM_TIMEFRAMES tf = (magic >= 55551 && magic <= 55554) ? PERIOD_D1 : PERIOD_M5;
+      int atr_h = iATR(sym, tf, GInpTrailAtrPeriod);
       if(atr_h == INVALID_HANDLE) continue;
       double atr_buf[1];
       if(CopyBuffer(atr_h, 0, 1, 1, atr_buf) < 1) { IndicatorRelease(atr_h); continue; }
@@ -179,16 +180,23 @@ void GeminiRunTrailingStops(ulong magic)
       double trail = GInpTrailAtrMultiplier * atr;
       MqlTradeRequest req={}; MqlTradeResult res={};
       req.action=TRADE_ACTION_SLTP; req.position=ticket; req.symbol=sym; req.tp=tp;
+      long stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
+      double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double minGap = MathMax((double)stopLevel * point, ask - bid) + 3.0 * point;
+      double step = MathMax(point * 10.0, minGap * 0.5);
+
       if(pos_type == POSITION_TYPE_BUY)
         {
          double new_sl = NormalizeDouble(bid - trail, digits);
-         if(new_sl > sl + SymbolInfoDouble(sym,SYMBOL_POINT) && new_sl > entry)
+         if(new_sl > bid - minGap) new_sl = NormalizeDouble(bid - minGap, digits);
+         if(new_sl > sl + step && new_sl > entry)
            { req.sl=new_sl; bool _r=OrderSend(req,res); }
         }
       else
         {
          double new_sl = NormalizeDouble(ask + trail, digits);
-         if((sl==0||new_sl<sl-SymbolInfoDouble(sym,SYMBOL_POINT)) && new_sl<entry)
+         if(new_sl < ask + minGap) new_sl = NormalizeDouble(ask + minGap, digits);
+         if((sl==0||new_sl<sl-step) && new_sl<entry)
            { req.sl=new_sl; bool _r=OrderSend(req,res); }
         }
      }
@@ -250,10 +258,20 @@ void GeminiRunBreakeven(ulong magic)
       double lock=GInpBreakevenLockPips*point*10;
       double risk=MathAbs(entry-sl); if(risk<=0) continue;
       double be=0; bool move=false;
+      long stopLevel = SymbolInfoInteger(sym, SYMBOL_TRADE_STOPS_LEVEL);
+      double minGap = MathMax((double)stopLevel * point, ask - bid) + 3.0 * point;
       if(pos_type==POSITION_TYPE_BUY)
-        { be=NormalizeDouble(entry+lock,digits); move=((bid-entry)/risk>=GInpBreakevenTriggerR&&sl<be); }
+        {
+         be=NormalizeDouble(entry+lock,digits);
+         if(be > bid - minGap) be = NormalizeDouble(bid - minGap, digits);
+         move=((bid-entry)/risk>=GInpBreakevenTriggerR&&sl<be);
+        }
       else
-        { be=NormalizeDouble(entry-lock,digits); move=((entry-ask)/risk>=GInpBreakevenTriggerR&&(sl==0||sl>be)); }
+        {
+         be=NormalizeDouble(entry-lock,digits);
+         if(be < ask + minGap) be = NormalizeDouble(ask + minGap, digits);
+         move=((entry-ask)/risk>=GInpBreakevenTriggerR&&(sl==0||sl>be));
+        }
       if(move)
         {
          MqlTradeRequest req={}; MqlTradeResult res={};
@@ -350,12 +368,51 @@ void GeminiInitKelly()
   }
 double GeminiKellyMultiplier() { return GInpEnableKellySizing?g_gemini_kelly_mult:1.0; }
 
+//+------------------------------------------------------------------+
+//| Adaptive close helper avoiding 10030 INVALID_FILL errors         |
+//+------------------------------------------------------------------+
+bool _GeminiClosePosition(ulong ticket, ulong deviation, const string comment)
+  {
+   if(!PositionSelectByTicket(ticket)) return false;
+   string sym = PositionGetString(POSITION_SYMBOL);
+   long ptype = PositionGetInteger(POSITION_TYPE);
+   ENUM_ORDER_TYPE otype = (ptype == POSITION_TYPE_BUY) ? ORDER_TYPE_SELL : ORDER_TYPE_BUY;
+   double price = (otype == ORDER_TYPE_SELL) ? SymbolInfoDouble(sym, SYMBOL_BID) : SymbolInfoDouble(sym, SYMBOL_ASK);
+   
+   MqlTradeRequest req = {};
+   MqlTradeResult res = {};
+   req.action = TRADE_ACTION_DEAL;
+   req.position = ticket;
+   req.symbol = sym;
+   req.volume = PositionGetDouble(POSITION_VOLUME);
+   req.deviation = deviation;
+   req.magic = PositionGetInteger(POSITION_MAGIC);
+   req.comment = comment;
+   req.type = otype;
+   req.price = price;
+   
+   uint fill = (uint)SymbolInfoInteger(sym, SYMBOL_FILLING_MODE);
+   if((fill & SYMBOL_FILLING_IOC) != 0) req.type_filling = ORDER_FILLING_IOC;
+   else if((fill & SYMBOL_FILLING_FOK) != 0) req.type_filling = ORDER_FILLING_FOK;
+   else req.type_filling = ORDER_FILLING_RETURN;
+   
+   bool ok = OrderSend(req, res);
+   if(!ok && res.retcode == TRADE_RETCODE_INVALID_FILL)
+     {
+      if(req.type_filling == ORDER_FILLING_IOC) req.type_filling = ORDER_FILLING_FOK;
+      else if(req.type_filling == ORDER_FILLING_FOK) req.type_filling = ORDER_FILLING_IOC;
+      ok = OrderSend(req, res);
+     }
+   return ok;
+  }
+
 //===================================================================
 //  9/18. TIME-BASED EXITS (v2 preserved)
 //===================================================================
 void GeminiRunTimeStops(ulong magic)
   {
    if(!GInpEnableTimeStops) return;
+   ENUM_TIMEFRAMES tf = (magic >= 55551 && magic <= 55554) ? PERIOD_D1 : PERIOD_M5;
    for(int i=PositionsTotal()-1;i>=0;i--)
      {
       ulong ticket=PositionGetTicket(i);
@@ -363,17 +420,12 @@ void GeminiRunTimeStops(ulong magic)
       if(PositionGetInteger(POSITION_MAGIC)!=(long)magic) continue;
       string sym=PositionGetString(POSITION_SYMBOL);
       datetime open_t=(datetime)PositionGetInteger(POSITION_TIME);
-      int bars=iBarShift(sym,PERIOD_CURRENT,open_t);
+      int bars=iBarShift(sym,tf,open_t);
       if(bars<GInpTimeStopBars) continue;
       double pnl=PositionGetDouble(POSITION_PROFIT)+PositionGetDouble(POSITION_SWAP);
       if(pnl>=0) continue;
-      MqlTradeRequest req={}; MqlTradeResult res={};
-      req.action=TRADE_ACTION_DEAL; req.position=ticket; req.symbol=sym;
-      req.volume=PositionGetDouble(POSITION_VOLUME); req.deviation=20; req.magic=magic;
-      req.comment="GEMINI_TIMESTOP"; req.type_filling=ORDER_FILLING_FOK;
-      req.type=(PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_BUY)?ORDER_TYPE_SELL:ORDER_TYPE_BUY;
-      req.price=(req.type==ORDER_TYPE_SELL)?SymbolInfoDouble(sym,SYMBOL_BID):SymbolInfoDouble(sym,SYMBOL_ASK);
-      if(OrderSend(req,res)) Print("[GEMINI] Time-stop closed ",sym," ticket=",ticket," P&L=",DoubleToString(pnl,2));
+      if(_GeminiClosePosition(ticket,20,"GEMINI_TIMESTOP"))
+         Print("[GEMINI] Time-stop closed ",sym," ticket=",ticket," P&L=",DoubleToString(pnl,2));
      }
   }
 
@@ -552,6 +604,10 @@ bool GeminiNewsPrepositionOpportunity(string symbol, ENUM_ORDER_TYPE &direction)
 void GeminiH1StructureExit(ulong magic)
   {
    if(!GInpEnableH1StructureExit) return;
+   // Daily swing strategies (e.g. GOLD_SWING) do not exit on 1-hour bar wiggles
+   if(magic >= 55551 && magic <= 55554) return;
+
+   int lookback = MathMax(2, GInpH1ExitLookback);
 
    for(int i = PositionsTotal()-1; i >= 0; i--)
      {
@@ -559,32 +615,31 @@ void GeminiH1StructureExit(ulong magic)
       if(!PositionSelectByTicket(ticket)) continue;
       if(PositionGetInteger(POSITION_MAGIC) != (long)magic) continue;
 
+      datetime pos_time = (datetime)PositionGetInteger(POSITION_TIME);
       string sym    = PositionGetString(POSITION_SYMBOL);
       long pos_type = PositionGetInteger(POSITION_TYPE);
 
-      // Get last completed H1 candles
-      double h1_close[], h1_open[];
-      ArrayResize(h1_close, GInpH1ExitLookback+1);
-      ArrayResize(h1_open,  GInpH1ExitLookback+1);
-      if(CopyClose(sym, PERIOD_H1, 1, GInpH1ExitLookback, h1_close) < GInpH1ExitLookback) continue;
-      if(CopyOpen(sym,  PERIOD_H1, 1, GInpH1ExitLookback, h1_open)  < GInpH1ExitLookback) continue;
+      // Bar 1 must have closed strictly after the position was opened
+      datetime bar1_time = iTime(sym, PERIOD_H1, 1);
+      if(bar1_time <= pos_time) continue;
 
-      // Check if last H1 bar closed against us
-      bool bearish_h1 = (h1_close[0] < h1_open[0]);
-      bool bullish_h1 = (h1_close[0] > h1_open[0]);
-      bool exit_long  = (pos_type == POSITION_TYPE_BUY  && bearish_h1);
-      bool exit_short = (pos_type == POSITION_TYPE_SELL && bullish_h1);
-
-      if(exit_long || exit_short)
+      // Require consecutive completed H1 bars closing against trade
+      bool all_against = true;
+      for(int b = 1; b <= lookback; b++)
         {
-         MqlTradeRequest req={}; MqlTradeResult res={};
-         req.action=TRADE_ACTION_DEAL; req.position=ticket; req.symbol=sym;
-         req.volume=PositionGetDouble(POSITION_VOLUME); req.deviation=20; req.magic=magic;
-         req.comment="GEMINI_H1_STRUCTURE"; req.type_filling=ORDER_FILLING_FOK;
-         req.type  = exit_long ? ORDER_TYPE_SELL : ORDER_TYPE_BUY;
-         req.price = exit_long ? SymbolInfoDouble(sym,SYMBOL_BID) : SymbolInfoDouble(sym,SYMBOL_ASK);
-         if(OrderSend(req,res))
-            Print("[GEMINI] H1 structure exit ",sym," ticket=",ticket," bearish_h1=",bearish_h1);
+         datetime bar_t = iTime(sym, PERIOD_H1, b);
+         if(bar_t <= pos_time) { all_against = false; break; }
+         double cb = iClose(sym, PERIOD_H1, b);
+         double ob = iOpen(sym, PERIOD_H1, b);
+         if(cb <= 0.0 || ob <= 0.0) { all_against = false; break; }
+         if(pos_type == POSITION_TYPE_BUY && cb >= ob) { all_against = false; break; }
+         if(pos_type == POSITION_TYPE_SELL && cb <= ob) { all_against = false; break; }
+        }
+
+      if(all_against)
+        {
+         if(_GeminiClosePosition(ticket, 20, "GEMINI_H1_STRUCTURE"))
+            Print("[GEMINI] H1 structure exit ",sym," ticket=",ticket," closed after ",lookback," adverse H1 bars");
         }
      }
   }

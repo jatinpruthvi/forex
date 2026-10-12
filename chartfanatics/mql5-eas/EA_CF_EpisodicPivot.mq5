@@ -312,7 +312,7 @@ private:
       MqlRates d[];
       if(EA_Rates(ctx.symbol, PERIOD_D1, 0, 24, d) < 22) return false;
 
-      double realVol = (double)iVolumeReal(ctx.symbol, PERIOD_D1, 1);
+      double realVol = (double)d[1].real_volume;
       double vol = (realVol > 0.0) ? realVol : (double)d[1].tick_volume;
       if(vol < InpNineMShares) return false;
 
