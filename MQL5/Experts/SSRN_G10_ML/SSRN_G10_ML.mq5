@@ -45,16 +45,18 @@ input group "=== Trading ==="
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H4;   // Signal timeframe
 input double   InpNotional  = 10000.0;  // Notional per trade, account currency
 input double   InpFixedLots = 0.0;      // Or fixed lots (0 = use notional)
-input int      InpMaxBarsIn = 0;        // Time stop, bars (0 = off)
+input int      InpMaxBarsIn = 18;       // Time stop, bars (= paper's 3-day vertical barrier on H4)
+input double   InpATR_SL    = 2.0;      // ATR stop multiple (0 = none; paper has none)
 
 input group "=== Guards ==="
 input long     InpMagic     = 94712;    // Magic number
 input double   InpMaxSpread = 30.0;     // Max spread, points (0 = off)
-input double   InpDailyLossPct = 3.0;   // Halt for the day at -x% (0 = off)
+input double   InpDailyLossPct = 2.0;   // Halt for the day at -x% (challenge: 2%)
 
 CTrade          g_trade;
 SSRN_LogitModel g_model;
 string          g_sym;
+int             g_atrHandle = INVALID_HANDLE;   // ATR indicator handle for the stop
 
 datetime g_lastBarTime  = 0;
 datetime g_dayStamp     = 0;
@@ -81,6 +83,13 @@ int OnInit()
    g_sym = Symbol();
    g_trade.SetExpertMagicNumber(InpMagic);
    g_trade.SetDeviationInPoints(20);
+
+   if(InpATR_SL > 0.0)
+     {
+      g_atrHandle = iATR(g_sym, InpTimeframe, 14);
+      if(g_atrHandle == INVALID_HANDLE)
+         Print("SSRN_G10_ML: could not create ATR handle - running without stop.");
+     }
 
    if(!g_model.Load(InpModelFile))
      {
@@ -148,11 +157,13 @@ double RateAt(const datetime t)
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+   if(g_atrHandle != INVALID_HANDLE) IndicatorRelease(g_atrHandle);
   }
 
 //+------------------------------------------------------------------+
 void OnTick()
   {
+   CloseIfHaltHit();                     // force-close if daily limit already breached
    datetime bar = iTime(g_sym, InpTimeframe, 0);
    if(bar == 0) return;
    if(bar == g_lastBarTime) return;
@@ -243,11 +254,12 @@ void OnTick()
    double lots = LotsFor();
    if(lots <= 0.0) return;
 
+   double sl = StopPrice(want);
    bool ok;
    if(want > 0)
-      ok = g_trade.Buy(lots, g_sym, SymbolInfoDouble(g_sym, SYMBOL_ASK), 0.0, 0.0, "SSRNML|");
+      ok = g_trade.Buy(lots, g_sym, SymbolInfoDouble(g_sym, SYMBOL_ASK), sl, 0.0, "SSRNML|");
    else
-      ok = g_trade.Sell(lots, g_sym, SymbolInfoDouble(g_sym, SYMBOL_BID), 0.0, 0.0, "SSRNML|");
+      ok = g_trade.Sell(lots, g_sym, SymbolInfoDouble(g_sym, SYMBOL_BID), sl, 0.0, "SSRNML|");
 
    if(ok)
      {
@@ -292,8 +304,33 @@ bool DailyHaltHit()
   {
    if(InpDailyLossPct <= 0.0) return false;
    if(g_dayStartEquity <= 0.0) return false;
-   double dd = (g_dayStartEquity - AccountInfoDouble(ACCOUNT_EQUITY)) / g_dayStartEquity * 100.0;
+   //--- only count this EA's own floating P/L
+   double floatingPl = 0.0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      if(PositionGetString(POSITION_SYMBOL) != g_sym) continue;
+      floatingPl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+     }
+   double dd = -floatingPl / g_dayStartEquity * 100.0;
    return (dd >= InpDailyLossPct);
+  }
+
+//--- force-close all our positions when the daily halt is hit
+void CloseIfHaltHit()
+  {
+   if(!DailyHaltHit()) return;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      if(PositionGetString(POSITION_SYMBOL) != g_sym) continue;
+      g_trade.PositionClose(t);
+     }
+   g_posDir = 0;
   }
 
 //+------------------------------------------------------------------+
@@ -330,6 +367,18 @@ void CloseMine()
      }
    g_posDir = 0;
    g_barsInTrade = 0;
+  }
+
+//+------------------------------------------------------------------+
+double StopPrice(const int dir)
+  {
+   if(InpATR_SL <= 0.0 || g_atrHandle == INVALID_HANDLE) return 0.0;
+   double buf[];
+   if(CopyBuffer(g_atrHandle, 0, 1, 1, buf) < 1) return 0.0;
+   double atr = buf[0];
+   if(atr <= 0.0) return 0.0;
+   if(dir > 0) return SymbolInfoDouble(g_sym, SYMBOL_BID) - atr * InpATR_SL;
+   return SymbolInfoDouble(g_sym, SYMBOL_ASK) + atr * InpATR_SL;
   }
 
 //+------------------------------------------------------------------+

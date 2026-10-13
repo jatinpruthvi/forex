@@ -44,20 +44,20 @@
 #include "../../Include/SSRN/SSRN_Momentum.mqh"
 
 input group "=== Signal ==="
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_D1;   // Signal timeframe
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H4;   // Signal timeframe (H4: 313-bar warmup ~ 52 trading days)
 input double   InpMinSignal  = 0.10;    // Ignore |signal| below this (hysteresis)
 input double   InpFlatBand   = 0.05;    // Go flat when |signal| drops below this
 
 input group "=== Sizing ==="
-input double   InpMaxFraction= 100.0;   // Max % of equity deployed at |signal| = 1
+input double   InpMaxFraction= 5.0;     // Max % of equity deployed at |signal| = 1 (challenge-safe)
 input double   InpFixedLots  = 0.0;     // Or a fixed lot size (0 = use fraction)
-input double   InpATR_SL     = 0.0;     // ATR stop multiple (0 = none, paper has none)
+input double   InpATR_SL     = 3.0;     // ATR stop multiple (0 = none, paper has none)
 
 input group "=== Guards ==="
 input int      InpAtrPeriod  = 14;      // ATR period for the optional stop
 input long     InpMagic      = 94711;   // Magic number
 input double   InpMaxSpread  = 30.0;    // Max spread, points (0 = off)
-input double   InpDailyLossPct= 3.0;    // Halt for the day at -x% (0 = off)
+input double   InpDailyLossPct= 2.0;    // Halt for the day at -x% (challenge: stricter than 3%)
 
 CTrade   g_trade;
 string   g_sym;
@@ -108,6 +108,7 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
   {
+   CloseIfHaltHit();                     // force-close if daily limit already breached
    datetime bar = iTime(g_sym, InpTimeframe, 0);
    if(bar == 0) return;
    if(bar == g_lastBarTime) return;
@@ -115,6 +116,7 @@ void OnTick()
 
    RollDay();
    if(DailyHaltHit()) return;
+
 
    double close[];
    int n = SSRN_CopyClose(g_sym, InpTimeframe, SSRN_MOM_MIN_BARS + 40, close);
@@ -192,8 +194,33 @@ bool DailyHaltHit()
   {
    if(InpDailyLossPct <= 0.0) return false;
    if(g_dayStartEquity <= 0.0) return false;
-   double dd = (g_dayStartEquity - AccountInfoDouble(ACCOUNT_EQUITY)) / g_dayStartEquity * 100.0;
+   //--- scope to this EA's positions only so other EAs don't trigger our halt
+   double floatingPl = 0.0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      if(PositionGetString(POSITION_SYMBOL) != g_sym) continue;
+      floatingPl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+     }
+   double dd = -floatingPl / g_dayStartEquity * 100.0;
    return (dd >= InpDailyLossPct);
+  }
+
+//--- force-close all our positions when the daily halt is hit
+void CloseIfHaltHit()
+  {
+   if(!DailyHaltHit()) return;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      if(PositionGetString(POSITION_SYMBOL) != g_sym) continue;
+      g_trade.PositionClose(t);
+     }
+   g_posDir = 0;
   }
 
 //+------------------------------------------------------------------+
@@ -281,10 +308,15 @@ void ManagePosition()
 
    //--- the paper's time-series book sizes the position by the signal
    double frac = MathMin(1.0, MathAbs(s));
-   double notional = AccountInfoDouble(ACCOUNT_EQUITY) * InpMaxFraction / 100.0 * frac;
-   if(notional <= 0.0) return;
-
-   double lots = LotsFor(notional);
+   double lots = 0.0;
+   if(InpFixedLots > 0.0)
+      lots = NormalizeDouble(InpFixedLots * frac, 2);
+   else
+     {
+      double notional = AccountInfoDouble(ACCOUNT_EQUITY) * InpMaxFraction / 100.0 * frac;
+      if(notional <= 0.0) return;
+      lots = LotsFor(notional);
+     }
    if(lots <= 0.0) return;
 
    double sl = StopPrice(want);

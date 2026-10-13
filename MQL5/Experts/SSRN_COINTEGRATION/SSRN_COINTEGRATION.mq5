@@ -60,14 +60,15 @@ input double   InpZEntry     = 1.0;        // Enter at |z| > this  (paper: 1)
 input double   InpZExit      = 0.3;        // Exit when |z| < this
 input int      InpExecLag    = 2;          // Bars to wait before acting (paper: 2)
 input int      InpMaxBarsIn  = 40;         // Time stop - max bars in a trade (0 = off)
-input int      InpMaxPairs   = 4;          // Max simultaneous pairs
-input double   InpNotionalLeg= 10000.0;    // Notional per leg, account currency
-input double   InpRiskPct    = 0.0;        // Or risk this % of equity per leg (overrides)
+input int      InpMaxPairs   = 2;          // Max simultaneous pairs (challenge: 2 max)
+input double   InpNotionalLeg= 1000.0;     // Notional per leg, account currency
+input double   InpRiskPct    = 0.5;        // Or risk this % of equity per leg (challenge default 0.5%)
 
 input group "=== Guards ==="
 input long     InpMagic      = 94710;      // Magic number
 input double   InpMaxSpread  = 30.0;       // Max spread, points (0 = off)
-input double   InpDailyLossPct= 3.0;       // Halt for the day at -x% (0 = off)
+input double   InpDailyLossPct= 2.0;       // Halt for the day at -x% (challenge: 2%)
+input double   InpPairLossPct = 1.0;       // Close pair if it loses this % of equity (0 = off)
 
 CTrade   g_trade;
 string   g_syms[7];
@@ -161,6 +162,7 @@ int OnInit()
    Print("SSRN_COINTEGRATION: ", g_nSyms, " symbols, ", g_nPairs, " unordered pairs, ",
          EnumToString(InpTimeframe), ", magic ", InpMagic);
 
+   ScreenAllPairs(); // initial screen on startup so pairs are ready immediately
    EventSetTimer(1);
    return(INIT_SUCCEEDED);
   }
@@ -186,6 +188,7 @@ void OnTimer()
 //+------------------------------------------------------------------+
 void Process()
   {
+   CloseIfHaltHit();                            // force-close if daily loss limit hit
    if(!SymbolInfoInteger(g_syms[0], SYMBOL_SELECT)) return;
 
    datetime bar = iTime(g_syms[0], InpTimeframe, 0);
@@ -227,8 +230,36 @@ bool DailyHaltHit()
   {
    if(InpDailyLossPct <= 0.0) return false;
    if(g_dayStartEquity <= 0.0) return false;
-   double dd = (g_dayStartEquity - AccountInfoDouble(ACCOUNT_EQUITY)) / g_dayStartEquity * 100.0;
+   //--- count only positions belonging to this EA
+   double floatingPl = 0.0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      floatingPl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+     }
+   double dd = -floatingPl / g_dayStartEquity * 100.0;
    return (dd >= InpDailyLossPct);
+  }
+
+//--- force-close all pair positions when daily halt is hit
+void CloseIfHaltHit()
+  {
+   if(!DailyHaltHit()) return;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+      g_trade.PositionClose(t);
+     }
+   for(int p = 0; p < g_nPairs; p++)
+     {
+      g_pairs[p].inTrade     = false;
+      g_pairs[p].dir         = 0;
+      g_pairs[p].barsInTrade = 0;
+     }
   }
 
 //+------------------------------------------------------------------+
@@ -378,9 +409,19 @@ datetime g_lastActBar = 0;
 bool LagElapsed()
   {
    datetime bar = iTime(g_syms[0], InpTimeframe, 0);
-   if(g_lastActBar == 0) { g_lastActBar = bar; return false; }
-   if(bar != g_lastActBar) { g_lastActBar = bar; return true; }
-   return true;
+   if(bar == 0) return false;
+   //--- on the very first call, record the bar and block (must wait at least one bar)
+   if(g_lastActBar == 0)
+     {
+      g_lastActBar = bar;
+      return false;
+     }
+   if(bar != g_lastActBar)
+     {
+      g_lastActBar = bar;
+      return true;
+     }
+   return false;   // same bar: lag not elapsed yet
   }
 
 //+------------------------------------------------------------------+
@@ -442,6 +483,27 @@ void ManageOpen()
       g_pairs[p].barsInTrade++;
 
       bool exit = false;
+
+      //--- per-pair loss guard
+      if(InpPairLossPct > 0.0 && g_dayStartEquity > 0.0)
+        {
+         double pairPl = 0.0;
+         string tag = PairTag(p);
+         for(int i = PositionsTotal() - 1; i >= 0; i--)
+           {
+            ulong t = PositionGetTicket(i);
+            if(t == 0) continue;
+            if(PositionGetInteger(POSITION_MAGIC) != InpMagic) continue;
+            if(PositionGetString(POSITION_COMMENT) != tag) continue;
+            pairPl += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+           }
+         if(-pairPl / g_dayStartEquity * 100.0 >= InpPairLossPct)
+           {
+            Print("Pair ", p, " ", g_pairs[p].a, "/", g_pairs[p].b,
+                  " hit per-pair loss limit (", InpPairLossPct, "%) - closing.");
+            exit = true;
+           }
+        }
 
       if(InpZExit > 0.0 && g_pairs[p].hasZ && MathAbs(g_pairs[p].z) < InpZExit)
          exit = true;
