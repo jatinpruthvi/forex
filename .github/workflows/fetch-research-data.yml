@@ -1,0 +1,52 @@
+name: Fetch research inputs (macro + tick quotes)
+
+# Research-only. Publishes free public inputs to the data/research-inputs branch (git hosts are reachable from the research sandbox;
+# FRED, CFTC and histdata.com are not). No credentials needed.
+#   macro/  FRED rate, dollar, VIX, curve series; CFTC COT financial-futures and commodity histories
+#   ticks/  histdata.com tick quotes reduced to 1-minute bid/ask OHLC + spread stats for a few pair-months
+# Consumers: curl -L https://codeload.github.com/<owner>/<repo>/tar.gz/refs/heads/data/research-inputs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/01a0ed1c-forex]
+    paths:
+      - .github/workflows/fetch-research-data.yml
+      - scripts/research-data/**
+
+permissions:
+  contents: write
+
+jobs:
+  macro:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch macro inputs
+        run: python3 scripts/research-data/fetch_macro.py
+      - name: Publish to data/research-inputs
+        shell: bash
+        run: |
+          set -e
+          GITHUB_TOKEN="${{ github.token }}" bash scripts/research-data/publish.sh out/macro macro "macro inputs (run ${GITHUB_RUN_ID})"
+
+  ticks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install histdata==1.1 pandas
+      - name: Fetch tick quotes (12 months, 4 pairs)
+        run: |
+          python scripts/research-data/fetch_ticks.py --pairs eurusd,gbpusd,usdjpy,audusd \
+            --months 2025-09,2025-10,2025-11,2025-12,2026-01,2026-02,2026-03,2026-04,2026-05,2026-06,2026-07,2026-08
+      - name: Publish to data/research-inputs
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          GITHUB_TOKEN="${{ github.token }}" bash scripts/research-data/publish.sh out/ticks ticks "tick minutes (run ${GITHUB_RUN_ID})"
